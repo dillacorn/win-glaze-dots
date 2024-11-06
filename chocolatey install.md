@@ -12,11 +12,26 @@ link: https://chocolatey.org/install
 
 `Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))`
 
-### my main chocolatey applications
-`choco install steam ungoogled-chromium librewolf mullvad-app wireguard alacritty 7zip.install notepadplusplus.install malwarebytes ccleaner filezilla gimp winscp.install spotify audacity vmware-tools imagemagick.app qbittorrent bitwarden telegram obs-studio obs-ndi ddu moonlight-qt.install flameshot Shotcut itch hwmonitor vmware-workstation-player qimgv localsend micro okular git mpv foobar2000 flac altsnap flow-launcher -y`
+### (main) chocolatey applications
+`choco install steam ungoogled-chromium librewolf alacritty 7zip.install notepadplusplus.install ccleaner krita spotify audacity imagemagick.app qbittorrent telegram obs-studio obs-ndi ddu moonlight-qt.install flameshot Shotcut itch hwmonitor qimgv localsend micro okular git mpv foobar2000 flac altsnap flow-launcher -y`
 
-### optional chocolatey applications
-`choco install powertoys microsoft-teams-new-bootstrapper directoryopus vlc putty everything amd-ryzen-chipset amd-ryzen-master sunshine samsung-magician ventoy auto-dark-mode files winspy -y`
+### (optional-additional) chocolatey applications
+`choco install microsoft-teams-new-bootstrapper directoryopus vlc gimp putty everything ventoy audiorelay filezilla winscp.install files winspy -y`
+
+### (optional-powertoys) applications (powertoys only functions if explorer.exe is not killed)
+`choco install powertoys -y`
+
+### (optional-security_VPN) chocolatey applications
+`choco install bitwarden wireguard mullvad-app malwarebytes -y`
+
+### (optional-virtual_machine_tool) chocolatey applications
+`choco install vmware-tools vmware-workstation-player -y`
+
+### (optional-hardware_specific) chocolatey applications
+`choco install amd-ryzen-chipset amd-ryzen-master sunshine samsung-magician -y`
+
+### (optional-applet) chocolatey applications (if you're killing explorer.exe may not need/want these)
+`choco install auto-dark-mode -y`
 
 ### Applications not provided by Chocolatey (manual install)
 Discord, Vencord (mod), onboard memory manager (logitech), tinywhoopgo, 
