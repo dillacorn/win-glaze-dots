@@ -1,9 +1,6 @@
 general:
   # Commands to run when the WM has started.
-  startup_commands: [
-    'shell-exec zebar',
-    # 'shell-exec taskkill /IM explorer.exe /F'  # Uncomment to kill explorer.exe at startup
-  ]
+  startup_commands: [ 'shell-exec zebar' ]
 
   # Commands to run just before the WM is shutdown.
   shutdown_commands: ['shell-exec taskkill /IM zebar.exe /F']
