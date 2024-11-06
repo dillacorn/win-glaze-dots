@@ -32,7 +32,7 @@ gaps:
   scale_with_dpi: true
 
   # Gap between adjacent windows.
-  inner_gap: '10px'
+  inner_gap: '15px'
 
   # Gap between windows and the screen edge.
   outer_gap:
@@ -183,13 +183,13 @@ keybindings:
 
   # Resize focused window by a percentage or pixel amount.
   - commands: ['resize --width -2%']
-    bindings: ['alt+u', 'alt+ctrl+left']
+    bindings: ['alt+y', 'alt+ctrl+left']
   - commands: ['resize --width +2%']
-    bindings: ['alt+p', 'alt+ctrl+right']
+    bindings: ['alt+o', 'alt+ctrl+right']
   - commands: ['resize --height +2%']
-    bindings: ['alt+o', 'alt+ctrl+down']
+    bindings: ['alt+i', 'alt+ctrl+down']
   - commands: ['resize --height -2%']
-    bindings: ['alt+i', 'alt+ctrl+up']
+    bindings: ['alt+u', 'alt+ctrl+up']
 
   # As an alternative to the resize keybindings above, resize mode enables
   # resizing via arrow keys or HJKL. The binding mode is defined above with
