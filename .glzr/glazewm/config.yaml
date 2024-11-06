@@ -136,6 +136,8 @@ window_rules:
         window_title: { regex: '.*? - Peek' }
       - window_process: { equals: 'Lively' }
         window_class: { regex: 'HwndWrapper' }
+      - window_process: { regex: '.*FluentSearch.*' }
+        window_title: { regex: '.*FluentSearch.*' }
 
 binding_modes:
   # When enabled, the focused window can be resized via arrow keys or HJKL.
