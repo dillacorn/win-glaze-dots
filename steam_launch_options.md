@@ -5,7 +5,7 @@ Notes From Repo: https://github.com/dillacorn/dill-win-dots
 ## Apex Legends ~ stretched 1440x1080 240hz
 ### patch apex videoconfig.txt then make read-only
 
-`micro C:\Users\username\Saved Games\Respawn\Apex\local\videoconfig.txt`
+`C:\Users\username\Saved Games\Respawn\Apex\local\videoconfig.txt`
 
 	"setting.defaultres"		"1440"
 	"setting.defaultresheight"		"1080"
