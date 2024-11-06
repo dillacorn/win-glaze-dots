@@ -1,6 +1,6 @@
 Notes From Repo: https://github.com/dillacorn/win-glaze-dots
 
-### before running launch option set a custom resolutions.
+### before running launch option set a working custom resolutions with your specific GPU drivers.
 
 ## Apex Legends ~ stretched 1440x1080 240hz
 ### patch apex videoconfig.txt then make read-only
