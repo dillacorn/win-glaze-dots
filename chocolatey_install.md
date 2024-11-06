@@ -34,4 +34,7 @@ link: https://chocolatey.org/install
 `choco install auto-dark-mode -y`
 
 ### Applications not provided by Chocolatey (manual install)
-Discord, Vencord (mod), onboard memory manager (logitech), tinywhoopgo, 
+Discord, Vencord (mod), onboard memory manager (logitech), tinywhoopgo, ButteryTaskbar2
+
+### butterytaskbar2 link: (used to )
+https://github.com/LuisThiamNye/ButteryTaskbar2
