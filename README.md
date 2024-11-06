@@ -5,3 +5,5 @@ glazewm and zebar dots for windows
 privacy-script.bat provided by privacy.sexy
 
 plus chocolatey install guide
+
+optimized with explorer.exe killed in mind...
