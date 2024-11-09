@@ -13,7 +13,7 @@ link: https://chocolatey.org/install
 `Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))`
 
 ### (main) chocolatey applications
-`choco install steam ungoogled-chromium librewolf alacritty 7zip.install notepadplusplus.install ccleaner krita spotify audacity imagemagick.app qbittorrent telegram obs-studio obs-ndi ddu moonlight-qt.install flameshot Shotcut itch hwmonitor qimgv localsend micro okular git mpv foobar2000 flac altsnap flow-launcher -y`
+`choco install steam ungoogled-chromium librewolf alacritty 7zip.install notepadplusplus.install ccleaner krita spotify audacity imagemagick.app qbittorrent telegram obs-studio obs-ndi ddu moonlight-qt.install flameshot Shotcut itch hwmonitor qimgv localsend micro okular git mpv foobar2000 flac altsnap flow-launcher eartrumpet -y`
 
 ### (optional-additional) chocolatey applications
 `choco install microsoft-teams-new-bootstrapper teamviewer directoryopus vlc gimp putty everything ventoy audiorelay filezilla winscp.install files winspy -y`
