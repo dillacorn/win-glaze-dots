@@ -26,7 +26,7 @@ general:
 
 gaps:
   # Whether to scale the gaps with the DPI of the monitor.
-  scale_with_dpi: true
+  scale_with_dpi: false
 
   # Gap between adjacent windows.
   inner_gap: '15px'
@@ -55,19 +55,19 @@ window_effects:
     # Change the corner style of the window's frame.
     # ** Exclusive to Windows 11 due to API limitations.
     corner_style:
-      enabled: true
+      enabled: false
       # Allowed values: 'square', 'rounded', 'small_rounded'.
       style: 'square'
 
   # Visual effects to apply to non-focused windows.
   other_windows:
     border:
-      enabled: true
+      enabled: false
       color: '#a1a1a1'
     hide_title_bar:
       enabled: false
     corner_style:
-      enabled: true
+      enabled: false
       style: 'square'
 
 window_behavior:
@@ -81,7 +81,7 @@ window_behavior:
   state_defaults:
     floating:
       # Whether to center floating windows by default.
-      centered: true
+      centered: false
 
       # Whether to show floating windows as always on top.
       shown_on_top: true
@@ -133,13 +133,18 @@ window_rules:
         window_title: { regex: '.*? - Peek' }
       - window_process: { equals: 'Lively' }
         window_class: { regex: 'HwndWrapper' }
-
+      
   - commands: ['set-floating --centered']
     match:
       # Set EarTrumpet's "Volume Mixer" window to float and center it
       - window_title: { regex: 'Volume Mixer' }
       - window_process: { equals: 'EarTrumpet' }
-  
+
+  - commands: ['set-floating']
+    match:
+      # The Finals
+      - window_process: { equals: 'Discovery.exe' }
+      
 binding_modes:
   # When enabled, the focused window can be resized via arrow keys or HJKL.
   - name: 'resize'
@@ -258,25 +263,25 @@ keybindings:
     bindings: ['alt+ctrl+z']
 
   # Change focus to a workspace defined in `workspaces` config.
-  - commands: ['focus --workspace 1']
+  - commands: ['focus --workspace 1', 'wm-redraw']
     bindings: ['alt+1']
-  - commands: ['focus --workspace 2']
+  - commands: ['focus --workspace 2', 'wm-redraw']
     bindings: ['alt+2']
-  - commands: ['focus --workspace 3']
+  - commands: ['focus --workspace 3', 'wm-redraw']
     bindings: ['alt+3']
-  - commands: ['focus --workspace 4']
+  - commands: ['focus --workspace 4', 'wm-redraw']
     bindings: ['alt+4']
-  - commands: ['focus --workspace 5']
+  - commands: ['focus --workspace 5', 'wm-redraw']
     bindings: ['alt+5']
-  - commands: ['focus --workspace 6']
+  - commands: ['focus --workspace 6', 'wm-redraw']
     bindings: ['alt+6']
-  - commands: ['focus --workspace 7']
+  - commands: ['focus --workspace 7', 'wm-redraw']
     bindings: ['alt+7']
-  - commands: ['focus --workspace 8']
+  - commands: ['focus --workspace 8', 'wm-redraw']
     bindings: ['alt+8']
-  - commands: ['focus --workspace 9']
+  - commands: ['focus --workspace 9', 'wm-redraw']
     bindings: ['alt+9']
-  - commands: ['focus --workspace 10']
+  - commands: ['focus --workspace 10', 'wm-redraw']
     bindings: ['alt+0']
 
   # Move the focused window's parent workspace to a monitor in a given
