@@ -1,10 +1,6 @@
 general:
   # Commands to run when the WM has started.
-  startup_commands: [
-    'shell-exec explorer.exe',  # Ensure explorer.exe is running initially for Zebar
-    'shell-exec ping -n 3 127.0.0.1 > nul',  # Wait a few seconds for explorer.exe to stabilize
-    'shell-exec zebar'  # Start Zebar with explorer.exe active
-  ]
+  startup_commands: ['shell-exec zebar']
 
   # Commands to run just before the WM is shutdown.
   shutdown_commands: ['shell-exec taskkill /IM zebar.exe /F']
@@ -143,7 +139,7 @@ window_rules:
       # Set EarTrumpet's "Volume Mixer" window to float and center it
       - window_title: { regex: 'Volume Mixer' }
       - window_process: { equals: 'EarTrumpet' }
-
+  
 binding_modes:
   # When enabled, the focused window can be resized via arrow keys or HJKL.
   - name: 'resize'
