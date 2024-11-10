@@ -138,11 +138,11 @@ window_rules:
       - window_process: { equals: 'Lively' }
         window_class: { regex: 'HwndWrapper' }
 
-      # Set EarTrumpet's "Volume Mixer" window to float
-      - commands: ['set-floating --centered']
-        match:
-          - window_title: { equals: 'Volume Mixer' }
-            window_process: { equals: 'EarTrumpet' }
+  - commands: ['set-floating --centered']
+    match:
+      # Set EarTrumpet's "Volume Mixer" window to float and center it
+      - window_title: { regex: 'Volume Mixer' }
+      - window_process: { equals: 'EarTrumpet' }
 
 binding_modes:
   # When enabled, the focused window can be resized via arrow keys or HJKL.
