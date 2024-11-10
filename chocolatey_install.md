@@ -16,7 +16,7 @@ link: https://chocolatey.org/install
 `choco install steam ungoogled-chromium librewolf alacritty 7zip.install notepadplusplus.install ccleaner krita spotify audacity imagemagick.app qbittorrent telegram obs-studio obs-ndi ddu moonlight-qt.install flameshot Shotcut itch hwmonitor qimgv localsend micro okular git mpv foobar2000 flac altsnap flow-launcher eartrumpet -y`
 
 ### (optional-additional) chocolatey applications
-`choco install microsoft-teams-new-bootstrapper teamviewer directoryopus vlc gimp putty everything ventoy audiorelay filezilla winscp.install files winspy -y`
+`choco install microsoft-teams-new-bootstrapper teamviewer directoryopus vlc gimp putty everything ventoy audiorelay filezilla winscp.install files winspy winlister -y`
 
 ### (optional-powertoys) applications (powertoys only functions if explorer.exe is not killed)
 `choco install powertoys -y`
