@@ -36,6 +36,9 @@ link: https://chocolatey.org/install
 ### (optional-applet) chocolatey applications (if you're killing explorer.exe may not need/want these)
 `choco install auto-dark-mode -y`
 
+### butterytaskbar2 link: (used to )
+https://github.com/LuisThiamNye/ButteryTaskbar2
+
 ### Applications not provided by Chocolatey (manual install)
 Discord, Vencord (mod), onboard memory manager (logitech), AltSnap (no maintaner on choco), 
 
