@@ -37,4 +37,7 @@ link: https://chocolatey.org/install
 `choco install auto-dark-mode -y`
 
 ### Applications not provided by Chocolatey (manual install)
-Discord, Vencord (mod), onboard memory manager (logitech), tinywhoopgo, AltSnap,
+Discord, Vencord (mod), onboard memory manager (logitech), AltSnap (no maintaner on choco), 
+
+### Gaming apps
+tinywhoopgo, 
