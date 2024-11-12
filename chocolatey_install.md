@@ -15,31 +15,49 @@ then `Set-ExecutionPolicy AllSigned -Scope CurrentUser`
 link: https://chocolatey.org/install
 
 ### (main) chocolatey applications
-`choco install steam ungoogled-chromium librewolf alacritty 7zip.install notepadplusplus.install ccleaner krita spotify audacity imagemagick.app qbittorrent telegram obs-studio obs-ndi ddu moonlight-qt.install flameshot Shotcut itch hwmonitor qimgv localsend micro okular mpv foobar2000 flac flow-launcher eartrumpet -y`
+```choco_install
+choco install steam ungoogled-chromium librewolf alacritty 7zip.install notepadplusplus.install ccleaner krita spotify audacity imagemagick.app qbittorrent telegram obs-studio obs-ndi ddu moonlight-qt.install flameshot Shotcut itch hwmonitor qimgv localsend micro okular mpv foobar2000 flac flow-launcher eartrumpet -y
+```
 
 ### (optional-additional) chocolatey applications
-`choco install microsoft-teams-new-bootstrapper teamviewer directoryopus vlc gimp putty everything ventoy audiorelay filezilla winscp.install files winspy -y`
+```choco_install
+choco install microsoft-teams-new-bootstrapper teamviewer directoryopus vlc gimp putty everything ventoy audiorelay filezilla winscp.install files winspy -y
+```
 
 ### (optional-powertoys) applications (powertoys only functions if explorer.exe is not killed)
-`choco install powertoys -y`
+```choco_install
+choco install powertoys -y
+```
 
 ### (optional-3D_Printing) chocolatey applications
-`choco install cura-new -y`
+```choco_install
+choco install cura-new -y`
+```
 
 ### (optional-security_VPN) chocolatey applications
-`choco install bitwarden wireguard mullvad-app malwarebytes -y`
+```choco_install
+choco install bitwarden wireguard mullvad-app malwarebytes -y
+```
 
 ### (optional-virtual_machine_tool) chocolatey applications
-`choco install vmware-tools vmware-workstation-player -y`
+```choco_install
+choco install vmware-tools vmware-workstation-player -y
+```
 
 ### (optional-hardware_specific) chocolatey applications
-`choco install amd-ryzen-chipset amd-ryzen-master sunshine samsung-magician -y`
+```choco_install
+choco install amd-ryzen-chipset amd-ryzen-master sunshine samsung-magician -y
+```
 
 ### (optional-applet) chocolatey applications (if you're killing explorer.exe may not need/want these)
-`choco install auto-dark-mode -y`
+```choco_install
+choco install auto-dark-mode -y
+```
 
 ### (optional-dev_tools) chocolatey applications
-`choco install git make mingw -y`
+```choco_install
+choco install git make mingw -y
+```
 
 ### butterytaskbar2 link: (used to )
 https://github.com/LuisThiamNye/ButteryTaskbar2
@@ -51,8 +69,8 @@ Discord, Vencord (mod), onboard memory manager (logitech), AltSnap (no maintaner
 tinywhoopgo, 
 
 ### AltSnap Build From source for Linux-wm Alt resize/move behavior!
-(need git, make and mingw!)
-open powershell or alacritty with elevated privledges!
+(need `git`, `make` and `mingw`!)
+open `powershell` or `alacritty` with elevated privledges!
 
 ```commands
 cd ~/Downloads
