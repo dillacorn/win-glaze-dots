@@ -45,7 +45,34 @@ link: https://chocolatey.org/install
 https://github.com/LuisThiamNye/ButteryTaskbar2
 
 ### Applications not provided by Chocolatey (manual install)
-Discord, Vencord (mod), onboard memory manager (logitech), AltSnap (no maintaner on choco), 
+Discord, Vencord (mod), onboard memory manager (logitech), AltSnap (no maintaner on choco..+Build from Source), 
 
 ### Gaming apps
 tinywhoopgo, 
+
+### AltSnap Build From source for Linux-wm Alt resize/move behavior!
+(need git, make and mingw!)
+open powershell or alacritty with elevated privledges!
+
+```commands
+cd ~/Downloads
+git clone https://github.com/RamonUnch/AltSnap
+cd AltSnap
+```
+
+Follow build directions for your CPU hardware ("x86_64 GCC")
+https://github.com/RamonUnch/AltSnap?tab=readme-ov-file#build
+
+```commands
+make -fMakefileX64
+```
+
+AltSnap successfully built!
+Now move AltSnap to correct directory
+
+```commands
+mv ~/Downloads/AltSnap C:\Program Files\AltSnap
+```
+
+Run .exe and configure AltSnap appropriatly
+
