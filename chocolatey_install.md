@@ -45,7 +45,7 @@ choco install cura-new -y`
 
 ### (optional-security_VPN) chocolatey applications
 ```choco_install
-choco install bitwarden wireguard mullvad-app malwarebytes -y
+choco install bitwarden keepassxc wireguard mullvad-app malwarebytes -y
 ```
 
 ### (optional-virtual_machine_tool) chocolatey applications
