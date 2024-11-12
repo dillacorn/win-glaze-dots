@@ -15,7 +15,7 @@ then `Set-ExecutionPolicy AllSigned -Scope CurrentUser`
 link: https://chocolatey.org/install
 
 ### (main) chocolatey applications
-`choco install steam ungoogled-chromium librewolf alacritty 7zip.install notepadplusplus.install ccleaner krita spotify audacity imagemagick.app qbittorrent telegram obs-studio obs-ndi ddu moonlight-qt.install flameshot Shotcut itch hwmonitor qimgv localsend micro okular git mpv foobar2000 flac flow-launcher eartrumpet -y`
+`choco install steam ungoogled-chromium librewolf alacritty 7zip.install notepadplusplus.install ccleaner krita spotify audacity imagemagick.app qbittorrent telegram obs-studio obs-ndi ddu moonlight-qt.install flameshot Shotcut itch hwmonitor qimgv localsend micro okular mpv foobar2000 flac flow-launcher eartrumpet -y`
 
 ### (optional-additional) chocolatey applications
 `choco install microsoft-teams-new-bootstrapper teamviewer directoryopus vlc gimp putty everything ventoy audiorelay filezilla winscp.install files winspy -y`
@@ -37,6 +37,9 @@ link: https://chocolatey.org/install
 
 ### (optional-applet) chocolatey applications (if you're killing explorer.exe may not need/want these)
 `choco install auto-dark-mode -y`
+
+### (optional-dev_tools) chocolatey applications
+`choco install git make -y`
 
 ### butterytaskbar2 link: (used to )
 https://github.com/LuisThiamNye/ButteryTaskbar2
