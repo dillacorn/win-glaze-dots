@@ -14,8 +14,6 @@ then `Set-ExecutionPolicy AllSigned -Scope CurrentUser`
 ### run provided execution script by Chocolatey
 link: https://chocolatey.org/install
 
-`Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))`
-
 ### (main) chocolatey applications
 `choco install steam ungoogled-chromium librewolf alacritty 7zip.install notepadplusplus.install ccleaner krita spotify audacity imagemagick.app qbittorrent telegram obs-studio obs-ndi ddu moonlight-qt.install flameshot Shotcut itch hwmonitor qimgv localsend micro okular git mpv foobar2000 flac flow-launcher eartrumpet -y`
 
