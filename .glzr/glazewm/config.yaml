@@ -166,7 +166,7 @@ binding_modes:
   - name: "pause"
     keybindings:
       - commands: ["wm-disable-binding-mode --name pause"]
-        bindings: ["alt+shift+p"]
+        bindings: ["alt+shift+z"]
 
 keybindings:
   # Shift focus in a given direction.
@@ -207,7 +207,7 @@ keybindings:
 
   # Disables all keybindings until alt+shift+p is pressed again.
   - commands: ["wm-enable-binding-mode --name pause"]
-    bindings: ["alt+shift+p"]
+    bindings: ["alt+shift+z"]
 
   # Change tiling direction. This determines where new tiling windows will
   # be inserted.
