@@ -117,6 +117,11 @@ workspaces:
     display_name: "10: Rec"
 
 window_rules:
+  - commands: ["move --workspace 1"]
+    match:
+      # Move browsers to workspace 2.
+      - window_process: { regex: "Moonlight" }
+
   - commands: ["move --workspace 2"]
     match:
       # Move browsers to workspace 2.
@@ -132,15 +137,35 @@ window_rules:
       # Move Steam, itch, epic to workspace 4.
       - window_process: { regex: "steamwebhelper|EpicGamesLauncher|itch" }
 
+  - commands: ["move --workspace 5"]
+    match:
+      # Move spotify to workspace 5.
+      - window_process: { regex: "Spotify" }
+
   - commands: ["move --workspace 6"]
     match:
       # Move telegram to workspace 6.
       - window_process: { regex: "Telegram" }
 
-  - commands: ["move --workspace 5"]
+  - commands: ["move --workspace 8"]
     match:
-      # Move spotify to workspace 5.
-      - window_process: { regex: "Spotify" }
+      # Move teams to workspace 8.
+      - window_process: { regex: "msedgewebview2" }
+
+  - commands: ["move --workspace 9"]
+    match:
+      # Move shotcut to workspace 9.
+      - window_process: { regex: "shotcut" }
+
+  - commands: ["move --workspace 9"]
+    match:
+      # Move shotcut to workspace 9.
+      - window_process: { regex: "krita" }
+
+  - commands: ["move --workspace 10"]
+    match:
+      # Move obs to workspace 10.
+      - window_process: { regex: "obs64" }
 
   - commands: ["ignore"]
     match:
