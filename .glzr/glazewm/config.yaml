@@ -117,6 +117,31 @@ workspaces:
     display_name: "10: Rec"
 
 window_rules:
+  - commands: ["move --workspace 2"]
+    match:
+      # Move browsers to workspace 2.
+      - window_process: { regex: "librewolf|chrome" }
+
+  - commands: ["move --workspace 3"]
+    match:
+      # Move discord to workspace 3.
+      - window_process: { regex: "Discord" }
+
+  - commands: ["move --workspace 4"]
+    match:
+      # Move Steam, itch, epic to workspace 4.
+      - window_process: { regex: "steamwebhelper|EpicGamesLauncher|itch" }
+
+  - commands: ["move --workspace 6"]
+    match:
+      # Move telegram to workspace 6.
+      - window_process: { regex: "Telegram" }
+
+  - commands: ["move --workspace 5"]
+    match:
+      # Move spotify to workspace 5.
+      - window_process: { regex: "Spotify" }
+
   - commands: ["ignore"]
     match:
       # Ignores any Zebar windows.
@@ -133,6 +158,11 @@ window_rules:
         window_title: { regex: ".*? - Peek" }
       - window_process: { equals: "Lively" }
         window_class: { regex: "HwndWrapper" }
+
+  - commands: ["set-floating"]
+    match:
+      - window_process: { equals: "Flow.Launcher" }
+        window_title: { equals: "Settings" }
       
   - commands: ["set-floating --centered"]
     match:
