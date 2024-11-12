@@ -161,7 +161,7 @@ binding_modes:
       - commands: ["wm-disable-binding-mode --name resize"]
         bindings: ["escape", "enter"]
 
-  # When enabled, all keybindings are disabled except for alt+shift+p which
+  # When enabled, all keybindings are disabled except for alt+shift+z which
   # returns to default keybindings.
   - name: "pause"
     keybindings:
@@ -205,7 +205,7 @@ keybindings:
   - commands: ["wm-enable-binding-mode --name resize"]
     bindings: ["alt+shift+r"]
 
-  # Disables all keybindings until alt+shift+p is pressed again.
+  # Disables all keybindings until alt+shift+z is pressed again.
   - commands: ["wm-enable-binding-mode --name pause"]
     bindings: ["alt+shift+z"]
 
