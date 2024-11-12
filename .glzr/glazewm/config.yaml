@@ -198,7 +198,7 @@ window_rules:
   - commands: ["set-floating"]
     match:
       # The Finals
-      - window_process: { equals: "Discovery.exe" }
+      - window_process: { equals: "Discovery" }
       
 binding_modes:
   # When enabled, the focused window can be resized via arrow keys or HJKL.
