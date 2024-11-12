@@ -63,7 +63,7 @@ choco install amd-ryzen-chipset amd-ryzen-master sunshine samsung-magician -y
 choco install auto-dark-mode -y
 ```
 
-### (optional-dev_tools) chocolatey applications
+### (optional-dev_cli_tools) chocolatey applications
 ```choco_install
 choco install git make mingw -y
 ```
