@@ -39,7 +39,7 @@ link: https://chocolatey.org/install
 `choco install auto-dark-mode -y`
 
 ### (optional-dev_tools) chocolatey applications
-`choco install git make -y`
+`choco install git make mingw -y`
 
 ### butterytaskbar2 link: (used to )
 https://github.com/LuisThiamNye/ButteryTaskbar2
