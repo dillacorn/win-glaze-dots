@@ -16,7 +16,7 @@ link: https://chocolatey.org/install
 
 ### (main) chocolatey applications
 ```choco_install
-choco install steam ungoogled-chromium librewolf alacritty 7zip.install notepadplusplus.install ccleaner krita spotify audacity imagemagick.app qbittorrent telegram obs-studio obs-ndi ddu moonlight-qt.install flameshot Shotcut itch hwmonitor qimgv localsend micro okular mpv foobar2000 flac flow-launcher eartrumpet -y
+choco install steam ungoogled-chromium librewolf alacritty 7zip.install notepadplusplus.install ccleaner krita spotify audacity imagemagick.app qbittorrent telegram obs-studio obs-ndi ddu moonlight-qt.install flameshot screentogif Shotcut itch hwmonitor qimgv localsend micro okular mpv foobar2000 flac flow-launcher eartrumpet -y
 ```
 
 ### (optional-additional) chocolatey applications
