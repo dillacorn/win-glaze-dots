@@ -14,6 +14,8 @@ then `Set-ExecutionPolicy AllSigned -Scope CurrentUser`
 ### run provided execution script by Chocolatey
 link: https://chocolatey.org/install
 
+---
+
 ### (main) chocolatey applications
 ```choco_install
 choco install steam ungoogled-chromium librewolf alacritty 7zip.install notepadplusplus.install ccleaner krita spotify audacity imagemagick.app qbittorrent telegram obs-studio obs-ndi ddu moonlight-qt.install flameshot screentogif Shotcut itch hwmonitor qimgv localsend micro okular mpv foobar2000 flac flow-launcher eartrumpet -y
@@ -59,14 +61,22 @@ choco install auto-dark-mode -y
 choco install git make mingw -y
 ```
 
+---
+
 ### butterytaskbar2 link: (used to )
 https://github.com/LuisThiamNye/ButteryTaskbar2
+
+---
 
 ### Applications not provided by Chocolatey (manual install)
 Discord, Vencord (mod), onboard memory manager (logitech), AltSnap (no maintaner on choco..+Build from Source), 
 
+---
+
 ### Gaming apps
 tinywhoopgo, 
+
+---
 
 ### AltSnap Build From source for Linux-wm Alt resize/move behavior!
 (need `git`, `make` and `mingw`!)
