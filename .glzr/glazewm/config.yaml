@@ -119,7 +119,7 @@ workspaces:
 window_rules:
   - commands: ["move --workspace 1"]
     match:
-      # Move browsers to workspace 2.
+      # Move moonlight to workspace 1.
       - window_process: { regex: "Moonlight" }
 
   - commands: ["move --workspace 2"]
@@ -149,8 +149,8 @@ window_rules:
 
   - commands: ["move --workspace 8"]
     match:
-      # Move teams to workspace 8.
-      - window_process: { regex: "msedgewebview2" }
+      # Move microsoft teams to workspace 8.
+      - window_process: { regex: "ms-teams" }
 
   - commands: ["move --workspace 9"]
     match:
