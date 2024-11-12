@@ -4,6 +4,10 @@
 ### unlock restrictions
 `Set-ExecutionPolicy AllSigned`
 
+if `RemoteSigned`
+
+then `Set-ExecutionPolicy AllSigned -Scope CurrentUser`
+
 ### check restrictions again to make sure it's AllSigned
 `Get-ExecutionPolicy`
 
