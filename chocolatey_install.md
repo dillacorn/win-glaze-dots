@@ -76,7 +76,7 @@ https://github.com/LuisThiamNye/ButteryTaskbar2
 ---
 
 ### Applications not provided by Chocolatey (manual install)
-Discord, Vencord (mod), onboard memory manager (logitech), AltSnap (no maintaner on choco..+Build from Source), 
+Discord, Vencord (mod), onboard memory manager (logitech), AltSnap (dev having issues with choco so not updated fully), 
 
 ---
 
