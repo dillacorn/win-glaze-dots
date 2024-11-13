@@ -1,5 +1,7 @@
 Notes From Repo: https://github.com/dillacorn/win-glaze-dots
 
+# Install Chocolatey
+
 ### check restrictions
 `Get-ExecutionPolicy`
 
@@ -76,7 +78,7 @@ https://github.com/LuisThiamNye/ButteryTaskbar2
 ---
 
 ### Applications not provided by Chocolatey (manual install)
-Discord, Vencord (mod), onboard memory manager (logitech), AltSnap (dev having issues with choco so not updated fully), 
+Discord, Vencord (mod), onboard memory manager (logitech) ~ (on scoop), AltSnap (1.64 and newer), feishin (on scoop), 
 
 ---
 
