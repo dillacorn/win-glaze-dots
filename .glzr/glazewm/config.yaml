@@ -184,6 +184,9 @@ window_rules:
       - window_process: { equals: "Lively" }
         window_class: { regex: "HwndWrapper" }
 
+      # The Finals
+      - window_process: { equals: "Discovery" }
+
   - commands: ["set-floating"]
     match:
       - window_process: { equals: "Flow.Launcher" }
@@ -194,11 +197,6 @@ window_rules:
       # Set EarTrumpet"s "Volume Mixer" window to float and center it
       - window_title: { regex: "Volume Mixer" }
       - window_process: { equals: "EarTrumpet" }
-
-  - commands: ["set-floating"]
-    match:
-      # The Finals
-      - window_process: { equals: "Discovery" }
       
 binding_modes:
   # When enabled, the focused window can be resized via arrow keys or HJKL.
