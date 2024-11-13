@@ -200,7 +200,7 @@ window_rules:
       
   - commands: ["set-floating --centered"]
     match:
-      # Set EarTrumpet"s "Volume Mixer" window to float and center it
+      # Set EarTrumpets "Volume Mixer" window to float and center it
       - window_title: { regex: "Volume Mixer" }
       - window_process: { equals: "EarTrumpet" }
       
