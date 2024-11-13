@@ -142,6 +142,11 @@ window_rules:
       # Move spotify to workspace 5.
       - window_process: { regex: "Spotify" }
 
+  - commands: ["move --workspace 5"]
+    match:
+      # Move spotify to workspace 5.
+      - window_process: { regex: "Feishin" }
+
   - commands: ["move --workspace 6"]
     match:
       # Move telegram to workspace 6.
