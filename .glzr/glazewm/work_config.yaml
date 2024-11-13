@@ -144,7 +144,7 @@ window_rules:
       # Move pdf viewer/editors to workspace 5.
       - window_process: { regex: "PDFXEdit|SumatraPDF|okular|Acrobat" }
       
-        - commands: ["move --workspace 6"]
+  - commands: ["move --workspace 6"]
     match:
       # Move microsoft office applications to workspace 6.
       - window_process: { regex: "WINWORD|EXCEL|MSPUB|MSACCESS|soffice" }
