@@ -174,8 +174,8 @@ window_rules:
       
   - commands: ["set-floating"]
     match:
-      # Set EarTrumpets "Volume Mixer" window to float and center it
-      - window_process: { equals: "EarTrumpet" }
+      # Set acad software windows to float
+      - window_process: { equals: "acad" }
       
 binding_modes:
   # When enabled, the focused window can be resized via arrow keys or HJKL.
