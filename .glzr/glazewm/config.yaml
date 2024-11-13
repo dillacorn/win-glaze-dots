@@ -184,13 +184,14 @@ window_rules:
       - window_process: { equals: "Lively" }
         window_class: { regex: "HwndWrapper" }
 
-      # The Finals
-      - window_process: { equals: "Discovery" }
-
   - commands: ["set-floating"]
     match:
+      # Flow-Launcher
       - window_process: { equals: "Flow.Launcher" }
         window_title: { equals: "Settings" }
+
+      # The Finals
+      - window_process: { equals: "Discovery" }
       
   - commands: ["set-floating --centered"]
     match:
