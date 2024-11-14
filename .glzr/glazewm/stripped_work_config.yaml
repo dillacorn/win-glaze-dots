@@ -138,7 +138,7 @@ window_rules:
   - commands: ["move --workspace 4"]
     match:
       # Move browsers to workspace 4.
-      - window_process: { regex: "librewolf|chrome|firefox" }
+      - window_process: { regex: "librewolf|firefox|chrome|brave" }
       
   - commands: ["move --workspace 5"]
     match:

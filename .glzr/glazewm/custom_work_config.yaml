@@ -149,7 +149,7 @@ window_rules:
   - commands: ["move --workspace 6"]
     match:
       # Move chromium based browsers to workspace 6.
-      - window_process: { regex: "chrome" }
+      - window_process: { regex: "chrome|brave" }
 
   - commands: ["move --workspace 7"]
     match:
