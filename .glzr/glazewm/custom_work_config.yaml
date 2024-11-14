@@ -99,9 +99,9 @@ window_behavior:
 
 workspaces:
   - name: "1"
-    display_name: "1: TEAMS"
+    display_name: "1: CHATS"
   - name: "2"
-    display_name: "2: ACAD"
+    display_name: "2: WORK"
   - name: "3"
     display_name: "3: MAIL"
   - name: "4"
@@ -115,9 +115,9 @@ workspaces:
   - name: "8"
     display_name: "8:  PDF "
   - name: "9"
-    display_name: "9:    "
+    display_name: "9:     "
   - name: "10"
-    display_name: "10:    "
+    display_name: "10:     "
 
 # My Configuration: Three physical displays/monitors
 window_rules:
