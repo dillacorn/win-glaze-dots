@@ -101,32 +101,25 @@ workspaces:
   - name: "1"
     display_name: "1: TEAMS"
   - name: "2"
-    display_name: "2: OFFICE"
+    display_name: "2: ACAD"
   - name: "3"
-    display_name: "3:    "
+    display_name: "3: OUTLOOK"
   - name: "4"
-    display_name: "4: ACAD"
+    display_name: "4: FILES"
   - name: "5"
-    display_name: "5:    "
+    display_name: "5: BROWSER"
   - name: "6"
-    display_name: "6:    "
+    display_name: "6:     "
   - name: "7"
-    display_name: "7: OUTLOOK"
+    display_name: "7: OFFICE"
   - name: "8"
     display_name: "8: PDF"
   - name: "9"
-    display_name: "9: FIREF"
+    display_name: "9:    "
   - name: "10"
-    display_name: "10: CHROME"
+    display_name: "10:    "
 
 # My Configuration: Three physical displays/monitors
-# Workspace 1, 2 & 3 on Monitor #1 (left) ~ primarily used for chat and files and ms-office applications.
-# Workspace 4, 5 & 6 on Monitor #2 (middle) ~ primarily used for working tasks.
-# Workspace 7, 8, 9 & 10 on Monitor #3 (right) ~ combination of notes, applications and working tasks.
-
-# Blank space workspaces (used for anything) = 3, 5, & 6.
-# Tried to use WM in stagnant # order but it wasn't computing/vibing with my conscience... so leaving the #s ordered per monitor.
-
 window_rules:
   - commands: ["move --workspace 1"]
     match:
@@ -135,33 +128,33 @@ window_rules:
 
   - commands: ["move --workspace 2"]
     match:
-      # Move microsoft office applications to workspace 2.
-      - window_process: { regex: "WINWORD|EXCEL|MSPUB|MSACCESS|soffice|wordpad" }
-
+      # Move autocad to workspace 2.
+      - window_process: { regex: "acad" }
+      
+  - commands: ["move --workspace 3"]
+    match:
+      # Move outlook to workspace 3.
+      - window_process: { regex: "OUTLOOK" }
+    
   - commands: ["move --workspace 4"]
     match:
-      # Move autocad to workspace 4.
-      - window_process: { regex: "acad" }
+      # Move directory-opus to workspace 4.
+      - window_process: { regex: "dopus" }
+
+  - commands: ["move --workspace 5"]
+    match:
+      # Move firefox and chromium based browsers to workspace 5.
+      - window_process: { regex: "librewolf|firefox|chrome" }
 
   - commands: ["move --workspace 7"]
     match:
-      # Move outlook to workspace 7.
-      - window_process: { regex: "OUTLOOK" }
+      # Move microsoft office applications to workspace 7.
+      - window_process: { regex: "WINWORD|EXCEL|MSPUB|MSACCESS|soffice|wordpad" }
 
   - commands: ["move --workspace 8"]
     match:
       # Move pdf viewer/editors to workspace 8.
       - window_process: { regex: "PDFXEdit|SumatraPDF|okular|Acrobat" }
-
-  - commands: ["move --workspace 9"]
-    match:
-      # Move firefox based browsers to workspace 9.
-      - window_process: { regex: "librewolf|firefox" }
-      
-  - commands: ["move --workspace 10"]
-    match:
-      # Move chromium based browsers to workspace 10.
-      - window_process: { regex: "chrome" }
       
   - commands: ["ignore"]
     match:
