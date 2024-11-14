@@ -1,5 +1,5 @@
-# This config is a stripped down simplified version of the main config I use for my work computer..
-# change name to config.yaml and delete other config.yaml to use this config within this folder.
+# This config is a stripped down simplified version of the "custom_work_config.yaml" I used to use for my work computer.
+# change name to config.yaml and delete adjacent config.yaml files to use this config within the folder.
 general:
   # Commands to run when the WM has started.
   startup_commands: ["shell-exec zebar"]
