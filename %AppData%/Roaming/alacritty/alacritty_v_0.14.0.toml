@@ -1,3 +1,5 @@
+# change name to "alacritty.toml"
+# for version 0.14.0
 
 [bell]
 animation = "Ease"
