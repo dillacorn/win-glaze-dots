@@ -146,7 +146,7 @@ body,
 
 .cpu .high-usage {
   color: #900029;
-  animation: flash 0.25s infinite; /* Faster flashing for high usage */
+  animation: flash 0.50s infinite; /* Faster flashing for high usage */
 }
 
 .memory {
@@ -155,7 +155,7 @@ body,
 
 .memory .high-usage {
   color: #900029;
-  animation: flash 0.25s infinite; /* Faster updates for memory */
+  animation: flash 0.50s infinite; /* Faster updates for memory */
 }
 
 .battery {
