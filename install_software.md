@@ -27,7 +27,7 @@ choco install steam ungoogled-chromium librewolf 7zip.install notepadplusplus.in
 
 ### (optional-cli) chocolatey applications
 ```choco_install
-choco install alacritty fastfetch micro -y
+choco install alacritty fastfetch micro nircmd -y
 ```
 
 ### (optional-additional) chocolatey applications
