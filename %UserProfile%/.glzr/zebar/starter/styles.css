@@ -5,7 +5,6 @@
 @import "https://www.nerdfonts.com/assets/css/webfont.css";
 
 i {
-  /* color: rgb(115 130 175 / 95%); */
   margin-right: 8px;
 }
 
@@ -96,9 +95,8 @@ body,
   border: none;
   border-radius: 0px;
   cursor: pointer;
-  margin-right: 8px; /* Consistent spacing for all workspace buttons */
+  margin-right: 8px;
 
-  /* Styling for displayed and focused workspaces */
   &.displayed {
     background: #555555;
   }
@@ -111,7 +109,6 @@ body,
   }
 }
 
-/* Remove extra margin from the last workspace button to prevent overflow */
 .workspace:last-child {
   margin-right: 0;
 }
@@ -149,7 +146,7 @@ body,
 
 .cpu .high-usage {
   color: #900029;
-  animation: flash 0.5s infinite;
+  animation: flash 0.25s infinite; /* Faster flashing for high usage */
 }
 
 .memory {
@@ -158,12 +155,11 @@ body,
 
 .memory .high-usage {
   color: #900029;
-  animation: flash 0.5s infinite;
+  animation: flash 0.25s infinite; /* Faster updates for memory */
 }
 
 .battery {
   position: relative;
-  /* color: #ffa500; */
 }
 
 .battery .charging-icon {
