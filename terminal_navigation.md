@@ -18,24 +18,16 @@
 - `cp <source> <destination>` ← **Copy Files**
   - **Example**: `cp file.txt Documents\` ← Copy `file.txt` to `Documents`
   - Note: Use `copy` in CMD for Windows-native commands.
+- `rm <filename>` ← **Remove a File**
+- `cp -r <source> <destination>` ← **Copy Folders Recursively**
 
 #### **File Viewing and Editing**:
-- `type <filename>` ← **View File Contents** (like `cat` in Linux)
-- `notepad <filename>` ← **Open File in Notepad**
-- `more <filename>` ← **View File Contents One Page at a Time**
-
-#### **Searching and Finding**:
-- `findstr <text> <filename>` ← **Search for Text in a File**
-- `dir /s <filename>` ← **Search for a File in Subdirectories**
+- `type <filename>` / `cat <filename>` ← **View File Contents**
+- `notepad <filename>` / `micro <filename>` ← **Open File in Notepad++ or micro**
 
 #### **System Commands**:
-- `cls` ← **Clear Terminal Screen**
+- `cls` / `ctrl+l` ← **Clear Terminal Screen**
 - `exit` ← **Close Terminal**
-
-#### **PowerShell-Specific Enhancements**:
-- `rm <filename>` ← **Remove a File** (Shortcut for `Remove-Item`)
-- `ls -Recurse` ← **List All Files Recursively**
-- `cp -Recurse <source> <destination>` ← **Copy Folders Recursively**
 
 #### **Tips**:
 - Use `TAB` for **autocompletion** of file and folder names.
