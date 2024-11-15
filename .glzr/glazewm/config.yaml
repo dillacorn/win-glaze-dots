@@ -121,7 +121,7 @@ workspaces:
 window_rules:
   - commands: ["move --workspace 1"]
     match:
-      # Move moonlight to workspace 1.
+      # Move moonlight and games to workspace 1.
       - window_process: { regex: "Moonlight|r5apex|r5apex_dx12|Discovery|Overwatch" }
 
   - commands: ["move --workspace 2"]
