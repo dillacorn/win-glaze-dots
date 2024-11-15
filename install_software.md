@@ -67,7 +67,7 @@ choco install auto-dark-mode -y
 
 ### (optional-dev_cli_tools) chocolatey applications
 ```choco_install
-choco install git make mingw -y
+choco install git make mingw curl -y
 ```
 
 ---
