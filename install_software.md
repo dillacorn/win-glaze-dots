@@ -29,7 +29,7 @@ scoop install extras/altsnap flow-launcher alacritty flameshot powertoys eartrum
 
 ### install ALL of my scoop "extra" applications
 ```scoop_install
-scoop install extras/altsnap cura logitech-omm vesktop ungoogled-chromium librewolf flow-launcher ddu keepassxc bitwarden powertoys flameshot microsoft-teams teamviewer sunshine moonlight alacritty ventoy everything mpv vlc krita hwmonitor qimgv winspy filezilla eartrumpet winscp okular shotcut gimp qbittorrent obs-studio obs-plugin-droidcam localsend notepadplusplus ccleaner screentogif spotify betaflight-configurator
+scoop install extras/altsnap cura logitech-omm vesktop ungoogled-chromium librewolf flow-launcher ddu keepassxc bitwarden powertoys flameshot microsoft-teams teamviewer sunshine moonlight alacritty ventoy everything mpv vlc krita hwmonitor qimgv winspy filezilla eartrumpet winscp okular shotcut gimp qbittorrent obs-studio obs-plugin-droidcam localsend notepadplusplus ccleaner screentogif spotify betaflight-configurator virt-viewer
 ```
 
 ---
@@ -41,7 +41,7 @@ scoop bucket add main
 
 ### install ALL of my scoop "main" applications
 ```scoop_install
-scoop install main/git make mingw curl fastfetch micro nircmd flac 7zip
+scoop install main/git make mingw curl fastfetch micro nircmd flac 7zip qemu
 ```
 
 ---
@@ -65,7 +65,7 @@ scoop bucket add nonportable
 
 ### install ALL of my scoop "nonportable" applications
 ```
-scoop install nonportable/vmware-workstation-player-np wireguard-np mullvadvpn-np files-np
+scoop install nonportable/wireguard-np mullvadvpn-np files-np
 ```
 
 ---
