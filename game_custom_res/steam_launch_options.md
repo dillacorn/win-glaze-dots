@@ -30,6 +30,13 @@ Revert custom res
 nircmd setdisplay 1920 1080 32 240
 ```
 
+alternatively create `.bat` files to run these commands in a folder of your choosing.
+
+Run .bat in terminal (navigate to folder first)
+```terminal
+.\1440.bat
+```
+
 Set game to `Windowed Fullscreen` to eliminate refocusing issues...
 
 ---
