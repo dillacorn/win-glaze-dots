@@ -29,4 +29,7 @@ Revert custom res
 ```terminal
 nircmd setdisplay 1920 1080 32 240
 ```
+
+Set game to `Windowed Fullscreen` to eliminate refocusing issues...
+
 ---
