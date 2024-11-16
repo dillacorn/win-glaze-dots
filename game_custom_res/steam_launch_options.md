@@ -16,6 +16,8 @@ Steam Launch Option:
 ---
 ## The Finals ~ stretched 1440x1080 240hz
 
+### requires `nircmd`
+
 Before launching game set windows resolution (GlazeWM has issues refocusing if game res is different from OS res) 
 
 Set custom res
