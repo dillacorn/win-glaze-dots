@@ -1,5 +1,15 @@
 Notes From Repo: https://github.com/dillacorn/win-glaze-dots
 
+# Install Chocolatey
+https://chocolatey.org/install
+
+---
+
+### Install GlazeWM and Zebar (GlazeWM not up-to-date on scoop)
+```choco_install
+choco install glazewm zebar -y
+```
+
 ---
 
 # Install scoop
@@ -14,12 +24,12 @@ scoop bucket add extras
 
 ### install essential "extra" applications
 ```scoop_install
-scoop install extras/glazewm zebar altsnap flow-launcher alacritty flameshot powertoys eartrumpet winspy notepadplusplus
+scoop install extras/altsnap flow-launcher alacritty flameshot powertoys eartrumpet winspy notepadplusplus
 ```
 
 ### install ALL of my scoop "extra" applications
 ```scoop_install
-scoop install extras/glazewm zebar altsnap cura logitech-omm vesktop ungoogled-chromium librewolf flow-launcher ddu keepassxc bitwarden powertoys flameshot microsoft-teams teamviewer sunshine moonlight alacritty ventoy everything mpv vlc krita hwmonitor qimgv winspy filezilla eartrumpet winscp okular shotcut gimp qbittorrent obs-studio obs-plugin-droidcam localsend notepadplusplus ccleaner screentogif spotify betaflight-configurator
+scoop install extras/altsnap cura logitech-omm vesktop ungoogled-chromium librewolf flow-launcher ddu keepassxc bitwarden powertoys flameshot microsoft-teams teamviewer sunshine moonlight alacritty ventoy everything mpv vlc krita hwmonitor qimgv winspy filezilla eartrumpet winscp okular shotcut gimp qbittorrent obs-studio obs-plugin-droidcam localsend notepadplusplus ccleaner screentogif spotify betaflight-configurator
 ```
 
 ---
