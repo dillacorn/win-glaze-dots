@@ -121,7 +121,7 @@ workspaces:
 window_rules:
   - commands: ["move --workspace 1"]
     match:
-      # Move moonlight and games to workspace 1.
+      # Move moonlight to workspace 1.
       - window_process: { regex: "Moonlight|r5apex|r5apex_dx12|Discovery|Overwatch" }
 
   - commands: ["move --workspace 2"]
@@ -132,7 +132,7 @@ window_rules:
   - commands: ["move --workspace 3"]
     match:
       # Move discord to workspace 3.
-      - window_process: { regex: "Discord" }
+      - window_process: { regex: "Discord|Vesktop" }
 
   - commands: ["move --workspace 4"]
     match:
@@ -307,7 +307,7 @@ keybindings:
   # Launch CMD terminal. Alternatively, use `shell-exec wt` or
   # `shell-exec %ProgramFiles%/Git/git-bash.exe` to start Windows
   # Terminal and Git Bash respectively.
-  - commands: ['shell-exec C:\Program Files\Alacritty\alacritty.exe']
+  - commands: ['shell-exec C:\Users\dillon\scoop\apps\alacritty\0.14.0\alacritty.exe']
     bindings: ["alt+shift+enter"]
 
   # Focus the next/previous workspace defined in `workspaces` config.
