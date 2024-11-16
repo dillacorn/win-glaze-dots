@@ -196,9 +196,6 @@ window_rules:
       # Flow-Launcher
       - window_process: { equals: "Flow.Launcher" }
         window_title: { equals: "Settings" }
-
-      # The Finals (buggy with wm ~ alt+tab to fix focus)
-      - window_process: { equals: "Discovery" }
       
   - commands: ["set-floating --centered"]
     match:
