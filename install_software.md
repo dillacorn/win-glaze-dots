@@ -89,7 +89,7 @@ tinywhoopgo,
 
 ### AltSnap Build From source for Linux-wm Alt resize/move behavior!
 
-or install pre-release! -> https://github.com/RamonUnch/AltSnap/releases
+or install release 1.64 and newer! -> https://github.com/RamonUnch/AltSnap/releases
 
 (need `git`, `make` and `mingw`!)
 open `powershell` or `alacritty` with elevated privledges!
