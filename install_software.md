@@ -32,7 +32,7 @@ choco install alacritty fastfetch micro nircmd -y
 
 ### (optional-additional) chocolatey applications
 ```choco_install
-choco install microsoft-teams-new-bootstrapper teamviewer directoryopus vlc gimp putty everything ventoy audiorelay filezilla winscp.install files -y
+choco install microsoft-teams-new-bootstrapper teamviewer directoryopus vlc gimp everything ventoy audiorelay filezilla winscp.install files -y
 ```
 
 ### (optional-powertoys) applications (powertoys only functions if explorer.exe is not killed)
