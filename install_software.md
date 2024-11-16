@@ -7,7 +7,7 @@ https://chocolatey.org/install
 
 ### Install GlazeWM and Zebar (GlazeWM not up-to-date on scoop)
 ```choco_install
-choco install glazewm zebar -y
+choco install vcredist140 glazewm zebar -y
 ```
 
 ### Install vmware-player (GlazeWM not up-to-date on scoop)
