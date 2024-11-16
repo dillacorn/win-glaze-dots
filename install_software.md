@@ -22,41 +22,41 @@ https://scoop.sh/#/
 
 ---
 
-### Add scoop "extras" repository
-```scoop_add_extras
-scoop bucket add extras
+### Install git to add bucket repos ("main" repo)
+```scoop_install_git
+scoop install git
 ```
 
-### install essential "extra" applications
-```scoop_install
-scoop install extras/altsnap flow-launcher alacritty flameshot powertoys eartrumpet winspy notepadplusplus
-```
-
-### install ALL of my scoop "extra" applications
-```scoop_install
-scoop install extras/altsnap cura logitech-omm vesktop ungoogled-chromium librewolf flow-launcher ddu keepassxc bitwarden powertoys flameshot microsoft-teams teamviewer sunshine moonlight alacritty ventoy everything mpv vlc krita hwmonitor qimgv winspy filezilla eartrumpet winscp okular shotcut gimp qbittorrent obs-studio obs-plugin-droidcam localsend notepadplusplus ccleaner screentogif spotify betaflight-configurator
-```
-
----
-
-### Add scoop "main" repository
-```scoop_add_main
-scoop bucket add main
-```
-
-### install ALL of my scoop "main" applications
+### install ALL of my scoop "main" repo applications
 ```scoop_install
 scoop install main/git make mingw curl fastfetch micro nircmd flac 7zip
 ```
 
 ---
 
-### Add scoop "games" repository
+### Add scoop "extras" repository
+```scoop_add_extras
+scoop bucket add extras
+```
+
+### install essential "extras" repo applications
+```scoop_install
+scoop install extras/altsnap flow-launcher alacritty flameshot powertoys eartrumpet winspy notepadplusplus
+```
+
+### install ALL of my scoop "extras" repo applications
+```scoop_install
+scoop install extras/altsnap cura logitech-omm vesktop ungoogled-chromium librewolf flow-launcher ddu keepassxc bitwarden powertoys flameshot microsoft-teams teamviewer sunshine moonlight alacritty ventoy everything mpv vlc krita hwmonitor qimgv winspy filezilla eartrumpet winscp okular shotcut gimp qbittorrent obs-studio obs-plugin-droidcam localsend notepadplusplus ccleaner screentogif spotify betaflight-configurator
+```
+
+---
+
+### Add scoop "games" repo repository
 ```scoop_add_games
 scoop bucket add games
 ```
 
-### install ALL of my scoop "games" applications
+### install ALL of my scoop "games" repo applications
 ```
 scoop install games/steam epic-games-launcher itch
 ```
@@ -68,7 +68,7 @@ scoop install games/steam epic-games-launcher itch
 scoop bucket add nonportable
 ```
 
-### install ALL of my scoop "nonportable" applications
+### install ALL of my scoop "nonportable" repo applications
 ```
 scoop install nonportable/wireguard-np mullvadvpn-np files-np
 ```
