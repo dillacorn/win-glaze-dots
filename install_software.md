@@ -1,73 +1,61 @@
 Notes From Repo: https://github.com/dillacorn/win-glaze-dots
 
-# Install Chocolatey
+---
 
-### check restrictions
-`Get-ExecutionPolicy`
-
-### unlock restrictions
-`Set-ExecutionPolicy AllSigned`
-
-if `RemoteSigned`
-
-then `Set-ExecutionPolicy AllSigned -Scope CurrentUser`
-
-### check restrictions again to make sure it's AllSigned
-`Get-ExecutionPolicy`
-
-### run provided execution script by Chocolatey
-link: https://chocolatey.org/install
+# Install scoop
+https://scoop.sh/#/
 
 ---
 
-### (main) chocolatey applications
-```choco_install
-choco install steam ungoogled-chromium librewolf 7zip.install notepadplusplus.install ccleaner krita spotify audacity imagemagick.app qbittorrent telegram obs-studio obs-ndi ddu moonlight-qt.install flameshot screentogif Shotcut itch hwmonitor qimgv localsend okular mpv foobar2000 flac flow-launcher eartrumpet winspy -y
+### Add scoop "extras" repository
+```scoop_add_extras
+scoop bucket add extras
 ```
 
-### (optional-cli) chocolatey applications
-```choco_install
-choco install alacritty fastfetch micro nircmd -y
+### install essential "extra" applications
+```scoop_install
+scoop install extras/glazewm zebar altsnap flow-launcher alacritty flameshot powertoys eartrumpet winspy notepadplusplus
 ```
 
-### (optional-additional) chocolatey applications
-```choco_install
-choco install microsoft-teams-new-bootstrapper teamviewer directoryopus vlc gimp everything ventoy audiorelay filezilla winscp.install files -y
+### install ALL of my scoop "extra" applications
+```scoop_install
+scoop install extras/glazewm zebar altsnap cura logitech-omm vesktop ungoogled-chromium librewolf flow-launcher ddu keepassxc bitwarden powertoys flameshot microsoft-teams teamviewer sunshine moonlight alacritty ventoy everything mpv vlc krita hwmonitor qimgv winspy filezilla eartrumpet winscp okular shotcut gimp qbittorrent obs-studio obs-plugin-droidcam localsend notepadplusplus ccleaner screentogif spotify betaflight-configurator
 ```
 
-### (optional-powertoys) applications (powertoys only functions if explorer.exe is not killed)
-```choco_install
-choco install powertoys -y
+---
+
+### Add scoop "main" repository
+```scoop_add_main
+scoop bucket add main
 ```
 
-### (optional-3D_Printing) chocolatey applications
-```choco_install
-choco install cura-new -y`
+### install ALL of my scoop "main" applications
+```scoop_install
+scoop install main/git make mingw curl fastfetch micro nircmd flac 7zip
 ```
 
-### (optional-security_VPN) chocolatey applications
-```choco_install
-choco install bitwarden keepassxc wireguard mullvad-app malwarebytes -y
+---
+
+### Add scoop "games" repository
+```scoop_add_games
+scoop bucket add games
 ```
 
-### (optional-virtual_machine_tool) chocolatey applications
-```choco_install
-choco install vmware-tools vmware-workstation-player -y
+### install ALL of my scoop "games" applications
+```
+scoop install games/steam epic-games-launcher itch
 ```
 
-### (optional-hardware_specific) chocolatey applications
-```choco_install
-choco install amd-ryzen-chipset amd-ryzen-master sunshine samsung-magician -y
+---
+
+### Add scoop "nonportable" repository
+```scoop_add_nonportable
+scoop bucket add nonportable
 ```
 
-### (optional-applet) chocolatey applications (if you're killing explorer.exe may not need/want these)
-```choco_install
-choco install auto-dark-mode -y
+### install ALL of my scoop "nonportable" applications
 ```
-
-### (optional-dev_cli_tools) chocolatey applications
-```choco_install
-choco install git make mingw curl -y
+scoop install nonportable/vmware-workstation-player-np wireguard-np mullvadvpn-np files-np
 ```
 
 ---
@@ -77,42 +65,5 @@ https://github.com/LuisThiamNye/ButteryTaskbar2
 
 ---
 
-### Applications not provided by Chocolatey (manual install)
-Discord, Vencord (mod), onboard memory manager (logitech) ~ (on scoop), AltSnap (1.64 and newer), feishin (on scoop), 
-
----
-
-### Gaming apps
+### Gaming apps not avaliable in repositories
 tinywhoopgo, 
-
----
-
-### AltSnap Build From source for Linux-wm Alt resize/move behavior!
-
-or install release 1.64 and newer! -> https://github.com/RamonUnch/AltSnap/releases
-
-(need `git`, `make` and `mingw`!)
-open `powershell` or `alacritty` with elevated privledges!
-
-```commands
-cd ~/Downloads
-git clone https://github.com/RamonUnch/AltSnap
-cd AltSnap
-```
-
-Follow build directions for your CPU hardware ("x86_64 GCC")
-https://github.com/RamonUnch/AltSnap?tab=readme-ov-file#build
-
-```commands
-make -fMakefileX64
-```
-
-AltSnap successfully built!
-Now move AltSnap to correct directory
-
-```commands
-mv ~/Downloads/AltSnap C:\Program Files\AltSnap
-```
-
-Run .exe and configure AltSnap appropriatly
-
