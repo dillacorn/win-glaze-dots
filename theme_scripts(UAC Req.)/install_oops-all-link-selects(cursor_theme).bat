@@ -53,9 +53,13 @@ reg add "HKEY_CURRENT_USER\Control Panel\Cursors" /v "SizeAll" /t REG_SZ /d "%cu
 reg add "HKEY_CURRENT_USER\Control Panel\Cursors" /v "UpArrow" /t REG_SZ /d "%cursorDir%\alt select.cur" /f
 reg add "HKEY_CURRENT_USER\Control Panel\Cursors" /v "Hand" /t REG_SZ /d "%cursorDir%\link select.cur" /f
 
-:: Step 6: Refresh the system to apply changes
+:: Step 6: Set cursor size to 48 (hexadecimal 30)
+echo Setting cursor size...
+reg add "HKEY_CURRENT_USER\Control Panel\Cursors" /v "CursorBaseSize" /t REG_DWORD /d 48 /f
+
+:: Step 7: Refresh the system to apply changes
 echo Applying changes...
 rundll32.exe user32.dll,UpdatePerUserSystemParameters
 
-echo Cursor theme installed and applied successfully!
+echo Cursor theme installed, size set to 48 (hexadecimal 30), and applied successfully!
 pause
