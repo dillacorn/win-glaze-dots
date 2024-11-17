@@ -27,7 +27,7 @@ https://scoop.sh/#/
 
 ---
 
-### Install git to add bucket repos ("main" repo)
+### Install `git` to add bucket repos
 ```scoop_install_git
 scoop install git
 ```
