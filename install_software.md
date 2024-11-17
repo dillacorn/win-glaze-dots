@@ -15,6 +15,11 @@ choco install vcredist140 glazewm zebar -y
 choco install vmware-workstation-player -y
 ```
 
+### Install obs-studio and (ndi-plugin) DistroAV
+```choco_install
+choco install obs-studio obs-ndi -y
+```
+
 ---
 
 # Install scoop
@@ -46,7 +51,7 @@ scoop install extras/altsnap flow-launcher alacritty flameshot powertoys eartrum
 
 ### install ALL of my scoop "extras" repo applications
 ```scoop_install
-scoop install extras/altsnap cura logitech-omm vesktop ungoogled-chromium librewolf flow-launcher ddu keepassxc bitwarden powertoys flameshot microsoft-teams teamviewer sunshine moonlight alacritty ventoy everything mpv vlc krita hwmonitor qimgv winspy filezilla eartrumpet winscp okular shotcut gimp qbittorrent obs-studio obs-plugin-droidcam localsend notepadplusplus ccleaner screentogif spotify betaflight-configurator
+scoop install extras/altsnap cura logitech-omm vesktop ungoogled-chromium librewolf flow-launcher ddu keepassxc bitwarden powertoys flameshot microsoft-teams teamviewer sunshine moonlight alacritty ventoy everything mpv vlc krita hwmonitor qimgv winspy filezilla eartrumpet winscp okular shotcut gimp qbittorrent localsend notepadplusplus ccleaner screentogif spotify betaflight-configurator
 ```
 
 ---
