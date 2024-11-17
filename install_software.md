@@ -5,7 +5,7 @@ https://chocolatey.org/install
 
 ---
 
-### Install GlazeWM and Zebar (GlazeWM not up-to-date on scoop)
+### Install GlazeWM and Zebar
 ```choco_install
 choco install vcredist140 glazewm zebar -y
 ```
