@@ -20,6 +20,11 @@ choco install vmware-workstation-player -y
 choco install obs-studio obs-ndi -y
 ```
 
+### Install directory-opus (license required) 
+```choco_install
+choco install directoryopus -y
+```
+
 ---
 
 # Install scoop
