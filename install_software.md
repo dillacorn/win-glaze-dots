@@ -10,7 +10,7 @@ https://chocolatey.org/install
 choco install vcredist140 glazewm zebar -y
 ```
 
-### Install vmware-player (GlazeWM not up-to-date on scoop)
+### Install vmware-player
 ```choco_install
 choco install vmware-workstation-player -y
 ```
