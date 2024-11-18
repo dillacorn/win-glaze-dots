@@ -172,6 +172,18 @@ window_rules:
       # Set EarTrumpets "Volume Mixer" window to float and center it
       - window_title: { regex: "Volume Mixer" }
       - window_process: { equals: "EarTrumpet" }
+
+      # Set powertoys settings window to float and center it
+      - window_process: { equals: "PowerToys.Settings" }
+
+      # Set winspy window to float and center it
+      - window_process: { equals: "winspy" }
+
+      # Set winspy window to float and center it
+      - window_process: { equals: "winspy" }
+
+      # Set flameshot window to float and center it
+      - window_process: { equals: "flameshot" }
       
   - commands: ["set-floating"]
     match:
