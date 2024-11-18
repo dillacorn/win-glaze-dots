@@ -10,19 +10,9 @@ https://chocolatey.org/install
 choco install vcredist140 glazewm zebar -y
 ```
 
-### install vmware-player
+### install other choco applications
 ```choco_install
-choco install vmware-workstation-player -y
-```
-
-### install obs-studio and (ndi-plugin) DistroAV
-```choco_install
-choco install obs-studio obs-ndi -y
-```
-
-### install malwarebytes
-```choco_install
-choco install malwarebytes -y
+choco install vmware-workstation-player obs-studio obs-ndi malwarebytes -y
 ```
 
 ### install directory-opus (license required) 
