@@ -1,7 +1,7 @@
 Notes From Repo: https://github.com/dillacorn/win-glaze-dots
 
 # install Chocolatey
-https://chocolatey.org/install
+### https://chocolatey.org/install
 
 ---
 
@@ -23,7 +23,7 @@ choco install directoryopus -y
 ---
 
 # install scoop
-https://scoop.sh/#/
+### https://scoop.sh/#/
 
 ---
 
@@ -80,10 +80,9 @@ scoop install nonportable/wireguard-np mullvadvpn-np files-np
 
 ---
 
-### butterytaskbar2
-https://github.com/LuisThiamNye/ButteryTaskbar2
+### butterytaskbar2: https://github.com/LuisThiamNye/ButteryTaskbar2
 
 ---
 
-### gaming apps not avaliable in repositories
+### applications not avaliable in repos
 tinywhoopgo, 
