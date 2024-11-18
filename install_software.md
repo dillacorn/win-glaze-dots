@@ -20,6 +20,11 @@ choco install vmware-workstation-player -y
 choco install obs-studio obs-ndi -y
 ```
 
+### install malwarebytes
+```choco_install
+choco install malwarebytes -y
+```
+
 ### install directory-opus (license required) 
 ```choco_install
 choco install directoryopus -y
