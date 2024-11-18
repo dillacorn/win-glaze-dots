@@ -2,7 +2,7 @@ Notes From Repo: https://github.com/dillacorn/win-glaze-dots
 
 ### Reason why I don't use winget? 
 
-- Packages outdated... 
+- Packages regularly outdated... 
 
 # install Chocolatey
 ### https://chocolatey.org/install
