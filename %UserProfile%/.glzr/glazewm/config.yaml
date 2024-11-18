@@ -203,9 +203,6 @@ window_rules:
       - window_title: { regex: "Volume Mixer" }
       - window_process: { equals: "EarTrumpet" }
 
-      # Set powertoys settings window to float and center it
-      - window_process: { equals: "PowerToys.Settings" }
-
       # Set winspy window to float and center it
       - window_process: { equals: "winspy" }
 
