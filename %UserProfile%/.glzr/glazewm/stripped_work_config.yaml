@@ -237,9 +237,9 @@ keybindings:
   - commands: ["resize --width +2%"]
     bindings: ["alt+o", "alt+ctrl+left"]
   - commands: ["resize --height +2%"]
-    bindings: ["alt+i", "alt+ctrl+down"]
+    bindings: ["alt+i", "alt+ctrl+up"]
   - commands: ["resize --height -2%"]
-    bindings: ["alt+u", "alt+ctrl+up"]
+    bindings: ["alt+u", "alt+ctrl+down"]
 
   # As an alternative to the resize keybindings above, resize mode enables
   # resizing via arrow keys or HJKL. The binding mode is defined above with
