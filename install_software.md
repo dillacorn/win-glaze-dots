@@ -55,7 +55,7 @@ scoop install extras/altsnap flow-launcher alacritty flameshot powertoys eartrum
 
 ### install ALL "extras" repo applications
 ```scoop_install
-scoop install extras/altsnap cura logitech-omm vesktop ungoogled-chromium librewolf flow-launcher ddu keepassxc bitwarden powertoys flameshot microsoft-teams teamviewer sunshine moonlight alacritty ventoy everything mpv vlc krita hwmonitor qimgv winspy filezilla eartrumpet winscp okular shotcut gimp qbittorrent localsend notepadplusplus ccleaner screentogif spotify betaflight-configurator
+scoop install extras/altsnap cura logitech-omm vesktop ungoogled-chromium librewolf flow-launcher ddu keepassxc bitwarden powertoys flameshot microsoft-teams teamviewer sunshine moonlight alacritty ventoy everything mpv vlc feishin krita hwmonitor qimgv winspy filezilla eartrumpet winscp okular shotcut gimp qbittorrent localsend notepadplusplus ccleaner screentogif spotify betaflight-configurator
 ```
 
 ---
