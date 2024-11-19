@@ -8,42 +8,27 @@
 ## Guides in Specific Order
 - [windows_settings](https://github.com/dillacorn/win-glaze-dots/blob/main/Windows_Settings.md)
 - [install_software](https://github.com/dillacorn/win-glaze-dots/blob/main/install_software.md)
-
 ### Clone Repo (Using Alacritty)
 ```powershell
-cd .\Downloads\
 git clone https://github.com/dillacorn/win-glaze-dots
 ```
-
 ### Recursive copy directories
-#### Navigate to the directory
+#### Copy `.glazr` folder to the home directory
 ```powershell
-cd .\Downloads\win-glaze-dots\%UserProfile%\
+Copy-Item -Recurse -Path "$env:UserProfile\win-glaze-dots\UserProfile\.glzr" -Destination "$env:UserProfile" -Force
 ```
-#### Copy `.glazr` to the user's home directory
+#### Copy `scripts` folder to the home directory
 ```powershell
-Copy-Item -Recurse -Path .\.glzr -Destination ~\ -Force
+Copy-Item -Recurse -Path "$env:UserProfile\win-glaze-dots\UserProfile\scripts" -Destination "$env:UserProfile" -Force
 ```
-#### Copy `scripts` to the user's home directory
+#### Copy `alacritty` folder to the home directory
 ```powershell
-Copy-Item -Recurse -Path .\scripts -Destination ~\ -Force
+Copy-Item -Recurse -Path "$env:UserProfile\win-glaze-dots\AppData\Roaming\alacritty" -Destination "$env:AppData\Roaming" -Force
 ```
-#### Navigate to the %AppData%\Roaming directory
+#### Copy `flameshot` folder to the home directory
 ```powershell
-cd ..
-cd .\%AppData%\Roaming\
+Copy-Item -Recurse -Path "$env:UserProfile\win-glaze-dots\AppData\Roaming\flameshot" -Destination "$env:AppData\Roaming" -Force
 ```
-
-#### Copy alacritty folder to the home directory
-```powershell
-Copy-Item -Recurse -Path .\alacritty -Destination "~\AppData\Roaming" -Force
-```
-
-#### Copy flameshot folder to the home directory
-```powershell
-Copy-Item -Recurse -Path .\flameshot -Destination "~\AppData\Roaming" -Force
-```
-
 - [privacy.sexy](https://github.com/dillacorn/win-glaze-dots/blob/main/privacy.sexy.md)
 - [flow-launcher_bind](https://github.com/dillacorn/win-glaze-dots/blob/main/flow-launcher_bind.png)
 - [altsnap_settings](https://github.com/dillacorn/win-glaze-dots/blob/main/altsnap_settings.md)
