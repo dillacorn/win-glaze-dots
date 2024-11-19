@@ -177,23 +177,30 @@ window_rules:
         window_title: { regex: ".*? - Peek" }
       - window_process: { equals: "Lively" }
         window_class: { regex: "HwndWrapper" }
+
+  - commands: ["set-floating"]
+    match:
+      # Set Flow-Launcher to float
+      - window_process: { equals: "Flow.Launcher" }
+        window_title: { equals: "Settings" }
+    
+      # Set acad software windows to float
+      - window_process: { equals: "acad" }
+
+      # Set speedcrunch(calculator) to float
+      - window_process: { equals: "speedcrunch" }
+
+      # Set flameshot window to float and center it
+      - window_process: { equals: "flameshot" }
+
+      # Set winspy window to float and center it
+      - window_process: { equals: "winspy" }
       
   - commands: ["set-floating --centered"]
     match:
       # Set EarTrumpets "Volume Mixer" window to float and center it
       - window_title: { regex: "Volume Mixer" }
       - window_process: { equals: "EarTrumpet" }
-
-      # Set winspy window to float and center it
-      - window_process: { equals: "winspy" }
-
-      # Set flameshot window to float and center it
-      - window_process: { equals: "flameshot" }
-      
-  - commands: ["set-floating"]
-    match:
-      # Set acad software windows to float
-      - window_process: { equals: "acad" }
       
 binding_modes:
   # When enabled, the focused window can be resized via arrow keys or HJKL.
