@@ -18,7 +18,7 @@
 13. **Fullscreen Mode**: Always use exclusive fullscreen mode for the lowest latency.
 
 ## **Input Methods**
-14. **XInput Over Raw Input**: Use XInput if available, as it often has lower latency due to direct handling by the game engine.
+14. **DirectXInput Over Raw Input**: Use DirectXInput if available, as it often has lower latency due to direct handling by the game engine. Varies from Game to game..usually "Raw Input" is what you want.
 
 ## **Windows-Specific Optimizations**
 15. **Disable Fullscreen Optimizations**:
