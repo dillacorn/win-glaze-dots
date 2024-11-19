@@ -19,6 +19,7 @@
 
 ## **Input Methods**
 14. **DirectXInput Over Raw Input**: Use DirectXInput if available, as it often has lower latency due to direct handling by the game engine. Varies from Game to game..usually "Raw Input" is what you want.
+15. **Raw Input Buffer**: Enable Raw Input Buffer if avaliable in game engine.
 
 ## **Windows-Specific Optimizations**
 15. **Disable Fullscreen Optimizations**:
