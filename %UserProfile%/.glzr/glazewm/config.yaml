@@ -206,9 +206,6 @@ window_rules:
       # Set winspy window to float and center it
       - window_process: { equals: "winspy" }
 
-      # Set winspy window to float and center it
-      - window_process: { equals: "winspy" }
-
       # Set flameshot window to float and center it
       - window_process: { equals: "flameshot" }
       
