@@ -383,3 +383,7 @@ keybindings:
     bindings: ["alt+shift+9"]
   - commands: ["move --workspace 10"]
     bindings: ["alt+shift+0"]
+
+  # Choose and run dillacorns scripts
+  - commands: ["shell-exec %USERPROFILE%\\scoop\\apps\\alacritty\\current\\alacritty.exe --working-directory %USERPROFILE%\\scripts -e cmd /k menu.bat"]
+    bindings: ["alt+shift+m"]
