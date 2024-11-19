@@ -299,10 +299,8 @@ keybindings:
   - commands: ["wm-redraw"]
     bindings: ["alt+ctrl+shift+w"]
 
-  # Launch CMD terminal. Alternatively, use `shell-exec wt` or
-  # `shell-exec %ProgramFiles%/Git/git-bash.exe` to start Windows
-  # Terminal and Git Bash respectively.
-  - commands: ['shell-exec %USERPROFILE%\\scoop\\apps\\alacritty\\current\\alacritty.exe']
+  # Launch Alacritty terminal
+  - commands: ["shell-exec alacritty"]
     bindings: ["alt+shift+enter"]
 
   # Focus the next/previous workspace defined in `workspaces` config.
@@ -370,6 +368,6 @@ keybindings:
   - commands: ["move --workspace 10"]
     bindings: ["alt+shift+0"]
 
-  # Choose and run dillacorns scripts
-  - commands: ["shell-exec %USERPROFILE%\\scoop\\apps\\alacritty\\current\\alacritty.exe --working-directory %USERPROFILE%\\scripts -e cmd /k menu.bat"]
+  # Launch Alacritty and open the user’s scripts menu
+  - commands: ["shell-exec alacritty --working-directory %USERPROFILE%\\scripts -e cmd /k menu.bat"]
     bindings: ["alt+shift+m"]
