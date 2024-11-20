@@ -175,15 +175,26 @@ window_rules:
     
       # Set acad software windows to float
       - window_process: { equals: "acad" }
+      - window_process: { equals: "ADPClientService" }
+      - window_process: { equals: "AdskAccessUIHost" }
+      - window_process: { equals: "AdskAccessCore" }
+      - window_process: { equals: "AdSSO" }
+      - window_process: { equals: "AdskIdentityManager" }
 
       # Set speedcrunch(calculator) to float
       - window_process: { equals: "speedcrunch" }
 
-      # Set flameshot window to float and center it
+      # Set flameshot window to float
       - window_process: { equals: "flameshot" }
 
-      # Set winspy window to float and center it
+      # Set winspy window to float
       - window_process: { equals: "winspy" }
+
+      # Set localsend window to float
+      - window_process: { equals: "localsend_app" }
+
+      # Set several windows applications to float
+      - window_process: { equals: "ApplicationFrameHost" }
       
   - commands: ["set-floating --centered"]
     match:
