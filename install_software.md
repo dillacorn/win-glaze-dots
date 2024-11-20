@@ -35,7 +35,7 @@ scoop install extras/vcredist zebar altsnap flow-launcher alacritty flameshot po
 
 ### install ALL "extras" repo applications
 ```scoop_install
-scoop install extras/vcredist zebar altsnap cura logitech-omm vesktop telegram ungoogled-chromium librewolf flow-launcher ddu keepassxc bitwarden powertoys flameshot microsoft-teams teamviewer sunshine moonlight alacritty ventoy everything mpv vlc feishin krita hwmonitor qimgv winspy filezilla eartrumpet winscp shotcut gimp qbittorrent localsend notepadplusplus ccleaner screentogif spotify betaflight-configurator
+scoop install extras/vcredist zebar altsnap cura logitech-omm vesktop telegram ungoogled-chromium librewolf flow-launcher ddu keepassxc bitwarden powertoys flameshot microsoft-teams teamviewer sunshine moonlight alacritty ventoy everything mpv vlc feishin krita hwmonitor qimgv winspy filezilla eartrumpet winscp shotcut gimp qbittorrent localsend notepadplusplus ccleaner screentogif spotify betaflight-configurator obs-studio
 ```
 
 ---
@@ -76,7 +76,7 @@ choco install glazewm -y
 
 ### install other choco applications
 ```choco_install
-choco install vmware-workstation-player obs-studio obs-ndi malwarebytes -y
+choco install vmware-workstation-player obs-ndi malwarebytes -y
 ```
 
 ### install directory-opus (license required) 
