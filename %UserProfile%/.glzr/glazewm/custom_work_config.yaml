@@ -159,7 +159,7 @@ window_rules:
   - commands: ["move --workspace 8"]
     match:
       # Move pdf viewer/editors to workspace 8.
-      - window_process: { regex: "PDFXEdit|SumatraPDF|okular|Acrobat" }
+      - window_process: { regex: "PDFXEdit|SumatraPDF|okular|pdfeditor|Acrobat" }
       
   - commands: ["ignore"]
     match:
