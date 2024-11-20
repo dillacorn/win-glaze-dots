@@ -91,9 +91,5 @@ choco install pdfxchangeeditor -y
 
 ---
 
-### butterytaskbar2: https://github.com/LuisThiamNye/ButteryTaskbar2
-
----
-
 ### applications not avaliable in repos
-tinywhoopgo, 
+[butterytaskbar2](https://github.com/LuisThiamNye/ButteryTaskbar2), [AutoDesk Software](https://manage.autodesk.com/login?t=/products), [tinywhoopgo](https://tinywhoopgo.com/),
