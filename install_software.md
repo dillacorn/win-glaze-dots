@@ -4,31 +4,6 @@ Notes From Repo: https://github.com/dillacorn/win-glaze-dots
 
 - Packages regularly outdated... 
 
-# install Chocolatey
-### https://chocolatey.org/install
-
----
-
-### install GlazeWM and Zebar
-```choco_install
-choco install vcredist140 glazewm zebar -y
-```
-
-### install other choco applications
-```choco_install
-choco install vmware-workstation-player obs-studio obs-ndi malwarebytes -y
-```
-
-### install directory-opus (license required) 
-```choco_install
-choco install directoryopus -y
-```
-
-### install PDF-XChange Editor (alternativley use "okular"[**I use**] or PDFGear)
-```choco_install
-choco install pdfxchangeeditor -y
-```
-
 ---
 
 # install scoop
@@ -55,12 +30,12 @@ scoop bucket add extras
 
 ### install essential "extras" repo applications
 ```scoop_install
-scoop install extras/altsnap flow-launcher alacritty flameshot powertoys eartrumpet winspy notepadplusplus
+scoop install extras/vcredist altsnap flow-launcher alacritty flameshot powertoys eartrumpet winspy notepadplusplus
 ```
 
 ### install ALL "extras" repo applications
 ```scoop_install
-scoop install extras/altsnap cura logitech-omm vesktop telegram ungoogled-chromium librewolf flow-launcher ddu keepassxc bitwarden powertoys flameshot microsoft-teams teamviewer sunshine moonlight alacritty ventoy everything mpv vlc feishin krita hwmonitor qimgv winspy filezilla eartrumpet winscp shotcut gimp qbittorrent localsend notepadplusplus ccleaner screentogif spotify betaflight-configurator
+scoop install extras/vcredist altsnap cura logitech-omm vesktop telegram ungoogled-chromium librewolf flow-launcher ddu keepassxc bitwarden powertoys flameshot microsoft-teams teamviewer sunshine moonlight alacritty ventoy everything mpv vlc feishin krita hwmonitor qimgv winspy filezilla eartrumpet winscp shotcut gimp qbittorrent localsend notepadplusplus ccleaner screentogif spotify betaflight-configurator
 ```
 
 ---
@@ -85,6 +60,33 @@ scoop bucket add nonportable
 ### install ALL "nonportable" repo applications
 ```
 scoop install nonportable/wireguard-np mullvadvpn-np files-np
+```
+
+---
+
+# install Chocolatey
+### https://chocolatey.org/install
+
+---
+
+### install GlazeWM and Zebar
+```choco_install
+choco install glazewm zebar -y
+```
+
+### install other choco applications
+```choco_install
+choco install vmware-workstation-player obs-studio obs-ndi malwarebytes -y
+```
+
+### install directory-opus (license required) 
+```choco_install
+choco install directoryopus -y
+```
+
+### install PDF-XChange Editor (alternativley use "okular"[**I use**] or PDFGear)
+```choco_install
+choco install pdfxchangeeditor -y
 ```
 
 ---
