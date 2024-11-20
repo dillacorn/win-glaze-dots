@@ -24,6 +24,11 @@ choco install vmware-workstation-player obs-studio obs-ndi malwarebytes -y
 choco install directoryopus -y
 ```
 
+### install PDF-XChange Editor (alternativley use "okular"[**I use**] or PDFGear)
+```choco_install
+choco install pdfxchangeeditor -y
+```
+
 ---
 
 # install scoop
