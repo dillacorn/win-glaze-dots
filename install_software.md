@@ -30,12 +30,12 @@ scoop bucket add extras
 
 ### install essential "extras" repo applications
 ```scoop_install
-scoop install extras/vcredist altsnap flow-launcher alacritty flameshot powertoys eartrumpet winspy notepadplusplus
+scoop install extras/vcredist zebar altsnap flow-launcher alacritty flameshot powertoys eartrumpet winspy notepadplusplus
 ```
 
 ### install ALL "extras" repo applications
 ```scoop_install
-scoop install extras/vcredist altsnap cura logitech-omm vesktop telegram ungoogled-chromium librewolf flow-launcher ddu keepassxc bitwarden powertoys flameshot microsoft-teams teamviewer sunshine moonlight alacritty ventoy everything mpv vlc feishin krita hwmonitor qimgv winspy filezilla eartrumpet winscp shotcut gimp qbittorrent localsend notepadplusplus ccleaner screentogif spotify betaflight-configurator
+scoop install extras/vcredist zebar altsnap cura logitech-omm vesktop telegram ungoogled-chromium librewolf flow-launcher ddu keepassxc bitwarden powertoys flameshot microsoft-teams teamviewer sunshine moonlight alacritty ventoy everything mpv vlc feishin krita hwmonitor qimgv winspy filezilla eartrumpet winscp shotcut gimp qbittorrent localsend notepadplusplus ccleaner screentogif spotify betaflight-configurator
 ```
 
 ---
@@ -69,9 +69,9 @@ scoop install nonportable/wireguard-np mullvadvpn-np files-np
 
 ---
 
-### install GlazeWM and Zebar
+### install GlazeWM (zebar installed with scoop)
 ```choco_install
-choco install glazewm zebar -y
+choco install glazewm -y
 ```
 
 ### install other choco applications
@@ -84,7 +84,7 @@ choco install vmware-workstation-player obs-studio obs-ndi malwarebytes -y
 choco install directoryopus -y
 ```
 
-### install PDF-XChange Editor (alternativley use "okular"[**I use**] or PDFGear)
+### install PDF-XChange Editor (alternativley use "okular"[**I use**] or "PDFGear")
 ```choco_install
 choco install pdfxchangeeditor -y
 ```
