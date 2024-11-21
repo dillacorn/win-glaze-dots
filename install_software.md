@@ -2,65 +2,16 @@ Notes From Repo: https://github.com/dillacorn/win-glaze-dots
 
 ### Reason why I don't use winget? 
 
-- Packages regularly outdated... 
+- Packages regularly outdated...
 
 ---
 
-# install scoop
-### https://scoop.sh/#/
+### Reason why I don't primarily use scoop anymore?
 
----
-
-### install `git` to add bucket repos
-```scoop_install_git
-scoop install git
-```
-
-### install ALL "main" repo applications
-```scoop_install
-scoop install main/git make mingw curl fastfetch micro nircmd flac 7zip gsudo
-```
-
----
-
-### add scoop "extras" repository
-```scoop_add_extras
-scoop bucket add extras
-```
-
-### install essential "extras" repo applications
-```scoop_install
-scoop install extras/vcredist zebar altsnap flow-launcher alacritty flameshot powertoys eartrumpet winspy notepadplusplus
-```
-
-### install ALL "extras" repo applications
-```scoop_install
-scoop install extras/vcredist zebar altsnap cura logitech-omm vesktop telegram ungoogled-chromium librewolf flow-launcher ddu keepassxc bitwarden powertoys flameshot microsoft-teams teamviewer sunshine moonlight alacritty ventoy everything mpv vlc feishin krita hwmonitor qimgv winspy filezilla eartrumpet winscp shotcut gimp qbittorrent localsend notepadplusplus ccleaner screentogif spotify betaflight-configurator obs-studio
-```
-
----
-
-### add scoop "games" repo repository
-```scoop_add_games
-scoop bucket add games
-```
-
-### install ALL "games" repo applications
-```
-scoop install games/steam epic-games-launcher itch
-```
-
----
-
-### add scoop "nonportable" repository
-```scoop_add_nonportable
-scoop bucket add nonportable
-```
-
-### install ALL "nonportable" repo applications
-```
-scoop install nonportable/wireguard-np mullvadvpn-np files-np
-```
+- Chocolatey is a safer due to applications needing to be ran in a test environment and manually/automatically tested before distrobution.
+- With scoop you're essentially putting your full trust that the latest update of a piece of software may not contain a virus or malicious code either intentional or unintentional... with scoop you're downloading directly from the repo with no middle-man protection.
+- If you want to be absolutley certain the application is safe Chocolatey is undoubtedly the better option.
+- Packages are pretty up-to-date on Chocolatey as well so it's not much of any issue using it over scoop.
 
 ---
 
@@ -71,12 +22,12 @@ scoop install nonportable/wireguard-np mullvadvpn-np files-np
 
 ### install GlazeWM (zebar installed with scoop)
 ```choco_install
-choco install glazewm -y
+choco install vcredist140 git glazewm zebar flow-launcher gsudo alacritty flameshot powertoys eartrumpet winspy -y
 ```
 
 ### install other choco applications
 ```choco_install
-choco install vmware-workstation-player obs-ndi malwarebytes -y
+choco install vmware-workstation-player malwarebytes okular make mingw curl fastfetch micro nircmd flac 7zip notepadplusplus cura-new telegram dorion ungoogled-chromium librewolf ddu keepassxc bitwarden powertoys flameshot microsoft-teams-new-bootstrapper teamviewer sunshine moonlight alacritty ventoy everything mpv vlc krita hwmonitor qimgv winspy filezilla eartrumpet winscp shotcut gimp qbittorrent localsend ccleaner screentogif spotify betaflight-configurator obs-studio obs-ndi steam epicgameslauncher itch wireguard mullvad-app files -y
 ```
 
 ### install directory-opus (license required) 
@@ -91,5 +42,32 @@ choco install pdfxchangeeditor -y
 
 ---
 
-# applications not avaliable in repos
+# install scoop
+### https://scoop.sh/#/
+
+---
+
+### install `git` to add bucket repos
+```scoop_install_git
+scoop install git
+```
+
+### add scoop "extras" repository
+```scoop_add_extras
+scoop bucket add extras
+```
+
+### install essential "extras" repo applications
+```scoop_install
+scoop install extras/altsnap
+```
+
+### install ALL "extras" repo applications
+```scoop_install
+scoop install extras/feishin vesktop
+```
+
+---
+
+# applications not avaliable in official repos
 [butterytaskbar2](https://github.com/LuisThiamNye/ButteryTaskbar2), [AutoDesk Software](https://manage.autodesk.com/login?t=/products), [tinywhoopgo](https://tinywhoopgo.com/),
