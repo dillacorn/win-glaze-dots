@@ -4,3 +4,9 @@
 
 ![visual_effect_settings](https://raw.githubusercontent.com/dillacorn/win-glaze-dots/refs/heads/main/ScreenShots_For_Guides/Windows_Settings/visual_effect_settings.png)
 
+![multitasking](https://raw.githubusercontent.com/dillacorn/win-glaze-dots/refs/heads/main/ScreenShots_For_Guides/Windows_Settings/multitasking.png)
+
+![disable_remote_assistance](https://raw.githubusercontent.com/dillacorn/win-glaze-dots/refs/heads/main/ScreenShots_For_Guides/Windows_Settings/disable_remote_assistance.png)
+
+![disable_enhanced_pointer_precision](https://raw.githubusercontent.com/dillacorn/win-glaze-dots/refs/heads/main/ScreenShots_For_Guides/Windows_Settings/disable_enhanced_pointer_precision.png)
+
