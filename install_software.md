@@ -17,6 +17,7 @@ Notes From Repo: https://github.com/dillacorn/win-glaze-dots
 
 # install Chocolatey
 ### https://chocolatey.org/install
+### UAC required
 
 ---
 
@@ -44,13 +45,9 @@ choco install pdfxchangeeditor -y
 
 # install scoop
 ### https://scoop.sh/#/
+### UAC not required
 
 ---
-
-### install `git` to add bucket repos
-```scoop_install_git
-scoop install git
-```
 
 ### add scoop "extras" repository
 ```scoop_add_extras
