@@ -132,7 +132,7 @@ window_rules:
   - commands: ["move --workspace 3"]
     match:
       # Move discord to workspace 3.
-      - window_process: { regex: "Discord|Vesktop" }
+      - window_process: { regex: "Discord|Vesktop|msedgewebview2" }
 
   - commands: ["move --workspace 4"]
     match:
