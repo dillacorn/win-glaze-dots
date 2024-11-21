@@ -1,6 +1,6 @@
 ### Navigate to user home directory
 ```powershell
-git ~
+cd ~
 ```
 
 ### Clone Repo (Using Alacritty)
