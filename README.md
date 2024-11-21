@@ -1,6 +1,6 @@
 # `windows dilla.glaze.files`
 - **Preview Images**: **TO_BE_ADDED**
-- **Operating System**: Windows 11 Enterprise LTSC 2024
+- **Operating System**: Windows 11 Enterprise LTSC
 - **File System**: NTFS
 - **Repositories 1**: [**scoop**](https://scoop.sh/)(**Official**): [main](https://scoop.sh/#/apps?q=%22https%3A%2F%2Fgithub.com%2FScoopInstaller%2FMain%22)&[git](https://github.com/ScoopInstaller/Main),  [extras](https://scoop.sh/#/apps?q=%22https%3A%2F%2Fgithub.com%2FScoopInstaller%2FExtras%22)&[git](https://github.com/ScoopInstaller/Extras)
 - **Repositories 2**: [**chocolatey**](https://chocolatey.org/): [community](https://community.chocolatey.org/packages)
