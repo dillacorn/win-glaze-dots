@@ -95,8 +95,6 @@ https://browserleaks.com/webrtc
 
 navigate to `appearance`
 
-enable `classic` theme
-
 choose mode `Dark`
 
 enable `Show home button` and add my personal `flame` domain running on my personal OpenMediaVault NAS.
