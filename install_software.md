@@ -61,7 +61,7 @@ scoop install extras/altsnap
 
 ### install ALL "extras" repo applications
 ```scoop_install
-scoop install extras/feishin vesktop logitech-omm
+scoop install extras/feishin logitech-omm
 ```
 
 ---
