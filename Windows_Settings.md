@@ -10,3 +10,5 @@
 
 ![disable_enhanced_pointer_precision](https://raw.githubusercontent.com/dillacorn/win-glaze-dots/refs/heads/main/ScreenShots_For_Guides/Windows_Settings/disable_enhanced_pointer_precision.png)
 
+![Communication_Do_nothing](https://raw.githubusercontent.com/dillacorn/win-glaze-dots/refs/heads/main/ScreenShots_For_Guides/Windows_Settings/Communication_Do_nothing.png)
+
