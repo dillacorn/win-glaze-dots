@@ -59,6 +59,9 @@ go install your extensions! -> [`https://chromewebstore.google.com/`](https://ch
 [`FastForward`](https://chromewebstore.google.com/detail/fastforward/icallnadddjmdinamnolclfjanhfoafe)
 [`SponsorBlock`](https://chromewebstore.google.com/detail/sponsorblock-for-youtube/mnjggcdmjocbbbhaepdhchncahnbgone)
 
+# `picture in picture` video tip 
+- `Right-click` video `twice` and click `Picture in picture`
+
 # search engine
 
 **search engine**: `(option #1)` - normally slower than brave
