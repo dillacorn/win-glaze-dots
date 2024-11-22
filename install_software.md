@@ -22,23 +22,28 @@ Notes From Repo: https://github.com/dillacorn/win-glaze-dots
 ---
 
 ### install GlazeWM & Zebar
-```choco_install
+```powershell
 choco install vcredist140 git glazewm zebar flow-launcher gsudo alacritty flameshot powertoys eartrumpet winspy wingetui -y
 ```
 
 ### install other choco applications
-```choco_install
+```powershell
 choco install vmware-workstation-player malwarebytes okular make mingw curl fastfetch micro nircmd flac 7zip notepadplusplus cura-new telegram dorion ungoogled-chromium librewolf ddu keepassxc bitwarden teamviewer sunshine moonlight ventoy everything mpv vlc krita hwmonitor qimgv filezilla winscp shotcut gimp qbittorrent localsend ccleaner screentogif spotify betaflight-configurator obs-studio obs-ndi steam epicgameslauncher itch wireguard mullvad-app files -y
 ```
 
 ### install directory-opus (license required) 
-```choco_install
+```powershell
 choco install directoryopus -y
 ```
 
 ### install PDF-XChange Editor (alternativley use "okular"[**I use**] or "PDFGear")
-```choco_install
+```powershell
 choco install pdfxchangeeditor -y
+```
+
+### update all chocolatey apps
+```powershell
+choco upgrade all -y
 ```
 
 ---
@@ -50,18 +55,23 @@ choco install pdfxchangeeditor -y
 ---
 
 ### add scoop "extras" repository
-```scoop_add_extras
+```powershell
 scoop bucket add extras
 ```
 
 ### install essential "extras" repo applications
-```scoop_install
+```powershell
 scoop install extras/altsnap
 ```
 
 ### install ALL "extras" repo applications
-```scoop_install
+```powershell
 scoop install extras/feishin logitech-omm
+```
+
+### update all scoop apps
+```powershell
+scoop update *
 ```
 
 ---
