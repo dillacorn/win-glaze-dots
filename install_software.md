@@ -28,7 +28,7 @@ choco install vcredist140 git glazewm zebar flow-launcher gsudo alacritty flames
 
 ### install other choco applications
 ```choco_install
-choco install vmware-workstation-player malwarebytes okular make mingw curl fastfetch micro nircmd flac 7zip notepadplusplus cura-new telegram dorion ungoogled-chromium librewolf ddu keepassxc bitwarden microsoft-teams-new-bootstrapper teamviewer sunshine moonlight ventoy everything mpv vlc krita hwmonitor qimgv filezilla winscp shotcut gimp qbittorrent localsend ccleaner screentogif spotify betaflight-configurator obs-studio obs-ndi steam epicgameslauncher itch wireguard mullvad-app files -y
+choco install vmware-workstation-player malwarebytes okular make mingw curl fastfetch micro nircmd flac 7zip notepadplusplus cura-new telegram dorion ungoogled-chromium librewolf ddu keepassxc bitwarden teamviewer sunshine moonlight ventoy everything mpv vlc krita hwmonitor qimgv filezilla winscp shotcut gimp qbittorrent localsend ccleaner screentogif spotify betaflight-configurator obs-studio obs-ndi steam epicgameslauncher itch wireguard mullvad-app files -y
 ```
 
 ### install directory-opus (license required) 
