@@ -8,7 +8,7 @@ Notes From Repo: https://github.com/dillacorn/win-glaze-dots
 
 ### Reason why I don't primarily use scoop anymore?
 
-- Chocolatey is a safer due to applications needing to be ran in a test environment and manually/automatically tested before distrobution.
+- Chocolatey is a safer due to applications needing to be ran in a test environment and manually/automatically tested before distribution.
 - With scoop you're essentially putting your full trust that the latest update of a piece of software may not contain a virus or malicious code either intentional or unintentional... with scoop you're downloading directly from the repo with no middle-man protection.
 - If you want to be absolutley certain the application is safe Chocolatey is undoubtedly the better option.
 - Packages are pretty up-to-date on Chocolatey as well so it's not much of any issue using it over scoop.
