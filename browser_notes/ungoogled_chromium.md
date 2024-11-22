@@ -59,6 +59,10 @@ go install your extensions! -> [`https://chromewebstore.google.com/`](https://ch
 [`FastForward`](https://chromewebstore.google.com/detail/fastforward/icallnadddjmdinamnolclfjanhfoafe)
 [`SponsorBlock`](https://chromewebstore.google.com/detail/sponsorblock-for-youtube/mnjggcdmjocbbbhaepdhchncahnbgone)
 
+# theme
+
+[`Dark-10`](https://chromewebstore.google.com/detail/dark-10/baebencgofnhbdimnijacljeoegbokeh)
+
 # `picture in picture` video tip 
 - `Right-click` video `twice` and click `Picture in picture`
 
