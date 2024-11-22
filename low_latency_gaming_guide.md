@@ -42,7 +42,7 @@ bcdedit /set disabledynamictick yes
 ```cmd
 bcdedit /set hypervisorlaunchtype off
 ```
-#### Re-enable with command and reboot
+### Re-enable **Hyper-V** and reboot
 ```cmd
 bcdedit /set hypervisorlaunchtype auto
 ```
