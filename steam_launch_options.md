@@ -16,5 +16,8 @@ Notes From Repo: https://github.com/dillacorn/win-glaze-dots
 ## The Finals ~ stretched 1440x1080 240hz
 ### in-game set to borderless windowed
 
+## Fortnite ~ stretched 1440x1080 240hz
+### in-game set to windowed fullscreen
+
 `alt+shift+m` and select your nircmd script to quickly change to prefered resolution.. in my case 1440x1080
 Now you can happily switch back and forth and the game will give you no issues.. feels just as good as Fullscreen IMO.
