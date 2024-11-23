@@ -77,4 +77,4 @@ scoop update *
 ---
 
 # applications not avaliable in official repos
-[butterytaskbar2](https://github.com/LuisThiamNye/ButteryTaskbar2), [AutoDesk Software](https://manage.autodesk.com/login?t=/products), [tinywhoopgo](https://tinywhoopgo.com/),
+[AutoDesk Software](https://manage.autodesk.com/login?t=/products), [tinywhoopgo](https://tinywhoopgo.com/),
