@@ -23,7 +23,7 @@ Notes From Repo: https://github.com/dillacorn/win-glaze-dots
 
 ### install GlazeWM & Zebar
 ```powershell
-choco install vcredist140 git glazewm zebar flow-launcher gsudo alacritty flameshot powertoys eartrumpet winspy wingetui -y
+choco install vcredist140 git glazewm zebar flow-launcher gsudo flameshot powertoys eartrumpet winspy wingetui -y
 ```
 
 ### install other choco applications
@@ -61,7 +61,7 @@ scoop bucket add extras
 
 ### install essential "extras" repo applications
 ```powershell
-scoop install extras/altsnap
+scoop install extras/altsnap alacritty
 ```
 
 ### install ALL "extras" repo applications

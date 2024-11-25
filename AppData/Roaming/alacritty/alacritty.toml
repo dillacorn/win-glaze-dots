@@ -1,4 +1,4 @@
-# config for version 0.13.2
+# config for version 0.14.0
 
 [bell]
 animation = "Ease"
@@ -72,11 +72,12 @@ mods = "Control|Shift"
 
 [mouse]
 hide_when_typing = true
+
 [scrolling]
 history = 10000
 multiplier = 3
 
-[shell]
+[terminal.shell]
 program = "C:/Windows/System32/WindowsPowerShell/v1.0/powershell.exe"
 
 [window]
@@ -88,3 +89,8 @@ title = "Alacritty"
 [window.dimensions]
 columns = 120
 lines = 30
+
+[terminal]
+
+[general]
+live_config_reload = true
