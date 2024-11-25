@@ -5,7 +5,9 @@ Notes From Repo: https://github.com/dillacorn/win-glaze-dots
 ### Reason why I don't primarily use scoop?
 
 **Safety:** Chocolatey is safer as applications are tested in a virtual environment and undergo manual and automated checks before distribution.
+
 **Trust:** Scoop downloads directly from the repo without middleman protection, requiring full trust that updates are free of intentional or unintentional malicious code.
+
 **Balance:** Scoop is the most up-to-date, Winget is often outdated, but Chocolatey balances timely updates with robust security checks.
 
 ---
