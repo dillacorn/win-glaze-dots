@@ -48,6 +48,11 @@ choco install mullvad-app wireguard winscp filezilla localsend moonlight sunshin
 choco install steam epicgameslauncher itch goggalaxy prismlauncher -y
 ```
 
+### AMD Ryzen Chipset Drivers
+```powershell
+choco install amd-ryzen-chipset -y
+```
+
 ### install directory-opus (license required) 
 ```powershell
 choco install directoryopus -y
