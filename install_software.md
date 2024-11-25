@@ -35,7 +35,7 @@ choco install make mingw curl steam -y
 
 ### install troubleshooting tools and optimization utilities
 ```powershell
-choco install ddu ventoy hwmonitor ccleaner wiztree cpu-z gpu-z msiafterburner -y
+choco install ddu ventoy hwmonitor ccleaner wiztree cpu-z gpu-z -y
 ```
 
 ### install networking utilities
@@ -88,7 +88,7 @@ scoop install extras/altsnap alacritty
 
 ### install ALL "extras" repo applications
 ```powershell
-scoop install extras/feishin logitech-omm
+scoop install extras/feishin logitech-omm msiafterburner rtss
 ```
 
 ### update all scoop apps
