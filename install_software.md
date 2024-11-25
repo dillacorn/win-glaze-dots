@@ -99,9 +99,9 @@ scoop update *
 ---
 
 # applications not avaliable in official repos
-[AutoDesk Software](https://manage.autodesk.com/login?t=/products), [tinywhoopgo](https://tinywhoopgo.com/),
+- [AutoDesk Software](https://manage.autodesk.com/login?t=/products)
+- [tinywhoopgo](https://tinywhoopgo.com/),
 
 # Graphics Card Drivers
-[Advanced Micro Devices (AMD GPU)](https://www.amd.com/en/support/download/drivers.html)
-
-[Nvidia GPU](https://www.nvidia.com/en-us/drivers/)
+- [Advanced Micro Devices (AMD GPU)](https://www.amd.com/en/support/download/drivers.html)
+- [Nvidia GPU](https://www.nvidia.com/en-us/drivers/)
