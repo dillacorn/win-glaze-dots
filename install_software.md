@@ -1,34 +1,49 @@
 Notes From Repo: https://github.com/dillacorn/win-glaze-dots
 
-### Reason why I don't use winget? 
-
-- Packages regularly outdated...
-
 ---
 
-### Reason why I don't primarily use scoop anymore?
+### Reason why I don't primarily use scoop?
 
-- Chocolatey is a safer due to applications needing to be ran in a test environment and manually/automatically tested before distribution.
-- With scoop you're essentially putting your full trust that the latest update of a piece of software may not contain a virus or malicious code either intentional or unintentional... with scoop you're downloading directly from the repo with no middle-man protection.
-- If you want to be absolutley certain the application is safe Chocolatey is undoubtedly the better option.
-- Packages are pretty up-to-date on Chocolatey as well so it's not much of any issue using it over scoop.
+**Safety:** Chocolatey is safer as applications are tested in a virtual environment and undergo manual and automated checks before distribution.
+**Trust:** Scoop downloads directly from the repo without middleman protection, requiring full trust that updates are free of intentional or unintentional malicious code.
+**Balance:** Scoop is the most up-to-date, Winget is often outdated, but Chocolatey balances timely updates with robust security checks.
 
 ---
 
 # install Chocolatey
 ### https://chocolatey.org/install
-### UAC required
+### **Run as Admin**
 
 ---
 
-### install GlazeWM & Zebar
+### install GlazeWM & Zebar + Essentials
 ```powershell
-choco install vcredist140 git glazewm zebar flow-launcher gsudo flameshot powertoys eartrumpet winspy wingetui -y
+choco install vcredist140 git glazewm zebar flow-launcher gsudo flameshot powertoys eartrumpet winspy wingetui fastfetch micro nircmd 7zip notepadplusplus everything qimgv mpv -y
 ```
 
-### install other choco applications
+### install additional applications
 ```powershell
-choco install vmware-workstation-player malwarebytes okular make mingw curl fastfetch micro nircmd flac 7zip notepadplusplus cura-new telegram dorion ungoogled-chromium librewolf ddu keepassxc bitwarden teamviewer sunshine moonlight ventoy everything mpv vlc krita hwmonitor qimgv filezilla winscp shotcut gimp qbittorrent localsend ccleaner screentogif spotify betaflight-configurator obs-studio obs-ndi steam epicgameslauncher itch wireguard mullvad-app files -y
+choco install vmware-workstation-player malwarebytes okular cura-new telegram dorion ungoogled-chromium librewolf keepassxc bitwarden teamviewer krita shotcut gimp qbittorrent screentogif spotify betaflight-configurator obs-studio files flac -y
+```
+
+### install development tools
+```powershell
+choco install make mingw curl steam -y
+```
+
+### install troubleshooting tools and optimization utilities
+```powershell
+choco install ddu ventoy hwmonitor ccleaner wiztree cpu-z gpu-z msiafterburner -y
+```
+
+### install networking utilities
+```powershell
+choco install mullvad-app wireguard winscp filezilla localsend moonlight sunshine obs-ndi -y
+```
+
+### install game launchers
+```powershell
+choco install steam epicgameslauncher itch goggalaxy prismlauncher -y
 ```
 
 ### install directory-opus (license required) 
@@ -50,7 +65,7 @@ choco upgrade all -y
 
 # install scoop
 ### https://scoop.sh/#/
-### UAC not required
+### **Admin not Req.**
 
 ---
 
