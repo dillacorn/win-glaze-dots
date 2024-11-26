@@ -6,7 +6,7 @@ echo ===========================
 setlocal enabledelayedexpansion
 set count=1
 for %%f in (*.bat) do (
-    if /i not "%%~nf"=="menu" (
+    if /i not "%%~nf"=="menu" if /i not "%%~nf"=="open_with_micro" (
         echo !count!. %%~nf
         set "option[!count!]=%%f"
         set /a count+=1
