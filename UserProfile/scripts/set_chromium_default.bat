@@ -1,8 +1,8 @@
 @echo off
-:: Check if running as administrator
+:: Check for admin privileges
 net session >nul 2>&1
 if %errorlevel% neq 0 (
-    echo This script must be run as Administrator!
+    echo This script needs to be run as an administrator. Please re-run with elevated privileges.
     pause
     exit /b
 )
