@@ -7,7 +7,7 @@
 - **Window Manager & Primary Applications**: [glazewm](https://github.com/glzr-io/glazewm) + [zebar](https://github.com/glzr-io/zebar) + [altsnap](https://github.com/RamonUnch/AltSnap) + [flow-launcher](https://github.com/Flow-Launcher/Flow.Launcher) + [eartrumpet](https://github.com/File-New-Project/EarTrumpet) + [powertoys](https://github.com/microsoft/PowerToys) + [flameshot](https://github.com/flameshot-org/flameshot) + [alacritty](https://github.com/alacritty/alacritty) + [micro](https://github.com/zyedidia/micro) + [winspy](https://github.com/strobejb/winspy)
 ---
 ## Guides in Specific Order Of Installation and Configuration
-1. ### [**windows_settings**](https://github.com/dillacorn/win-glaze-dots/blob/main/Windows_Settings.md)
+1. ### [**windows_settings**](https://github.com/dillacorn/win-glaze-dots/blob/main/windows_settings.md)
 2. ### [**Fix Blurry Fonts**](https://www.youtube.com/watch?v=YRqoVG-ApSI)
 3. ### [**install_software**](https://github.com/dillacorn/win-glaze-dots/blob/main/install_software.md)
 4. ### [**amd_software_settings**](https://github.com/dillacorn/win-glaze-dots/blob/main/amd_software_settings.md)
