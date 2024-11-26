@@ -91,6 +91,11 @@ scoop install extras/altsnap alacritty
 scoop install extras/feishin logitech-omm msiafterburner rtss
 ```
 
+### install btop
+```powershell
+scoop install main/btop
+```
+
 ### update all scoop apps
 ```powershell
 scoop update *
