@@ -14,58 +14,58 @@ Notes From Repo: https://github.com/dillacorn/win-glaze-dots
 
 # install Chocolatey
 ### https://chocolatey.org/install
-### **Run as Admin**
+### **Run as Admin** ~ **Use "sudo" before command**
 
 ---
 
 ### install GlazeWM & Zebar + Essentials
 ```powershell
-choco install vcredist140 git glazewm zebar flow-launcher gsudo flameshot powertoys eartrumpet winspy wingetui fastfetch micro nircmd 7zip notepadplusplus everything qimgv mpv -y
+sudo choco install vcredist140 git glazewm zebar flow-launcher flameshot powertoys eartrumpet winspy wingetui fastfetch micro nircmd 7zip notepadplusplus everything qimgv mpv -y
 ```
 
 ### install additional applications
 ```powershell
-choco install vmware-workstation-player malwarebytes okular cura-new telegram dorion ungoogled-chromium librewolf keepassxc bitwarden teamviewer krita shotcut gimp qbittorrent screentogif spotify betaflight-configurator obs-studio files flac -y
+sudo choco install vmware-workstation-player malwarebytes okular cura-new telegram dorion ungoogled-chromium librewolf keepassxc bitwarden teamviewer krita shotcut gimp qbittorrent screentogif spotify betaflight-configurator obs-studio files flac -y
 ```
 
 ### install development tools
 ```powershell
-choco install make mingw curl steam -y
+sudo choco install make mingw curl steam -y
 ```
 
 ### install troubleshooting tools and optimization utilities
 ```powershell
-choco install ddu ventoy hwmonitor ccleaner wiztree cpu-z gpu-z -y
+sudo choco install ddu ventoy hwmonitor ccleaner wiztree cpu-z gpu-z -y
 ```
 
 ### install networking utilities
 ```powershell
-choco install mullvad-app wireguard winscp filezilla localsend moonlight sunshine obs-ndi -y
+sudo choco install mullvad-app wireguard winscp filezilla localsend moonlight sunshine obs-ndi -y
 ```
 
 ### install game launchers
 ```powershell
-choco install steam epicgameslauncher itch goggalaxy prismlauncher -y
+sudo choco install steam epicgameslauncher itch goggalaxy prismlauncher -y
 ```
 
 ### AMD Ryzen Chipset Drivers
 ```powershell
-choco install amd-ryzen-chipset -y
+sudo choco install amd-ryzen-chipset -y
 ```
 
 ### install directory-opus (license required) 
 ```powershell
-choco install directoryopus -y
+sudo choco install directoryopus -y
 ```
 
 ### install PDF-XChange Editor (alternativley use "okular"[**I use**] or "PDFGear")
 ```powershell
-choco install pdfxchangeeditor -y
+sudo choco install pdfxchangeeditor -y
 ```
 
 ### update all chocolatey apps
 ```powershell
-choco upgrade all -y
+sudo choco upgrade all -y
 ```
 
 ---
