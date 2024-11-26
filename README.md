@@ -17,11 +17,10 @@
 8. ### [**eartrumpet_bind**](https://github.com/dillacorn/win-glaze-dots/blob/main/eartrumpet_bind.png)
 9. ### [**powertoys_flameshot_win+shift+f**](https://github.com/dillacorn/win-glaze-dots/blob/main/powertoys_flameshot_win%2Bshift%2Bf.md)
 10. ### [**theme_scripts(UAC Req.)**](https://github.com/dillacorn/win-glaze-dots/tree/main/theme_scripts(UAC%20Req.))
-11. ### [**butterytaskbar2**](https://github.com/dillacorn/win-glaze-dots/blob/main/butterytaskbar2.png)
-12. ### [**Update**](https://support.microsoft.com/en-us/windows/windows-update-faq-8a903416-6f45-0718-f5c7-375e92dddeb2) and [**Reboot**](https://support.microsoft.com/en-us/windows/restart-reboot-your-pc-110262aa-fc79-1c33-7b00-c140ae3a6dac)
-13. ### [**privacy.sexy**](https://github.com/dillacorn/win-glaze-dots/blob/main/privacy.sexy.md)
-14. ### [**low_latency_gaming_guide**](https://github.com/dillacorn/win-glaze-dots/blob/main/low_latency_gaming_guide.md)
-15. ### [**browser_notes**](https://github.com/dillacorn/win-glaze-dots/tree/main/browser_notes)
+11. ### [**Update**](https://support.microsoft.com/en-us/windows/windows-update-faq-8a903416-6f45-0718-f5c7-375e92dddeb2) and [**Reboot**](https://support.microsoft.com/en-us/windows/restart-reboot-your-pc-110262aa-fc79-1c33-7b00-c140ae3a6dac)
+12. ### [**privacy.sexy**](https://github.com/dillacorn/win-glaze-dots/blob/main/privacy.sexy.md)
+13. ### [**low_latency_gaming_guide**](https://github.com/dillacorn/win-glaze-dots/blob/main/low_latency_gaming_guide.md)
+14. ### [**browser_notes**](https://github.com/dillacorn/win-glaze-dots/tree/main/browser_notes)
 ---
 ## Wallpapers
 - [Gruvbox Wallpapers](https://github.com/AngelJumbo/gruvbox-wallpapers) by [AngelJumbo](https://github.com/AngelJumbo)
