@@ -8,7 +8,7 @@
 ---
 ## Guides in Specific Order Of Installation and Configuration
 1. ### [**windows_settings**](https://github.com/dillacorn/win-glaze-dots/blob/main/windows_settings.md)
-2. ### [**Fix Blurry Fonts**](https://www.youtube.com/watch?v=YRqoVG-ApSI)
+2. ### [**fix blurry fonts**](https://www.youtube.com/watch?v=YRqoVG-ApSI)
 3. ### [**install_software**](https://github.com/dillacorn/win-glaze-dots/blob/main/install_software.md)
 4. ### [**amd_software_settings**](https://github.com/dillacorn/win-glaze-dots/blob/main/amd_software_settings.md)
 5. ### [**terminal_navigation**](https://github.com/dillacorn/win-glaze-dots/blob/main/terminal_navigation.md)
