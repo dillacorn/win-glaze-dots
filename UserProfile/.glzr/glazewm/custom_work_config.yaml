@@ -183,6 +183,12 @@ window_rules:
       # Set Flow-Launcher to float
       - window_process: { equals: "Flow.Launcher" }
         window_title: { equals: "Settings" }
+
+      # Set AltSnap to float
+      - window_process: { equals: "AltSnap" }
+
+      # Set Task Manager to float
+      - window_process: { equals: "Taskmgr" }
     
       # Set acad software windows to float
       - window_process: { equals: "acad" }
