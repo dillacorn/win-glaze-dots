@@ -7,11 +7,9 @@ For when FireFox/Librewolf isn't capable of the task.. or for compatibility reas
 choco install ungoogled-chromium -y
 ```
 
-- pin "Ungoogled Chromium" to start menu for flow launcher.. I use "Everything" app to find "ungoogled chromium" folder/install location.
+- pin "chrome.exe" to start menu for flow launcher. ~ I use "Everything" app to find "chrome.exe" folder/install location.
 
-- personally I rename "chrome.exe" to "ungoogled chromium.exe" then pin to start menu.
-
-- open "chrome" and/or "ungoogled chromium" with flow-launcher `alt+p`
+- open "chrome.exe" with flow-launcher `alt+p`
 
 # flags
 
