@@ -1,12 +1,14 @@
+### use [clone_&_copy_dots.bat](https://github.com/dillacorn/win-glaze-dots/tree/main/scripts(UAC%20Req.)/clone_&_copy_dots.bat) to automate the process ~ (UAC Req.)
+
 ### Navigate to user home directory
 ```powershell
 cd ~
 ```
-### Clone Repo (Using Alacritty)
+### Clone Repo
 ```powershell
 git clone https://github.com/dillacorn/win-glaze-dots
 ```
-### Recursive copy directories
+### Recursive copy dotfiles
 #### Copy and overwrite `.glazr` folder dots
 ```powershell
 Copy-Item -Recurse -Path "$env:UserProfile\win-glaze-dots\UserProfile\.glzr" -Destination "$env:UserProfile" -Force
@@ -23,6 +25,7 @@ Copy-Item -Recurse -Path "$env:UserProfile\win-glaze-dots\AppData\Roaming\alacri
 ```powershell
 Copy-Item -Recurse -Path "$env:UserProfile\win-glaze-dots\AppData\Roaming\flameshot" -Destination "$env:AppData\Roaming" -Force
 ```
+### Copy scoop dotfiles
 #### Copy and overwrite `altsnap` dots
 ```powershell
 Copy-Item -Path "$env:UserProfile\win-glaze-dots\scoop\apps\altsnap\1.64\AltSnap.ini" -Destination "$env:UserProfile\scoop\apps\altsnap\1.64\AltSnap.ini" -Force
