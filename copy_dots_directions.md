@@ -23,3 +23,11 @@ Copy-Item -Recurse -Path "$env:UserProfile\win-glaze-dots\AppData\Roaming\alacri
 ```powershell
 Copy-Item -Recurse -Path "$env:UserProfile\win-glaze-dots\AppData\Roaming\flameshot" -Destination "$env:AppData\Roaming" -Force
 ```
+#### Copy and overwrite `altsnap` dots
+```powershell
+Copy-Item -Path "$env:UserProfile\win-glaze-dots\scoop\apps\altsnap\1.64\AltSnap.ini" -Destination "$env:UserProfile\scoop\apps\altsnap\1.64\AltSnap.ini" -Force
+```
+#### Copy and overwrite `btop` dots
+```powershell
+Copy-Item -Path "$env:UserProfile\win-glaze-dots\scoop\apps\btop\1.0.4\btop.conf" -Destination "$env:UserProfile\scoop\apps\btop\1.0.4\btop.conf" -Force
+```
