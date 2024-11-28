@@ -166,6 +166,7 @@ window_rules:
         window_title: { regex: ".*? - Peek" }
       - window_process: { equals: "Lively" }
         window_class: { regex: "HwndWrapper" }
+      - window_process: { equals: "Mullvad VPN" }
       
   - commands: ["set-floating"]
     match:
