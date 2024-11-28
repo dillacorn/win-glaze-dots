@@ -25,7 +25,7 @@ sudo choco install vcredist140 git glazewm zebar flow-launcher flameshot powerto
 
 ### install additional applications
 ```powershell
-sudo choco install vmware-workstation-player malwarebytes okular cura-new telegram dorion ungoogled-chromium librewolf keepassxc bitwarden teamviewer krita shotcut gimp qbittorrent screentogif spotify betaflight-configurator obs-studio files flac -y
+sudo choco install vmware-workstation-player malwarebytes okular cura-new telegram ungoogled-chromium librewolf keepassxc bitwarden teamviewer krita shotcut gimp qbittorrent screentogif spotify betaflight-configurator obs-studio files flac -y
 ```
 
 ### install development tools
@@ -88,7 +88,7 @@ scoop install extras/altsnap alacritty
 
 ### install ALL "extras" repo applications
 ```powershell
-scoop install extras/feishin logitech-omm msiafterburner rtss
+scoop install extras/feishin logitech-omm msiafterburner rtss vesktop
 ```
 
 ### install btop
