@@ -25,7 +25,7 @@ sudo choco install vcredist140 git glazewm zebar flow-launcher flameshot powerto
 
 ### install additional applications
 ```powershell
-sudo choco install vmware-workstation-player malwarebytes okular cura-new telegram ungoogled-chromium librewolf keepassxc bitwarden teamviewer krita shotcut gimp qbittorrent screentogif spotify betaflight-configurator obs-studio files flac -y
+sudo choco install vmware-workstation-player malwarebytes okular cura-new telegram ungoogled-chromium librewolf keepassxc bitwarden teamviewer krita shotcut gimp qbittorrent screentogif spotify betaflight-configurator obs-studio files flac yt-dlp -y
 ```
 
 ### install development tools
