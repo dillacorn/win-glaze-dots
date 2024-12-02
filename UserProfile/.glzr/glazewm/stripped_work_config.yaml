@@ -133,7 +133,7 @@ window_rules:
   - commands: ["move --workspace 3"]
     match:
       # Move outlook to workspace 3.
-      - window_process: { regex: "OUTLOOK" }
+      - window_process: { regex: "OUTLOOK|olk" }
       
   - commands: ["move --workspace 4"]
     match:
