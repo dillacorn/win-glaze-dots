@@ -14,7 +14,7 @@
         }
     },
     "extract_dir": "PFiles64\\glzr.io\\GlazeWM",
-    "bin": "glazewm.exe",
+    "bin": "GlazeWM.exe",
     "shortcuts": [
         [
             "GlazeWM.exe",
