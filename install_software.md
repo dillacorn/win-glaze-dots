@@ -18,7 +18,12 @@ Notes From Repo: https://github.com/dillacorn/win-glaze-dots
 
 ---
 
-### install GlazeWM & Zebar + Essentials
+### install GlazeWM & Zebar (optional)
+```powershell
+sudo choco install vcredist140 glazewm zebar -y
+```
+
+### install Essentials
 ```powershell
 sudo choco install git flow-launcher flameshot powertoys eartrumpet winspy wingetui fastfetch micro nircmd 7zip notepadplusplus everything qimgv mpv -y
 ```
