@@ -17,8 +17,8 @@
     "bin": "glazewm.exe",
     "shortcuts": [
         [
-            "glazewm.exe",
-            "glazewm"
+            "GlazeWM.exe",
+            "GlazeWM"
         ]
     ]
 }
