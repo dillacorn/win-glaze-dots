@@ -96,7 +96,7 @@ scoop install extras/feishin logitech-omm msiafterburner rtss vesktop
 scoop bucket add dillacorn https://github.com/dillacorn/win-glaze-dots
 ```
 
-### install glazewm from this git
+### install glazewm from my git
 ```powershell
 scoop install dillacorn/glazewm
 ```
