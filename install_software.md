@@ -97,11 +97,13 @@ scoop install extras/feishin logitech-omm msiafterburner rtss vesktop
 ```
 
 ### add my unofficial scoop "glazewm" repo
+#### FYI: `does not work with elevated windows`
 ```powershell
 scoop bucket add dillacorn https://github.com/dillacorn/win-glaze-dots
 ```
 
 ### install glazewm from my git
+#### FYI: `does not work with elevated windows`
 ```powershell
 scoop install dillacorn/glazewm
 ```
