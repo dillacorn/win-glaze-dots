@@ -91,6 +91,16 @@ scoop install extras/altsnap alacritty vcredist zebar
 scoop install extras/feishin logitech-omm msiafterburner rtss vesktop
 ```
 
+### add my unofficial scoop "glazewm" repo
+```powershell
+scoop bucket add dillacorn https://github.com/dillacorn/win-glaze-dots
+```
+
+### install glazewm from this git
+```powershell
+scoop install dillacorn/glazewm
+```
+
 ### install btop
 ```powershell
 scoop install main/btop
