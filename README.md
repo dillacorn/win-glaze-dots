@@ -24,11 +24,14 @@
 15. ### [**low_latency_gaming_guide**](https://github.com/dillacorn/win-glaze-dots/blob/main/low_latency_gaming_guide.md)
 16. ### [**browser_notes**](https://github.com/dillacorn/win-glaze-dots/tree/main/browser_notes)
 ---
-## Wallpapers
+### Wallpapers
 - [Gruvbox Wallpapers](https://github.com/AngelJumbo/gruvbox-wallpapers) by [AngelJumbo](https://github.com/AngelJumbo)
 - [Aesthetic Wallpapers](https://github.com/D3Ext/aesthetic-wallpapers) by [D3Ext](https://github.com/D3Ext)
 - [Wallpapers](https://github.com/michaelScopic/Wallpapers) by [michaelScopic](https://github.com/michaelScopic)
-- [Wallpaper Engine](https://store.steampowered.com/app/431960/Wallpaper_Engine)
+---
+### [Wallpaper Engine](https://store.steampowered.com/app/431960/Wallpaper_Engine) on [Steam](https://store.steampowered.com/)
+- [Media Visualizer](https://steamcommunity.com/sharedfiles/filedetails/?id=2890984249)
+- [Hang In There ~ Undertale](https://steamcommunity.com/sharedfiles/filedetails/?id=919213241)
 ---
 ### License
 All code and notes are not under any formal license. If you find any of the scripts helpful, feel free to use, modify, publish, and distribute them to your heart's content. See https://unlicense.org/repo
