@@ -15,19 +15,19 @@
     },
     "installer": {
         "script": [
-            "Start-Process msiexec -ArgumentList @('/i', \"$dir\\$fname\", '/quiet', 'INSTALLDIR=\"C:\\Program Files\\GlazeWM\"') -Wait -Verb RunAs",
-            "if (Test-Path \"C:\\Program Files\\GlazeWM\\GlazeWM.exe\") { Write-Host 'GlazeWM installed successfully to C:\\Program Files\\GlazeWM' }"
+            "Start-Process msiexec -ArgumentList @('/i', \"$dir\\$fname\", '/quiet', 'INSTALLDIR=C:\\Program Files\\GlazeWM') -Wait -Verb RunAs",
+            "if (Test-Path \"C:\\Program Files\\GlazeWM\\GlazeWM.exe\") { Write-Host 'GlazeWM installed successfully to C:\\Program Files\\GlazeWM' } else { throw 'Installation failed. File not found in C:\\Program Files\\GlazeWM' }"
         ]
     },
     "uninstaller": {
         "script": [
-            "Start-Process msiexec -ArgumentList @('/x', \"$dir\\$fname\", '/quiet') -Wait -Verb RunAs",
-            "if (-Not (Test-Path \"C:\\Program Files\\GlazeWM\")) { Write-Host 'GlazeWM uninstalled successfully' }"
+            "Start-Process msiexec -ArgumentList @('/x', 'C:\\Program Files\\GlazeWM\\GlazeWM.msi', '/quiet') -Wait -Verb RunAs",
+            "if (Test-Path \"C:\\Program Files\\GlazeWM\") { Remove-Item -Recurse -Force \"C:\\Program Files\\GlazeWM\"; Write-Host 'GlazeWM folder removed from C:\\Program Files\\GlazeWM' } else { Write-Host 'GlazeWM already uninstalled' }"
         ]
     },
     "shortcuts": [
         [
-            "GlazeWM.exe",
+            "C:\\Program Files\\GlazeWM\\GlazeWM.exe",
             "GlazeWM"
         ]
     ],
