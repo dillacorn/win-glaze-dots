@@ -20,45 +20,7 @@
                     "if (!(Test-Path $sourcePath)) { throw \"Source path not found: $sourcePath\" }",
                     "if (!(Test-Path $destinationPath)) { New-Item -ItemType Directory -Force -Path $destinationPath }",
                     "Copy-Item -Recurse -Force \"$sourcePath\\*\" \"$destinationPath\"",
-                    "if (!(Test-Path \"$destinationPath\\glazewm.exe\")) { throw \"Installation failed. glazewm.exe not found in $destinationPath\" }",
-                    "Write-Host \"Installation successful. Files located in: $destinationPath\";",
-                    "",
-                    "Write-Host 'Creating shortcut for GlazeWM...';",
-                    "$startMenuPath = Join-Path ([Environment]::GetFolderPath('StartMenu')) 'Programs';",
-                    "$shortcutPath = Join-Path $startMenuPath 'GlazeWM.lnk';",
-                    "$shell = New-Object -ComObject WScript.Shell;",
-                    "$shortcut = $shell.CreateShortcut($shortcutPath);",
-                    "$shortcut.TargetPath = \"$destinationPath\\glazewm.exe\";",
-                    "$shortcut.WorkingDirectory = \"$destinationPath\";",
-                    "$shortcut.IconLocation = \"$destinationPath\\glazewm.exe\";",
-                    "$shortcut.Save();",
-                    "Write-Host \"Shortcut created in Start Menu: $shortcutPath\";",
-                    "",
-                    "Write-Host 'Refreshing Windows Search Index...';",
-                    "Start-Sleep -Seconds 2;",
-                    "Stop-Service 'WSearch' -Force;",
-                    "Start-Sleep -Seconds 3;",
-                    "Start-Service 'WSearch';",
-                    "Write-Host 'Windows Search Index refreshed successfully.';"
-                ]
-            }
-        },
-        "arm64": {
-            "url": "https://github.com/glzr-io/glazewm/releases/download/v3.7.0/standalone-glazewm-v3.7.0-arm64.msi",
-            "hash": "C1C91D4E29863A9454C336101D57042A97613138F6403B1F718D018AD52BF517",
-            "installer": {
-                "script": [
-                    "if (!(is_admin)) {",
-                    "    Start-Process powershell -ArgumentList \"-ExecutionPolicy Bypass -Command & { scoop install $global:scoop_local_bucket/glazewm-np }\" -Verb RunAs;",
-                    "    break;",
-                    "}",
-                    "$programFilesPath = [System.Environment]::GetFolderPath('ProgramFiles');",
-                    "$destinationPath = Join-Path $programFilesPath 'glzr.io\\GlazeWM';",
-                    "$sourcePath = \"$dir\\PFiles64\\glzr.io\\GlazeWM\";",
-                    "Start-Process msiexec -ArgumentList @('/i', \"$dir\\$fname\", '/quiet', '/norestart') -Wait -Verb RunAs",
-                    "if (!(Test-Path $sourcePath)) { throw \"Source path not found: $sourcePath\" }",
-                    "if (!(Test-Path $destinationPath)) { New-Item -ItemType Directory -Force -Path $destinationPath }",
-                    "Copy-Item -Recurse -Force \"$sourcePath\\*\" \"$destinationPath\"",
+                    "Copy-Item -Force \"$dir\\$fname\" \"$destinationPath\\glazewm.msi\"",
                     "if (!(Test-Path \"$destinationPath\\glazewm.exe\")) { throw \"Installation failed. glazewm.exe not found in $destinationPath\" }",
                     "Write-Host \"Installation successful. Files located in: $destinationPath\";",
                     "",
@@ -116,9 +78,6 @@
         "architecture": {
             "64bit": {
                 "url": "https://github.com/glzr-io/glazewm/releases/download/v$version/standalone-glazewm-v$version-x64.msi"
-            },
-            "arm64": {
-                "url": "https://github.com/glzr-io/glazewm/releases/download/v$version/standalone-glazewm-v$version-arm64.msi"
             }
         }
     }
