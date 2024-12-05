@@ -20,12 +20,11 @@
             "if (!(Test-Path $sourcePath)) { throw \"Source path not found: $sourcePath\" }",
             "Write-Host \"Resolved source path: $sourcePath\";",
             "Write-Host 'Copying files to C:\\Program Files\\GlazeWM...';",
-            "$destinationPath = 'C:\\Program Files\\GlazeWM';",
-            "if (!(Test-Path $destinationPath)) { New-Item -ItemType Directory -Force -Path $destinationPath }",
-            "Copy-Item -Recurse -Force \"$sourcePath\\*\" $destinationPath;",
+            "if (!(Test-Path 'C:\\Program Files\\GlazeWM')) { New-Item -ItemType Directory -Force -Path 'C:\\Program Files\\GlazeWM' }",
+            "Copy-Item -Recurse -Force \"$sourcePath\\*\" 'C:\\Program Files\\GlazeWM';",
             "Write-Host 'Verifying copied files:';",
-            "if (!(Test-Path \"$destinationPath\\glazewm.exe\")) { throw 'Move failed. File not found in C:\\Program Files\\GlazeWM.' }",
-            "Get-ChildItem $destinationPath | Out-String | Write-Host;",
+            "if (!(Test-Path 'C:\\Program Files\\GlazeWM\\glazewm.exe')) { throw 'Move failed. File not found in C:\\Program Files\\GlazeWM.' }",
+            "Get-ChildItem 'C:\\Program Files\\GlazeWM' | Out-String | Write-Host;",
             "Write-Host 'Cleaning up source directory...';",
             "Remove-Item -Recurse -Force \"$sourcePath\" -ErrorAction SilentlyContinue"
         ]
