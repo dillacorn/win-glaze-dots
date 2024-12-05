@@ -34,8 +34,12 @@
                     "$shortcut.Save();",
                     "Write-Host \"Shortcut created in Start Menu: $shortcutPath\";",
                     "",
-                    "Write-Host 'Forcing Windows Search Index to refresh...';",
-                    "Start-Process -FilePath \"C:\\Windows\\System32\\rundll32.exe\" -ArgumentList \"searchindexer.dll,Update\" -Wait"
+                    "Write-Host 'Refreshing Windows Search Index...';",
+                    "Start-Sleep -Seconds 2;",
+                    "Stop-Service 'WSearch' -Force;",
+                    "Start-Sleep -Seconds 3;",
+                    "Start-Service 'WSearch';",
+                    "Write-Host 'Windows Search Index refreshed successfully.';"
                 ]
             }
         },
@@ -69,8 +73,12 @@
                     "$shortcut.Save();",
                     "Write-Host \"Shortcut created in Start Menu: $shortcutPath\";",
                     "",
-                    "Write-Host 'Forcing Windows Search Index to refresh...';",
-                    "Start-Process -FilePath \"C:\\Windows\\System32\\rundll32.exe\" -ArgumentList \"searchindexer.dll,Update\" -Wait"
+                    "Write-Host 'Refreshing Windows Search Index...';",
+                    "Start-Sleep -Seconds 2;",
+                    "Stop-Service 'WSearch' -Force;",
+                    "Start-Sleep -Seconds 3;",
+                    "Start-Service 'WSearch';",
+                    "Write-Host 'Windows Search Index refreshed successfully.';"
                 ]
             }
         }
