@@ -15,7 +15,11 @@
                     "}",
                     "$programFilesPath = [System.Environment]::GetFolderPath('ProgramFiles');",
                     "$destinationPath = Join-Path $programFilesPath 'GlazeWM';",
-                    "Start-Process msiexec -ArgumentList @('/i', \"$dir\\$fname\", '/quiet', \"INSTALLDIR=$destinationPath\") -Wait -Verb RunAs",
+                    "$sourcePath = Join-Path \"$dir\" 'PFiles64\\glzr.io\\GlazeWM';",
+                    "Start-Process msiexec -ArgumentList @('/i', \"$dir\\$fname\", '/quiet') -Wait -Verb RunAs",
+                    "if (!(Test-Path $sourcePath)) { throw \"Source path not found: $sourcePath\" }",
+                    "if (!(Test-Path $destinationPath)) { New-Item -ItemType Directory -Force -Path $destinationPath }",
+                    "Copy-Item -Recurse -Force \"$sourcePath\\*\" \"$destinationPath\"",
                     "if (!(Test-Path \"$destinationPath\\glazewm.exe\")) { throw \"Installation failed. glazewm.exe not found in $destinationPath\" }",
                     "Write-Host \"Installation successful. Files located in: $destinationPath\";"
                 ]
@@ -32,7 +36,11 @@
                     "}",
                     "$programFilesPath = [System.Environment]::GetFolderPath('ProgramFiles');",
                     "$destinationPath = Join-Path $programFilesPath 'GlazeWM';",
-                    "Start-Process msiexec -ArgumentList @('/i', \"$dir\\$fname\", '/quiet', \"INSTALLDIR=$destinationPath\") -Wait -Verb RunAs",
+                    "$sourcePath = Join-Path \"$dir\" 'PFiles64\\glzr.io\\GlazeWM';",
+                    "Start-Process msiexec -ArgumentList @('/i', \"$dir\\$fname\", '/quiet') -Wait -Verb RunAs",
+                    "if (!(Test-Path $sourcePath)) { throw \"Source path not found: $sourcePath\" }",
+                    "if (!(Test-Path $destinationPath)) { New-Item -ItemType Directory -Force -Path $destinationPath }",
+                    "Copy-Item -Recurse -Force \"$sourcePath\\*\" \"$destinationPath\"",
                     "if (!(Test-Path \"$destinationPath\\glazewm.exe\")) { throw \"Installation failed. glazewm.exe not found in $destinationPath\" }",
                     "Write-Host \"Installation successful. Files located in: $destinationPath\";"
                 ]
@@ -47,7 +55,7 @@
             "}",
             "$programFilesPath = [System.Environment]::GetFolderPath('ProgramFiles');",
             "$destinationPath = Join-Path $programFilesPath 'GlazeWM';",
-            "Start-Process msiexec -ArgumentList @('/x', \"$destinationPath\\GlazeWM.msi\", '/quiet') -Wait -Verb RunAs",
+            "Remove-Item -Recurse -Force $destinationPath",
             "if (!(Test-Path $destinationPath)) { Write-Host 'GlazeWM uninstalled successfully.' } else { throw 'Uninstallation failed. Directory still exists.' }"
         ]
     },
