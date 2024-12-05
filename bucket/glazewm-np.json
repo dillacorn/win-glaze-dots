@@ -13,8 +13,20 @@
                     "    Start-Process powershell -ArgumentList \"-ExecutionPolicy Bypass -NoExit -Command & { scoop install $global:scoop_local_bucket/glazewm-np }\" -Verb RunAs;",
                     "    break;",
                     "}",
-                    "Start-Process msiexec -ArgumentList @('/i', \"$dir\\$fname\", '/quiet', '/norestart') -Wait -Verb RunAs",
-                    "Write-Host \"Installation successful.\";"
+                    "Start-Process msiexec -ArgumentList @('/i', \"$dir\\$fname\", '/quiet', '/norestart', 'ALLUSERS=1', 'REBOOT=ReallySuppress') -Wait -Verb RunAs",
+                    "Write-Host \"Installation successful.\";",
+                    "",
+                    "Write-Host 'Creating shortcut for GlazeWM...';",
+                    "$programFilesPath = [System.Environment]::GetFolderPath('ProgramFiles');",
+                    "$destinationPath = Join-Path $programFilesPath 'glzr.io\\GlazeWM';",
+                    "$shortcutPath = Join-Path ([Environment]::GetFolderPath('Desktop')) 'GlazeWM.lnk';",
+                    "$shell = New-Object -ComObject WScript.Shell;",
+                    "$shortcut = $shell.CreateShortcut($shortcutPath);",
+                    "$shortcut.TargetPath = \"$destinationPath\\glazewm.exe\";",
+                    "$shortcut.WorkingDirectory = \"$destinationPath\";",
+                    "$shortcut.IconLocation = \"$destinationPath\\glazewm.exe\";",
+                    "$shortcut.Save();",
+                    "Write-Host \"Shortcut created on Desktop: $shortcutPath\";"
                 ]
             }
         },
@@ -27,8 +39,20 @@
                     "    Start-Process powershell -ArgumentList \"-ExecutionPolicy Bypass -NoExit -Command & { scoop install $global:scoop_local_bucket/glazewm-np }\" -Verb RunAs;",
                     "    break;",
                     "}",
-                    "Start-Process msiexec -ArgumentList @('/i', \"$dir\\$fname\", '/quiet', '/norestart') -Wait -Verb RunAs",
-                    "Write-Host \"Installation successful.\";"
+                    "Start-Process msiexec -ArgumentList @('/i', \"$dir\\$fname\", '/quiet', '/norestart', 'ALLUSERS=1', 'REBOOT=ReallySuppress') -Wait -Verb RunAs",
+                    "Write-Host \"Installation successful.\";",
+                    "",
+                    "Write-Host 'Creating shortcut for GlazeWM...';",
+                    "$programFilesPath = [System.Environment]::GetFolderPath('ProgramFiles');",
+                    "$destinationPath = Join-Path $programFilesPath 'glzr.io\\GlazeWM';",
+                    "$shortcutPath = Join-Path ([Environment]::GetFolderPath('Desktop')) 'GlazeWM.lnk';",
+                    "$shell = New-Object -ComObject WScript.Shell;",
+                    "$shortcut = $shell.CreateShortcut($shortcutPath);",
+                    "$shortcut.TargetPath = \"$destinationPath\\glazewm.exe\";",
+                    "$shortcut.WorkingDirectory = \"$destinationPath\";",
+                    "$shortcut.IconLocation = \"$destinationPath\\glazewm.exe\";",
+                    "$shortcut.Save();",
+                    "Write-Host \"Shortcut created on Desktop: $shortcutPath\";"
                 ]
             }
         }
@@ -39,7 +63,7 @@
             "    Start-Process powershell -ArgumentList \"-ExecutionPolicy Bypass -NoExit -Command & { scoop uninstall glazewm-np }\" -Verb RunAs;",
             "    break;",
             "}",
-            "Start-Process msiexec -ArgumentList @('/x', \"$dir\\$fname\", '/quiet', '/norestart') -Wait -Verb RunAs",
+            "Start-Process msiexec -ArgumentList @('/x', \"$dir\\$fname\", '/quiet', '/norestart', 'ALLUSERS=1', 'REBOOT=ReallySuppress') -Wait -Verb RunAs",
             "Write-Host 'GlazeWM uninstalled successfully.'"
         ]
     },
