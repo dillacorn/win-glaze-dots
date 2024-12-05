@@ -16,12 +16,12 @@
     "installer": {
         "script": [
             "Start-Process msiexec -ArgumentList @('/i', \"$dir\\$fname\", '/quiet') -Wait -Verb RunAs",
-            "$sourcePath = \"$dir\\PFiles64\\glzr.io\\GlazeWM\";",
-            "Write-Host \"Source Path: $sourcePath\";",
+            "$sourcePath = Join-Path \"$dir\" 'PFiles64\\glzr.io\\GlazeWM';",
+            "Write-Host \"Resolved source path: $sourcePath\";",
             "Write-Host 'Creating and copying files to C:\\Program Files\\GlazeWM...';",
-            "Start-Process powershell -ArgumentList \"-NoExit -Command \\\"New-Item -ItemType Directory -Force -Path 'C:\\Program Files\\GlazeWM'; Copy-Item -Recurse -Force '$sourcePath\\*' 'C:\\Program Files\\GlazeWM'; Get-ChildItem 'C:\\Program Files\\GlazeWM' | Out-String | Write-Host\\\"\" -Wait -Verb RunAs",
+            "Start-Process powershell -ArgumentList \"-NoExit -Command \\\"if (-Not (Test-Path 'C:\\Program Files\\GlazeWM')) { New-Item -ItemType Directory -Force -Path 'C:\\Program Files\\GlazeWM' }; Copy-Item -Recurse -Force '$sourcePath\\*' 'C:\\Program Files\\GlazeWM'; Get-ChildItem 'C:\\Program Files\\GlazeWM' | Out-String | Write-Host\\\"\" -Wait -Verb RunAs",
             "Write-Host 'Cleaning up source directory...';",
-            "Remove-Item -Recurse -Force $sourcePath",
+            "Remove-Item -Recurse -Force \"$sourcePath\"",
             "if (!(Test-Path 'C:\\Program Files\\GlazeWM\\glazewm.exe')) { throw 'Move failed. File not found in C:\\Program Files\\GlazeWM.' }"
         ]
     },
