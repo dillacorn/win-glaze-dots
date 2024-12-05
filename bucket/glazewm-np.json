@@ -16,10 +16,12 @@
     "installer": {
         "script": [
             "Start-Process msiexec -ArgumentList @('/i', \"$dir\\$fname\", '/quiet') -Wait -Verb RunAs",
-            "Write-Host 'Listing files in the installation directory...';",
-            "Get-ChildItem -Recurse \"$dir\" | Out-String | Write-Host",
-            "Write-Host 'Attempting to move files to C:\\Program Files\\GlazeWM...';",
-            "Start-Process powershell -ArgumentList '-Command \"Move-Item -Force \\\"$dir\\PFiles64\\glzr.io\\GlazeWM\\*\\\" \\\"C:\\Program Files\\GlazeWM\\\"\"' -Wait -Verb RunAs",
+            "Write-Host 'Creating target directory at C:\\Program Files\\GlazeWM...';",
+            "Start-Process powershell -ArgumentList '-Command \"New-Item -ItemType Directory -Force -Path \\\"C:\\Program Files\\GlazeWM\\\"\"' -Wait -Verb RunAs",
+            "Write-Host 'Copying files to C:\\Program Files\\GlazeWM...';",
+            "Start-Process powershell -ArgumentList '-Command \"Copy-Item -Recurse -Force \\\"$dir\\PFiles64\\glzr.io\\GlazeWM\\*\\\" \\\"C:\\Program Files\\GlazeWM\\\"\"' -Wait -Verb RunAs",
+            "Write-Host 'Cleaning up source directory...';",
+            "Remove-Item -Recurse -Force \"$dir\\PFiles64\\glzr.io\\GlazeWM\"",
             "if (!(Test-Path 'C:\\Program Files\\GlazeWM\\GlazeWM.exe')) { throw 'Move failed. File not found in C:\\Program Files\\GlazeWM.' }"
         ]
     },
