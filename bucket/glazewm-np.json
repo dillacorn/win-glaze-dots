@@ -1,6 +1,6 @@
 {
     "version": "3.7.0",
-    "description": "A tiling window manager for Windows inspired by i3 and Polybar (nonportable installation with uiAccess).",
+    "description": "A tiling window manager for Windows inspired by i3 and Polybar (nonportable installation).",
     "homepage": "https://github.com/glzr-io/glazewm",
     "license": "GPL-3.0-only",
     "architecture": {
@@ -15,7 +15,7 @@
                     "}",
                     "$programFilesPath = [System.Environment]::GetFolderPath('ProgramFiles');",
                     "$destinationPath = Join-Path $programFilesPath 'GlazeWM';",
-                    "Start-Process msiexec -ArgumentList @('/i', \"$dir\\$fname\", '/quiet', '/uiAccess=1', \"INSTALLDIR=$destinationPath\") -Wait -Verb RunAs",
+                    "Start-Process msiexec -ArgumentList @('/i', \"$dir\\$fname\", '/quiet', \"INSTALLDIR=$destinationPath\") -Wait -Verb RunAs",
                     "if (!(Test-Path \"$destinationPath\\glazewm.exe\")) { throw \"Installation failed. glazewm.exe not found in $destinationPath\" }",
                     "Write-Host \"Installation successful. Files located in: $destinationPath\";"
                 ]
@@ -32,7 +32,7 @@
                     "}",
                     "$programFilesPath = [System.Environment]::GetFolderPath('ProgramFiles');",
                     "$destinationPath = Join-Path $programFilesPath 'GlazeWM';",
-                    "Start-Process msiexec -ArgumentList @('/i', \"$dir\\$fname\", '/quiet', '/uiAccess=1', \"INSTALLDIR=$destinationPath\") -Wait -Verb RunAs",
+                    "Start-Process msiexec -ArgumentList @('/i', \"$dir\\$fname\", '/quiet', \"INSTALLDIR=$destinationPath\") -Wait -Verb RunAs",
                     "if (!(Test-Path \"$destinationPath\\glazewm.exe\")) { throw \"Installation failed. glazewm.exe not found in $destinationPath\" }",
                     "Write-Host \"Installation successful. Files located in: $destinationPath\";"
                 ]
@@ -53,7 +53,7 @@
     },
     "shortcuts": [
         [
-            "C:\\Program Files\\GlazeWM\\glazewm.exe",
+            "%ProgramFiles%\\GlazeWM\\glazewm.exe",
             "GlazeWM"
         ]
     ],
