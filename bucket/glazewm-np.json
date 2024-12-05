@@ -10,7 +10,7 @@
             "installer": {
                 "script": [
                     "if (!(is_admin)) {",
-                    "    Start-Process powershell -ArgumentList \"-ExecutionPolicy Bypass -NoExit -Command & { scoop install $global:scoop_local_bucket/glazewm-np }\" -Verb RunAs;",
+                    "    Start-Process powershell -ArgumentList \"-ExecutionPolicy Bypass -Command & { scoop install $global:scoop_local_bucket/glazewm-np }\" -Verb RunAs;",
                     "    break;",
                     "}",
                     "$programFilesPath = [System.Environment]::GetFolderPath('ProgramFiles');",
@@ -41,7 +41,7 @@
             "installer": {
                 "script": [
                     "if (!(is_admin)) {",
-                    "    Start-Process powershell -ArgumentList \"-ExecutionPolicy Bypass -NoExit -Command & { scoop install $global:scoop_local_bucket/glazewm-np }\" -Verb RunAs;",
+                    "    Start-Process powershell -ArgumentList \"-ExecutionPolicy Bypass -Command & { scoop install $global:scoop_local_bucket/glazewm-np }\" -Verb RunAs;",
                     "    break;",
                     "}",
                     "$programFilesPath = [System.Environment]::GetFolderPath('ProgramFiles');",
@@ -70,12 +70,12 @@
     "uninstaller": {
         "script": [
             "if (!(is_admin)) {",
-            "    Start-Process powershell -ArgumentList \"-ExecutionPolicy Bypass -NoExit -Command & { scoop uninstall glazewm-np }\" -Verb RunAs;",
+            "    Start-Process powershell -ArgumentList \"-ExecutionPolicy Bypass -Command & { scoop uninstall glazewm-np }\" -Verb RunAs;",
             "    break;",
             "}",
             "$programFilesPath = [System.Environment]::GetFolderPath('ProgramFiles');",
             "$destinationPath = Join-Path $programFilesPath 'glzr.io\\GlazeWM';",
-            "Start-Process msiexec -ArgumentList @('/x', \"$destinationPath\\glazewm.msi\", '/passive', '/norestart') -Wait -Verb RunAs",
+            "Start-Process msiexec -ArgumentList @('/x', \"$dir\\$fname\", '/passive', '/norestart') -Wait -Verb RunAs",
             "if (!(Test-Path $destinationPath)) {",
             "    Write-Host 'GlazeWM uninstalled successfully.'",
             "} else {",
