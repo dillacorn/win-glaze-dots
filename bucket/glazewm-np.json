@@ -21,7 +21,17 @@
                     "if (!(Test-Path $destinationPath)) { New-Item -ItemType Directory -Force -Path $destinationPath }",
                     "Copy-Item -Recurse -Force \"$sourcePath\\*\" \"$destinationPath\"",
                     "if (!(Test-Path \"$destinationPath\\glazewm.exe\")) { throw \"Installation failed. glazewm.exe not found in $destinationPath\" }",
-                    "Write-Host \"Installation successful. Files located in: $destinationPath\";"
+                    "Write-Host \"Installation successful. Files located in: $destinationPath\";",
+                    "",
+                    "Write-Host 'Creating shortcut for GlazeWM...';",
+                    "$shortcutPath = Join-Path ([Environment]::GetFolderPath('Desktop')) 'GlazeWM.lnk';",
+                    "$shell = New-Object -ComObject WScript.Shell;",
+                    "$shortcut = $shell.CreateShortcut($shortcutPath);",
+                    "$shortcut.TargetPath = \"$destinationPath\\glazewm.exe\";",
+                    "$shortcut.WorkingDirectory = \"$destinationPath\";",
+                    "$shortcut.IconLocation = \"$destinationPath\\glazewm.exe\";",
+                    "$shortcut.Save();",
+                    "Write-Host \"Shortcut created on Desktop: $shortcutPath\";"
                 ]
             }
         },
@@ -42,7 +52,17 @@
                     "if (!(Test-Path $destinationPath)) { New-Item -ItemType Directory -Force -Path $destinationPath }",
                     "Copy-Item -Recurse -Force \"$sourcePath\\*\" \"$destinationPath\"",
                     "if (!(Test-Path \"$destinationPath\\glazewm.exe\")) { throw \"Installation failed. glazewm.exe not found in $destinationPath\" }",
-                    "Write-Host \"Installation successful. Files located in: $destinationPath\";"
+                    "Write-Host \"Installation successful. Files located in: $destinationPath\";",
+                    "",
+                    "Write-Host 'Creating shortcut for GlazeWM...';",
+                    "$shortcutPath = Join-Path ([Environment]::GetFolderPath('Desktop')) 'GlazeWM.lnk';",
+                    "$shell = New-Object -ComObject WScript.Shell;",
+                    "$shortcut = $shell.CreateShortcut($shortcutPath);",
+                    "$shortcut.TargetPath = \"$destinationPath\\glazewm.exe\";",
+                    "$shortcut.WorkingDirectory = \"$destinationPath\";",
+                    "$shortcut.IconLocation = \"$destinationPath\\glazewm.exe\";",
+                    "$shortcut.Save();",
+                    "Write-Host \"Shortcut created on Desktop: $shortcutPath\";"
                 ]
             }
         }
@@ -61,7 +81,7 @@
     },
     "shortcuts": [
         [
-            "%ProgramFiles%\\GlazeWM\\glazewm.exe",
+            "C:\\Program Files\\GlazeWM\\glazewm.exe",
             "GlazeWM"
         ]
     ],
