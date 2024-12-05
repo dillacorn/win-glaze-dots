@@ -69,14 +69,9 @@
     },
     "uninstaller": {
         "script": [
-            "if (!(is_admin)) {",
-            "    Start-Process powershell -ArgumentList \"-ExecutionPolicy Bypass -NoExit -Command & { scoop uninstall glazewm-np }\" -Verb RunAs;",
-                    "    break;",
-            "}",
-            "$programFilesPath = [System.Environment]::GetFolderPath('ProgramFiles');",
-            "$destinationPath = Join-Path $programFilesPath 'glzr.io\\GlazeWM';",
-            "Remove-Item -Recurse -Force $destinationPath",
-            "if (!(Test-Path $destinationPath)) { Write-Host 'GlazeWM uninstalled successfully.' } else { throw 'Uninstallation failed. Directory still exists.' }"
+            "if (!(is_admin)) { error \"$app requires admin rights to uninstall.\"; break }",
+            "Start-Process msiexec -ArgumentList @('/x', \"$dir\\$fname\", '/quiet', '/norestart') -Wait -Verb RunAs",
+            "Write-Host 'GlazeWM uninstalled successfully.'"
         ]
     },
     "shortcuts": [
