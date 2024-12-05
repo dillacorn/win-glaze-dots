@@ -14,7 +14,7 @@
                     "    break;",
                     "}",
                     "$programFilesPath = [System.Environment]::GetFolderPath('ProgramFiles');",
-                    "$destinationPath = Join-Path $programFilesPath 'GlazeWM';",
+                    "$destinationPath = Join-Path $programFilesPath 'glzr.io\\GlazeWM';",
                     "$sourcePath = Join-Path \"$dir\" 'PFiles64\\glzr.io\\GlazeWM';",
                     "Start-Process msiexec -ArgumentList @('/i', \"$dir\\$fname\", '/quiet') -Wait -Verb RunAs",
                     "if (!(Test-Path $sourcePath)) { throw \"Source path not found: $sourcePath\" }",
@@ -45,7 +45,7 @@
                     "    break;",
                     "}",
                     "$programFilesPath = [System.Environment]::GetFolderPath('ProgramFiles');",
-                    "$destinationPath = Join-Path $programFilesPath 'GlazeWM';",
+                    "$destinationPath = Join-Path $programFilesPath 'glzr.io\\GlazeWM';",
                     "$sourcePath = Join-Path \"$dir\" 'PFiles64\\glzr.io\\GlazeWM';",
                     "Start-Process msiexec -ArgumentList @('/i', \"$dir\\$fname\", '/quiet') -Wait -Verb RunAs",
                     "if (!(Test-Path $sourcePath)) { throw \"Source path not found: $sourcePath\" }",
@@ -71,17 +71,17 @@
         "script": [
             "if (!(is_admin)) {",
             "    Start-Process powershell -ArgumentList \"-ExecutionPolicy Bypass -NoExit -Command & { scoop uninstall glazewm-np }\" -Verb RunAs;",
-            "    break;",
+                    "    break;",
             "}",
             "$programFilesPath = [System.Environment]::GetFolderPath('ProgramFiles');",
-            "$destinationPath = Join-Path $programFilesPath 'GlazeWM';",
+            "$destinationPath = Join-Path $programFilesPath 'glzr.io\\GlazeWM';",
             "Remove-Item -Recurse -Force $destinationPath",
             "if (!(Test-Path $destinationPath)) { Write-Host 'GlazeWM uninstalled successfully.' } else { throw 'Uninstallation failed. Directory still exists.' }"
         ]
     },
     "shortcuts": [
         [
-            "C:\\Program Files\\GlazeWM\\glazewm.exe",
+            "%ProgramFiles%\\glzr.io\\GlazeWM\\glazewm.exe",
             "GlazeWM"
         ]
     ],
