@@ -17,7 +17,7 @@
         "script": [
             "Start-Process msiexec -ArgumentList @('/i', \"$dir\\$fname\", '/quiet') -Wait -Verb RunAs",
             "Write-Host 'Creating and copying files to C:\\Program Files\\GlazeWM...';",
-            "Start-Process powershell -ArgumentList '-NoExit -Command \"New-Item -ItemType Directory -Force -Path \\\"C:\\Program Files\\GlazeWM\\\"; Copy-Item -Recurse -Force \\\"$dir\\PFiles64\\glzr.io\\GlazeWM\\*\\\" \\\"C:\\Program Files\\GlazeWM\\\"; Get-ChildItem \\\"C:\\Program Files\\GlazeWM\\\" | Out-String | Write-Host\"' -Wait -Verb RunAs",
+            "Start-Process powershell -ArgumentList '-NoExit -Command \"New-Item -ItemType Directory -Force -Path \\\"C:\\Program Files\\GlazeWM\\\"; Copy-Item -Recurse -Force \\\"$((Join-Path \\\"$dir\\\" \\\"PFiles64\\glzr.io\\GlazeWM\\\"))\\*\\\" \\\"C:\\Program Files\\GlazeWM\\\"; Get-ChildItem \\\"C:\\Program Files\\GlazeWM\\\" | Out-String | Write-Host\"' -Wait -Verb RunAs",
             "Write-Host 'Cleaning up source directory...';",
             "Remove-Item -Recurse -Force \"$dir\\PFiles64\\glzr.io\\GlazeWM\"",
             "if (!(Test-Path 'C:\\Program Files\\GlazeWM\\GlazeWM.exe')) { throw 'Move failed. File not found in C:\\Program Files\\GlazeWM.' }"
