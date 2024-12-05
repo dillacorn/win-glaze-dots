@@ -16,15 +16,18 @@
     "installer": {
         "script": [
             "Start-Process msiexec -ArgumentList @('/i', \"$dir\\$fname\", '/quiet') -Wait -Verb RunAs",
+            "$programFilesPath = [System.Environment]::GetFolderPath('ProgramFiles');",
+            "$destinationPath = Join-Path $programFilesPath 'GlazeWM';",
             "$sourcePath = Join-Path \"$dir\" 'PFiles64\\glzr.io\\GlazeWM';",
             "if (!(Test-Path $sourcePath)) { throw \"Source path not found: $sourcePath\" }",
             "Write-Host \"Resolved source path: $sourcePath\";",
-            "Write-Host 'Copying files to C:\\Program Files\\GlazeWM...';",
-            "if (!(Test-Path 'C:\\Program Files\\GlazeWM')) { New-Item -ItemType Directory -Force -Path 'C:\\Program Files\\GlazeWM' }",
-            "Copy-Item -Recurse -Force \"$sourcePath\\*\" 'C:\\Program Files\\GlazeWM';",
+            "Write-Host \"Resolved destination path: $destinationPath\";",
+            "Write-Host 'Copying files...';",
+            "if (!(Test-Path $destinationPath)) { New-Item -ItemType Directory -Force -Path $destinationPath }",
+            "Copy-Item -Recurse -Force \"$sourcePath\\*\" $destinationPath;",
             "Write-Host 'Verifying copied files:';",
-            "if (!(Test-Path 'C:\\Program Files\\GlazeWM\\glazewm.exe')) { throw 'Move failed. File not found in C:\\Program Files\\GlazeWM.' }",
-            "Get-ChildItem 'C:\\Program Files\\GlazeWM' | Out-String | Write-Host;",
+            "if (!(Test-Path (Join-Path $destinationPath 'glazewm.exe'))) { throw 'Move failed. File not found in destination path.' }",
+            "Get-ChildItem $destinationPath | Out-String | Write-Host;",
             "Write-Host 'Cleaning up source directory...';",
             "Remove-Item -Recurse -Force \"$sourcePath\" -ErrorAction SilentlyContinue"
         ]
@@ -32,8 +35,10 @@
     "uninstaller": {
         "script": [
             "Write-Host 'Attempting to uninstall GlazeWM...';",
-            "Start-Process powershell -ArgumentList \"-ExecutionPolicy Bypass\", \"-Command\", \"Remove-Item -Recurse -Force 'C:\\Program Files\\GlazeWM'\" -Wait -Verb RunAs",
-            "if (!(Test-Path 'C:\\Program Files\\GlazeWM')) { Write-Host 'GlazeWM uninstalled successfully.' } else { throw 'Uninstallation failed. Directory still exists.' }"
+            "$programFilesPath = [System.Environment]::GetFolderPath('ProgramFiles');",
+            "$destinationPath = Join-Path $programFilesPath 'GlazeWM';",
+            "Start-Process powershell -ArgumentList \"-ExecutionPolicy Bypass\", \"-Command\", \"Remove-Item -Recurse -Force '$destinationPath'\" -Wait -Verb RunAs",
+            "if (!(Test-Path $destinationPath)) { Write-Host 'GlazeWM uninstalled successfully.' } else { throw 'Uninstallation failed. Directory still exists.' }"
         ]
     },
     "shortcuts": [
