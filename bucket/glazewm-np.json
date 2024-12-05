@@ -24,14 +24,18 @@
                     "Write-Host \"Installation successful. Files located in: $destinationPath\";",
                     "",
                     "Write-Host 'Creating shortcut for GlazeWM...';",
-                    "$shortcutPath = Join-Path ([Environment]::GetFolderPath('Desktop')) 'GlazeWM.lnk';",
+                    "$startMenuPath = Join-Path ([Environment]::GetFolderPath('StartMenu')) 'Programs';",
+                    "$shortcutPath = Join-Path $startMenuPath 'GlazeWM.lnk';",
                     "$shell = New-Object -ComObject WScript.Shell;",
                     "$shortcut = $shell.CreateShortcut($shortcutPath);",
                     "$shortcut.TargetPath = \"$destinationPath\\glazewm.exe\";",
                     "$shortcut.WorkingDirectory = \"$destinationPath\";",
                     "$shortcut.IconLocation = \"$destinationPath\\glazewm.exe\";",
                     "$shortcut.Save();",
-                    "Write-Host \"Shortcut created on Desktop: $shortcutPath\";"
+                    "Write-Host \"Shortcut created in Start Menu: $shortcutPath\";",
+                    "",
+                    "Write-Host 'Forcing Windows Search Index to refresh...';",
+                    "Start-Process -FilePath \"C:\\Windows\\System32\\rundll32.exe\" -ArgumentList \"searchindexer.dll,Update\" -Wait"
                 ]
             }
         },
@@ -55,14 +59,18 @@
                     "Write-Host \"Installation successful. Files located in: $destinationPath\";",
                     "",
                     "Write-Host 'Creating shortcut for GlazeWM...';",
-                    "$shortcutPath = Join-Path ([Environment]::GetFolderPath('Desktop')) 'GlazeWM.lnk';",
+                    "$startMenuPath = Join-Path ([Environment]::GetFolderPath('StartMenu')) 'Programs';",
+                    "$shortcutPath = Join-Path $startMenuPath 'GlazeWM.lnk';",
                     "$shell = New-Object -ComObject WScript.Shell;",
                     "$shortcut = $shell.CreateShortcut($shortcutPath);",
                     "$shortcut.TargetPath = \"$destinationPath\\glazewm.exe\";",
                     "$shortcut.WorkingDirectory = \"$destinationPath\";",
                     "$shortcut.IconLocation = \"$destinationPath\\glazewm.exe\";",
                     "$shortcut.Save();",
-                    "Write-Host \"Shortcut created on Desktop: $shortcutPath\";"
+                    "Write-Host \"Shortcut created in Start Menu: $shortcutPath\";",
+                    "",
+                    "Write-Host 'Forcing Windows Search Index to refresh...';",
+                    "Start-Process -FilePath \"C:\\Windows\\System32\\rundll32.exe\" -ArgumentList \"searchindexer.dll,Update\" -Wait"
                 ]
             }
         }
@@ -75,7 +83,7 @@
             "}",
             "$programFilesPath = [System.Environment]::GetFolderPath('ProgramFiles');",
             "$destinationPath = Join-Path $programFilesPath 'glzr.io\\GlazeWM';",
-            "Start-Process msiexec -ArgumentList @('/x', \"$dir\\$fname\", '/passive', '/norestart') -Wait -Verb RunAs",
+            "Start-Process msiexec -ArgumentList @('/x', \"$destinationPath\\glazewm.msi\", '/passive', '/norestart') -Wait -Verb RunAs",
             "if (!(Test-Path $destinationPath)) {",
             "    Write-Host 'GlazeWM uninstalled successfully.'",
             "} else {",
@@ -91,7 +99,8 @@
     "shortcuts": [
         [
             "%ProgramFiles%\\glzr.io\\GlazeWM\\glazewm.exe",
-            "GlazeWM"
+            "GlazeWM",
+            "%AppData%\\Microsoft\\Windows\\Start Menu\\Programs\\GlazeWM.lnk"
         ]
     ],
     "checkver": "github",
