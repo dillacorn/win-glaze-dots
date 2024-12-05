@@ -18,7 +18,7 @@ Notes From Repo: https://github.com/dillacorn/win-glaze-dots
 
 ---
 
-### install GlazeWM & Zebar (optional)
+### install GlazeWM & Zebar
 ```powershell
 sudo choco install vcredist140 glazewm zebar -y
 ```
@@ -96,14 +96,14 @@ scoop install extras/altsnap alacritty vcredist zebar
 scoop install extras/feishin logitech-omm msiafterburner rtss vesktop
 ```
 
-### add my unofficial scoop "glazewm" repo
-#### FYI: `does not work with elevated windows`
+### add my unofficial scoop "glazewm.json" bucket
+#### FYI: `not installed in %ProgramFiles% so uiACCESS is unavaliable` ~ `In other words elevated windows cannot be interacted with` ~ `Use Chocolatey or WinGet instead if you require these permissions`
 ```powershell
 scoop bucket add dillacorn https://github.com/dillacorn/win-glaze-dots
 ```
 
-### install glazewm from my git
-#### FYI: `does not work with elevated windows`
+### install glazewm using scoop
+#### FYI: `not installed in %ProgramFiles% so uiACCESS is unavaliable` ~ `In other words elevated windows cannot be interacted with` ~ `Use Chocolatey or WinGet instead if you require these permissions`
 ```powershell
 scoop install dillacorn/glazewm
 ```
