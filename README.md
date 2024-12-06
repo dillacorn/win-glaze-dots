@@ -17,7 +17,7 @@
 8. ### [**flow-launcher_bind**](https://github.com/dillacorn/win-glaze-dots/blob/main/flow-launcher_bind.png)
 9. ### [**altsnap_settings**](https://github.com/dillacorn/win-glaze-dots/blob/main/altsnap_settings.md)
 10. ### [**eartrumpet_bind**](https://github.com/dillacorn/win-glaze-dots/blob/main/eartrumpet_bind.png)
-11. ### [**powertoys_flameshot_win+shift+f**](https://github.com/dillacorn/win-glaze-dots/blob/main/powertoys_flameshot_win%2Bshift%2Bf.md)
+11. ### [**powertoys_keyboard_remap**](https://github.com/dillacorn/win-glaze-dots/blob/main/powertoys.md)
 12. ### [**scripts(UAC Req.)**](https://github.com/dillacorn/win-glaze-dots/tree/main/scripts(UAC%20Req.))
 13. ### [**Update**](https://support.microsoft.com/en-us/windows/windows-update-faq-8a903416-6f45-0718-f5c7-375e92dddeb2) and [**Reboot**](https://support.microsoft.com/en-us/windows/restart-reboot-your-pc-110262aa-fc79-1c33-7b00-c140ae3a6dac)
 14. ### [**privacy.sexy**](https://github.com/dillacorn/win-glaze-dots/blob/main/privacy.sexy.md)
