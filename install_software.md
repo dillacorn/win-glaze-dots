@@ -97,7 +97,6 @@ scoop install extras/feishin logitech-omm msiafterburner rtss vesktop
 ```
 
 ### add my unofficial scoop "glazewm.json" bucket
-#### FYI: `not installed in %ProgramFiles% so uiACCESS is unavaliable` ~ `In other words elevated windows cannot be interacted with` ~ `Use Chocolatey or WinGet instead if you require these permissions`
 ```powershell
 scoop bucket add dillacorn https://github.com/dillacorn/win-glaze-dots
 ```
