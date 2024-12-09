@@ -119,6 +119,16 @@ scoop install dillacorn/glazewm
 scoop install main/btop
 ```
 
+### add optional scoop "games" repository
+```powershell
+scoop bucket add games
+```
+
+### install r2modman
+```powershell
+scoop install games/r2modman
+```
+
 ### update all scoop apps
 ```powershell
 scoop update *
