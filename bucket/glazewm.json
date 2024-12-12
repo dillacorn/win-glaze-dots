@@ -20,5 +20,16 @@
             "GlazeWM.exe",
             "GlazeWM"
         ]
-    ]
+    ],
+    "checkver": "github",
+    "autoupdate": {
+        "architecture": {
+            "64bit": {
+                "url": "https://github.com/glzr-io/glazewm/releases/download/v$version/standalone-glazewm-v$version-x64.msi"
+            },
+            "arm64": {
+                "url": "https://github.com/glzr-io/glazewm/releases/download/v$version/standalone-glazewm-v$version-arm64.msi"
+            }
+        }
+    }
 }
