@@ -19,7 +19,7 @@ Notes From Repo: https://github.com/dillacorn/win-glaze-dots
 ## Fortnite ~ stretched 1440x1080
 ### in-game set to windowed fullscreen
 
-## Overwatch 2 ~ stretched 1728x1080
+## "Overwatch 2" & "Marvel Rivals" ~ stretched 1728x1080
 ### in-game set to Borderless Windowed
 ### Change res to 1728x1080.. I'm using [nircmd command](https://github.com/dillacorn/win-glaze-dots/blob/main/UserProfile/scripts/16.10_stretched_res.bat) for quick res changing `alt+shift+m`
 
