@@ -166,6 +166,8 @@ window_rules:
       # Operating System apps
       - window_process: { equals: "zebar" }
       - window_process: { equals: 'Flow.Launcher' }
+      - window_process: { equals: "AltSnap" }
+      - window_process: { equals: "flameshot" }
 
       # Ignores picture-in-picture windows for browsers.
       - window_title: { regex: "[Pp]icture.in.[Pp]icture" }
@@ -182,13 +184,6 @@ window_rules:
 
   - commands: ["set-floating"]
     match:
-      # Set Flow-Launcher to float
-      - window_process: { equals: "Flow.Launcher" }
-        window_title: { equals: "Settings" }
-
-      # Set AltSnap to float
-      - window_process: { equals: "AltSnap" }
-
       # Set Task Manager to float
       - window_process: { equals: "Taskmgr" }
     
@@ -202,9 +197,6 @@ window_rules:
 
       # Set speedcrunch(calculator) to float
       - window_process: { equals: "speedcrunch" }
-
-      # Set flameshot window to float
-      - window_process: { equals: "flameshot" }
 
       # Set winspy window to float
       - window_process: { equals: "winspy" }
