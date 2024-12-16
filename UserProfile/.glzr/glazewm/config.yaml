@@ -177,8 +177,9 @@ window_rules:
 
   - commands: ["ignore"]
     match:
-      # Ignores any Zebar windows.
+      # Operating System apps.
       - window_process: { equals: "zebar" }
+      - window_process: { equals: 'Flow.Launcher' }
 
       # Ignores picture-in-picture windows for browsers.
       - window_title: { regex: "[Pp]icture.in.[Pp]icture" }
@@ -192,6 +193,14 @@ window_rules:
       - window_process: { equals: "Lively" }
         window_class: { regex: "HwndWrapper" }
       - window_process: { equals: "Mullvad VPN" }
+
+      # Games
+      - window_process: { equals: 'r5apex' }
+      - window_process: { equals: 'Marvel-Win64-Shipping' }
+      - window_process: { equals: 'VALORANT-Win64-Shipping' }
+      - window_process: { equals: 'Discovery' }
+      - window_process: { equals: 'Overwatch' }
+      - window_process: { equals: 'lockdown' }
 
   - commands: ["set-floating"]
     match:
