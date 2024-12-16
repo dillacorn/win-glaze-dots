@@ -163,8 +163,9 @@ window_rules:
       
   - commands: ["ignore"]
     match:
-      # Ignores any Zebar windows.
+      # Operating System apps
       - window_process: { equals: "zebar" }
+      - window_process: { equals: 'Flow.Launcher' }
 
       # Ignores picture-in-picture windows for browsers.
       - window_title: { regex: "[Pp]icture.in.[Pp]icture" }
