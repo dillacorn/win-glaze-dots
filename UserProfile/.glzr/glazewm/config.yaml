@@ -1,4 +1,4 @@
-# dilla.glaze.files (https://github.com/dillacorn/win-glaze-dots)
+\# dilla.glaze.files (https://github.com/dillacorn/win-glaze-dots)
 # This config is my personalized config I use specifically for my gaming computer.
 general:
   # Commands to run when the WM has started.
@@ -123,7 +123,7 @@ window_rules:
   - commands: ["move --workspace 1"]
     match:
       # Move moonlight to workspace 1.
-      - window_process: { regex: "r5apex|r5apex_dx12|Discovery|Overwatch|Titanfall2|TslGame|cs2|RustClient|quakelive_steam|QuakeChampions|straftat|Marvel-Win64-Shipping|VALORANT-Win64-Shipping|ULTRAKILL|TotallyAccurateBattlegrounds|BattleBit|helldivers2" }
+      - window_process: { regex: "Discovery|cs2|RustClient|quakelive_steam|QuakeChampions|straftat|VALORANT-Win64-Shipping|ULTRAKILL|TotallyAccurateBattlegrounds|BattleBit|helldivers2" }
 
   - commands: ["move --workspace 2"]
     match:
@@ -196,6 +196,20 @@ window_rules:
         window_class: { regex: "HwndWrapper" }
       - window_process: { equals: "Mullvad VPN" }
 
+      # Games
+      - window_process: { equals: 'cs2' }
+      - window_process: { equals: 'RustClient' }
+      - window_process: { equals: 'quakelive_steam' }
+      - window_process: { equals: 'QuakeChampions' }
+      - window_process: { equals: 'straftat' }
+      - window_process: { equals: 'VALORANT-Win64-Shipping' }
+      - window_process: { equals: 'Discovery' }
+      - window_process: { equals: 'ULTRAKILL' }
+      - window_process: { equals: 'Greylock-Win64-Shipping' }
+      - window_process: { equals: 'TotallyAccurateBattlegrounds' }
+      - window_process: { equals: 'BattleBit' }
+      - window_process: { equals: 'helldivers2' }
+
   - commands: ["set-floating"]
     match:
       # Set Task Manager to float
@@ -220,26 +234,6 @@ window_rules:
 
       # Set several windows applications to float
       - window_process: { equals: "ApplicationFrameHost" }
-
-      # Games
-      - window_process: { equals: 'r5apex' }
-      - window_process: { equals: 'r5apex_dx12' }
-      - window_process: { equals: 'Titanfall2' }
-      - window_process: { equals: 'TslGame' }
-      - window_process: { equals: 'cs2' }
-      - window_process: { equals: 'RustClient' }
-      - window_process: { equals: 'quakelive_steam' }
-      - window_process: { equals: 'QuakeChampions' }
-      - window_process: { equals: 'straftat' }
-      - window_process: { equals: 'Marvel-Win64-Shipping' }
-      - window_process: { equals: 'VALORANT-Win64-Shipping' }
-      - window_process: { equals: 'Discovery' }
-      - window_process: { equals: 'Overwatch' }
-      - window_process: { equals: 'ULTRAKILL' }
-      - window_process: { equals: 'Greylock-Win64-Shipping' }
-      - window_process: { equals: 'TotallyAccurateBattlegrounds' }
-      - window_process: { equals: 'BattleBit' }
-      - window_process: { equals: 'helldivers2' }
       
   - commands: ["set-floating --centered"]
     match:
