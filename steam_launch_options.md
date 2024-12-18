@@ -3,7 +3,7 @@ Notes From Repo: https://github.com/dillacorn/win-glaze-dots
 ### before attempting to use a custom resolution you will need to apply the custom resolution with your GPU driver software
 ---
 ### Apex Legends ~ stretched 1440x1080
-### patch apex "videoconfig.txt" then make read-only
+### patch apex ["videoconfig.txt"](https://github.com/dillacorn/win-glaze-dots/blob/main/Game_Config_Files/Apex%20Legends/UserProfile/Saved%20Games/Respawn/Apex/Local/videoconfig.txt) then make read-only
 
 File Location: `C:\Users\username\Saved Games\Respawn\Apex\local`
 
@@ -16,7 +16,7 @@ File Location: `C:\Users\username\Saved Games\Respawn\Apex\local`
 `+mat_letterbox_aspect_goal 0 +mat_letterbox_aspect_threshold 0 +building_cubemaps "1" -dev -freq 240 +fps_max 240`
 ---
 ### Marvel Rivals ~ stretched 1728x1080 (fullscreen)
-### patch marvel "GameUserSettings.ini" then make read-only
+### patch marvel ["GameUserSettings.ini"](https://github.com/dillacorn/win-glaze-dots/blob/main/Game_Config_Files/Marvel%20Rivals/AppData/Local/Marvel/Saved/Config/Windows/GameUserSettings.ini) then make read-only
 
 File Location: `C:\Users\username\AppData\Local\Marvel\Saved\Config\Windows`
 
