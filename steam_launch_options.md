@@ -18,6 +18,7 @@ File Location: `C:\Users\username\Saved Games\Respawn\Apex\local`
 
 ### Apex Steam Launch Options:
 `+mat_letterbox_aspect_goal 0 +mat_letterbox_aspect_threshold 0 +building_cubemaps "1" -dev -freq 240 +fps_max 240`
+
 ---
 ### Marvel Rivals ~ stretched 1728x1080 (fullscreen)
 ### patch marvel ["GameUserSettings.ini"](https://github.com/dillacorn/win-glaze-dots/blob/main/Game_Config_Files/Marvel%20Rivals/AppData/Local/Marvel/Saved/Config/Windows/GameUserSettings.ini) then make read-only
@@ -31,9 +32,11 @@ ResolutionSizeY=1080
 
 ### Marvel Steam Launch Options:
 `+fps_max 0 +r_drawparticles 0 +mat_disable_fancy_blending 1 -forcenovsync`
+
 ---
 ### Overwatch 2 ~ stretched 1728x1080 (borderless windowed)
 ---
-## The Finals ~ stretched 1440x1080 (fullscreen)
+### The Finals ~ stretched 1440x1080 (fullscreen)
 ---
-## Fortnite ~ stretched 1440x1080 (borderless windowed)
+### Fortnite ~ stretched 1440x1080 (borderless windowed)
+---
