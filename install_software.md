@@ -140,5 +140,6 @@ scoop update *
 - [tinywhoopgo](https://tinywhoopgo.com/),
 
 # Graphics Card Drivers
-- [Advanced Micro Devices (AMD GPU) Link](https://www.amd.com/en/support/download/drivers.html)
-- [Nvidia GPU Link](https://www.nvidia.com/en-us/drivers/) or ```choco install geforce-game-ready-driver -y``` (For gaming GPU) or ```choco install nvidia-display-driver -y``` (For Standard GPU)
+- [Advanced Micro Devices (AMD GPU) Drivers](https://www.amd.com/en/support/download/drivers.html)
+- [Nvidia GPU Drivers](https://www.nvidia.com/en-us/drivers/) or ```choco install geforce-game-ready-driver -y``` (For gaming GPU) or ```choco install nvidia-display-driver -y``` (For Standard GPU)
+- [Intel ARC GPU Drivers](https://www.intel.com/content/www/us/en/download/785597/intel-arc-iris-xe-graphics-windows.html)
