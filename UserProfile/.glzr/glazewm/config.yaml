@@ -123,7 +123,7 @@ window_rules:
   - commands: ["move --workspace 1"]
     match:
       # Move moonlight to workspace 1.
-      - window_process: { regex: "Discovery|cs2|RustClient|quakelive_steam|QuakeChampions|straftat|VALORANT-Win64-Shipping|ULTRAKILL|TotallyAccurateBattlegrounds|BattleBit|helldivers2" }
+      - window_process: { regex: "Marvel-Win64-Shipping|Discovery|cs2|RustClient|quakelive_steam|QuakeChampions|straftat|VALORANT-Win64-Shipping|ULTRAKILL|TotallyAccurateBattlegrounds|BattleBit|helldivers2" }
 
   - commands: ["move --workspace 2"]
     match:
@@ -197,6 +197,7 @@ window_rules:
       - window_process: { equals: "Mullvad VPN" }
 
       # Games
+      - window_process: { equals: 'Marvel-Win64-Shipping' }
       - window_process: { equals: 'cs2' }
       - window_process: { equals: 'RustClient' }
       - window_process: { equals: 'quakelive_steam' }
