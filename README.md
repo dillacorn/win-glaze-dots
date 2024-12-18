@@ -22,7 +22,8 @@
 13. ### [**Update**](https://support.microsoft.com/en-us/windows/windows-update-faq-8a903416-6f45-0718-f5c7-375e92dddeb2) and [**Reboot**](https://support.microsoft.com/en-us/windows/restart-reboot-your-pc-110262aa-fc79-1c33-7b00-c140ae3a6dac)
 14. ### [**privacy.sexy**](https://github.com/dillacorn/win-glaze-dots/blob/main/privacy.sexy.md)
 15. ### [**low_latency_gaming_guide**](https://github.com/dillacorn/win-glaze-dots/blob/main/low_latency_gaming_guide.md)
-16. ### [**browser_notes**](https://github.com/dillacorn/win-glaze-dots/tree/main/browser_notes)
+16. ### [**my_steam_launch_options**](https://github.com/dillacorn/win-glaze-dots/blob/main/steam_launch_options.md)
+17. ### [**browser_notes**](https://github.com/dillacorn/win-glaze-dots/tree/main/browser_notes)
 ---
 ### Wallpapers
 - [Gruvbox Wallpapers](https://github.com/AngelJumbo/gruvbox-wallpapers) by [AngelJumbo](https://github.com/AngelJumbo)
