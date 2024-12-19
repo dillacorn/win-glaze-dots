@@ -147,6 +147,8 @@ sudo choco install equalizerapo
 scoop install nonportable/equalizer-apo-np
 ```
 
+[How to install werman noise-suppression!]()
+
 ---
 
 # applications not avaliable in official repos
