@@ -147,9 +147,13 @@ sudo choco install equalizerapo
 scoop install nonportable/equalizer-apo-np
 ```
 
+---
+
 # applications not avaliable in official repos
 - [AutoDesk Software](https://manage.autodesk.com/login?t=/products)
 - [tinywhoopgo](https://tinywhoopgo.com/),
+
+---
 
 # Graphics Card Drivers
 - [Advanced Micro Devices (AMD GPU) Drivers](https://www.amd.com/en/support/download/drivers.html)
