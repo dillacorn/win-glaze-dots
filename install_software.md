@@ -135,6 +135,9 @@ scoop update *
 
 ---
 
+# microphone suppression
+https://github.com/werman/noise-suppression-for-voice/releases
+
 # applications not avaliable in official repos
 - [AutoDesk Software](https://manage.autodesk.com/login?t=/products)
 - [tinywhoopgo](https://tinywhoopgo.com/),
