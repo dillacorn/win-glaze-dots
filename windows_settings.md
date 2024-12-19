@@ -14,4 +14,8 @@
 
 ![Communication_Do_nothing](https://raw.githubusercontent.com/dillacorn/win-glaze-dots/refs/heads/main/ScreenShots_For_Guides/windows_settings/Communication_Do_nothing.png)
 
+## Startup
 ![startup_apps](https://raw.githubusercontent.com/dillacorn/win-glaze-dots/refs/heads/main/ScreenShots_For_Guides/windows_settings/startup_apps.png)
+
+## Lock microphone audio (regedit)
+![lock mic audio](https://raw.githubusercontent.com/dillacorn/win-glaze-dots/refs/heads/main/ScreenShots_For_Guides/windows_settings/lock_mic_audio.png)
