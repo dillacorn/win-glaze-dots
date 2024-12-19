@@ -5,6 +5,10 @@
 ### Dev Warns user to only use 48000hz.
 ### For lower CPU usage use 1-channel and "mono" per pictures if avaliable.
 
+![step 1.1](https://raw.githubusercontent.com/dillacorn/win-glaze-dots/refs/heads/main/ScreenShots_For_Guides/mic_suppression_apo/APO_mic_suppression_%231.1.png)
+
+![step 1.2](https://raw.githubusercontent.com/dillacorn/win-glaze-dots/refs/heads/main/ScreenShots_For_Guides/mic_suppression_apo/APO_mic_suppression_%231.2.png)
+
 ![step 1](https://raw.githubusercontent.com/dillacorn/win-glaze-dots/refs/heads/main/ScreenShots_For_Guides/mic_suppression_apo/APO_mic_suppression_%231.png)
 
 ![step 2](https://raw.githubusercontent.com/dillacorn/win-glaze-dots/refs/heads/main/ScreenShots_For_Guides/mic_suppression_apo/APO_mic_suppression_%232.png)
