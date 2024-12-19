@@ -147,7 +147,7 @@ sudo choco install equalizerapo
 scoop install nonportable/equalizer-apo-np
 ```
 
-[How to install werman noise-suppression!]()
+[How to install werman noise-suppression!](https://github.com/dillacorn/win-glaze-dots/blob/main/mic_suppression_apo.md)
 
 ---
 

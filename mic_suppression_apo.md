@@ -1,5 +1,7 @@
 ## EqualizerAPO Microphone Noise Suppression Guide
 
+[How to install?](https://github.com/dillacorn/win-glaze-dots/blob/main/install_software.md#microphone-suppression-requires-equalizer_apo)
+
 ![step 1](https://raw.githubusercontent.com/dillacorn/win-glaze-dots/refs/heads/main/ScreenShots_For_Guides/mic_suppression_apo/APO_mic_suppression_%231.png)
 
 ![step 2](https://raw.githubusercontent.com/dillacorn/win-glaze-dots/refs/heads/main/ScreenShots_For_Guides/mic_suppression_apo/APO_mic_suppression_%232.png)
