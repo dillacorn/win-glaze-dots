@@ -135,8 +135,17 @@ scoop update *
 
 ---
 
-# microphone suppression
+# microphone suppression (requires Equalizer_APO)
 https://github.com/werman/noise-suppression-for-voice/releases
+
+### Install APO with chocolatey
+```powershell
+sudo choco install equalizerapo
+```
+### Install APO with scoop alternatively
+```powershell
+scoop install nonportable/equalizer-apo-np
+```
 
 # applications not avaliable in official repos
 - [AutoDesk Software](https://manage.autodesk.com/login?t=/products)
