@@ -8,6 +8,8 @@
 
 ![multitasking](https://raw.githubusercontent.com/dillacorn/win-glaze-dots/refs/heads/main/ScreenShots_For_Guides/windows_settings/multitasking.png)
 
+![background](https://raw.githubusercontent.com/dillacorn/win-glaze-dots/refs/heads/main/ScreenShots_For_Guides/windows_settings/background.png)
+
 ![disable_remote_assistance](https://raw.githubusercontent.com/dillacorn/win-glaze-dots/refs/heads/main/ScreenShots_For_Guides/windows_settings/disable_remote_assistance.png)
 
 ![disable_enhanced_pointer_precision](https://raw.githubusercontent.com/dillacorn/win-glaze-dots/refs/heads/main/ScreenShots_For_Guides/windows_settings/disable_enhanced_pointer_precision.png)
@@ -17,5 +19,5 @@
 ## Startup
 ![startup_apps](https://raw.githubusercontent.com/dillacorn/win-glaze-dots/refs/heads/main/ScreenShots_For_Guides/windows_settings/startup_apps.png)
 
-## Lock microphone volume (regedit) ~ could cause issues
+## Lock microphone volume (regedit)
 ![startup_apps](https://raw.githubusercontent.com/dillacorn/win-glaze-dots/refs/heads/main/ScreenShots_For_Guides/windows_settings/lock_mic_audio.png)

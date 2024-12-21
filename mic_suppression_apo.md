@@ -22,3 +22,5 @@
 ![step 6](https://raw.githubusercontent.com/dillacorn/win-glaze-dots/refs/heads/main/ScreenShots_For_Guides/mic_suppression_apo/APO_mic_suppression_%236.png)
 
 ![step 7](https://raw.githubusercontent.com/dillacorn/win-glaze-dots/refs/heads/main/ScreenShots_For_Guides/mic_suppression_apo/APO_mic_suppression_%237.png)
+
+### [Lock microphone auto adjusting levels](https://raw.githubusercontent.com/dillacorn/win-glaze-dots/refs/heads/main/ScreenShots_For_Guides/windows_settings/lock_mic_audio.png)
