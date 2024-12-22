@@ -34,7 +34,7 @@ ResolutionSizeY=1080
 `+fps_max 0 +r_drawparticles 0 +mat_disable_fancy_blending 1 -forcenovsync`
 
 ---
-### Overwatch 2 ~ stretched 1728x1080 (borderless windowed)
+### Overwatch 2 ~ stretched 1728x1080 (fullscreen)
 ---
 ### The Finals ~ stretched 1440x1080 (fullscreen)
 ---
