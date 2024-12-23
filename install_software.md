@@ -151,11 +151,6 @@ scoop install nonportable/equalizer-apo-np
 
 ---
 
-# EQ your headphone!
-https://peqdb.com/
-
----
-
 # applications not avaliable in official repos
 - [AutoDesk Software](https://manage.autodesk.com/login?t=/products)
 - [tinywhoopgo](https://tinywhoopgo.com/),
