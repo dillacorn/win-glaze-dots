@@ -1,4 +1,4 @@
-### use [clone_&_copy_dots.bat](https://github.com/dillacorn/win-glaze-dots/tree/main/scripts(UAC%20Req.)/clone_&_copy_dots.bat) to automate the process ~ (UAC Req.)
+### [clone_&_copy_dots.bat](https://github.com/dillacorn/win-glaze-dots/tree/main/scripts(UAC%20Req.)/clone_&_copy_dots.bat) to automate the process ~ (UAC Req.)
 
 ### Navigate to user home directory
 ```powershell
