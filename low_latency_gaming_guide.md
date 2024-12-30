@@ -1,5 +1,9 @@
 # **Tips to Lower Latency in Gaming (Game-Dependent)**
 
+Choosing a monitor for ultimate visual clarity and input latency can be tricky especially when you've already had first hand experience with a 100+hz CRT. 
+
+[My personal guide and reasons I decided to pickup a Zowie TN over an OLED.](https://github.com/dillacorn/win-glaze-dots/blob/main/ScreenShots_For_Guides/low_latency/monitor_motion_clarity_comparisons.pdf)
+
 ## **Graphics and Display Settings**
 1. **Frame Rate Cap**: Cap your frame rate to your monitor's refresh rate for improved stability and reduced latency.
 2. **Anti-Aliasing**: Disable anti-aliasing as it can introduce input lag.
