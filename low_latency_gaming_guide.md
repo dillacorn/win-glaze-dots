@@ -2,7 +2,7 @@
 
 Choosing a monitor for ultimate visual clarity and input latency can be tricky especially when you've already had first hand experience with a 100+hz CRT. 
 
-[My personal guide and reasons I decided to pickup a Zowie TN over an OLED.](https://github.com/dillacorn/win-glaze-dots/blob/main/ScreenShots_For_Guides/low_latency/monitor_motion_clarity_comparisons.pdf)
+[My personal guide and reasons I decided to pickup a Zowie TN over an OLED.](https://raw.githubusercontent.com/dillacorn/win-glaze-dots/refs/heads/main/ScreenShots_For_Guides/low_latency/monitor_motion_clarity_comparisons_150dpi.png)
 
 ## **Graphics and Display Settings**
 1. **Frame Rate Cap**: Cap your frame rate to your monitor's refresh rate for improved stability and reduced latency.
