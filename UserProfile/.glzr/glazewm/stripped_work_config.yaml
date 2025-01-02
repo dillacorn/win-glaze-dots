@@ -170,6 +170,9 @@ window_rules:
       - window_process: { equals: "Lively" }
         window_class: { regex: "HwndWrapper" }
       - window_process: { equals: "Mullvad VPN" }
+      - window_process: { equals: "ui32" }
+      - window_process: { equals: "wallpaper32" }
+      - window_process: { equals: "wallpaper64" }
       
   - commands: ["set-floating"]
     match:
