@@ -34,6 +34,10 @@ open "firefox"
 [`DownThemAll!`](https://addons.mozilla.org/firefox/downloads/file/4228862/downthemall-4.12.1.xpi)
 [`FastForward`](https://addons.mozilla.org/firefox/downloads/file/4258067/fastforwardteam-0.2383.xpi)
 
+# theme
+
+[`Dark space - The best dynamic theme by Nicothin`](https://addons.mozilla.org/firefox/downloads/file/4226329/nicothin_space-1.1.2.xpi)
+
 # search engine
 
 **search engine**: `(option #1)` - slower than brave
