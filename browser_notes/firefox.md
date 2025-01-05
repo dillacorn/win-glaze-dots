@@ -1,26 +1,12 @@
 Notes From Repo: https://github.com/dillacorn/win-glaze-dots
 
-Librewolf is pretty great... 
-
+sooo...ungoogled chromium (chrome in general) are begining to cause breakage for me currently on some websites... so I've started using standard firefox.
 # install
 ```sh
-choco install librewolf -y
+choco install firefox -y
 ```
 
-open "Librewolf"
-
-# config
-
-navigate to: `about:config`
-
-change these flags:
-* middlemouse.paste: `false`
-* privacy.clearOnShutdown.cookies: `false`
-* privacy.clearOnShutdown.downloads: `false`
-* privacy.clearOnShutdown.history: `false`
-* privacy.clearOnShutdown.offlineApps: `false`
-* privacy.fingerprintingProtection: `true`
-* widget.gtk.global-menu.wayland.enabled `true`
+open "firefox"
 
 # extensions
 
