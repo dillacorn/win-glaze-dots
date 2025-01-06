@@ -36,6 +36,8 @@ open "firefox"
 
 # themes
 
+**note**: *these are install links*
+
 [`Dark space - The best dynamic theme by Nicothin`](https://addons.mozilla.org/firefox/downloads/file/4226329/nicothin_space-1.1.2.xpi)
 [`Humble Gruvbox by Mekeor Melire`](https://addons.mozilla.org/firefox/downloads/file/2838072/humble_gruvbox-2.0.xpi)
 [`Minimalist Gruvbox by canbeardig`](https://addons.mozilla.org/firefox/downloads/file/3991777/minimalist_gruvbox-2.0.xpi)
