@@ -5,6 +5,8 @@ Choosing a monitor for ultimate visual clarity and input latency can be tricky e
 
 [My personal guide and reasons I decided to pickup a Zowie TN over an OLED.](https://github.com/dillacorn/win-glaze-dots/blob/main/ScreenShots_For_Guides/low_latency/monitor_motion_clarity_comparisons_150dpi.png) I suggest downloading and viewing [the PDF](https://github.com/dillacorn/win-glaze-dots/blob/main/ScreenShots_For_Guides/low_latency/monitor_motion_clarity_comparisons.pdf) to compare at a higher res.
 
+[I Tried Every Windows Optimization for FPS ~ FrameSync Labs](https://www.youtube.com/watch?v=QWzail3qsX0)
+
 ## **Graphics and Display Settings**
 1. **Frame Rate Cap**: Cap your frame rate to your monitor's refresh rate for improved stability and reduced latency.
 2. **Anti-Aliasing**: Disable anti-aliasing as it can introduce input lag.
@@ -58,17 +60,29 @@ bcdedit /set hypervisorlaunchtype auto
 ```cmd
 powercfg /setactive 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c
 ```
----
 
-### **Disable CPU Core Parking**
+### **Disable CPU Core Parking** (No Longer Recommended)
 ```cmd
 powercfg /setacvalueindex scheme_current 2a737441-1930-4402-8d77-b2bebba308a3 d4e98f31-5ffe-4ce1-be31-1b38b384c009 0
 ```
----
+### **Enable CPU Core Parking**
+```cmd
+powercfg /setacvalueindex scheme_current 2a737441-1930-4402-8d77-b2bebba308a3 d4e98f31-5ffe-4ce1-be31-1b38b384c009 1
+```
 
-### **Disable CPU Idle States**
+### **Disable CPU Idle States** (No Longer Recommended)
 ```cmd
 powercfg /setacvalueindex scheme_current 2a737441-1930-4402-8d77-b2bebba308a3 48e6b7a6-50f5-4782-a5d4-53bb8f07e226 0
+```
+
+### **Enable CPU Idle States**
+```cmd
+powercfg /setacvalueindex scheme_current 2a737441-1930-4402-8d77-b2bebba308a3 48eb7a6-50f5-4782-a5d4-53bbf07e226 1
+```
+
+### **Apply powercfg changes**
+```cmd
+powercfg /apply
 ```
 ---
 
