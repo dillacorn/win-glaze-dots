@@ -34,7 +34,7 @@ open "firefox"
 [`DownThemAll!`](https://addons.mozilla.org/firefox/downloads/file/4228862/downthemall-4.12.1.xpi)
 [`FastForward`](https://addons.mozilla.org/firefox/downloads/file/4258067/fastforwardteam-0.2383.xpi)
 
-# theme
+# themes
 
 [`Dark space - The best dynamic theme by Nicothin`](https://addons.mozilla.org/firefox/downloads/file/4226329/nicothin_space-1.1.2.xpi)
 [`Humble Gruvbox by Mekeor Melire`](https://addons.mozilla.org/firefox/downloads/file/2838072/humble_gruvbox-2.0.xpi)
