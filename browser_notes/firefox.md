@@ -8,6 +8,14 @@ choco install firefox -y
 
 open "firefox"
 
+# config
+
+navigate to: `about:config`
+
+change these flags:
+* middlemouse.paste: `false`
+* privacy.fingerprintingProtection: `true`
+
 # extensions
 
 **note**: *these are install links*
