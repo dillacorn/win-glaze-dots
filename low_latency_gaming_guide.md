@@ -29,9 +29,6 @@ Choosing a monitor for ultimate visual clarity and input latency can be tricky e
 15. **Raw Input Buffer**: Enable Raw Input Buffer if avaliable in game engine.
 
 ## **Windows-Specific Optimizations**
-15. **Disable Fullscreen Optimizations**:
-    - Navigate to the game's executable (e.g., `overwatch.exe`).
-    - Right-click > Properties > Compatibility > Check "Disable fullscreen optimizations."
 16. **Disable Xbox Game Bar**: 
     - Go to Windows Settings > Gaming > Xbox Game Bar > Toggle Off.
 17. **Disable Overlays**: 
