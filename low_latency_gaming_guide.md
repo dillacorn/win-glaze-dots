@@ -45,6 +45,7 @@ Run the following commands in an elevated Command Prompt (Admin mode):
 bcdedit /set disabledynamictick yes
 ```
 ---
+### **Alternatively disable CPU virtualization in BIOS**
 
 ### **Disable Hyper-V** (if not needed)
 ```cmd
@@ -53,36 +54,6 @@ bcdedit /set hypervisorlaunchtype off
 ### Re-enable **Hyper-V** (if disabled and needed) then reboot
 ```cmd
 bcdedit /set hypervisorlaunchtype auto
-```
----
-
-### **Set High Performance Power Plan**
-```cmd
-powercfg /setactive 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c
-```
-
-### **Disable CPU Core Parking** (No Longer Recommended)
-```cmd
-powercfg /setacvalueindex scheme_current 2a737441-1930-4402-8d77-b2bebba308a3 d4e98f31-5ffe-4ce1-be31-1b38b384c009 0
-```
-### **Enable CPU Core Parking**
-```cmd
-powercfg /setacvalueindex scheme_current 2a737441-1930-4402-8d77-b2bebba308a3 d4e98f31-5ffe-4ce1-be31-1b38b384c009 1
-```
-
-### **Disable CPU Idle States** (No Longer Recommended)
-```cmd
-powercfg /setacvalueindex scheme_current 2a737441-1930-4402-8d77-b2bebba308a3 48e6b7a6-50f5-4782-a5d4-53bb8f07e226 0
-```
-
-### **Enable CPU Idle States**
-```cmd
-powercfg /setacvalueindex scheme_current 2a737441-1930-4402-8d77-b2bebba308a3 48eb7a6-50f5-4782-a5d4-53bbf07e226 1
-```
-
-### **Apply powercfg changes**
-```cmd
-powercfg /apply
 ```
 ---
 
