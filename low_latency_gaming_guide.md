@@ -28,27 +28,42 @@ It's ultimately up to you though.. OLED is a fantastic choice for a solo display
 
 ---
 ## **Graphics and Display Settings**
-1. **Frame Rate Cap**: Capping your frame rate can introduce additional latency if you're reaching 100+fps above target in game when it's uncapped on average. Capping your frame rate will however stabilize your frame rate on average and can reduce latency if you're close to the frame target when uncapped. This is for you to decide what's better... (game dependant)
-2. **Anti-Aliasing**: Disable anti-aliasing as it CAN introduce input lag. (Avoid *TAA** if you can) ~ [r/FuckTAA](https://www.reddit.com/r/FuckTAA/)
-3. **Upscaling**: Turn off upscaling technologies (e.g., DLSS, FSR) for lower latency.
-4. **V-Sync and Sync Alternatives**: Avoid V-Sync, FreeSync, G-Sync, and other sync technologies, as they cause input lag. Use screen tearing as a trade-off if necessary.
-5. **Dynamic Render Scaling**: Disable this setting for consistent frame rates and lower latency.
-6. **Triple Buffering**: Turn off triple buffering as it can add input delay.
-7. **Ambient Occlusion**: Disable ambient occlusion unless its visual benefits outweigh the added latency for your gameplay. (game dependant)
-8. **Reflections**: Disable dynamic and local reflections.
-9. **Reduced Buffering**: Enable reduced buffering in your game settings.
-10. **NVIDIA Reflex and AMD Anti-Lag**: These technologies claim to lower your latency but there's no verifiable proof there is any added benifit other than lowering your overall frame rate when enabled. I recommend to leave these settings off as they can introduce unnecessary stuttering.
+1. **Frame Rate Cap**:
+   - Capping your frame rate can introduce additional latency if you're reaching 100+fps above target in game when it's uncapped on average. Capping your frame rate will however stabilize your frame rate on average and can reduce latency if you're close to the frame target when uncapped. This is for you to decide what's better... (game dependant)
+3. **Anti-Aliasing**:
+   - Disable anti-aliasing as it CAN introduce input lag. (Avoid *TAA** if you can) ~ [r/FuckTAA](https://www.reddit.com/r/FuckTAA/)
+4. **Upscaling**:
+   - Turn off upscaling technologies (e.g., DLSS, FSR) for lower latency.
+5. **V-Sync and Sync Alternatives**:
+   - Avoid V-Sync, FreeSync, G-Sync, and other sync technologies, as they cause input lag. Use screen tearing as a trade-off if necessary.
+6. **Dynamic Render Scaling**:
+   - Disable this setting for consistent frame rates and lower latency.
+7. **Triple Buffering**:
+   - Turn off triple buffering as it can add input delay.
+8. **Ambient Occlusion**:
+   - Disable ambient occlusion unless its visual benefits outweigh the added latency for your gameplay. (game dependant)
+9. **Reflections**:
+   - Disable dynamic and local reflections.
+10. **Reduced Buffering**:
+    - Enable reduced buffering in your game settings.
+11. **NVIDIA Reflex and AMD Anti-Lag**:
+    - These technologies claim to lower your latency but there's no verifiable proof there is any added benifit other than lowering your overall frame rate when enabled. I recommend to leave these settings off as they can introduce unnecessary stuttering.
 
 ---
 ## **Hardware Recommendations**
-1. **High Refresh Rate Monitors**: Invest in a high-refresh-rate monitor with BFI (Black Frame Insertion) technology. TN panels with good BFI (e.g., Zowie monitors) offer excellent performance.
-2. **High-Polling-Rate Mice**: Use a mouse with a 4k Hz polling rate for marginal input latency improvements. I recommend 2k Hz so you don't overload your CPU.
-3. **Fullscreen Mode**: Use exclusive fullscreen mode for the lowest latency. (game dependant)
+1. **High Refresh Rate Monitors**:
+   - Invest in a high-refresh-rate monitor with BFI (Black Frame Insertion) technology. TN panels with good BFI (e.g., Zowie monitors) offer excellent performance.
+3. **High-Polling-Rate Mice**:
+   - Use a mouse with a 4k Hz polling rate for marginal input latency improvements. I recommend 2k Hz so you don't overload your CPU.
+5. **Fullscreen Mode**:
+   - Use exclusive fullscreen mode for the lowest latency. (doesn't always improve latency)
 
 ---
 ## **Input Methods**
-1. **DirectXInput Over Raw Input**: Use DirectXInput if available, as it often has lower latency due to direct handling by the game engine. (game dependant)
-2. **Raw Input Buffer**: Enable Raw Input Buffer if avaliable in game engine. (game dependant)
+1. **DirectXInput Over Raw Input**:
+   - Use DirectXInput if available, as it often has lower latency due to direct handling by the game engine. (game dependant)
+3. **Raw Input Buffer**:
+   - Enable Raw Input Buffer if avaliable in game engine. (game dependant)
 
 ---
 ## **Windows-Specific Optimizations**
