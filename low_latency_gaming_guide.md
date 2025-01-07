@@ -75,15 +75,6 @@ It's ultimately up to you though.. OLED is a fantastic choice for a solo display
     - Reduces frame rate but improves latency.
 
 ---
-## **System Commands (UAC Required)**
-Run the following commands in an elevated Command Prompt (Admin mode):
-
-### **Disable Dynamic Tick**
-```cmd
-bcdedit /set disabledynamictick yes
-```
-
----
 ### **Additional Notes**
 
 - Always research the best settings for your specific game. Some games may require specific optimizations beyond this list.
