@@ -19,6 +19,14 @@ It's ultimately up to you though.. OLED is a fantastic choice for a solo display
 [How to Optimize Internet Adapter Settings for Lower Ping and No Delay](https://www.youtube.com/watch?v=RCO9zuUb12U&t=26s)
 
 ---
+## **BIOS configurations - CPU dependant**
+1. Enable **XMP** profile for your RAM.
+2. Disable **Hyperthreading** on Intel and/or **SMT** on AMD.
+3. Disable **Effeciency cores (e-cores)** for Intel CPUs.
+4. Disable **L1 & L2 Hardware Prefetcher** for Intel and AMD CPUs.
+5. Disable CPU virtulization ~ **AMD-V or SVM** on AMD CPUs ~ **VT-x** on Intel CPUs
+
+---
 ## **Graphics and Display Settings**
 1. **Frame Rate Cap**: Capping your frame rate can introduce additional latency if you're reaching 100+fps above target in game when it's uncapped on average. Capping your frame rate will however stabilize your frame rate on average and can reduce latency if you're close to the frame target when uncapped. This is for you to decide what's better... (game dependant)
 2. **Anti-Aliasing**: Disable anti-aliasing as it CAN introduce input lag. (Avoid *TAA** if you can) ~ [r/FuckTAA](https://www.reddit.com/r/FuckTAA/)
@@ -33,9 +41,9 @@ It's ultimately up to you though.. OLED is a fantastic choice for a solo display
 
 ---
 ## **Hardware Recommendations**
-11. **High Refresh Rate Monitors**: Invest in a high-refresh-rate monitor with BFI (Black Frame Insertion) technology. TN panels with good BFI (e.g., Zowie monitors) offer optimal performance.
-12. **High-Polling-Rate Mice**: Use a mouse with a 4k Hz polling rate for marginal input latency improvements.
-13. **Fullscreen Mode**: Always use exclusive fullscreen mode for the lowest latency.
+11. **High Refresh Rate Monitors**: Invest in a high-refresh-rate monitor with BFI (Black Frame Insertion) technology. TN panels with good BFI (e.g., Zowie monitors) offer excellent performance.
+12. **High-Polling-Rate Mice**: Use a mouse with a 4k Hz polling rate for marginal input latency improvements. I recommend 2k Hz so you don't overload your CPU.
+13. **Fullscreen Mode**: Use exclusive fullscreen mode for the lowest latency. (game dependant)
 
 ---
 ## **Input Methods**
@@ -48,6 +56,8 @@ It's ultimately up to you though.. OLED is a fantastic choice for a solo display
     - Go to Windows Settings > Gaming > Xbox Game Bar > Toggle Off.
 17. **Disable Overlays**: 
     - Turn off overlays like Discord to prevent additional input lag.
+18. **Unpark CPU cores**:
+    - Reduces frame rate but improves latency.
 
 ---
 ## **System Commands (UAC Required)**
@@ -57,8 +67,6 @@ Run the following commands in an elevated Command Prompt (Admin mode):
 ```cmd
 bcdedit /set disabledynamictick yes
 ```
----
-### **Disable CPU virtualization in BIOS**
 
 ---
 ### **Additional Notes**
