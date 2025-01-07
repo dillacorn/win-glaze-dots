@@ -41,22 +41,22 @@ It's ultimately up to you though.. OLED is a fantastic choice for a solo display
 
 ---
 ## **Hardware Recommendations**
-11. **High Refresh Rate Monitors**: Invest in a high-refresh-rate monitor with BFI (Black Frame Insertion) technology. TN panels with good BFI (e.g., Zowie monitors) offer excellent performance.
-12. **High-Polling-Rate Mice**: Use a mouse with a 4k Hz polling rate for marginal input latency improvements. I recommend 2k Hz so you don't overload your CPU.
-13. **Fullscreen Mode**: Use exclusive fullscreen mode for the lowest latency. (game dependant)
+1. **High Refresh Rate Monitors**: Invest in a high-refresh-rate monitor with BFI (Black Frame Insertion) technology. TN panels with good BFI (e.g., Zowie monitors) offer excellent performance.
+2. **High-Polling-Rate Mice**: Use a mouse with a 4k Hz polling rate for marginal input latency improvements. I recommend 2k Hz so you don't overload your CPU.
+3. **Fullscreen Mode**: Use exclusive fullscreen mode for the lowest latency. (game dependant)
 
 ---
 ## **Input Methods**
-14. **DirectXInput Over Raw Input**: Use DirectXInput if available, as it often has lower latency due to direct handling by the game engine. (game dependant)
-15. **Raw Input Buffer**: Enable Raw Input Buffer if avaliable in game engine. (game dependant)
+1. **DirectXInput Over Raw Input**: Use DirectXInput if available, as it often has lower latency due to direct handling by the game engine. (game dependant)
+2. **Raw Input Buffer**: Enable Raw Input Buffer if avaliable in game engine. (game dependant)
 
 ---
 ## **Windows-Specific Optimizations**
-16. **Disable Xbox Game Bar**: 
+1. **Disable Xbox Game Bar**: 
     - Go to Windows Settings > Gaming > Xbox Game Bar > Toggle Off.
-17. **Disable Overlays**: 
+2. **Disable Overlays**: 
     - Turn off overlays like Discord to prevent additional input lag.
-18. **Unpark CPU cores**:
+3. **Unpark CPU cores**:
     - Reduces frame rate but improves latency.
 
 ---
