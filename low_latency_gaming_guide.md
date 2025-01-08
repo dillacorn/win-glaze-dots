@@ -75,6 +75,13 @@ It's ultimately up to you though.. OLED is a fantastic choice for a solo display
     - Reduces frame rate but improves latency.
 
 ---
+## **Note Worthy Software Tweaks**
+1. **MSI Afterburner**
+   - If you're using "MSI Afterburner" turn off "GPU power monitoring" as it is known to cause micro-stuttering (affecting 1% lows) and hasn't been fixed for over 6+ years.
+   - [View this techpowerup post about the issue](https://www.techpowerup.com/forums/threads/msi-afterburner-potential-1-lows-stutter-issues-fixed.330207/)
+   - [Video (@ 12:31) Explaining Fix](https://youtu.be/bQH3DYNboM0?t=12m31s)
+
+---
 ### **Additional Notes**
 
 - Always research the best settings for your specific game. Some games may require specific optimizations beyond this list.
