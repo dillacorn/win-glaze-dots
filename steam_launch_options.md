@@ -2,9 +2,7 @@ Notes From Repo: https://github.com/dillacorn/win-glaze-dots
 
 ### before attempting to use a custom resolution you will need to apply the custom resolution with your GPU driver software ~ [See Guide](https://github.com/dillacorn/win-glaze-dots/blob/main/amd_software_settings.md)
 
-Change res to 1600x1024(16:10) or 1728x1080(16:10) or 1440x1080(4:3) (for example) for games that only work in borderless windowed for fullscreen stretched resolutions. I'm using `nircmd` scripts to quickly change resolutions before launching specific games. ~ [View scripts](https://github.com/dillacorn/win-glaze-dots/blob/main/UserProfile/scripts)
-
-Based on my understanding on aspect ratios 1600x1024(16:10) strikes a good balance of adding stretch without overstretching for 16:9 aspect ratio displays such as 4:3. That way you can easily switch to 16:9 and still feel comfortable when you switch to 16:10 and vis-versa.. 1728x1080 is technically sharper than 1600x1024 but I can't tell much of a difference so using a lower res is better for more consistant frame rate.
+For games requiring borderless windowed mode for stretched fullscreen resolutions, I use [nircmd scripts](https://github.com/dillacorn/win-glaze-dots/blob/main/UserProfile/scripts) to quickly switch resolutions before launching specific games. I find 1600x1024 (16:10) strikes a good balance—offering stretch without overdoing it, while still feeling natural when switching back to 16:9. While 1728x1080 (16:10) is sharper, the difference is minimal, and 1600x1024 provides better frame rate consistency. 1440x1080 (4:3) is also an option for stronger stretch.
 
 ### To use nircmd launch it with GlazeWM shortcut `ALT+shift+m` ~ [See GlazeWM Config](https://github.com/dillacorn/win-glaze-dots/blob/d8667c1f86257113a0b3ad13b69d28e74fd226f0/UserProfile/.glzr/glazewm/config.yaml#L415)
 ---
