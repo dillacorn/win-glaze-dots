@@ -7,7 +7,8 @@ REM - Adjust color depth: "32"
 REM - Adjust display refresh rate: "240"
 
 REM - Native Display Resolution: 1920x1080 (FHD)
-nircmd setdisplay 1440 1080 32 400
+nircmd setdisplay 1400 1050 32 400
+REM - nircmd setdisplay 1440 1080 32 400
 
 REM - Native Display Resolution: 2560x1440 (QHD)
 REM nircmd setdisplay 1920 1440 32 240
