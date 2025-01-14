@@ -96,19 +96,19 @@ scoop install extras/altsnap alacritty vcredist zebar
 scoop install extras/feishin logitech-omm msiafterburner rtss vesktop
 ```
 
-### add my unofficial scoop bucket -> I recommend `glazewm-np` install for `uiACCESS`
+### add my unofficial scoop bucket -> I recommend `glazewm-np` install for `UIAccess`
 ```powershell
 scoop bucket add dillacorn https://github.com/dillacorn/win-glaze-dots
 ```
 
 ### install glazewm-np using scoop `Recommended`
-#### `installed in %ProgramFiles% so uiACCESS is avaliable!`
+#### `installed in %ProgramFiles% so UIAccess is avaliable!`
 ```powershell
 scoop install dillacorn/glazewm-np
 ```
 
 ### install glazewm using scoop
-#### `not installed in %ProgramFiles% so uiACCESS is unavaliable`
+#### `not installed in %ProgramFiles% so UIAccess is unavaliable`
 ```powershell
 scoop install dillacorn/glazewm
 ```
