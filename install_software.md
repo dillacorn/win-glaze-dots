@@ -96,12 +96,12 @@ scoop install extras/altsnap alacritty vcredist zebar
 scoop install extras/feishin logitech-omm msiafterburner rtss vesktop
 ```
 
-### add my unofficial scoop "glazewm.json" bucket
+### add my unofficial scoop bucket -> I recommend `glazewm-np` install for `uiACCESS`
 ```powershell
 scoop bucket add dillacorn https://github.com/dillacorn/win-glaze-dots
 ```
 
-### install glazewm-np using scoop
+### install glazewm-np using scoop `Recommended`
 #### `installed in %ProgramFiles% so uiACCESS is avaliable!`
 ```powershell
 scoop install dillacorn/glazewm-np
