@@ -31,7 +31,7 @@ ResolutionSizeY=1024
 ```
 ### Overwatch 2 ~ stretched 1600x1024 (fullscreen)
 ---
-### The Finals ~ stretched 1600x1024 and/or 1400x1050 (fullscreen)
+### The Finals ~ stretched 1600x1024 and/or 1400x1050 (borderless windowed)
 ---
 ### Fortnite ~ stretched 1600x1024 and/or 1400x1050 (borderless windowed)
 ---
