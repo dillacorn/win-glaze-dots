@@ -12,19 +12,27 @@ It's ultimately up to you though.. OLED is a fantastic choice for a solo display
 
 ---
 ## **FrameSync Labs - YT_Videos**
-[I Tried Every Windows Optimization for FPS](https://www.youtube.com/watch?v=QWzail3qsX0)
+[I Tried Every Windows Optimization for FPS](https://www.youtube.com/watch?v=QWzail3qsX0) ~ Intel CPUs
+
+[I Tested Every Windows and BIOS Optimization for FPS (AMD Ryzen Edition + Benchmarks)](https://www.youtube.com/watch?v=Vp332dU5xOU&t=287s) ~ AMD CPUs
 
 [How to FIX High DPC and ISR Latency in 60 Seconds](https://www.youtube.com/watch?v=FFH8u_283mM)
 
 [How to Optimize Internet Adapter Settings for Lower Ping and No Delay](https://www.youtube.com/watch?v=RCO9zuUb12U&t=26s)
 
 ---
-## **BIOS configurations - CPU dependant**
+## **BIOS configurations - CPU dependant - Remember to take your time.. some of these settings are NOT easy to locate**
 1. Enable **XMP** profile for your RAM.
 2. Disable **Hyperthreading** on Intel and/or **SMT** on AMD.
 3. Disable **Effeciency cores (e-cores)** for Intel CPUs.
 4. Disable **L1 & L2 Hardware Prefetcher** for Intel and AMD CPUs.
 5. Disable CPU virtulization ~ **AMD-V or SVM** on AMD CPUs ~ **VT-x** on Intel CPUs
+6. Disable **FCH Spread Spectrum** ~ AMD CPUs.
+7. Enable **Precision Boost Overdrive(PBO)** ~ AMD CPUs.
+8. PBO Enabled **All Core -15 Curve Optimizer** ~ AMD CPUs.
+9. PBO **10X Scaler** ~ AMD CPUs.
+10. PBO **200mhz CPU Boost Clock** ~ AMD CPUs.
+11. PBO Enhancement **90 Level 5** ~ AMD CPus. - (90 = 90c max before thermal throttle, Level 5 = max power draw.)
 
 ---
 ## **Graphics and Display Settings**
