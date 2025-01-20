@@ -55,7 +55,8 @@ It's ultimately up to you though.. OLED is a fantastic choice for a solo display
    - Invest in a high-refresh-rate monitor with BFI (Black Frame Insertion) technology. TN panels with good BFI (e.g., Zowie monitors) offer excellent performance.
 3. **High-Polling-Rate Mice**:
    - I've gamed with a 1k Hz polling rate most of my life, even on a 400Hz Zowie display, and I see no real benefit in going beyond 1k Hz, even for competitive play. The hype around higher polling rates feels like marketing.
-   - The only scenario where 4k Hz might make sense is with Motion Sync, which adds 1ms of latency. At 4k Hz, this drops to 0.25ms, but does it improve gameplay? Probably not. Plus, the FPS hit from enabling 4k Hz isn’t worth the trade-off in my opinion. 
+   - The only scenario where 4k Hz might make sense is with Motion Sync, which adds 1ms of latency. At 4k Hz, this drops to 0.25ms, but does it improve gameplay? Probably not. Plus, the FPS hit from enabling 4k Hz isn’t worth the trade-off in my opinion.
+   - Use the DPI that feels best to you @ 1k hz. I'm using 400dpi as I find there's no latency drawback. If you're wanting to utilize a higher polling rate with motion sync enabled I suggest using 1600dpi.
 5. **Fullscreen Mode**:
    - Use exclusive fullscreen mode for the lowest latency. (doesn't always improve latency)
 
