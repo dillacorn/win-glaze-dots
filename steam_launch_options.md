@@ -38,4 +38,5 @@ ResolutionSizeY=1024
 ### Fortnite ~ stretched 1600x1024 and/or 1400x1050 (borderless windowed)
 ---
 ### CS2 ~ stretched 1600x1024 and/or 1400x1050 (borderless windowed)
+### Launch Options: `-windowed -noborder`
 ---
