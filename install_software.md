@@ -35,7 +35,7 @@ sudo choco install vmware-workstation-player malwarebytes speedcrunch okular cur
 
 ### install development tools
 ```powershell
-sudo choco install make mingw curl steam -y
+sudo choco install make mingw curl -y
 ```
 
 ### install troubleshooting tools and optimization utilities
@@ -45,7 +45,7 @@ sudo choco install ddu ventoy hwmonitor ccleaner wiztree cpu-z gpu-z -y
 
 ### install networking utilities
 ```powershell
-sudo choco install mullvad-app wireguard winscp filezilla localsend moonlight sunshine obs-ndi -y
+sudo choco install mullvad-app tailscale wireguard winscp filezilla localsend moonlight sunshine obs-ndi -y
 ```
 
 ### install game launchers
