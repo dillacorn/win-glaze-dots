@@ -1,0 +1,23 @@
+{
+	"groups": {
+		"group:external_users": [
+			"tailscale_friend1@gmail.com",
+			"tailscale_friend2@gmail.com",
+			"etailscale_friend3@gmail.com",
+			"tailscale_friend@privaterelay.appleid.com",
+		],
+	},
+	"acls": [
+		// Allow external users to access Jellyfin only.
+		{"action": "accept", "src": ["group:external_users"], "dst": ["*:8096"]},
+
+		// Allow the owner full unrestricted access.
+		{"action": "accept", "src": ["tailscale_account_host@gmail.com"], "dst": ["*:*"]},
+	],
+	"nodeAttrs": [
+		{
+			"target": ["autogroup:member"],
+			"attr":   ["funnel"],
+		},
+	],
+}
