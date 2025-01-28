@@ -195,24 +195,6 @@ window_rules:
       - window_process: { equals: "Lively" }
         window_class: { regex: "HwndWrapper" }
       - window_process: { equals: "Mullvad VPN" }
-      - window_process: { equals: "ui32" }
-      - window_process: { equals: "wallpaper32" }
-      - window_process: { equals: "wallpaper64" }
-
-      # Games
-      - window_process: { equals: 'Marvel-Win64-Shipping' }
-      - window_process: { equals: 'cs2' }
-      - window_process: { equals: 'RustClient' }
-      - window_process: { equals: 'quakelive_steam' }
-      - window_process: { equals: 'QuakeChampions' }
-      - window_process: { equals: 'straftat' }
-      - window_process: { equals: 'VALORANT-Win64-Shipping' }
-      - window_process: { equals: 'Discovery' }
-      - window_process: { equals: 'ULTRAKILL' }
-      - window_process: { equals: 'Greylock-Win64-Shipping' }
-      - window_process: { equals: 'TotallyAccurateBattlegrounds' }
-      - window_process: { equals: 'BattleBit' }
-      - window_process: { equals: 'helldivers2' }
 
   - commands: ["set-floating"]
     match:
