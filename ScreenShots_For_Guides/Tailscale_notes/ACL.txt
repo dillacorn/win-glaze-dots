@@ -1,27 +1,30 @@
 {
 	"groups": {
-		"group:external_users": [
-			"tailscale_friend1@gmail.com",
-			"tailscale_friend2@gmail.com",
-			"etailscale_friend3@gmail.com",
+		"group:external_users_#1": [
+			"tailscale_friend1@example.com",
+			"tailscale_friend2@example.com",
+			"etailscale_friend3@example.com",
 			"tailscale_friend@privaterelay.appleid.com",
-			"example@example.com",
+			"example@example.com"
 		],
+		"group:external_users_#2": [
+			"example@example.com"
+		]
 	},
 	"acls": [
 		// Allow external users to access Jellyfin.
-		{"action": "accept", "src": ["group:external_users"], "dst": ["*:8096"]},
+		{"action": "accept", "src": ["group:external_users_#1"], "dst": ["*:8096"]},
 
-		// Allow example@example.com access to flame.
-		{"action": "accept", "src": ["example@example.com"], "dst": ["*:5005"]},
+		// Allow example@example.com access to Flame and qBittorrent.
+		{"action": "accept", "src": ["group:external_users_#2"], "dst": ["*:5005", "*:8080"]},
 
 		// Allow the owner full unrestricted access.
-		{"action": "accept", "src": ["tailscale_account_host@gmail.com"], "dst": ["*:*"]},
+		{"action": "accept", "src": ["tailscale_account_host@example.com"], "dst": ["*:*"]}
 	],
 	"nodeAttrs": [
 		{
 			"target": ["autogroup:member"],
-			"attr":   ["funnel"],
-		},
-	],
+			"attr":   ["funnel"]
+		}
+	]
 }
