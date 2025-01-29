@@ -8,7 +8,8 @@
 			"example@example.com"
 		],
 		"group:external_users_#2": [
-			"example@example.com"
+			"example@example.com",
+			"example_2_@example.com"
 		]
 	},
 	"acls": [
