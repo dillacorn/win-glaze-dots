@@ -14,13 +14,25 @@
 	},
 	"acls": [
 		// Allow external users to access Jellyfin.
-		{"action": "accept", "src": ["group:external_users_#1"], "dst": ["*:8096"]},
+		{
+			"action": "accept",
+			"src":    ["group:external_users_#1"],
+			"dst":    ["*:8096"],
+		},
 
 		// Allow example@example.com access to Flame and qBittorrent.
-		{"action": "accept", "src": ["group:external_users_#2"], "dst": ["*:5005", "*:8080"]},
+		{
+			"action": "accept",
+			"src":    ["group:external_users_#2"],
+			"dst":    ["*:5005", "*:8080"]
+		},
 
 		// Allow the owner full unrestricted access.
-		{"action": "accept", "src": ["tailscale_account_host@example.com"], "dst": ["*:*"]}
+		{
+			"action": "accept",
+			"src":    ["tailscale_account_host@example.com"],
+			"dst":    ["*:*"]
+		}
 	],
 	"nodeAttrs": [
 		{
