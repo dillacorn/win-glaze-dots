@@ -23,7 +23,7 @@
 			"dst":    ["*:8123"],
 		},
 		
-		// Allow example@example.com access to Flame, qBittorrent, calibre, and Librewolf webtop.
+		// Allow example@example.com access to Flame, qBittorrent, Calibre, and Librewolf webtop.
 		{
 			"action": "accept",
 			"src":    ["example@example.com"],
