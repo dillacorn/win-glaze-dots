@@ -18,6 +18,9 @@ general:
   # workspace when focusing the current workspace.
   toggle_workspace_on_refocus: false
 
+  # Show all applications in taskbar
+  show_all_in_taskbar: true
+
   cursor_jump:
     # Whether to automatically move the cursor on the specified trigger.
     enabled: true
