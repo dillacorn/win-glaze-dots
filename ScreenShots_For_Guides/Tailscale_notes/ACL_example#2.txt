@@ -1,0 +1,42 @@
+{
+	"groups": {
+		"group:external_users_#1": [
+			"tailscale_friend1@example.com",
+			"tailscale_friend2@example.com",
+			"tailscale_friend3@example.com",
+			"tailscale_friend@privaterelay.appleid.com",
+			"example@example.com",
+		],
+	},
+	"acls": [
+		// Allow external users to access Jellyfin.
+		{
+			"action": "accept",
+			"src":    ["group:external_users_#1"],
+			"dst":    ["*:8096"],
+		},
+
+		// Allow tailscale_friend1@example.com access to Calibre.
+		{
+			"action": "accept",
+			"src":    ["tailscale_friend1@example.com"],
+			"dst":    ["*:8123"],
+		},
+		
+		// Allow example@example.com access to Flame, qBittorrent, calibre, and Librewolf webtop.
+		{
+			"action": "accept",
+			"src":    ["example@example.com"],
+			"dst":    ["*:5005", "*:8080", "*:3000", "*:8123"],
+		},
+
+		// Allow the owner full unrestricted access.
+		{"action": "accept", "src": ["tailscale_account_host@example.com"], "dst": ["*:*"]},
+	],
+	"nodeAttrs": [
+		{
+			"target": ["autogroup:member"],
+			"attr":   ["funnel"],
+		},
+	],
+}
