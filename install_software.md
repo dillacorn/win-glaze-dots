@@ -30,7 +30,7 @@ sudo choco install git flow-launcher flameshot powertoys eartrumpet winspy winge
 
 ### install additional applications
 ```powershell
-sudo choco install vmware-workstation-player malwarebytes speedcrunch okular cura-new telegram ungoogled-chromium librewolf firefox keepassxc bitwarden teamviewer krita shotcut gimp qbittorrent screentogif spotify betaflight-configurator obs-studio files flac yt-dlp -y
+sudo choco install vmware-workstation-player malwarebytes speedcrunch okular cura-new telegram ungoogled-chromium librewolf firefox keepassxc bitwarden rustdesk krita shotcut gimp qbittorrent screentogif spotify betaflight-configurator obs-studio files flac yt-dlp -y
 ```
 
 ### install development tools
