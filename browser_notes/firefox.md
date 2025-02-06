@@ -14,7 +14,7 @@ open "firefox"
 - click `Create a New Profile`
 - in profile creation wizard click `Next`
 - name your new profile and click `Finish`
-- click `Set as default profile`
+- click `Set as default profile` (if not already selected)
 - click `Open Folder` for the "root directory" of the profile.
 - close all firefox instances.
 - delete all contents within the folder directory for the profile.
