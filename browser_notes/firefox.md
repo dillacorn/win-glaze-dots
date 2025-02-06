@@ -18,8 +18,8 @@ open "firefox"
 - click `Open Folder` for the "root directory" of the profile.
 - close all firefox instances.
 - delete all contents within the folder directory for the profile.
-- insert "user.js" from arkenfox or "prefs.js" from [ffprofile.com](https://ffprofile.com)
-- start firefox.. navigate back to `about:profiles` to make sure you're running the new profile
+- insert **"user.js"** from [arkenfox](https://github.com/arkenfox/user.js) or **"prefs.js"** from [ffprofile.com](https://ffprofile.com)
+- start firefox, navigate back to `about:profiles` to make sure you're running the new profile
 - that's it!
 
 # extensions
