@@ -1,44 +1,20 @@
 notes from repo: https://github.com/dillacorn/win-glaze-dots
 
-My personal fav chromium browser.. although lacks some codec support..in those cases use brave instead.
+For when FireFox isn't capable of the task.. or for compatibility reasons..
 
 # start here
 ```sh
-choco install ungoogled-chromium -y
+choco install brave -y
 ```
 
-- pin "chrome.exe" to start menu for flow launcher. ~ I use "Everything" app to find "chrome.exe" folder/install location.
-
-- open "chrome.exe" with flow-launcher `alt+p`
+- open "brave" with flow-launcher `alt+p`
 
 # flags
 
 navigate to: `chrome://flags/`
 
 change these flags:
-* [Handling of extension MIME type requests](chrome://flags/#extension-mime-request-handling): `Always prompt for install` <- allows for **chrome-web-store** to be installed
-* [Disable search engine collection](chrome://flags/#disable-search-engine-collection): `Enabled`
-* [Enable get*ClientRects() fingerprint deception](chrome://flags/#fingerprinting-client-rects-noise): `Enabled`
-* [Enable Canvas::measureText() fingerprint deception](chrome://flags/#fingerprinting-canvas-measuretext-noise): `Enabled`
-* [Enable Canvas image data fingerprint deception](chrome://flags/#fingerprinting-canvas-image-data-noise): `Enabled`
-* [Anonymize local IPs exposed by WebRTC](chrome://flags/#enable-webrtc-hide-local-ips-with-mdns): `Enabled`
 * [enable-webrtc-allow-input-volume-adjustment](chrome://flags/#enable-webrtc-allow-input-volume-adjustment): `Disabled` <- Browser adjusting mic volume randomly is so annoying
-
-# chrome web store fix
-
-make chrome web store work:
-
-open Extensions Page: `chrome://extensions/`
-
-enable `Developer mode` in the top right corner
-
-reboot Ungoogled Chromium
-
-navigate to : [`https://github.com/NeverDecaf/chromium-web-store`](https://github.com/NeverDecaf/chromium-web-store)
-
-go to release page and click on `Chromium.Web.Store.crx` to install it
-
-go install your extensions! -> [`https://chromewebstore.google.com/`](https://chromewebstore.google.com/)
 
 # extensions
 
@@ -91,7 +67,7 @@ URL with %s in place of query
 
 # custom dns server
 
-navigate to `Privacy and security` in settings
+navigate to `Privacy and security` in settings ~ brave://settings/security
 
 enable `Use secure DNS`
 

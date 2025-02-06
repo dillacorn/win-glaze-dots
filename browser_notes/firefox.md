@@ -1,6 +1,7 @@
 Notes From Repo: https://github.com/dillacorn/win-glaze-dots
 
-sooo...ungoogled chromium (chrome in general) are begining to cause breakage for me currently on some websites... so I've started using standard firefox.
+Use Brave or Ungoogled Chromium when privacy isn't much of a concern. Never use default firefox profiles..I'd suggest just sticking to Brave if that's your preference due to codec support..otherwise Ungoogled Chromium is basically the superior browser but doesn't properly load some websites.
+
 # install
 ```sh
 choco install firefox -y
