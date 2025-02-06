@@ -8,22 +8,38 @@ choco install firefox -y
 
 open "firefox"
 
-# config
+# Install [arkenfox](https://github.com/arkenfox/user.js) or use [ffprofile.com](https://ffprofile.com) ~ can cause websites to not load correctly
 
-navigate to: `about:config`
+Launch Firefox Profile Viewer:
+```sh
+firfox -no-remote ProfileManager
+```
 
-change these flags:
-* middlemouse.paste: `false`
-* privacy.fingerprintingProtection: `true`
+- click `Create Profile`
+- in profile creation wizard click `Next`
+- name your new profile.
+- select new profile and `Start Firefox`
+- go to `about:profiles`
+- make sure the new profile is the new default.
+- open root dir for the profile you want to edit.
+- close all firefox instances.
+- delete all contents within the folder directory for the profile.
+- insert "user.js" from arkenfox or "prefs.js" from [ffprofile.com](https://ffprofile.com)
+- start firefox.. navigate back to `about:profiles` to make sure you're running the new profile
+- that's it!
 
 # extensions
 
 **note**: *these are install links*
 
+Security Centric:
 [`uBlock Origin`](https://addons.mozilla.org/firefox/downloads/file/4328681/ublock_origin-1.59.0.xpi)
 [`LocalCDN`](https://addons.mozilla.org/firefox/downloads/file/4318983/localcdn_fork_of_decentraleyes-2.6.70.xpi)
 [`ClearURLs`](https://addons.mozilla.org/firefox/downloads/file/4064884/clearurls-1.26.1.xpi)
 [`CanvasBlocker`](https://addons.mozilla.org/firefox/downloads/file/4262820/canvasblocker-1.10.1.xpi)
+
+Extras:
+[`FastForward`](https://addons.mozilla.org/firefox/downloads/file/4258067/fastforwardteam-0.2383.xpi)
 [`ScrollAnywhere`](https://addons.mozilla.org/firefox/downloads/file/3938344/scroll_anywhere-9.2.xpi)
 [`Dark Reader`](https://addons.mozilla.org/firefox/downloads/file/4317971/darkreader-4.9.88.xpi)
 [`Backspace Enabler`](https://addons.mozilla.org/firefox/downloads/file/3954457/backspace_enabler-1.0.xpi)
@@ -40,7 +56,6 @@ change these flags:
 [`DeArrow - Better Titles and Thumbnails`](https://addons.mozilla.org/firefox/downloads/file/4307344/dearrow-1.6.4.xpi)
 [`Search by Image`](https://addons.mozilla.org/firefox/downloads/file/4309046/search_by_image-7.1.0.xpi)
 [`DownThemAll!`](https://addons.mozilla.org/firefox/downloads/file/4228862/downthemall-4.12.1.xpi)
-[`FastForward`](https://addons.mozilla.org/firefox/downloads/file/4258067/fastforwardteam-0.2383.xpi)
 
 # themes
 
