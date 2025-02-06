@@ -10,18 +10,12 @@ open "firefox"
 
 # Install [arkenfox](https://github.com/arkenfox/user.js) or use [ffprofile.com](https://ffprofile.com) ~ can cause websites to not load correctly
 
-Launch Firefox Profile Viewer:
-```sh
-firfox -no-remote ProfileManager
-```
-
-- click `Create Profile`
+- navigate to `about:profiles`
+- click `Create a New Profile`
 - in profile creation wizard click `Next`
-- name your new profile.
-- select new profile and `Start Firefox`
-- go to `about:profiles`
-- make sure the new profile is the new default.
-- open root dir for the profile you want to edit.
+- name your new profile and click `Finish`
+- click `Set as default profile`
+- click `Open Folder` for the "root directory" of the profile.
 - close all firefox instances.
 - delete all contents within the folder directory for the profile.
 - insert "user.js" from arkenfox or "prefs.js" from [ffprofile.com](https://ffprofile.com)
