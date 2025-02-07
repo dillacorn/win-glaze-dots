@@ -34,3 +34,7 @@ Copy-Item -Path "$env:UserProfile\win-glaze-dots\UserProfile\scoop\apps\altsnap\
 ```powershell
 Copy-Item -Path "$env:UserProfile\win-glaze-dots\UserProfile\scoop\apps\btop\1.0.4\btop.conf" -Destination "$env:UserProfile\scoop\apps\btop\1.0.4\btop.conf" -Force
 ```
+#### Copy and overwrite `Startup Folder` dots
+```powershell
+Copy-Item -Path "$env:UserProfile\win-glaze-dots\UserProfile\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startup" -Destination "$env:UserProfile\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startup" -Force
+```
