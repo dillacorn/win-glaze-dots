@@ -103,6 +103,7 @@ It's ultimately up to you though.. OLED is a fantastic choice for a solo display
 - **TSR (Unreal Engine 5 games)**: Best non-NVIDIA upscaler.  
 - **FSR 2/3**: Decent, but more blurry than TSR and XeSS (on Arc).  
 - **XeSS (Intel Arc GPUs)**: Best on Arc, but worse than FSR on AMD/NVIDIA.
+- **Note:** **Sharpening filters should be enabled when available to improve image clarity with upscaling.**  
 - **Note:** **TAA and TAAU are not included** as *"one looks bad and the other looks worse."*  
 
 ---
