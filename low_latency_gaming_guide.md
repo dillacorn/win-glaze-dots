@@ -57,6 +57,40 @@ It's ultimately up to you though.. OLED is a fantastic choice for a solo display
 11. **NVIDIA Reflex and AMD Anti-Lag**:
     - These technologies claim to lower your latency but there's no verifiable proof there is any added benifit other than lowering your overall frame rate when enabled. I recommend to leave these settings off as they can introduce unnecessary stuttering.
 
+# Best Upscaler Based on GPU Type
+
+## NVIDIA Users
+| Upscaler                  | Latency     | Blur Level         | Notes |
+|---------------------------|------------|--------------------|------------------------------------------------|
+| **DLAA**                  | ✅ Lowest  | ✅ Sharpest       | Best quality option, but only works at native resolution. |
+| **DLSS (Quality Mode)**   | ✅ Low     | ✅ Very sharp    | Best upscaler for performance + image quality. |
+| **TSR (if available)**    | ✅ Low     | ✅ Less blur than FSR | A solid alternative if DLSS isn’t an option. |
+| **FSR 2/3 (Quality Mode)**| ✅ Low     | ❌ More blur than TSR | If no DLSS or TSR, use FSR as a last resort. |
+
+## AMD Users
+| Upscaler                  | Latency     | Blur Level         | Notes |
+|---------------------------|------------|--------------------|------------------------------------------------|
+| **TSR (if available)**    | ✅ Low     | ✅ Less blur than FSR | Best choice in Unreal Engine 5 games. |
+| **FSR 2/3 (Quality Mode)**| ✅ Low     | ❌ More blur than TSR | The best AMD-supported option. |
+| **XeSS (DP4a Mode)**      | ❌ Higher  | ❌ Similar to FSR  | Generally performs worse than FSR on AMD GPUs. |
+| **FSR 1.0**               | ✅ Very low| ❌ Soft/oversharpened | Minimal latency, but poor image quality. |
+
+## Intel Arc Users
+| Upscaler                  | Latency     | Blur Level         | Notes |
+|---------------------------|------------|--------------------|------------------------------------------------|
+| **XeSS (XMX Mode)**       | ✅ Lower   | ✅ Sharper than FSR | Best choice for Intel Arc GPUs. |
+| **TSR (if available)**    | ✅ Low     | ✅ Less blur than FSR | Great alternative if XeSS isn’t available. |
+| **FSR 2/3 (Quality Mode)**| ✅ Low     | ❌ More blur than XeSS | Use if no XeSS or TSR available. |
+| **XeSS (DP4a Mode)**      | ❌ Higher  | ❌ Similar to FSR  | Performs worse on non-Arc GPUs. |
+
+## General Notes:
+- **Native Resolution**: ✅ Lowest latency, ✅ Zero blur (display dependent), ❌ Lower frame rate.   
+- **DLAA (NVIDIA only)**: Best anti-aliasing but does not upscale.  
+- **DLSS (NVIDIA only)**: Best for upscaling and reducing blur.  
+- **TSR (Unreal Engine 5 games)**: Best non-NVIDIA upscaler.  
+- **FSR 2/3**: Decent, but more blurry than TSR and XeSS (on Arc).  
+- **XeSS (Intel Arc GPUs)**: Best on Arc, but worse than FSR on AMD/NVIDIA.  
+
 ---
 ## **Hardware Recommendations**
 1. **High Refresh Rate Monitors**:
