@@ -84,7 +84,9 @@ It's ultimately up to you though.. OLED is a fantastic choice for a solo display
 | **XeSS (DP4a Mode)**      | ❌ Higher  | ❌ Similar to FSR  | Performs worse on non-Arc GPUs. |
 
 ## General Notes:
-- **Native Resolution**: ✅ Lowest latency, ✅ Zero blur (display dependent), ❌ Lower frame rate.   
+- **Native Resolution**: ✅ Lowest latency, ✅ Zero blur (display dependent), ❌ Lower frame rate.  
+  - Preferred if achieving **high frame rate** for best responsiveness.  
+  - **AMD CAS (Contrast Adaptive Sharpening)** can enhance Native resolution further.
 - **DLAA (NVIDIA only)**: Best anti-aliasing but does not upscale.  
 - **DLSS (NVIDIA only)**: Best for upscaling and reducing blur.  
 - **TSR (Unreal Engine 5 games)**: Best non-NVIDIA upscaler.  
