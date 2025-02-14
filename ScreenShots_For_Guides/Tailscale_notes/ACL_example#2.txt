@@ -27,7 +27,7 @@
 		{
 			"action": "accept",
 			"src":    ["example@example.com"],
-			"dst":    ["*:5005", "*:8080", "*:3000", "*:8124", "*:8123"],
+			"dst":    ["*:5005", "*:8080", "*:8124", "*:8123", "*:6901"],
 		},
 
 		// Allow the owner full unrestricted access.
