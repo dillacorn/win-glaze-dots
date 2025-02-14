@@ -3,28 +3,42 @@
 		"group:external_users_#1": [
 			"tailscale_friend1@example.com",
 			"tailscale_friend2@example.com",
-			"etailscale_friend3@example.com",
+			"tailscale_friend3@example.com",
 			"tailscale_friend@privaterelay.appleid.com",
-			"example@example.com"
+			"example@example.com",
 		],
 		"group:external_users_#2": [
 			"example@example.com",
-			"example_2_@example.com"
+			"example_2_@example.com",
 		]
 	},
 	"acls": [
-		// Allow external users to access Jellyfin.
+		// Allow external_users_#1 group access Jellyfin.
 		{
 			"action": "accept",
 			"src":    ["group:external_users_#1"],
 			"dst":    ["*:8096"],
 		},
 
-		// Allow example@example.com access to Flame and qBittorrent.
+		// Allow "external_users_#2" group access Calibre_Reader
 		{
 			"action": "accept",
 			"src":    ["group:external_users_#2"],
-			"dst":    ["*:5005", "*:8080"]
+			"dst":    ["*:8124"],
+		},
+
+		// Allow "tailscale_friend1@example.com" user access to Calibre_Managment and Immich
+		{
+			"action": "accept",
+			"src":    ["tailscale_friend1@example.com"],
+			"dst":    ["*:8123", "*:2283"],
+		},
+
+		// Allow example@example.com access to Flame, qBittorrent, Calibre_Server_Manager and Firefox webtop.
+		{
+			"action": "accept",
+			"src":    ["group:external_users_#2"],
+			"dst":    ["*:5005", "*:8080", "*:8123", "*:6901"]
 		},
 
 		// Allow the owner full unrestricted access.
