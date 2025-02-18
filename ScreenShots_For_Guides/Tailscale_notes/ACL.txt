@@ -38,7 +38,7 @@
 		{
 			"action": "accept",
 			"src":    ["group:external_users_#2"],
-			"dst":    ["*:5005", "*:8080", "*:8123", "*:6901", "*:21115-21116"]
+			"dst":    ["*:5005", "*:8080", "*:8123", "*:6901", "*:21114-21119"]
 		},
 
 		// Allow the owner full unrestricted access.
