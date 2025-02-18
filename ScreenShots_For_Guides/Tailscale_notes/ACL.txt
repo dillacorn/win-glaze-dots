@@ -34,11 +34,11 @@
 			"dst":    ["*:8123", "*:2283"],
 		},
 
-		// Allow example@example.com access to Flame, qBittorrent, Calibre_Server_Manager and Firefox webtop.
+		// Allow example@example.com access to Flame, qBittorrent, Calibre_Server_Manager, Firefox_webtop and RustDesk_server.
 		{
 			"action": "accept",
 			"src":    ["group:external_users_#2"],
-			"dst":    ["*:5005", "*:8080", "*:8123", "*:6901"]
+			"dst":    ["*:5005", "*:8080", "*:8123", "*:6901", "*:21115-21116"]
 		},
 
 		// Allow the owner full unrestricted access.
