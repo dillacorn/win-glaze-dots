@@ -30,7 +30,7 @@ sudo choco install git flow-launcher flameshot powertoys eartrumpet winspy winge
 
 ### install additional applications
 ```powershell
-sudo choco install vmware-workstation-player malwarebytes speedcrunch okular cura-new telegram ungoogled-chromium librewolf firefox keepassxc bitwarden krita shotcut gimp qbittorrent screentogif spotify betaflight-configurator obs-studio files flac yt-dlp -y
+sudo choco install vmware-workstation-player malwarebytes speedcrunch okular cura-new telegram ungoogled-chromium librewolf firefox keepassxc bitwarden krita shotcut gimp qbittorrent screentogif spotify betaflight-configurator files flac yt-dlp -y
 ```
 
 ### install development tools
@@ -45,7 +45,7 @@ sudo choco install ddu ventoy hwmonitor ccleaner wiztree cpu-z gpu-z -y
 
 ### install networking utilities
 ```powershell
-sudo choco install mullvad-app tailscale wireguard winscp filezilla localsend moonlight sunshine obs-ndi -y
+sudo choco install mullvad-app tailscale wireguard winscp filezilla localsend moonlight sunshine -y
 ```
 
 ### install game launchers
@@ -93,7 +93,7 @@ scoop install extras/altsnap alacritty vcredist zebar
 
 ### install optional "extras" repo applications
 ```powershell
-scoop install extras/feishin logitech-omm msiafterburner rtss vesktop rustdesk
+scoop install extras/feishin logitech-omm msiafterburner rtss vesktop obs-studio rustdesk
 ```
 
 ### add my unofficial scoop bucket -> I recommend `glazewm-np` install for `UIAccess`
@@ -152,6 +152,7 @@ scoop install nonportable/equalizer-apo-np
 ---
 
 # applications not avaliable in official repos
+- [DistrAV | aka OBS-NDI](https://github.com/DistroAV/DistroAV)
 - [AutoDesk Software](https://manage.autodesk.com/login?t=/products)
 - [tinywhoopgo](https://tinywhoopgo.com/),
 
