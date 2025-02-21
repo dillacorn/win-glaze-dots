@@ -23,6 +23,7 @@
 14. ### [**low_latency_gaming_guide**](https://github.com/dillacorn/win-glaze-dots/blob/main/low_latency_gaming_guide.md)
 15. ### [**my_steam_launch_options**](https://github.com/dillacorn/win-glaze-dots/blob/main/steam_launch_options.md)
 16. ### [**browser_notes**](https://github.com/dillacorn/win-glaze-dots/tree/main/browser_notes)
+17. ### [**rustdesk+tailscale_unattended_startup**](https://github.com/dillacorn/win-glaze-dots/blob/main/rustdesk+tailscale_unattended_startup.md)
 ---
 ### Wallpapers
 - [Gruvbox Wallpapers](https://github.com/AngelJumbo/gruvbox-wallpapers) by [AngelJumbo](https://github.com/AngelJumbo)
