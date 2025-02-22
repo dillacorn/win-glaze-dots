@@ -41,6 +41,7 @@ Plugins I personally can't live without:
 [`Disable YouTube Seek by Number`](https://addons.mozilla.org/firefox/downloads/file/4308468/youtube_disable_number_seek-1.4.xpi)
 [`Return YouTube Dislike`](https://addons.mozilla.org/firefox/downloads/file/4308076/return_youtube_dislikes-3.0.0.16.xpi)
 [`Tab Numbers`](https://addons.mozilla.org/firefox/downloads/file/3368371/tab_numbers-1.0.0.xpi)
+[`Move Tabs`](https://addons.mozilla.org/firefox/downloads/file/4272424/move_tabs_around-0.0.3resigned1.xpi)
 
 Some Additional Plugins:
 [`FastForward`](https://addons.mozilla.org/firefox/downloads/file/4258067/fastforwardteam-0.2383.xpi)
