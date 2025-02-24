@@ -13,12 +13,10 @@ if not defined NIRCMD if exist "%ProgramFiles(x86)%\NirSoft\nircmdc.exe" set "NI
 
 :: If NirCmd is still not found, display a notification telling the user it's not installed
 if not defined NIRCMD (
-    echo Error: Could not find nircmdc.exe. Please install NirCmd and add it to your PATH.
-    :: Use NirCmd to show a message box and keep it open
+    echo Error: Could not find nircmdc.exe. Please install NirCmd.
+    :: Display a message box using NirCmd if it exists
     if exist "%ProgramFiles%\NirSoft\nircmdc.exe" (
         "%ProgramFiles%\NirSoft\nircmdc.exe" infobox "NirCmd is not installed. Please install NirCmd and add it to your PATH." "Error" 0x10
-    ) else (
-        msg * "NirCmd is not installed. Please install NirCmd and add it to your PATH."
     )
     pause
     exit /b 1
