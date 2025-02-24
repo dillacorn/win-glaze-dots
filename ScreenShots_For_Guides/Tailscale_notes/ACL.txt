@@ -10,6 +10,10 @@
 		"group:external_users_#2": [
 			"example@example.com",
 			"example_2_@example.com",
+		],
+		"group:external_users_#3": [
+			"example_3_@example.com",
+			"example_4_@example.com",
 		]
 	},
 	"acls": [
@@ -27,6 +31,13 @@
 			"dst":    ["*:8124"],
 		},
 
+		// Allow "external_users_#3" group access RustDesk Verification Server
+		{
+			"action": "accept",
+			"src":    ["group:external_users_#3"],
+			"dst":    ["*:21114-21117"],
+		},
+
 		// Allow "tailscale_friend1@example.com" user access to Calibre_Managment and Immich
 		{
 			"action": "accept",
@@ -38,7 +49,7 @@
 		{
 			"action": "accept",
 			"src":    ["group:external_users_#2"],
-			"dst":    ["*:5005", "*:8080", "*:8123", "*:6901", "*:21114-21119"]
+			"dst":    ["*:5005", "*:8080", "*:8123", "*:6901", "*:21114-21117"]
 		},
 
 		// Allow the owner full unrestricted access.
