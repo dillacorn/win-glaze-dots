@@ -6,7 +6,7 @@
 			"tailscale_friend3@example.com",
 			"tailscale_friend@privaterelay.appleid.com",
 			"example@example.com",
-		],
+		]
 	},
 	"acls": [
 		// Allow external users to access Jellyfin.
