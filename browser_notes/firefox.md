@@ -1,6 +1,6 @@
 Notes From Repo: https://github.com/dillacorn/win-glaze-dots
 
-Use Brave or Ungoogled Chromium when privacy isn't much of a concern. Never use default firefox profiles..I'd suggest just sticking to Brave if that's your preference due to codec support..otherwise Ungoogled Chromium is basically the superior browser but doesn't properly load some websites.
+Primary browser now with [Betterfox](https://github.com/yokoffing/Betterfox)
 
 # install
 ```sh
@@ -9,7 +9,7 @@ choco install firefox -y
 
 open "firefox"
 
-# Install [arkenfox](https://github.com/arkenfox/user.js) or use [ffprofile.com](https://ffprofile.com) ~ can cause websites to not load correctly
+# Install [Fastfox.js](https://github.com/yokoffing/Betterfox/blob/main/Fastfox.js)
 
 - navigate to `about:profiles`
 - click `Create a New Profile`
@@ -19,7 +19,7 @@ open "firefox"
 - click `Open Folder` for the "root directory" of the profile.
 - close all firefox instances.
 - delete all contents within the folder directory for the profile.
-- insert **"user.js"** from [arkenfox](https://github.com/arkenfox/user.js) or **"prefs.js"** from [ffprofile.com](https://ffprofile.com)
+- insert **"user.js"** from [Fastfox.js](https://github.com/yokoffing/Betterfox/blob/main/Fastfox.js)
 - start firefox, navigate back to `about:profiles` to make sure you're running the new profile
 - that's it!
 
