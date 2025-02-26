@@ -35,7 +35,7 @@
 		{
 			"action": "accept",
 			"src":    ["group:external_users_#3"],
-			"dst":    ["*:21114-21117"],
+			"dst":    ["*:21118"],
 		},
 
 		// Allow "tailscale_friend1@example.com" user access to Calibre_Managment and Immich
