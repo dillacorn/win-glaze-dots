@@ -35,7 +35,7 @@
 		{
 			"action": "accept",
 			"src":    ["group:external_users_#3"],
-			"dst":    ["*:21118"],
+			"dst":    ["*:21114-21118"],
 		},
 
 		// Allow "tailscale_friend1@example.com" user access to Calibre_Managment and Immich
@@ -49,7 +49,7 @@
 		{
 			"action": "accept",
 			"src":    ["group:external_users_#2"],
-			"dst":    ["*:5005", "*:8080", "*:8123", "*:6901", "*:21118"]
+			"dst":    ["*:5005", "*:8080", "*:8123", "*:6901", "*:21114-21118"]
 		},
 
 		// Allow the owner full unrestricted access.
