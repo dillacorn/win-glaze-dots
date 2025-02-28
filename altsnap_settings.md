@@ -8,3 +8,9 @@
 
 ![Advanced](https://raw.githubusercontent.com/dillacorn/win-glaze-dots/refs/heads/main/ScreenShots_For_Guides/altsnap_screenshots/Advanced.png)
 
+![task_scheduler_#1](https://raw.githubusercontent.com/dillacorn/win-glaze-dots/refs/heads/main/ScreenShots_For_Guides/altsnap_screenshots/task_scheduler_#1.png)
+
+![task_scheduler_#2](https://raw.githubusercontent.com/dillacorn/win-glaze-dots/refs/heads/main/ScreenShots_For_Guides/altsnap_screenshots/task_scheduler_#2.png)
+
+![task_scheduler_#3](https://raw.githubusercontent.com/dillacorn/win-glaze-dots/refs/heads/main/ScreenShots_For_Guides/altsnap_screenshots/task_scheduler_#3.png)
+

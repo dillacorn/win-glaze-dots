@@ -152,7 +152,7 @@ scoop install nonportable/equalizer-apo-np
 ---
 
 # applications not avaliable in official repos
-- [DistrAV | aka OBS-NDI](https://github.com/DistroAV/DistroAV)
+- [DistroAV | aka OBS-NDI](https://github.com/DistroAV/DistroAV)
 - [AutoDesk Software](https://manage.autodesk.com/login?t=/products)
 - [tinywhoopgo](https://tinywhoopgo.com/),
 
