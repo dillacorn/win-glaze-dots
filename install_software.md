@@ -93,7 +93,7 @@ scoop install extras/altsnap alacritty vcredist zebar
 
 ### install optional "extras" repo applications
 ```powershell
-scoop install extras/feishin logitech-omm msiafterburner rtss vesktop obs-studio rustdesk
+scoop install extras/feishin logitech-omm msiafterburner rtss vesktop obs-studio rustdesk cru
 ```
 
 ### add my unofficial scoop bucket -> I recommend `glazewm-np` install for `UIAccess`
