@@ -31,6 +31,8 @@ It's ultimately up to you though.. OLED is a fantastic choice for a solo display
 
 [How to Optimize Internet Adapter Settings for Lower Ping and No Delay](https://www.youtube.com/watch?v=RCO9zuUb12U&t=26s)
 
+[Monitor Tweak video by Khorvie Tech](https://www.youtube.com/watch?v=yq4zXrIJm44) <- actually have not confirmed if this does anything tbh...
+
 ---
 ## **BIOS configurations - CPU dependant - Remember to take your time.. some of these settings are NOT easy to locate**
 1. Enable **XMP** profile for your RAM.
