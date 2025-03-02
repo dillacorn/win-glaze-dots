@@ -1,11 +1,16 @@
 notes from repo: https://github.com/dillacorn/win-glaze-dots
 
-# start here
+# choose a browser
+## install cromite
 ```sh
-choco install cromite -y
+sudo choco install cromite -y
+```
+## install ungoogled-chromium
+```sh
+choco install ungoogled-chromium -y
 ```
 
-- open "cromite" with flow-launcher `alt+p`
+add [chromium-web-store](https://github.com/NeverDecaf/chromium-web-store) to ungoogled-chromium
 
 # flags
 
@@ -82,6 +87,6 @@ navigate to `appearance`
 
 choose mode `Dark`
 
-enable `Show home button` and add my personal `flame` domain running on my personal OpenMediaVault NAS.
+enable `Show home button` and add your preferred URL.. in my case "flame" self hosted instance
 
 disable `Show bookmarks bar`
