@@ -1,13 +1,11 @@
 notes from repo: https://github.com/dillacorn/win-glaze-dots
 
-For when FireFox isn't capable of the task.. or for compatibility reasons..
-
 # start here
 ```sh
-choco install brave -y
+choco install cromite -y
 ```
 
-- open "brave" with flow-launcher `alt+p`
+- open "cromite" with flow-launcher `alt+p`
 
 # flags
 
