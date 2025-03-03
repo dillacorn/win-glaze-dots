@@ -59,9 +59,15 @@ sudo choco upgrade all -y
 
 ---
 
-### add scoop "extras" repository
+### add scoop additional repositories
 ```powershell
 scoop bucket add extras
+```
+```powershell
+scoop bucket add games
+```
+```powershell
+scoop bucket add nonportable
 ```
 
 ### install essential "extras" repo applications
@@ -76,7 +82,7 @@ scoop install main/fastfetch micro nircmd 7zip flac
 
 ### install optional "games" repo applications
 ```powershell
-scoop install games/steam epic-games-launcher itch goggalaxy prismlauncher
+scoop install games/steam epic-games-launcher itch goggalaxy prismlauncher r2modman
 ```
 
 ### install optional "extras" repo applications
@@ -91,7 +97,7 @@ scoop install nonportable/vmware-workstation-player-np files-np mullvadvpn-np wi
 
 ### install optional "main" repo applications
 ```powershell
-scoop install main/yt-dlp make mingw curl
+scoop install main/yt-dlp make mingw curl btop
 ```
 
 ### add my unofficial scoop bucket -> I recommend `glazewm-np` install for `UIAccess`
@@ -109,21 +115,6 @@ scoop install dillacorn/glazewm-np
 #### `not installed in %ProgramFiles% so UIAccess is unavailable`
 ```powershell
 scoop install dillacorn/glazewm
-```
-
-### install btop
-```powershell
-scoop install main/btop
-```
-
-### add optional scoop "games" repository
-```powershell
-scoop bucket add games
-```
-
-### install r2modman
-```powershell
-scoop install games/r2modman
 ```
 
 ### update all scoop apps
