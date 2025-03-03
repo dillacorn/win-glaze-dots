@@ -10,7 +10,7 @@ sudo choco install cromite -y
 
 - ## install ungoogled-chromium
 ```sh
-sudo choco install ungoogled-chromium -y
+scoop install ungoogled-chromium -y
 ```
 
 ### add [chromium-web-store](https://github.com/NeverDecaf/chromium-web-store) to ungoogled-chromium (cromite does not required)
