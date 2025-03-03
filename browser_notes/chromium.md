@@ -36,7 +36,6 @@ Must have Extra extensions:
 [`Return YouTube Dislike`](https://chromewebstore.google.com/detail/return-youtube-dislike/gebbhagfogifgggkldgodflihgfeippi)
 [`Bitwarden Password Manager`](https://chromewebstore.google.com/detail/bitwarden-password-manage/nngceckbapebfimnlniiiahkandclblb)
 [`ScrollAnywhere`](https://chromewebstore.google.com/detail/scrollanywhere/jehmdpemhgfgjblpkilmeoafmkhbckhi)
-[`Undo Closed Tabs Button`](https://chromewebstore.google.com/detail/undo-closed-tabs-button/ieehkmoiljghfkejgahoheemdjpdinml)
 
 Extra extensions I can live without:
 [`Dark Reader`](https://chromewebstore.google.com/detail/dark-reader/eimadpbcbfnmbkopoojfekhnkhdbieeh)
