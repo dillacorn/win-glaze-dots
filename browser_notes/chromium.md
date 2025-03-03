@@ -8,7 +8,7 @@ sudo choco install cromite -y
 ```
 ### disable internal adblocker and install [uBlock Origin](https://chromewebstore.google.com/detail/ublock-origin/cjpalhdlnbpafiamejdnhcphjbkeiagm)
 
-- ## install ungoogled-chromium
+- ## install ungoogled-chromium (prefered)
 ```sh
 scoop install ungoogled-chromium -y
 ```
