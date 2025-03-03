@@ -7,7 +7,7 @@ Notes From Repo: https://github.com/dillacorn/win-glaze-dots
 scoop install extras/librewolf
 ```
 
-- ## install mullvad-browser
+- ## install mullvad-browser (prefered)
 ```sh
 scoop install extras/mullvad-browser
 ```
