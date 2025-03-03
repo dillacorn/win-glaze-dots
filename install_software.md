@@ -96,7 +96,7 @@ scoop install nonportable/vmware-workstation-player-np files-np mullvadvpn-np wi
 
 ### install optional "main" repo applications
 ```powershell
-scoop install main/winget yt-dlp make mingw curl
+scoop install main/yt-dlp make mingw curl
 ```
 
 ### add my unofficial scoop bucket -> I recommend `glazewm-np` install for `UIAccess`
