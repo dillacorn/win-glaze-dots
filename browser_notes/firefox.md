@@ -1,13 +1,16 @@
 Notes From Repo: https://github.com/dillacorn/win-glaze-dots
 
-Librewolf is easy firefox hardened utilizing arkenfox user.js + avoids Mozilla enforced ToS
+# choose a browser
 
-# install
+- ## install librewolf
 ```sh
-choco install librewolf -y
+scoop install extras/librewolf
 ```
 
-open "Librewolf"
+- ## install mullvad-browser
+```sh
+scoop install extras/mullvad-browser
+```
 
 # config
 
