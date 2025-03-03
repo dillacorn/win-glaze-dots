@@ -1,6 +1,6 @@
 Notes From Repo: https://github.com/dillacorn/win-glaze-dots
 
-Librewolf is easy firefox hardened utilizing arkenfox user.js
+Librewolf is easy firefox hardened utilizing arkenfox user.js + avoids Mozilla enforced ToS
 
 # install
 ```sh
@@ -61,18 +61,18 @@ Some Additional Plugins:
 
 # search engine
 
-**search engine**: `(option #1)` - slower than brave
+**search engines**: `(option #1)` - select a searx server (speed varies)
 
 Name:
-`disroot`
+`Searx`
 
-URL with %s in place of query
-`https://search.disroot.org/search?q=%s`
+Find a searx server
+`https://searx.space/`
 
-**search engine**: `(option #2)` <- faster than disroot
+**search engine**: `(option #2)` <- usually faster than searx
 
 Name:
-`brave`
+`Brave`
 
 URL with %s in place of query
 `https://search.brave.com/search?q=%s`
@@ -90,3 +90,9 @@ DNS-over-HTTPS: `https://dns.nextdns.io\xxxxxxx`
 
 # Test Browser Security
 https://browserleaks.com/webrtc
+
+# personal settings
+
+enable `Show home button` and add your preferred URL.. in my case "flame" and/or "hoarder" self hosted instance
+
+disable `Show bookmarks bar`
