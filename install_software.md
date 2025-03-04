@@ -31,9 +31,9 @@ That being said, I now prefer Scoop over Chocolatey and will continue to use it.
 
 ---
 
-### install apps not available in scoop
+### install apps not available (or don't work) in scoop
 ```powershell
-sudo choco install malwarebytes -y
+sudo choco install malwarebytes speedcrunch vmware-workstation-player -y
 ```
 
 ### AMD Ryzen Chipset Drivers
@@ -82,17 +82,23 @@ scoop install main/fastfetch micro nircmd 7zip flac
 
 ### install optional "games" repo applications
 ```powershell
-scoop install games/steam epic-games-launcher itch goggalaxy prismlauncher r2modman
+scoop install games/steam itch goggalaxy prismlauncher r2modman
+```
+```powershell
+sudo scoop install games/epic-games-launcher
 ```
 
 ### install optional "extras" repo applications
 ```powershell
-scoop install extras/feishin logitech-omm msiafterburner rtss vesktop obs-studio rustdesk mullvad-browser git everything speedcrunch okular cura telegram keepassxc bitwarden krita shotcut gimp qbittorrent screentogif spotify betaflight-configurator ventoy tailscale ccleaner wiztree cpu-z gpu-z winscp filezilla moonlight sunshine pdf-xchange-editor
+scoop install extras/feishin logitech-omm msiafterburner rtss vesktop obs-studio rustdesk mullvad-browser git everything okular cura telegram keepassxc bitwarden krita shotcut gimp qbittorrent screentogif spotify betaflight-configurator ventoy ccleaner wiztree cpu-z gpu-z winscp filezilla moonlight sunshine pdf-xchange-editor
+```
+```poweshell
+sudo scoop install Tailscale
 ```
 
 ### install optional "nonportable" repo applications
 ```powershell
-scoop install nonportable/vmware-workstation-player-np files-np mullvadvpn-np wireguard-np
+sudo scoop install nonportable/wireguard-np
 ```
 
 ### install optional "main" repo applications
