@@ -1,6 +1,6 @@
 # `windows dilla.glaze.files`
 - **Preview Images**: **TO_BE_ADDED**
-- **Operating System**: Windows 11 Enterprise LTSC + MicroWin iso creation with [winutil](https://github.com/christitustech/winutil)
+- **Operating System**: Windows 11 Enterprise LTSC
 - **File System**: NTFS
 - [**Scoop**](https://scoop.sh/): [main](https://scoop.sh/#/apps?q=%22https%3A%2F%2Fgithub.com%2FScoopInstaller%2FMain%22) | [main github bucket](https://github.com/ScoopInstaller/Main),  [extras](https://scoop.sh/#/apps?q=%22https%3A%2F%2Fgithub.com%2FScoopInstaller%2FExtras%22) | [extras github bucket](https://github.com/ScoopInstaller/Extras), [games](https://github.com/Calinou/scoop-games) | [games github bucket](https://github.com/Calinou/scoop-games), [nonportable](https://github.com/ScoopInstaller/Nonportable) | [nonportable github bucket](https://github.com/ScoopInstaller/Nonportable)
 - [**chocolatey**](https://chocolatey.org/): [community repo](https://community.chocolatey.org/packages)
