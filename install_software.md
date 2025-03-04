@@ -92,7 +92,7 @@ sudo scoop install games/epic-games-launcher
 ```powershell
 scoop install extras/feishin logitech-omm vesktop obs-studio rustdesk mullvad-browser git everything okular cura telegram keepassxc bitwarden krita shotcut gimp qbittorrent screentogif spotify betaflight-configurator ventoy ccleaner wiztree cpu-z gpu-z winscp filezilla moonlight sunshine pdf-xchange-editor
 ```
-```poweshell
+```powershell
 sudo scoop install Tailscale
 ```
 
