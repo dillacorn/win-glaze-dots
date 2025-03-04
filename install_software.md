@@ -72,7 +72,7 @@ scoop bucket add nonportable
 
 ### install essential "extras" repo applications
 ```powershell
-scoop install extras/altsnap alacritty vcredist zebar greenshot flow-launcher eartrumpet notepadplusplus qimgv mpv hwmonitor localsend ddu ungoogled-chromium cru winspy powertoys
+scoop install extras/altsnap alacritty vcredist zebar flameshot flow-launcher eartrumpet notepadplusplus qimgv mpv hwmonitor localsend ddu ungoogled-chromium cru winspy powertoys
 ```
 
 ### install essential "main" repo applications
@@ -93,7 +93,7 @@ sudo scoop install games/epic-games-launcher
 scoop install extras/feishin logitech-omm vesktop obs-studio rustdesk mullvad-browser git everything okular cura telegram keepassxc bitwarden krita shotcut gimp qbittorrent screentogif spotify betaflight-configurator ventoy ccleaner wiztree cpu-z gpu-z winscp filezilla moonlight sunshine pdf-xchange-editor
 ```
 ```powershell
-sudo scoop install Tailscale
+sudo scoop install tailscale
 ```
 
 ### install optional "nonportable" repo applications
