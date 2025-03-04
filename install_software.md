@@ -135,7 +135,7 @@ https://github.com/werman/noise-suppression-for-voice/releases
 
 ### Install APO
 ```powershell
-scoop install nonportable/equalizer-apo-np
+sudo scoop install nonportable/equalizer-apo-np
 ```
 
 [How to install werman noise-suppression!](https://github.com/dillacorn/win-glaze-dots/blob/main/mic_suppression_apo.md)
