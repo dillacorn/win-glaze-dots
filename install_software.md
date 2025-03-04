@@ -59,6 +59,11 @@ sudo choco upgrade all -y
 
 ---
 
+### Install git (needed for adding additional repositories)
+```powershell
+scoop install git
+```
+
 ### add scoop additional repositories
 ```powershell
 scoop bucket add extras
