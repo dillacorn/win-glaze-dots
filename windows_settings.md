@@ -2,6 +2,10 @@
 
 ![sudo_enable](https://raw.githubusercontent.com/dillacorn/win-glaze-dots/refs/heads/main/ScreenShots_For_Guides/windows_settings/sudo_enable.png)
 
+![disable_printscreen_for_flameshot](https://raw.githubusercontent.com/dillacorn/win-glaze-dots/refs/heads/main/ScreenShots_For_Guides/windows_settings/disable_printscreen_for_flameshot.png)
+
+![taskbar_items](https://raw.githubusercontent.com/dillacorn/win-glaze-dots/refs/heads/main/ScreenShots_For_Guides/windows_settings/taskbar_items.png)
+
 ![taskbar_behavior_settings](https://raw.githubusercontent.com/dillacorn/win-glaze-dots/refs/heads/main/ScreenShots_For_Guides/windows_settings/taskbar_behavior_settings.png)
 
 ![visual_effects_settings](https://raw.githubusercontent.com/dillacorn/win-glaze-dots/refs/heads/main/ScreenShots_For_Guides/windows_settings/visual_effects_settings.png)
