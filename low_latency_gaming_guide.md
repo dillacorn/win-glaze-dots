@@ -1,10 +1,4 @@
 # **Tips to Lower Latency in Gaming (Game-Dependent)**
----
-
-## **Recommended Optimization Guide**
-[FR33THY Ultimate-Windows-Optimization-Guide](https://github.com/FR33THYFR33THY/Ultimate-Windows-Optimization-Guide)
-
-Link to video -> https://www.youtube.com/watch?v=PlACZ9Gp1xo
 
 ---
 ## **Choosing Display Hardware**
