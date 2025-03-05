@@ -19,10 +19,10 @@
 - ### [**scripts(UAC Req.)**](https://github.com/dillacorn/win-glaze-dots/tree/main/scripts(UAC%20Req.))
 - ### [**Update**](https://support.microsoft.com/en-us/windows/windows-update-faq-8a903416-6f45-0718-f5c7-375e92dddeb2) and [**Reboot**](https://support.microsoft.com/en-us/windows/restart-reboot-your-pc-110262aa-fc79-1c33-7b00-c140ae3a6dac)
 - ### [**privacy.sexy**](https://github.com/dillacorn/win-glaze-dots/blob/main/privacy.sexy.md)
-- ### [**amd_software_settings**](https://github.com/dillacorn/win-glaze-dots/blob/main/amd_software_settings.md)
+- ### [**browser_notes**](https://github.com/dillacorn/win-glaze-dots/tree/main/browser_notes)
 - ### [**low_latency_gaming_guide**](https://github.com/dillacorn/win-glaze-dots/blob/main/low_latency_gaming_guide.md)
 - ### [**my_steam_launch_options**](https://github.com/dillacorn/win-glaze-dots/blob/main/steam_launch_options.md)
-- ### [**browser_notes**](https://github.com/dillacorn/win-glaze-dots/tree/main/browser_notes)
+- ### [**amd_software_settings**](https://github.com/dillacorn/win-glaze-dots/blob/main/amd_software_settings.md)
 - ### [**rustdesk+tailscale_unattended_startup**](https://github.com/dillacorn/win-glaze-dots/blob/main/rustdesk+tailscale_unattended_startup.md)
 ---
 ### Wallpapers
