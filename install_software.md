@@ -33,7 +33,7 @@ That being said, I now prefer Scoop over Chocolatey and will continue to use it.
 
 ### install apps not available (or don't work) in scoop
 ```powershell
-sudo choco install malwarebytes speedcrunch vmware-workstation-player -y
+sudo choco install malwarebytes speedcrunch -y
 ```
 
 ### AMD Ryzen Chipset Drivers
@@ -107,6 +107,11 @@ sudo scoop install extras/tailscale
 scoop install main/yt-dlp make mingw curl btop
 ```
 
+### install optional "nonportable" repo applications
+```powershell
+sudo scoop install nonportable/virtualbox-np
+```
+
 ### add my unofficial scoop bucket -> I recommend `glazewm-np` install for `UIAccess`
 ```powershell
 scoop bucket add dillacorn https://github.com/dillacorn/win-glaze-dots
@@ -121,6 +126,21 @@ scoop install dillacorn/glazewm-np
 ### update all scoop apps
 ```powershell
 scoop update *
+```
+
+---
+
+### Need WinGet on LTSC?
+```powershell
+scoop install main/winget
+```
+Browse the winget repo ->
+**https://winget.run/**
+
+### Install `Teams` example (**Using WinGet**)
+*(I have difficulty with choco and scoop solutions for Teams.. so winget is a must here)*
+```powershell
+winget install -e --id Microsoft.Teams
 ```
 
 ---

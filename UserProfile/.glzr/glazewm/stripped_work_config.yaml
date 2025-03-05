@@ -199,6 +199,9 @@ window_rules:
       # Set localsend window to float
       - window_process: { equals: "localsend_app" }
 
+      # Set rustdesk window to float
+      - window_process: { equals: "RustDesk" }
+
       # Set several windows applications to float
       - window_process: { equals: "ApplicationFrameHost" }
       
