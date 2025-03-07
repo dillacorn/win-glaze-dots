@@ -144,6 +144,16 @@ winget install -e --id Microsoft.Teams
 ```
 
 ---
+### Install OBS DistroAV (OBS NDI)
+
+DistroAV plugin releases -> [Link](https://github.com/DistroAV/DistroAV/releases)
+
+### Install NDI Runtime for OBS
+```powershell
+winget install --exact --id NDI.NDIRuntime
+```
+
+---
 
 # microphone suppression (requires Equalizer_APO)
 https://github.com/werman/noise-suppression-for-voice/releases
