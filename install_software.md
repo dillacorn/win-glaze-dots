@@ -146,12 +146,14 @@ winget install -e --id Microsoft.Teams
 ---
 ### Install OBS DistroAV (OBS NDI)
 
-DistroAV plugin releases -> [Link](https://github.com/DistroAV/DistroAV/releases)
+DistroAV Plugin | Releases -> [Link](https://github.com/DistroAV/DistroAV/releases)
 
 ### Install NDI Runtime for OBS
 ```powershell
 winget install --exact --id NDI.NDIRuntime
 ```
+
+Need BLUR? -> [obs-composite-blur Plugin | Releases](https://github.com/FiniteSingularity/obs-composite-blur/releases) by [FiniteSingularity](https://github.com/FiniteSingularity)
 
 ---
 
