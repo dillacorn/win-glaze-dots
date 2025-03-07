@@ -33,7 +33,7 @@ That being said, I now prefer Scoop over Chocolatey and will continue to use it.
 
 ### install apps not available (or don't work) in scoop
 ```powershell
-sudo choco install malwarebytes speedcrunch -y
+sudo choco install malwarebytes speedcrunch rustdesk -y
 ```
 
 ### AMD Ryzen Chipset Drivers
@@ -95,7 +95,7 @@ sudo scoop install games/epic-games-launcher
 
 ### install optional "extras" repo applications
 ```powershell
-scoop install extras/feishin logitech-omm vesktop obs-studio rustdesk mullvad-browser git everything okular cura telegram keepassxc bitwarden krita shotcut gimp qbittorrent screentogif spotify betaflight-configurator ventoy ccleaner wiztree cpu-z gpu-z winscp filezilla moonlight sunshine pdf-xchange-editor
+scoop install extras/feishin logitech-omm vesktop obs-studio mullvad-browser git everything okular cura telegram keepassxc bitwarden krita shotcut gimp qbittorrent screentogif spotify betaflight-configurator ventoy ccleaner wiztree cpu-z gpu-z winscp filezilla moonlight sunshine pdf-xchange-editor
 ```
 #### Some scripts require sudo.
 ```powershell
