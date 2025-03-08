@@ -155,6 +155,8 @@ winget install --exact --id NDI.NDIRuntime
 
 Need BLUR? -> [obs-composite-blur Plugin | Releases](https://github.com/FiniteSingularity/obs-composite-blur/releases) by [FiniteSingularity](https://github.com/FiniteSingularity)
 
+Need CROPPING? -> [obs-advanced-masks Plugin | Releases](https://github.com/FiniteSingularity/obs-advanced-masks/releases) by [FiniteSingularity](https://github.com/FiniteSingularity)
+
 ---
 
 # microphone suppression (requires Equalizer_APO)
