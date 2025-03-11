@@ -109,7 +109,7 @@ scoop install main/yt-dlp make mingw curl btop
 
 ### install optional "nonportable" repo applications
 ```powershell
-sudo scoop install nonportable/virtualbox-np
+sudo scoop install nonportable/virtualbox-np wireguard-np
 ```
 
 ### add my unofficial scoop bucket -> I recommend `glazewm-np` install for `UIAccess`
