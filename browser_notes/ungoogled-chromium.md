@@ -1,10 +1,20 @@
 notes from repo: https://github.com/dillacorn/win-glaze-dots
 
-# I recommend ungoogled-chromium.
+# I recommend ungoogled-chromium. (manage updates with scoop)
 
 - ## install ungoogled-chromium
 ```sh
 scoop install extras/ungoogled-chromium
+```
+
+- ## to update (specifically) ungoogled-chromium with scoop
+```sh
+scoop update extras/ungoogled-chromium
+```
+
+- ## to update all applications installed with scoop
+```sh
+scoop update *
 ```
 
 ### add [chromium-web-store](https://github.com/NeverDecaf/chromium-web-store) to ungoogled-chromium
