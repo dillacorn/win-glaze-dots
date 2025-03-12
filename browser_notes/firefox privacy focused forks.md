@@ -12,6 +12,16 @@ scoop install extras/librewolf
 scoop install extras/mullvad-browser
 ```
 
+- ## update with scoop example
+```sh
+scoop update extras/mullvad-browser
+```
+
+- ## to update all applications installed with scoop
+```sh
+scoop update *
+```
+
 # config
 
 navigate to: `about:config`
