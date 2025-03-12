@@ -1,19 +1,13 @@
 notes from repo: https://github.com/dillacorn/win-glaze-dots
 
-# choose a browser
-
-- ## install cromite
-```sh
-sudo choco install cromite -y
-```
-### disable internal adblocker and install [uBlock Origin](https://chromewebstore.google.com/detail/ublock-origin/cjpalhdlnbpafiamejdnhcphjbkeiagm)
+# I recommend ungoogled-chromium.
 
 - ## install ungoogled-chromium (prefered)
 ```sh
 scoop install extras/ungoogled-chromium
 ```
 
-### add [chromium-web-store](https://github.com/NeverDecaf/chromium-web-store) to ungoogled-chromium (cromite does not required)
+### add [chromium-web-store](https://github.com/NeverDecaf/chromium-web-store) to ungoogled-chromium
 
 # flags
 
@@ -21,7 +15,7 @@ navigate to: `chrome://flags/`
 
 change these flags:
 * [enable-webrtc-allow-input-volume-adjustment](chrome://flags/#enable-webrtc-allow-input-volume-adjustment): `Disabled` <- Browser adjusting mic volume randomly is so annoying
-* [extension-mime-request-handling](chrome://flags/#extension-mime-request-handling): `Always prompt for install` <- Fixes easy install
+* [extension-mime-request-handling](chrome://flags/#extension-mime-request-handling): `Always prompt for install` <- Fix for easy extension install
 
 # extensions
 
@@ -29,7 +23,7 @@ Privacy centric extensions:
 [`uBlock Origin`](https://chromewebstore.google.com/detail/ublock-origin/cjpalhdlnbpafiamejdnhcphjbkeiagm)
 [`LocalCDN`](https://chromewebstore.google.com/detail/localcdn/njdfdhgcmkocbgbhcioffdbicglldapd)
 [`ClearURLs`](https://chromewebstore.google.com/detail/clearurls/lckanjgmijmafbedllaakclkaicjfmnk)
-##### Quick install with [chromium-web-store](https://github.com/NeverDecaf/chromium-web-store) ~ copy paste
+##### Quick install with [chromium-web-store](https://github.com/NeverDecaf/chromium-web-store) ~ copy pasta
 ```
 uBlock Origin|cjpalhdlnbpafiamejdnhcphjbkeiagm
 ClearURLs|lckanjgmijmafbedllaakclkaicjfmnk
@@ -44,17 +38,13 @@ Must have Extra extensions:
 [`Return YouTube Dislike`](https://chromewebstore.google.com/detail/return-youtube-dislike/gebbhagfogifgggkldgodflihgfeippi)
 [`Bitwarden Password Manager`](https://chromewebstore.google.com/detail/bitwarden-password-manage/nngceckbapebfimnlniiiahkandclblb)
 [`ScrollAnywhere`](https://chromewebstore.google.com/detail/scrollanywhere/jehmdpemhgfgjblpkilmeoafmkhbckhi)
-
----
-##### Quick install with [chromium-web-store](https://github.com/NeverDecaf/chromium-web-store) ~ copy paste
+##### Quick install with [chromium-web-store](https://github.com/NeverDecaf/chromium-web-store) ~ copy pasta
 ```
 Return YouTube Dislike|gebbhagfogifgggkldgodflihgfeippi
 ScrollAnywhere|jehmdpemhgfgjblpkilmeoafmkhbckhi
 Disable YouTube Number Keyboard Shortcuts|lajiknjoinemadijnpdnjjdmpmpigmge
 SponsorBlock for YouTube - Skip Sponsorships|mnjggcdmjocbbbhaepdhchncahnbgone
 Bitwarden Password Manager|nngceckbapebfimnlniiiahkandclblb
-Chromium Web Store|ocaahdebbfolfmndjeplogmgcagdmblk|https://raw.githubusercontent.com/NeverDecaf/chromium-web-store/master/updates.xml
-Material Simple Dark Grey|ookepigabmicjpgfnmncjiplegcacdbm
 Chrome Show Tab Numbers|pflnpcinjbcfefgbejjfanemlgcfjbna
 ```
 
@@ -66,7 +56,7 @@ Extra extensions I can live without:
 [`DeArrow - Better Titles and Thumbnails`](https://chromewebstore.google.com/detail/dearrow-better-titles-and/enamippconapkdmgfgjchkhakpfinmaj)
 [`Search by Image`](https://chromewebstore.google.com/detail/search-by-image/cnojnbdhbhnkbcieeekonklommdnndci)
 [`DownThemAll!`](https://chromewebstore.google.com/detail/downthemall/nljkibfhlpcnanjgbnlnbjecgicbjkge)
-##### Quick install with [chromium-web-store](https://github.com/NeverDecaf/chromium-web-store) ~ copy paste
+##### Quick install with [chromium-web-store](https://github.com/NeverDecaf/chromium-web-store) ~ copy pasta
 ```
 Key Jump keyboard navigation|afdjhbmagopjlalgcjfclkgobaafamck
 Search by Image|cnojnbdhbhnkbcieeekonklommdnndci
@@ -113,6 +103,8 @@ add custom configured dns server from personal provider ~ I pay for nextdns ($2 
 ### example dns server address
 
 DNS-over-HTTPS: `https://dns.nextdns.io\xxxxxxx`
+
+see [yokoffing](https://github.com/yokoffing) ["NextDNS-Config" Guidelines](https://github.com/yokoffing/NextDNS-Config?tab=readme-ov-file)
 
 # test browser security
 https://browserleaks.com/webrtc

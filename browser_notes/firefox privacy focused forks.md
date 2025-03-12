@@ -91,6 +91,8 @@ add custom configured dns server from personal provider ~ I pay for nextdns ($2 
 
 DNS-over-HTTPS: `https://dns.nextdns.io\xxxxxxx`
 
+see [yokoffing](https://github.com/yokoffing) ["NextDNS-Config" Guidelines](https://github.com/yokoffing/NextDNS-Config?tab=readme-ov-file)
+
 # Test Browser Security
 https://browserleaks.com/webrtc
 
