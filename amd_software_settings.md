@@ -10,3 +10,8 @@
 ---
 
 ![amd_digital_vibrance_per_game](https://raw.githubusercontent.com/dillacorn/win-glaze-dots/refs/heads/main/ScreenShots_For_Guides/amd_software_settings/digital_vibrance_per_game.png)
+
+---
+
+![disable_hotkeys](https://raw.githubusercontent.com/dillacorn/win-glaze-dots/refs/heads/main/ScreenShots_For_Guides/amd_software_settings/disable_hotkeys.png)
+### or change "CTRL+Shift+c". If you work in a terminal this will drive you mad.
