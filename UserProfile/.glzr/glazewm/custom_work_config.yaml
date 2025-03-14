@@ -324,7 +324,7 @@ keybindings:
     bindings: ["alt+ctrl+shift+w"]
 
   # Launch Alacritty terminal
-  - commands: ["shell-exec alacritty"]
+  - commands: ["shell-exec alacritty -e powershell -NoProfile -NoLogo"]
     bindings: ["alt+shift+enter"]
 
   # Focus the next/previous workspace defined in `workspaces` config.
