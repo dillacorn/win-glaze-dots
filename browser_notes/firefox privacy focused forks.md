@@ -85,10 +85,10 @@ Find a searx server
 **search engine**: `(option #2)` <- faster than searx
 
 Name:
-`leta.mullvad_brave`
+`brave`
 
 URL with %s in place of query
-`https://leta.mullvad.net/search?q=%s`
+`https://search.brave.com/search?q=%s`
 
 # custom dns server
 
