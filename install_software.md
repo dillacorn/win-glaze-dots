@@ -171,6 +171,26 @@ sudo scoop install nonportable/equalizer-apo-np
 
 ---
 
+# signal-cli (scoop+choco) install directions
+
+### signal-cli uses javaruntime.
+```powershell
+sudo choco install javaruntime -y
+```
+
+### run my script to set JAVA_HOME environment variable for current user.
+[xx]()
+
+### install signal-cli with scoop
+```powershell
+scoop install main/signal-cli
+```
+
+### follow usage signal-cli guide for setup
+https://github.com/AsamK/signal-cli?tab=readme-ov-file#usage
+
+---
+
 # applications not available in official repos
 - [DistroAV | aka OBS-NDI](https://github.com/DistroAV/DistroAV)
 - [AutoDesk Software](https://manage.autodesk.com/login?t=/products)
