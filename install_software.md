@@ -180,6 +180,7 @@ sudo choco install javaruntime -y
 
 ### run my powershell script to set JAVA_HOME environment variable for current user.
 [set_java_home.ps1](https://github.com/dillacorn/win-glaze-dots/blob/main/scripts(UAC%20NOT%20Req.)/set_java_home.ps1)
+### after running this script (logging out and logging back in might be required)
 
 ### install signal-cli with scoop
 ```powershell
