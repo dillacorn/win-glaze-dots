@@ -95,7 +95,7 @@ sudo scoop install games/epic-games-launcher
 
 ### install optional "extras" repo applications
 ```powershell
-scoop install extras/feishin logitech-omm vesktop obs-studio mullvad-browser git everything okular cura telegram keepassxc bitwarden krita shotcut gimp qbittorrent screentogif spotify betaflight-configurator ventoy ccleaner wiztree cpu-z gpu-z winscp filezilla moonlight sunshine pdf-xchange-editor
+scoop install extras/feishin logitech-omm vesktop obs-studio mullvad-browser git everything okular cura signal keepassxc bitwarden krita shotcut gimp qbittorrent screentogif spotify betaflight-configurator ventoy ccleaner wiztree cpu-z gpu-z winscp filezilla moonlight sunshine pdf-xchange-editor
 ```
 #### Some scripts require sudo.
 ```powershell
@@ -168,47 +168,6 @@ sudo scoop install nonportable/equalizer-apo-np
 ```
 
 [How to install werman noise-suppression!](https://github.com/dillacorn/win-glaze-dots/blob/main/mic_suppression_apo.md)
-
----
-
-# signal-cli install directions
-
-### signal-cli uses javaruntime.
-### add official java bucket
-```powershell
-scoop bucket add java
-```
-
-### install OpenJDK (javaruntime) ~ reboot might be req.
-```powershell
-scoop install java/OpenJDK
-```
-### verify java runtime is installed and operational
-```powershell
-java -version
-```
-
-### install signal-cli with scoop
-```powershell
-scoop install main/signal-cli
-```
-
-### want to link your signal app on your phone to your PC?
-```powershell
-signal-cli link -n "device_name_you're_currently_typing_this_command_in"
-```
-
-#### now you need the QR code... you could use any web based qr code generator but I prefer local for security sake.
-### add nirsoft bucket
-```powershell
-scoop bucket add nirsoft
-```
-### install "simplecodegenerator"
-```powershell
-scoop install nirsoft/simplecodegenerator
-```
-
-### open simplecodegenerator and paste your signal-cli link.. use signal app to link the new device!
 
 ---
 
