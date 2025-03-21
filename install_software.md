@@ -178,8 +178,8 @@ sudo scoop install nonportable/equalizer-apo-np
 sudo choco install javaruntime -y
 ```
 
-### run my script to set JAVA_HOME environment variable for current user.
-[xx]()
+### run my powershell script to set JAVA_HOME environment variable for current user.
+[set_java_home.ps1](https://github.com/dillacorn/win-glaze-dots/blob/main/scripts(UAC%20NOT%20Req.)/set_java_home.ps1)
 
 ### install signal-cli with scoop
 ```powershell
