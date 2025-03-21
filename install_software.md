@@ -193,8 +193,22 @@ java -version
 scoop install main/signal-cli
 ```
 
-### follow usage signal-cli guide for setup
-https://github.com/AsamK/signal-cli?tab=readme-ov-file#usage
+### want to link your signal app on your phone to your PC?
+```powershell
+signal-cli link -n "device_name_you're_currently_typing_this_command_in"
+```
+
+#### now you need the QR code... you could use any web based qr code generator but I prefer local for security sake.
+### add nirsoft bucket
+```powershell
+scoop bucket add nirsoft
+```
+### install "simplecodegenerator"
+```powershell
+scoop install nirsoft/simplecodegenerator
+```
+
+### open simplecodegenerator and paste your signal-cli link.. use signal app to link the new device!
 
 ---
 
