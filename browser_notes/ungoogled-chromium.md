@@ -95,17 +95,17 @@ Name:
 Find a searx server
 `https://searx.space/`
 
-**search engine**: `(option #2)` <- usually faster than searx
+**search engine**: `(option #2)` <- faster than searx
 
 Name:
-`Brave`
+`leta.mullvad_brave`
 
 URL with %s in place of query
-`https://search.brave.com/search?q=%s`
+`https://leta.mullvad.net/search?q=%s`
 
 # custom dns server
 
-navigate to `Privacy and security` in settings ~ brave://settings/security
+navigate to `Privacy and security` in settings
 
 enable `Use secure DNS`
 
