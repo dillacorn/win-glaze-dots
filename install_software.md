@@ -179,9 +179,13 @@ sudo scoop install nonportable/equalizer-apo-np
 scoop bucket add java
 ```
 
-### install OpenJDK (javaruntime)
+### install OpenJDK (javaruntime) ~ reboot might be req.
 ```powershell
 scoop install java/OpenJDK
+```
+### verify java runtime is installed and operational
+```powershell
+java -version
 ```
 
 ### install signal-cli with scoop
