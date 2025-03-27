@@ -110,13 +110,13 @@ workspaces:
   - name: "4"
     display_name: "4: FILES"
   - name: "5"
-    display_name: "5: HTTP-F"
+    display_name: "5: HTTP"
   - name: "6"
-    display_name: "6: HTTP-C"
+    display_name: "6: OFFICE"
   - name: "7"
-    display_name: "7: OFFICE"
+    display_name: "7:  PDF "
   - name: "8"
-    display_name: "8:  PDF "
+    display_name: "8:     "
   - name: "9"
     display_name: "9:     "
   - name: "10"
@@ -146,22 +146,17 @@ window_rules:
 
   - commands: ["move --workspace 5"]
     match:
-      # Move firefox based browsers to workspace 5.
-      - window_process: { regex: "librewolf|firefox" }
-      
+      # Move chromium based browsers to workspace 5.
+      - window_process: { regex: "chrome|brave" }
+
   - commands: ["move --workspace 6"]
     match:
-      # Move chromium based browsers to workspace 6.
-      - window_process: { regex: "chrome|brave" }
+      # Move microsoft office applications to workspace 6.
+      - window_process: { regex: "WINWORD|EXCEL|MSPUB|MSACCESS|soffice|wordpad" }
 
   - commands: ["move --workspace 7"]
     match:
-      # Move microsoft office applications to workspace 7.
-      - window_process: { regex: "WINWORD|EXCEL|MSPUB|MSACCESS|soffice|wordpad" }
-
-  - commands: ["move --workspace 8"]
-    match:
-      # Move pdf viewer/editors to workspace 8.
+      # Move pdf viewer/editors to workspace 7.
       - window_process: { regex: "PDFXEdit|SumatraPDF|okular|pdfeditor|Acrobat" }
       
   - commands: ["ignore"]
@@ -324,7 +319,7 @@ keybindings:
     bindings: ["alt+ctrl+shift+w"]
 
   # Launch Alacritty terminal
-  - commands: ["shell-exec alacritty --title \"alacritty | powershell\" -e powershell -NoProfile -NoLogo"]
+  - commands: ["shell-exec alacritty --title \"alacritty | powershell\" -e powershell -NoProfile -NoLogo -NoExit"]
     bindings: ["alt+shift+enter"]
 
   # Focus the next/previous workspace defined in `workspaces` config.
