@@ -66,6 +66,7 @@ Extra extensions I can live without:
 [`DeArrow - Better Titles and Thumbnails`](https://chromewebstore.google.com/detail/dearrow-better-titles-and/enamippconapkdmgfgjchkhakpfinmaj)
 [`Search by Image`](https://chromewebstore.google.com/detail/search-by-image/cnojnbdhbhnkbcieeekonklommdnndci)
 [`DownThemAll!`](https://chromewebstore.google.com/detail/downthemall/nljkibfhlpcnanjgbnlnbjecgicbjkge)
+[`Redirector`](https://chromewebstore.google.com/detail/redirector/ocgpenflpmgnfapjedencafcfakcekcd)
 ##### Quick install with [chromium-web-store](https://github.com/NeverDecaf/chromium-web-store) ~ copy pasta
 ```
 Key Jump keyboard navigation|afdjhbmagopjlalgcjfclkgobaafamck
@@ -75,6 +76,7 @@ Dark Reader|eimadpbcbfnmbkopoojfekhnkhdbieeh
 DeArrow - Better Titles and Thumbnails|enamippconapkdmgfgjchkhakpfinmaj
 Simple Translate|ibplnjkanclpjokhdolnendpplpjiace
 DownThemAll!|nljkibfhlpcnanjgbnlnbjecgicbjkge
+Redirector|ocgpenflpmgnfapjedencafcfakcekcd
 ```
 
 # theme
