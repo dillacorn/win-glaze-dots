@@ -126,7 +126,7 @@ window_rules:
   - commands: ["move --workspace 1"]
     match:
       # Move moonlight to workspace 1.
-      - window_process: { regex: "Marvel-Win64-Shipping|r5apex|r5apex_dx12|Discovery|cs2|RustClient|quakelive_steam|QuakeChampions|straftat|VALORANT-Win64-Shipping|ULTRAKILL|TotallyAccurateBattlegrounds|BattleBit|helldivers2" }
+      - window_process: { regex: "Marvel-Win64-Shipping|r5apex|r5apex_dx12|Discovery|cs2|RustClient|quakelive_steam|QuakeChampions|straftat|VALORANT-Win64-Shipping|ULTRAKILL|TotallyAccurateBattlegrounds|BattleBit|helldivers2|Schedule I" }
 
   - commands: ["move --workspace 2"]
     match:
@@ -220,9 +220,6 @@ window_rules:
 
       # Set localsend window to float
       - window_process: { equals: "localsend_app" }
-
-      # Set rustdesk window to float
-      - window_process: { equals: "RustDesk" }
 
       # Set several windows applications to float
       - window_process: { equals: "ApplicationFrameHost" }
@@ -335,7 +332,7 @@ keybindings:
     bindings: ["alt+ctrl+shift+w"]
 
   # Launch Alacritty terminal
-  - commands: ["shell-exec alacritty --title \"alacritty | powershell\" -e powershell -NoProfile -NoLogo"]
+  - commands: ["shell-exec alacritty --title \"alacritty | powershell\" -e powershell -NoProfile -NoLogo -NoExit -Command fastfetch"]
     bindings: ["alt+shift+enter"]
 
   # Focus the next/previous workspace defined in `workspaces` config.
