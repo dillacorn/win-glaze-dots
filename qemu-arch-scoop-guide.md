@@ -67,9 +67,11 @@ This will launch the Arch ISO and allow you to install it onto your `.img` drive
 
 ## 💡 Notes
 
-- `-cpu EPYC` gives great performance and compatibility.
+- `-cpu EPYC` gives great performance and compatibility for AMD CPUs.
+- `-cpu qemu64` for Intel CPUs.
 - `-display sdl,gl=on` enables 3D acceleration for better UI experience.
 - You can backup your `.img` file anytime by copying it to the `backup` folder.
+- Black screen? CTRL+ALT+2 then close window that spawns and image should come back.
 
 ---
 
