@@ -17,9 +17,6 @@ I now primarily use Scoop, but here are some points to keep in mind regarding di
 ### Balance
 - **Scoop** is the most up-to-date, while **Chocolatey** balances timely updates with robust security checks.
 
-### Philosophy
-- I don’t use WinGet because I prefer my package manager to have full control over what version of the software is installed and managed. WinGet often installs older versions of software, and, more importantly, it allows applications to update themselves automatically after installation via their internal update mechanisms. This can lead to inconsistent versions or unwanted updates, which I want to avoid. I prefer using a package manager like Scoop or Chocolatey, where the package manager controls updates, ensuring more predictable and consistent version management.
-
 ### Conclusion on using scoop over chocolatey and WinGet primarily
 That being said, I now prefer Scoop over Chocolatey and will continue to use it. The Scoop community thoroughly reviews each script, and every package undergoes a manual review before being approved for release. Additionally, I appreciate how Scoop installs software in %USERPROFILE% folders, which avoids UAC by nature for applications that don't inherently need it. For applications that require elevated permissions, they can either be installed in ProgramFiles or prompted for elevation as needed.
 
@@ -107,20 +104,14 @@ sudo scoop install extras/tailscale
 scoop install main/yt-dlp make mingw curl btop
 ```
 
+### install "nonportable" repo applications
+```powershell
+sudo scoop install nonportable/glazewm-np
+```
+
 ### install optional "nonportable" repo applications
 ```powershell
 sudo scoop install nonportable/virtualbox-np wireguard-np
-```
-
-### add my unofficial scoop bucket -> I recommend `glazewm-np` install for `UIAccess`
-```powershell
-scoop bucket add dillacorn https://github.com/dillacorn/win-glaze-dots
-```
-
-### install glazewm-np using scoop `Recommended`
-#### `installed in %ProgramFiles% so UIAccess is available!`
-```powershell
-scoop install dillacorn/glazewm-np
 ```
 
 ### update all scoop apps
