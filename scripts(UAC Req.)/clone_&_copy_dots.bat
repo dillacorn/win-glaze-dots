@@ -21,10 +21,10 @@ xcopy "%repoPath%\UserProfile\.glzr" "%userProfile%\.glzr" /E /I /Y
 xcopy "%repoPath%\UserProfile\scripts" "%userProfile%\scripts" /E /I /Y
 
 :: Copy alacritty configuration
-xcopy "%repoPath%\AppData\Roaming\alacritty" "%appDataRoaming%\alacritty" /E /I /Y
+xcopy "%repoPath%\UserProfile\AppData\Roaming\alacritty" "%appDataRoaming%\alacritty" /E /I /Y
 
 :: Copy flameshot configuration
-xcopy "%repoPath%\AppData\Roaming\flameshot" "%appDataRoaming%\flameshot" /E /I /Y
+xcopy "%repoPath%\UserProfile\AppData\Roaming\flameshot" "%appDataRoaming%\flameshot" /E /I /Y
 
 :: Copy altsnap configuration
 xcopy "%repoPath%\scoop\apps\altsnap\1.64\AltSnap.ini" "%scoopPath%\altsnap\1.64\AltSnap.ini" /Y

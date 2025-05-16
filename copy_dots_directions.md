@@ -19,11 +19,11 @@ Copy-Item -Recurse -Path "$env:UserProfile\win-glaze-dots\UserProfile\scripts" -
 ```
 #### Copy and overwrite `alacritty` dots
 ```powershell
-Copy-Item -Recurse -Path "$env:UserProfile\win-glaze-dots\AppData\Roaming\alacritty" -Destination "$env:AppData\Roaming" -Force
+Copy-Item -Recurse -Path "$env:UserProfile\win-glaze-dots\UserProfile\AppData\Roaming\alacritty" -Destination "$env:AppData\Roaming" -Force
 ```
 #### Copy and overwrite `flameshot` dots
 ```powershell
-Copy-Item -Recurse -Path "$env:UserProfile\win-glaze-dots\AppData\Roaming\flameshot" -Destination "$env:AppData\Roaming" -Force
+Copy-Item -Recurse -Path "$env:UserProfile\win-glaze-dots\UserProfile\AppData\Roaming\flameshot" -Destination "$env:AppData\Roaming" -Force
 ```
 ### Copy scoop dotfiles
 #### Copy and overwrite `altsnap` dots
