@@ -16,7 +16,7 @@ general:
 
   # Whether to switch back and forth between the previously focused
   # workspace when focusing the current workspace.
-  toggle_workspace_on_refocus: false
+  toggle_workspace_on_refocus: true
 
   # Show all applications in taskbar
   show_all_in_taskbar: true
@@ -161,13 +161,13 @@ window_rules:
       
   - commands: ["ignore"]
     match:
-      # Operating System apps
+      # Ignore rules for Window Manager apps
       - window_process: { equals: "zebar" }
       - window_process: { equals: 'Flow.Launcher' }
       - window_process: { equals: "AltSnap" }
       - window_process: { equals: "flameshot" }
 
-      # Ignores picture-in-picture windows for browsers.
+      # Ignore rule for picture-in-picture windows in browsers.
       - window_title: { regex: "[Pp]icture.in.[Pp]icture" }
         window_class: { regex: "Chrome_WidgetWin_1|MozillaDialogClass" }
 
@@ -187,7 +187,7 @@ window_rules:
     match:
       # Set Task Manager to float
       - window_process: { equals: "Taskmgr" }
-    
+
       # Set acad software windows to float
       - window_process: { equals: "acad" }
       - window_process: { equals: "ADPClientService" }
@@ -275,7 +275,7 @@ keybindings:
   # resizing via arrow keys or HJKL. The binding mode is defined above with
   # the name "resize".
   - commands: ["wm-enable-binding-mode --name resize"]
-    bindings: ["alt+shift+r"]
+    bindings: ["alt+ctrl+r"]
 
   # Disables all keybindings until alt+shift+z is pressed again.
   - commands: ["wm-enable-binding-mode --name pause"]
@@ -296,7 +296,7 @@ keybindings:
 
   # Change the focused window to be fullscreen.
   - commands: ["toggle-fullscreen"]
-    bindings: ["alt+shift+f"]
+    bindings: ["alt+ctrl+f"]
 
   # Minimize focused window.
   - commands: ["toggle-minimized"]
@@ -304,7 +304,7 @@ keybindings:
 
   # Close focused window.
   - commands: ["close"]
-    bindings: ["alt+shift+c"]
+    bindings: ["alt+shift+q"]
 
   # Kill GlazeWM process safely.
   - commands: ["wm-exit"]
@@ -312,7 +312,7 @@ keybindings:
 
   # Re-evaluate configuration file.
   - commands: ["wm-reload-config"]
-    bindings: ["alt+shift+q"]
+    bindings: ["alt+shift+r"]
 
   # Redraw all windows.
   - commands: ["wm-redraw"]
