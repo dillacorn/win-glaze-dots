@@ -131,3 +131,7 @@ https://browserleaks.com/webrtc
 enable `Show home button` and add your preferred URL.. in my case "flame" and/or "hoarder" self hosted instance
 
 disable `Show bookmarks bar`
+
+# web apps
+
+Place to manage your web apps: `chrome://apps/`

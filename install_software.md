@@ -74,7 +74,7 @@ scoop bucket add nonportable
 
 ### install essential "extras" repo applications
 ```powershell
-scoop install extras/altsnap alacritty vcredist zebar flameshot flow-launcher eartrumpet notepadplusplus qimgv mpv hwmonitor localsend ddu ungoogled-chromium cru winspy powertoys linux-reader
+scoop install extras/altsnap alacritty vcredist zebar flameshot flow-launcher eartrumpet notepadplusplus qimgv mpv hwmonitor localsend ddu brave cru winspy powertoys linux-reader
 ```
 
 ### install essential "main" repo applications
