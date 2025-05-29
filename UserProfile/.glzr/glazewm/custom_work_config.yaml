@@ -147,7 +147,7 @@ window_rules:
   - commands: ["move --workspace 5"]
     match:
       # Move chromium based browsers to workspace 5.
-      - window_process: { regex: "chrome|brave" }
+      - window_process: { regex: "librewolf|firefox|chrome|brave" }
 
   - commands: ["move --workspace 6"]
     match:
@@ -183,18 +183,20 @@ window_rules:
       - window_process: { equals: "wallpaper32" }
       - window_process: { equals: "wallpaper64" }
 
+      # Ignore Windows Input Experience (Civil 3D popups)
+      - window_process: { equals: "TextInputHost" }  # Sometimes appears instead
+      - window_process: { equals: "Windows Input Experience" }
+
+      # Set acad software windows to float
+      - window_process: { equals: "acad" }
+        window_title: { regex: "Select|Properties|Layer|Plot|Hatch|^$" }
+      - window_class: { regex: "Afx:.*|Autodesk.*Dialog|Adsk.*" }
+      - window_process: { equals: "ADPClientService|AdskAccessUIHost|AdskAccessCore|AdSSO|AdskIdentityManager" }
+
   - commands: ["set-floating"]
     match:
       # Set Task Manager to float
       - window_process: { equals: "Taskmgr" }
-
-      # Set acad software windows to float
-      - window_process: { equals: "acad" }
-      - window_process: { equals: "ADPClientService" }
-      - window_process: { equals: "AdskAccessUIHost" }
-      - window_process: { equals: "AdskAccessCore" }
-      - window_process: { equals: "AdSSO" }
-      - window_process: { equals: "AdskIdentityManager" }
 
       # Set speedcrunch(calculator) to float
       - window_process: { equals: "speedcrunch" }
@@ -222,9 +224,9 @@ binding_modes:
   - name: "resize"
     keybindings:
       - commands: ["resize --width -2%"]
-        bindings: ["h", "right"]
+        bindings: ["l", "right"]
       - commands: ["resize --width +2%"]
-        bindings: ["l", "left"]
+        bindings: ["h", "left"]
       - commands: ["resize --height +2%"]
         bindings: ["k", "up"]
       - commands: ["resize --height -2%"]
