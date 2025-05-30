@@ -146,7 +146,7 @@ window_rules:
 
   - commands: ["move --workspace 5"]
     match:
-      # Move chromium based browsers to workspace 5.
+      # Move browsers to workspace 5.
       - window_process: { regex: "librewolf|firefox|chrome|brave" }
 
   - commands: ["move --workspace 6"]
