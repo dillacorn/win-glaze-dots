@@ -16,7 +16,7 @@ general:
 
   # Whether to switch back and forth between the previously focused
   # workspace when focusing the current workspace.
-  toggle_workspace_on_refocus: true
+  toggle_workspace_on_refocus: false
 
   # Show all applications in taskbar
   show_all_in_taskbar: true
@@ -79,7 +79,7 @@ window_effects:
 window_behavior:
   # New windows are created in this state whenever possible.
   # Allowed values: "tiling", "floating".
-  initial_state: "tiling"
+  initial_state: "floating"
 
   # Sets the default options for when a new window is created. This also
   # changes the defaults for when the state change commands, like
@@ -187,7 +187,7 @@ window_rules:
       - window_process: { equals: "TextInputHost" }  # Sometimes appears instead
       - window_process: { equals: "Windows Input Experience" }
 
-      # Set acad software windows to float
+      # Attempt to ignore acad software
       - window_process: { equals: "acad" }
         window_title: { regex: "Select|Properties|Layer|Plot|Hatch|^$" }
       - window_class: { regex: "Afx:.*|Autodesk.*Dialog|Adsk.*" }
