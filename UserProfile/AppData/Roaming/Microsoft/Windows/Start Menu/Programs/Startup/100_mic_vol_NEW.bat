@@ -1,7 +1,7 @@
 @echo off
 setlocal enableextensions
 
-:: ====== Efficient NirCmd Detection ======
+:: ====== Find NirCmd ======
 set "NIRCMD="
 where nircmdc.exe >nul 2>&1 && set "NIRCMD=nircmdc.exe"
 if not defined NIRCMD (
@@ -12,16 +12,15 @@ if not defined NIRCMD (
     ) do if not defined NIRCMD if exist "%%~D" set "NIRCMD=%%~D"
 )
 
-:: ====== Silent Error Handling ======
+:: ====== Error if NirCmd missing ======
 if not defined NIRCMD (
-    echo NirCmd not found >con:
-    pause >nul
+    echo NirCmd not found. Install it from https://www.nirsoft.net/utils/nircmd.html
+    pause
     exit /b 1
 )
 
-:: ====== Single Instance Check ======
-2>nul tasklist /fi "windowtitle eq MicVol100" | find "cmd.exe" >nul && exit /b 0
+:: ====== Only allow one instance ======
+tasklist /fi "windowtitle eq MicVol100" | find "cmd.exe" >nul && exit /b 0
 
-:: ====== Lightweight Main Process ======
-start "MicVol100" /min cmd /c ^
-"title MicVol100 && :loop && "%NIRCMD%" setsysvolume 65535 default_record >nul && ping -n 3 127.0.0.1 >nul && goto loop"
+:: ====== Main Loop (Persistent) ======
+start "MicVol100" /min cmd /k "title MicVol100 & echo [Running] Mic volume locked at 100%% & for /l %%i in () do ("%NIRCMD%" setsysvolume 65535 default_record & ping -n 10 127.0.0.1 >nul)"
