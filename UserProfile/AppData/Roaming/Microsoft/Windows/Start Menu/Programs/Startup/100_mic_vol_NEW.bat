@@ -27,5 +27,5 @@ start /min "" cmd /c ^
     "title Force 100%% Mic Volume & ^
     :loop & ^
     %NIRCMD% setsysvolume 65535 default_record & ^
-    timeout /t 2 /nobreak >nul & ^
+    timeout /t 10 /nobreak >nul & ^
     goto loop"
