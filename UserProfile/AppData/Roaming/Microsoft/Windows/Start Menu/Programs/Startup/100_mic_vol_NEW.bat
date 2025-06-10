@@ -1,31 +1,28 @@
 @echo off
-setlocal enabledelayedexpansion
+setlocal enableextensions
 
-:: === Locate NirCmd ===
-for %%P in (nircmdc.exe) do set "NIRCMD=%%~$PATH:P"
-
-if not defined NIRCMD if exist "%USERPROFILE%\scoop\apps\nircmd\current\nircmdc.exe" (
-    set "NIRCMD=%USERPROFILE%\scoop\apps\nircmd\current\nircmdc.exe"
-)
-
-if not defined NIRCMD if exist "%ProgramFiles%\NirSoft\nircmdc.exe" (
-    set "NIRCMD=%ProgramFiles%\NirSoft\nircmdc.exe"
-)
-
-if not defined NIRCMD if exist "%ProgramFiles(x86)%\NirSoft\nircmdc.exe" (
-    set "NIRCMD=%ProgramFiles(x86)%\NirSoft\nircmdc.exe"
-)
-
+:: ====== Efficient NirCmd Detection ======
+set "NIRCMD="
+where nircmdc.exe >nul 2>&1 && set "NIRCMD=nircmdc.exe"
 if not defined NIRCMD (
-    echo Error: NirCmd not found. Please install NirCmd.
-    pause
+    for %%D in (
+        "%USERPROFILE%\scoop\apps\nircmd\current\nircmdc.exe",
+        "%ProgramFiles%\NirSoft\nircmdc.exe",
+        "%ProgramFiles(x86)%\NirSoft\nircmdc.exe"
+    ) do if not defined NIRCMD if exist "%%D" set "NIRCMD=%%D"
+)
+
+:: ====== Silent Error Handling ======
+if not defined NIRCMD (
+    echo NirCmd not found >con:
+    pause >nul
     exit /b 1
 )
 
-:: === Start minimized loop to keep mic at 100% ===
-start /min "" cmd /c ^
-    "title Force 100%% Mic Volume & ^
-    :loop & ^
-    %NIRCMD% setsysvolume 65535 default_record & ^
-    timeout /t 10 /nobreak >nul & ^
-    goto loop"
+:: ====== Single Instance Check ======
+2>nul tasklist /fi "windowtitle eq MicVol100" | find "cmd.exe" >nul && exit /b 0
+
+:: ====== Lightweight Main Process ======
+start "MicVol100" /min cmd /c "title MicVol100 && ^
+    for /l %%# in () do ("%NIRCMD%" setsysvolume 65535 default_record >nul & ^
+    ping -n 11 127.0.0.1 >nul)"
