@@ -31,4 +31,4 @@ if not defined NIRCMD (
 tasklist /fi "windowtitle eq MicVol100*" 2>nul | find /i "cmd.exe" >nul && exit /b 0
 
 :: ====== Main Volume Loop ======
-start "MicVol100" /min cmd /c "title MicVol100 & echo [Running] Mic volume locked at 100%% & for /l %%i in () do ("%NIRCMD%" setsysvolume 65535 default_record & ping -n 10 127.0.0.1 >nul)"
+start "MicVol100" /min cmd /c "@echo off & title MicVol100 & echo [Running] Mic volume locked at 100%% & for /l %%i in () do ("%NIRCMD%" setsysvolume 65535 default_record & ping -n 10 127.0.0.1 >nul)"
