@@ -18,9 +18,6 @@ general:
   # workspace when focusing the current workspace.
   toggle_workspace_on_refocus: false
 
-  # Show all applications in taskbar
-  show_all_in_taskbar: true
-
   cursor_jump:
     # Whether to automatically move the cursor on the specified trigger.
     enabled: true
@@ -29,6 +26,17 @@ general:
     # - "monitor_focus": Jump when focus changes between monitors.
     # - "window_focus": Jump when focus changes between windows.
     trigger: "monitor_focus"
+
+  # How windows should be hidden when switching workspaces.
+  # - 'cloak': Recommended. Hides windows with no animation.
+  # - 'hide': Legacy method (v3.5 and earlier) that has a brief animation,
+  # but has stability issues with some apps.
+  hide_method: "cloak"
+  # Affects which windows get shown in the native Windows taskbar. Has no
+  # effect if `hide_method: 'hide'`.
+  # - 'true': Show all windows (regardless of workspace).
+  # - 'false': Only show windows from the currently shown workspaces.
+  show_all_in_taskbar: true
 
 gaps:
   # Whether to scale the gaps with the DPI of the monitor.
@@ -64,6 +72,13 @@ window_effects:
       enabled: true
       # Allowed values: "square", "rounded", "small_rounded".
       style: "square"
+
+    # Change the transparency of the window.
+    transparency:
+      enabled: false
+      # Can be something like '95%' or '0.95' for slightly transparent windows.
+      # '0' or '0%' is fully transparent (and, by consequence, unfocusable).
+      opacity: '95%'
 
   # Visual effects to apply to non-focused windows.
   other_windows:
