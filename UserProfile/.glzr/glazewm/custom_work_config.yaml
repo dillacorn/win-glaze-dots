@@ -31,7 +31,7 @@ general:
   # - 'cloak': Recommended. Hides windows with no animation.
   # - 'hide': Legacy method (v3.5 and earlier) that has a brief animation,
   # but has stability issues with some apps.
-  hide_method: "cloak"
+  hide_method: "hide"
   # Affects which windows get shown in the native Windows taskbar. Has no
   # effect if `hide_method: 'hide'`.
   # - 'true': Show all windows (regardless of workspace).
