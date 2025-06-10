@@ -24,4 +24,4 @@ if not defined NIRCMD (
 
 :: ====== Lightweight Main Process ======
 start "MicVol100" /min cmd /c ^
-"title MicVol100 && :loop && %NIRCMD% setsysvolume 65535 default_record >nul && ping -n 3 127.0.0.1 >nul && goto loop"
+"title MicVol100 && :loop && "%NIRCMD%" setsysvolume 65535 default_record >nul && ping -n 3 127.0.0.1 >nul && goto loop"
