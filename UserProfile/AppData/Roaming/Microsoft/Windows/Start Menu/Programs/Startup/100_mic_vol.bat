@@ -1,26 +1,33 @@
 @echo off
-setlocal enabledelayedexpansion
+setlocal enableextensions
 
-:: Try finding NirCmd in PATH
-for %%P in (nircmdc.exe) do set "NIRCMD=%%~$PATH:P"
-
-:: If not found, check common Scoop install path
-if not defined NIRCMD if exist "%USERPROFILE%\scoop\apps\nircmd\current\nircmdc.exe" set "NIRCMD=%USERPROFILE%\scoop\apps\nircmd\current\nircmdc.exe"
-
-:: If still not found, check common manual install locations
-if not defined NIRCMD if exist "%ProgramFiles%\NirSoft\nircmdc.exe" set "NIRCMD=%ProgramFiles%\NirSoft\nircmdc.exe"
-if not defined NIRCMD if exist "%ProgramFiles(x86)%\NirSoft\nircmdc.exe" set "NIRCMD=%ProgramFiles(x86)%\NirSoft\nircmdc.exe"
-
-:: If NirCmd is still not found, display a notification telling the user it's not installed
+:: ====== Find NirCmd (supports both nircmd.exe and nircmdc.exe) ======
+set "NIRCMD="
+where nircmd.exe >nul 2>&1 && set "NIRCMD=nircmd.exe"
+where nircmdc.exe >nul 2>&1 && set "NIRCMD=nircmdc.exe"
 if not defined NIRCMD (
-    echo Error: Could not find nircmdc.exe. Please install NirCmd.
-    :: Display a message box using NirCmd if it exists
-    if exist "%ProgramFiles%\NirSoft\nircmdc.exe" (
-        "%ProgramFiles%\NirSoft\nircmdc.exe" infobox "NirCmd is not installed. Please install NirCmd and add it to your PATH." "Error" 0x10
-    )
+    for %%D in (
+        "%ProgramFiles%\NirSoft\nircmd.exe"
+        "%ProgramFiles%\NirSoft\nircmdc.exe"
+        "%ProgramFiles(x86)%\NirSoft\nircmd.exe"
+        "%ProgramFiles(x86)%\NirSoft\nircmdc.exe"
+        "%USERPROFILE%\scoop\apps\nircmd\current\nircmd.exe"
+        "%USERPROFILE%\scoop\apps\nircmd\current\nircmdc.exe"
+    ) do if not defined NIRCMD if exist "%%~D" set "NIRCMD=%%~D"
+)
+
+:: ====== Error if NirCmd missing ======
+if not defined NIRCMD (
+    echo NirCmd not found. Install it from https://www.nirsoft.net/utils/nircmd.html
+    echo.
+    echo You can install it automatically via:
+    echo scoop install nircmd
     pause
     exit /b 1
 )
 
-:: Start loop to force 100% mic volume
-start /min "" cmd /c "title Force 100%% Mic Vol && %NIRCMD% loop 172800 100 setsysvolume 65535 default_record && exit"
+:: Check for existing instance by window title (more reliable)
+tasklist /fi "windowtitle eq MicVol100*" 2>nul | find /i "cmd.exe" >nul && exit /b 0
+
+:: Main loop with proper escaping
+start "MicVol100" /min cmd /c "title MicVol100 & echo [Running] Mic volume locked at 100%% & for /l %%i in () do (call "%NIRCMD%" setsysvolume 65535 default_record & ping -n 10 127.0.0.1 >nul)"
