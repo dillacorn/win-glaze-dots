@@ -89,6 +89,9 @@ window_effects:
     corner_style:
       enabled: true
       style: "square"
+    transparency:
+      enabled: false
+      opacity: '95%'
 
 window_behavior:
   # New windows are created in this state whenever possible.
