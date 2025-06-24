@@ -175,9 +175,10 @@ window_rules:
     match:
       # Ignore rules for Window Manager apps
       - window_process: { equals: "zebar" }
-      - window_process: { equals: 'Flow.Launcher' }
+      - window_process: { equals: "Flow.Launcher" }
       - window_process: { equals: "AltSnap" }
       - window_process: { equals: "flameshot" }
+      - window_process: { equals: "LiveCaptions" }
 
       # Ignore rule for picture-in-picture windows in browsers.
       - window_title: { regex: "[Pp]icture.in.[Pp]icture" }
