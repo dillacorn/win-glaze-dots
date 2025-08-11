@@ -339,8 +339,8 @@ keybindings:
   - commands: ["wm-redraw"]
     bindings: ["alt+ctrl+shift+w"]
 
-  # Launch Alacritty terminal
-  - commands: ["shell-exec alacritty --title \"alacritty | powershell\" -e powershell -NoProfile -NoLogo"]
+  # Launch Powershell terminal
+  - commands: ["shell-exec powershell -NoProfile -NoLogo"]
     bindings: ["alt+shift+enter"]
 
   # Focus the next/previous workspace defined in `workspaces` config.
@@ -407,7 +407,3 @@ keybindings:
     bindings: ["alt+shift+9"]
   - commands: ["move --workspace 10"]
     bindings: ["alt+shift+0"]
-
-  # Launch Alacritty and open the user’s scripts menu
-  - commands: ["shell-exec alacritty --working-directory %USERPROFILE%\\scripts -e cmd /k menu.bat"]
-    bindings: ["alt+shift+m"]
