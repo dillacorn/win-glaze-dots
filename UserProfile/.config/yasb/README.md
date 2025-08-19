@@ -4,7 +4,7 @@ A pure black variant of the Dark Nord theme for YASB (Yet Another Status Bar) wi
 
 ## Preview
 
-![Pure Black Nord Theme](https://raw.githubusercontent.com/amnweb/yasb-themes/main/themes/[YOUR-THEME-ID]/image.png)
+![Pure Black Nord Theme](https://raw.githubusercontent.com/amnweb/yasb-themes/refs/heads/main/themes/03a6eaa2-6d0b-485d-94aa-2d87e98f3c64/image.png)
 
 ## Features
 
