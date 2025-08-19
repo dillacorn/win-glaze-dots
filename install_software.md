@@ -4,7 +4,7 @@
 
 ### install all essential applications (one-liner)
 ```powershell
-winget install SpeedCrunch.SpeedCrunch RustDesk.RustDesk Git.Git Microsoft.WindowsTerminal AltSnap.AltSnap Alacritty.Alacritty Microsoft.VCRedist.2015+.x64 glzr-io.zebar Flameshot.Flameshot Flow-Launcher.Flow-Launcher File-New-Project.EarTrumpet Notepad++.Notepad++ qimgv.qimgv clsid2.mpc-hc CPUID.HWMonitor LocalSend.LocalSend DisplayDriverUninstaller.DisplayDriverUninstaller Brave.Brave Microsoft.PowerToys Fastfetch-cli.Fastfetch 7zip.7zip xiph.flac glzr-io.glazewm
+winget install SpeedCrunch.SpeedCrunch RustDesk.RustDesk Git.Git Microsoft.WindowsTerminal AltSnap.AltSnap Alacritty.Alacritty Microsoft.VCRedist.2015+.x64 AmN.yasb Flameshot.Flameshot Flow-Launcher.Flow-Launcher File-New-Project.EarTrumpet Notepad++.Notepad++ qimgv.qimgv clsid2.mpc-hc CPUID.HWMonitor LocalSend.LocalSend DisplayDriverUninstaller.DisplayDriverUninstaller Brave.Brave Microsoft.PowerToys Fastfetch-cli.Fastfetch 7zip.7zip xiph.flac glzr-io.glazewm
 ```
 
 ### install gaming applications (one-liner)
@@ -50,7 +50,7 @@ scoop install main/nircmd
 - **AltSnap** - Window management utility
 - **Alacritty** - GPU-accelerated terminal emulator
 - **Visual C++ Redistributable** - Runtime libraries
-- **Zebar** - System information bar
+- **Yasb** - System information bar
 - **Flameshot** - Screenshot tool
 - **Flow Launcher** - Application launcher
 - **EarTrumpet** - Volume control utility
@@ -166,4 +166,5 @@ winget install EqualizerAPO.EqualizerAPO
 # Graphics Card Drivers
 - [Advanced Micro Devices (AMD GPU) Drivers](https://www.amd.com/en/support/download/drivers.html)
 - [Nvidia GPU Drivers](https://www.nvidia.com/en-us/drivers/)
+
 - [Intel ARC GPU Drivers](https://www.intel.com/content/www/us/en/download/785597/intel-arc-iris-xe-graphics-windows.html)
