@@ -212,6 +212,11 @@ window_rules:
       - window_class: { regex: "Afx:.*|Autodesk.*Dialog|Adsk.*" }
       - window_process: { equals: "ADPClientService|AdskAccessUIHost|AdskAccessCore|AdSSO|AdskIdentityManager" }
 
+      # Ignore rules for Work monitoring applications
+      - window_process: { equals: "LTSVC" }
+      - window_process: { equals: "LTSvcMon" }
+      - window_process: { equals: "LTTray" }
+
   - commands: ["set-floating"]
     match:
       # Set Task Manager to float
@@ -406,4 +411,5 @@ keybindings:
   - commands: ["move --workspace 9"]
     bindings: ["alt+shift+9"]
   - commands: ["move --workspace 10"]
+
     bindings: ["alt+shift+0"]
