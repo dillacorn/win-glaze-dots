@@ -3,10 +3,10 @@
 # change file name to config.yaml and delete adjacent config.yaml files to use this config within the folder.
 general:
   # Commands to run when the WM has started.
-  startup_commands: ["shell-exec zebar"]
+  startup_commands: ["shell-exec yasb"]
 
   # Commands to run just before the WM is shutdown.
-  shutdown_commands: ["shell-exec taskkill /IM zebar.exe /F"]
+  shutdown_commands: ["shell-exec taskkill /IM yasb.exe /F"]
 
   # Commands to run after the WM config is reloaded.
   config_reload_commands: []
@@ -47,7 +47,7 @@ gaps:
 
   # Gap between windows and the screen edge.
   outer_gap:
-    top: "40px"
+    top: "12px"
     right: "12px"
     bottom: "12px"
     left: "12px"
