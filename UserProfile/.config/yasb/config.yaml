@@ -139,7 +139,7 @@ widgets:
     type: "yasb.wallpapers.WallpapersWidget"
     options:
       label: "<span>\udb83\ude09</span>"
-      image_path: "C:\\Users\\dcoppock\\OneDrive - Moore Bass Consulting\\Pictures\\wallpapers"
+      image_path: "C:\\Users\\dilla\\Pictures\\wallpapers"
       change_automatically: false
       update_interval: 60
       gallery:
