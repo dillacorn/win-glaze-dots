@@ -36,13 +36,10 @@ change these flags:
 
 Privacy centric extensions:
 [`uBlock Origin`](https://chromewebstore.google.com/detail/ublock-origin/cjpalhdlnbpafiamejdnhcphjbkeiagm)
-[`LocalCDN`](https://chromewebstore.google.com/detail/localcdn/njdfdhgcmkocbgbhcioffdbicglldapd)
-[`ClearURLs`](https://chromewebstore.google.com/detail/clearurls/lckanjgmijmafbedllaakclkaicjfmnk)
+
 ##### Quick install with [chromium-web-store](https://github.com/NeverDecaf/chromium-web-store) ~ copy pasta
 ```
 uBlock Origin|cjpalhdlnbpafiamejdnhcphjbkeiagm
-ClearURLs|lckanjgmijmafbedllaakclkaicjfmnk
-LocalCDN|njdfdhgcmkocbgbhcioffdbicglldapd
 ```
 
 ---
