@@ -4,7 +4,7 @@
 
 ### install all essential applications (one-liner)
 ```powershell
-winget install SpeedCrunch.SpeedCrunch RustDesk.RustDesk Git.Git Microsoft.WindowsTerminal AltSnap.AltSnap Alacritty.Alacritty Microsoft.VCRedist.2015+.x64 AmN.yasb Flameshot.Flameshot Flow-Launcher.Flow-Launcher File-New-Project.EarTrumpet Notepad++.Notepad++ qimgv.qimgv clsid2.mpc-hc CPUID.HWMonitor LocalSend.LocalSend DisplayDriverUninstaller.DisplayDriverUninstaller Brave.Brave Microsoft.PowerToys Fastfetch-cli.Fastfetch 7zip.7zip xiph.flac glzr-io.glazewm karlstav.cava 
+winget install SpeedCrunch.SpeedCrunch Git.Git Microsoft.WindowsTerminal AltSnap.AltSnap Alacritty.Alacritty Microsoft.VCRedist.2015+.x64 AmN.yasb Flameshot.Flameshot Flow-Launcher.Flow-Launcher File-New-Project.EarTrumpet Notepad++.Notepad++ qimgv.qimgv mpv.net LocalSend.LocalSend DisplayDriverUninstaller.DisplayDriverUninstaller Brave.Brave Microsoft.PowerToys Fastfetch-cli.Fastfetch 7zip.7zip xiph.flac glzr-io.glazewm karlstav.cava DEVCOM.JetBrainsMonoNerdFont
 ```
 
 ### install gaming applications (one-liner)
@@ -14,7 +14,7 @@ winget install Valve.Steam itch.itch GOG.Galaxy PrismLauncher.PrismLauncher ebkr
 
 ### install optional applications (one-liner)
 ```powershell
-winget install jeffvli.Feishin Discord.Discord OBSProject.OBSStudio MullvadVPN.MullvadBrowser voidtools.Everything KDE.Okular Ultimaker.Cura OpenWhisperSystems.Signal KeePassXCTeam.KeePassXC Bitwarden.Bitwarden KDE.Krita Meltytech.Shotcut GIMP.GIMP qBittorrent.qBittorrent NickeManarin.ScreenToGif Spotify.Spotify Betaflight.Betaflight-Configurator Ventoy.Ventoy Piriform.CCleaner AntibodySoftware.WizTree CPUID.CPU-Z TechPowerUp.GPU-Z WinSCP.WinSCP TimKosse.FileZilla.Client MoonlightGameStreamingProject.Moonlight LizardByte.Sunshine TrackerSoftware.PDF-XChangeEditor Tailscale.Tailscale
+winget install RustDesk.RustDesk CPUID.HWMonitor jeffvli.Feishin Discord.Discord OBSProject.OBSStudio MullvadVPN.MullvadBrowser voidtools.Everything KDE.Okular Ultimaker.Cura OpenWhisperSystems.Signal KeePassXCTeam.KeePassXC Bitwarden.Bitwarden KDE.Krita Meltytech.Shotcut GIMP.GIMP qBittorrent.qBittorrent NickeManarin.ScreenToGif Spotify.Spotify Betaflight.Betaflight-Configurator Ventoy.Ventoy Piriform.CCleaner AntibodySoftware.WizTree CPUID.CPU-Z TechPowerUp.GPU-Z WinSCP.WinSCP TimKosse.FileZilla.Client MoonlightGameStreamingProject.Moonlight LizardByte.Sunshine TrackerSoftware.PDF-XChangeEditor Tailscale.Tailscale
 ```
 
 ### install development tools (one-liner)
@@ -22,9 +22,9 @@ winget install jeffvli.Feishin Discord.Discord OBSProject.OBSStudio MullvadVPN.M
 winget install yt-dlp.yt-dlp GnuWin32.Make MSYS2.MSYS2 cURL.cURL aristocratos.btop4win
 ```
 
-### install optional system tools (one-liner)
+### Virtualization (one-liner) - https://github.com/dillacorn/win-glaze-dots/blob/main/qemu-arch-scoop-guide.md
 ```powershell
-winget install Oracle.VirtualBox WireGuard.WireGuard
+winget install SoftwareFreedomConservancy.QEMU SoftwareFreedomConservancy.QEMUGuestAgent
 ```
 
 ---
@@ -44,20 +44,17 @@ scoop install main/nircmd
 
 ### Essential Applications:
 - **SpeedCrunch** - Scientific calculator
-- **RustDesk** - Remote desktop software
 - **Git** - Version control system
 - **Windows Terminal** - Modern terminal application
 - **AltSnap** - Window management utility
 - **Alacritty** - GPU-accelerated terminal emulator
 - **Visual C++ Redistributable** - Runtime libraries
-- **Yasb** - System information bar
 - **Flameshot** - Screenshot tool
 - **Flow Launcher** - Application launcher
 - **EarTrumpet** - Volume control utility
 - **Notepad++** - Text editor
 - **qimgv** - Image viewer
-- **MPC-HC** - Media player
-- **HWMonitor** - Hardware monitoring
+- **mpv** - Media player
 - **LocalSend** - File sharing utility
 - **Display Driver Uninstaller** - GPU driver removal tool
 - **Brave** - Privacy-focused web browser
@@ -66,6 +63,8 @@ scoop install main/nircmd
 - **7-Zip** - File archiver
 - **FLAC** - Audio codec
 - **GlazeWM** - Tiling window manager
+- **JetBrainsMonoNerdFont** - Font for yasb bar
+- **Yasb** - System information bar
 
 ### Gaming Applications:
 - **Steam** - Game distribution platform
@@ -76,6 +75,8 @@ scoop install main/nircmd
 - **Epic Games Launcher** - Epic Games store
 
 ### Optional Applications:
+- **RustDesk** - Remote desktop software
+- **HWMonitor** - Hardware monitoring
 - **Feishin** - Music streaming client
 - **Discord** - Communication platform
 - **OBS Studio** - Streaming/recording software
@@ -112,9 +113,9 @@ scoop install main/nircmd
 - **cURL** - Data transfer tool
 - **btop** - System monitor
 
-### Optional System Tools:
-- **VirtualBox** - Virtualization platform
-- **WireGuard** - VPN software
+### Virtualization: https://github.com/dillacorn/win-glaze-dots/blob/main/qemu-arch-scoop-guide.md
+- **QEMU** - Virtualization platform
+- **QEMU guest agent** - Virtualization Guest Agent
 
 ### update all winget apps
 ```powershell
@@ -129,13 +130,9 @@ winget install Microsoft.Teams
 ```
 
 ---
-### Install OBS DistroAV (OBS NDI)
-
-DistroAV Plugin | Releases -> [Link](https://github.com/DistroAV/DistroAV/releases)
-
-### Install NDI Runtime for OBS
+### Install DistroAV (NDI Runtime) for OBS
 ```powershell
-winget install --exact --id NDI.NDIRuntime
+winget install DistroAV.DistroAV
 ```
 
 Need BLUR? -> [obs-composite-blur Plugin | Releases](https://github.com/FiniteSingularity/obs-composite-blur/releases) by [FiniteSingularity](https://github.com/FiniteSingularity)
