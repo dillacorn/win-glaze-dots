@@ -207,11 +207,26 @@ window_rules:
       - window_process: { equals: "TextInputHost" }  # Sometimes appears instead
       - window_process: { equals: "Windows Input Experience" }
 
-      # Attempt to ignore acad software
+      # Civil 3D + child dialogs
       - window_process: { equals: "acad" }
-        window_title: { regex: "Select|Properties|Layer|Plot|Hatch|^$" }
-      - window_class: { regex: "Afx:.*|Autodesk.*Dialog|Adsk.*" }
-      - window_process: { equals: "ADPClientService|AdskAccessUIHost|AdskAccessCore|AdSSO|AdskIdentityManager" }
+        window_title:   { equals: "Structure Label Style" }
+      - window_process: { equals: "acad" }
+        window_title:   { regex: "^Label Style Composer - .+" }
+      - window_process: { equals: "acad" }
+        window_title:   { equals: "Text Component Editor - Contents" }
+      - window_process: { equals: "acad" }
+        window_title:   { equals: "Add Labels" }
+      - window_process: { equals: "acad" }
+        window_title:   { equals: "Table Tag Numbering" }
+      - window_process: { equals: "acad" }
+        window_title:   { equals: "Edit Command Settings - AddSegmentLabel" }
+      - window_process: { equals: "acad" }
+        window_title:   { regex: "^Network Layout Tools - .+" }
+      - window_process: { equals: "acad" }
+        window_title:   { regex: "(Select|Properties|Layer|Plot|Hatch|^$)" }
+      - window_process: { equals: "acad" }
+        window_class:   { regex: "^(Afx:.*|Autodesk.*Dialog|Adsk.*)$" }
+      - window_process: { regex: "^(ADPClientService|AdskAccessUIHost|AdskAccessCore|AdSSO|AdskIdentityManager)$" }
 
       # Ignore rules for Work monitoring applications
       - window_process: { equals: "LTSVC" }
@@ -346,6 +361,7 @@ keybindings:
     bindings: ["alt+ctrl+shift+w"]
 
   # Launch Powershell terminal
+  # commands: ["shell-exec alacritty --title \"alacritty | powershell\" -e powershell -NoProfile -NoLogo"] <- if alacritty can be used
   - commands: ["shell-exec powershell -NoProfile -NoLogo"]
     bindings: ["alt+shift+enter"]
 
