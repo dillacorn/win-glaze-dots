@@ -209,25 +209,10 @@ window_rules:
 
       # Civil 3D + child dialogs
       - window_process: { equals: "acad" }
-        window_title:   { equals: "Structure Label Style" }
-      - window_process: { equals: "acad" }
-        window_title:   { regex: "^Label Style Composer - .+" }
-      - window_process: { equals: "acad" }
-        window_title:   { equals: "Text Component Editor - Contents" }
-      - window_process: { equals: "acad" }
-        window_title:   { equals: "Add Labels" }
-      - window_process: { equals: "acad" }
-        window_title:   { equals: "Table Tag Numbering" }
-      - window_process: { equals: "acad" }
-        window_title:   { equals: "Edit Command Settings - AddSegmentLabel" }
-      - window_process: { equals: "acad" }
-        window_title:   { regex: "^Network Layout Tools - .+" }
-      - window_process: { equals: "acad" }
-        window_title:   { regex: "(Select|Properties|Layer|Plot|Hatch|^$)" }
-      - window_process: { equals: "acad" }
-        window_class:   { regex: "^(Afx:.*|Autodesk.*Dialog|Adsk.*)$" }
+        window_title: { regex: "^(Structure Label Style|Label Style Composer - .+|Text Component Editor - Contents|Add Labels|Table Tag Numbering|Edit Command Settings - AddSegmentLabel|Network Layout Tools - .+|Select|Properties|Layer|Plot|Hatch|$|QuickCalc)$" }
+        window_class: { regex: "^(Afx:.*|Autodesk.*Dialog|Adsk.*)$" }
       - window_process: { regex: "^(ADPClientService|AdskAccessUIHost|AdskAccessCore|AdSSO|AdskIdentityManager)$" }
-
+      
       # Ignore rules for Work monitoring applications
       - window_process: { equals: "LTSVC" }
       - window_process: { equals: "LTSvcMon" }
