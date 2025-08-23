@@ -47,7 +47,7 @@ gaps:
 
   # Gap between windows and the screen edge.
   outer_gap:
-    top: "40px"
+    top: "12px"
     right: "12px"
     bottom: "12px"
     left: "12px"
@@ -290,6 +290,11 @@ binding_modes:
         bindings: ["alt+shift+z"]
 
 keybindings:
+  # Toggle YASB
+  - commands:
+      - shell-exec --hide-window powershell -NoProfile -Command "if (Get-Process yasb -ErrorAction SilentlyContinue) { Stop-Process -Name yasb -Force } else { Start-Process yasb }"
+    bindings: ["alt+ctrl+b"]
+
   # Shift focus in a given direction.
   - commands: ["focus --direction left"]
     bindings: ["alt+h", "alt+left"]
@@ -343,9 +348,11 @@ keybindings:
   - commands: ["toggle-tiling"]
     bindings: ["alt+t"]
 
-  # Change the focused window to be fullscreen.
-  - commands: ["toggle-fullscreen"]
-    bindings: ["alt+shift+f"]
+  # Change the focused window to be fullscreen + kill yasb
+  - commands:
+      - toggle-fullscreen
+      - shell-exec --hide-window powershell -NoProfile -Command "if (Get-Process yasb -ErrorAction SilentlyContinue) { Stop-Process -Name yasb -Force } else { Start-Process yasb }"
+    bindings: ["alt+ctrl+f"]
 
   # Minimize focused window.
   - commands: ["toggle-minimized"]
