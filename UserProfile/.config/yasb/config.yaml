@@ -17,10 +17,10 @@ bars:
       border_color: None
     window_flags:
       always_on_top: false
-      windows_app_bar: true
+      windows_app_bar: false
     dimensions:
       width: "100%"
-      height: 28
+      height: 26
     padding:
       top: 4
       left: 4

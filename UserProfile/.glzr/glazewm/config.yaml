@@ -46,10 +46,10 @@ gaps:
 
   # Gap between windows and the screen edge.
   outer_gap:
-    top: "12px"
-    right: "12px"
-    bottom: "12px"
-    left: "12px"
+    top: "38px"
+    right: "10px"
+    bottom: "10px"
+    left: "10px"
 
 window_effects:
   # Visual effects to apply to the focused window.
@@ -374,7 +374,9 @@ keybindings:
     bindings: ["alt+t"]
 
   # Change the focused window to be fullscreen.
-  - commands: ["toggle-fullscreen"]
+  - commands:
+      - "toggle-fullscreen"
+      - "shell-exec --hide-window powershell -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -Command \"Start-Sleep -Milliseconds 70; Start-Process -WindowStyle Hidden glazewm -ArgumentList 'command wm-redraw'\""
     bindings: ["alt+ctrl+f"]
 
   # Minimize focused window.
