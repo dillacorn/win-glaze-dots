@@ -453,5 +453,4 @@ keybindings:
   - commands: ["move --workspace 9"]
     bindings: ["alt+shift+9"]
   - commands: ["move --workspace 10"]
-
     bindings: ["alt+shift+0"]
