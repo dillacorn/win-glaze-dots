@@ -373,10 +373,8 @@ keybindings:
   - commands: ["toggle-tiling"]
     bindings: ["alt+t"]
 
-  # Change the focused window to be fullscreen + kill yasb
-  - commands:
-      - toggle-fullscreen
-      - shell-exec --hide-window powershell -NoProfile -Command "if (Get-Process yasb -ErrorAction SilentlyContinue) { Stop-Process -Name yasb -Force } else { Start-Process yasb }"
+  # Change the focused window to be fullscreen.
+  - commands: ["toggle-fullscreen"]
     bindings: ["alt+ctrl+f"]
 
   # Minimize focused window.
