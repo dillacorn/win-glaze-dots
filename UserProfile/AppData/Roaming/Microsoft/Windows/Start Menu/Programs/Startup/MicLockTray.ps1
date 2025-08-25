@@ -3,7 +3,7 @@
 # Launch spawns a hidden STA child that shows only a tray icon with a menu.
 # Run:
 #   powershell -NoProfile -ExecutionPolicy Bypass -File "C:\Path\MicLockTray.ps1"
-# Adjust Volume: # Line 54 - 85% -> 65535 × 85 ÷ 100 = 55705 (example)
+# Adjust Volume: # Line 54 - 80% -> 0.80 × 65535 = 52428
 
 param([switch]$hidden)
 
@@ -59,7 +59,7 @@ function Set-Mic100 {
 
 # Build tray icon
 $script:Icon.Icon  = [System.Drawing.SystemIcons]::Application
-$script:Icon.Text  = 'MicVolTray — locks mic at 100%'
+$script:Icon.Text  = 'MicVolTray: locks mic at 100%'
 $script:Icon.Visible = $true
 
 # Menu: Force, Toggle (pause/resume), Exit
