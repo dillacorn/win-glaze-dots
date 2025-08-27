@@ -29,17 +29,6 @@ winget install SoftwareFreedomConservancy.QEMU SoftwareFreedomConservancy.QEMUGu
 
 ---
 
-# install scoop (only for NirCmd)
-### https://scoop.sh/#/
-### **Admin not Req.**
-
-### Install NirCmd via scoop (command line utility for Windows)
-```powershell
-scoop install main/nircmd
-```
-
----
-
 ## Application List with Descriptions
 
 ### Essential Applications:

@@ -234,6 +234,12 @@ window_rules:
       
       - window_process: { equals: "acad" }
         window_title: { equals: "Hidden Message Settings" }
+
+      - window_process: { equals: "acad" }
+        window_title: { equals: "DesignCenter" }
+
+      - window_process: { equals: "acad" }
+        window_title: { equals: "Export Autodesk Civil 3D Drawing" }
       
       - window_process: { equals: "acad" }
         window_class: { regex: "^(Afx:.*|Autodesk.*Dialog|Adsk.*)$" }

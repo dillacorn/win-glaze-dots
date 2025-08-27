@@ -1,3 +1,6 @@
+:: OLD DEPRICATED METHOD - holding for example
+:: New program developed by me: https://github.com/dillacorn/MicLockTray # (NirCmd not required)
+
 @echo off
 setlocal enableextensions
 

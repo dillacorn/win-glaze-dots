@@ -1,3 +1,6 @@
+# OLD DEPRICATED METHOD - holding for example
+# New program developed by me: https://github.com/dillacorn/MicLockTray # (NirCmd not required)
+
 # MicLockTray.ps1
 # Self-installing tray app. Locks default recording device to 100% using NirCmd every 10s.
 # Double-click to install/uninstall (no admin). When installed, it runs at user logon.
