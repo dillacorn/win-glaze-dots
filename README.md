@@ -1,8 +1,8 @@
 # `windows dilla.glaze.files`
 - **Preview Images**: **TO_BE_ADDED**
 - **Operating System**: Windows 11
-- [**winget**](https://winget.run/)
-- **Window Manager & Primary Applications**: [glazewm](https://github.com/glzr-io/glazewm) + [yasb](https://github.com/amnweb/yasb) + [altsnap](https://github.com/RamonUnch/AltSnap) + [flow-launcher](https://github.com/Flow-Launcher/Flow.Launcher) + [eartrumpet](https://github.com/File-New-Project/EarTrumpet) + [powertoys](https://github.com/microsoft/PowerToys) + [flameshot](https://github.com/flameshot-org/flameshot) + [alacritty](https://github.com/alacritty/alacritty) + [micro](https://github.com/zyedidia/micro) + [winspy](https://github.com/strobejb/winspy) + [nircmd](https://www.nirsoft.net/utils/nircmd.html)
+- **Package Manager**: [**winget**](https://winget.run/)
+- **Window Manager & Primary Applications**: [glazewm](https://github.com/glzr-io/glazewm) + [yasb](https://github.com/amnweb/yasb) + [altsnap](https://github.com/RamonUnch/AltSnap) + [flow-launcher](https://github.com/Flow-Launcher/Flow.Launcher) + [eartrumpet](https://github.com/File-New-Project/EarTrumpet) + [powertoys](https://github.com/microsoft/PowerToys) + [flameshot](https://github.com/flameshot-org/flameshot) + [alacritty](https://github.com/alacritty/alacritty) + [micro](https://github.com/zyedidia/micro)
 ---
 ## Guides in Specific Order Of Installation and Configuration (some optional)
 - ### [**windows_settings**](https://github.com/dillacorn/win-glaze-dots/blob/main/windows_settings.md)
