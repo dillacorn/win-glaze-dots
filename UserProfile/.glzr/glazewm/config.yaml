@@ -229,49 +229,12 @@ window_rules:
       - window_process: { equals: "TextInputHost" }  # Sometimes appears instead
       - window_process: { equals: "Windows Input Experience" }
 
-      # Civil 3D + child dialogs
+      # Civil 3D main and child dialogs
       - window_process: { equals: "acad" }
-        window_title: { equals: "Structure Label Style" }
-      
-      - window_process: { equals: "acad" }
-        window_title: { regex: "^Label Style Composer - .+" }
-      
-      - window_process: { equals: "acad" }
-        window_title: { equals: "Text Component Editor - Contents" }
-      
-      - window_process: { equals: "acad" }
-        window_title: { equals: "Add Labels" }
-      
-      - window_process: { equals: "acad" }
-        window_title: { equals: "Table Tag Numbering" }
-      
-      - window_process: { equals: "acad" }
-        window_title: { equals: "Edit Command Settings - AddSegmentLabel" }
-      
-      - window_process: { equals: "acad" }
-        window_title: { regex: "^Network Layout Tools - .+" }
-      
-      - window_process: { equals: "acad" }
-        window_title: { regex: "^(Select|Properties|Layer|Plot|Hatch|$)$" }
-      
-      - window_process: { equals: "acad" }
-        window_title: { equals: "QuickCalc" }
-      
-      - window_process: { equals: "acad" }
-        window_title: { equals: "Graphics Performance" }
-      
-      - window_process: { equals: "acad" }
-        window_title: { equals: "Hidden Message Settings" }
+        window_class: { regex: "^(Afx:.*|Autodesk.*Dialog|Adsk.*|#32770)$" }
+        window_title: { regex: "^(Structure Label Style|Label Style Composer - .*|Text Component Editor - .*|Add Labels|Table Tag Numbering|Edit Command Settings - .*|Network Layout Tools - .*|Select|Properties|Layer|Plot|Hatch|QuickCalc|Graphics Performance|Hidden Message Settings|DesignCenter|Export .*|Import .*|Open|Save Drawing As|Recover|Drawing Recovery Manager|Marker Style|Label Set Composer|Edit Label Style Defaults|Edit Table Style|Point Group Properties|Point Style|Description Key Editor|Point File Format|Survey Database Settings|Survey User Settings|Pipe Network Properties|Structure Properties|Edit Feature Settings|Options|Toolspace|Tool Palettes|Customize User Interface|Drawing Settings|External References|Object Viewer|Specify Coordinates|Enter Profile Data|Pan|Zoom|About|License Manager|Command Line|Insert|Xref Manager|Sheet Set Manager|Drawing Explorer|Publish|Batch Plot|Page Setup Manager|Attach Image|Attach DWG|Attach PDF|Attach DGN|Field|Multileader Style|Dimension Style Manager|Text Style|Block Definition|Wipeout|Render|Visual Styles Manager|Material Editor|Match Properties|Geolocation|Survey Command Window|Corridor Properties|Surface Properties|Alignment Layout Tools|Profile View Style|Section Style|Sample Line Group|Superelevation View|Pipe Style|Structure Style|Assembly Properties|Subassembly Composer|.*(Label|Style|Settings|Properties|Manager|Composer|Editor|Dialog|Tool|Table|Layout|Survey|Surface|Profile|Assembly|Import|Export|Attach|Insert|Setup|Recover|Xref|Drawing|Publish|Plot|Command|Visual|Material|Field|Block|Wipeout|Render|View|Point|Pipe|Structure|Sample|Superelevation|Network|Corridor|Alignment|Section|Profile|User|Geometry|Layer|Data|Point|Description|Feature|Marker|Toolspace|Palette|Calculator|Settings|Properties|Manager).*)$" }
 
-      - window_process: { equals: "acad" }
-        window_title: { equals: "DesignCenter" }
-
-      - window_process: { equals: "acad" }
-        window_title: { equals: "Export Autodesk Civil 3D Drawing" }
-      
-      - window_process: { equals: "acad" }
-        window_class: { regex: "^(Afx:.*|Autodesk.*Dialog|Adsk.*)$" }
-      
+      # Autodesk related background processes (e.g. identity manager, update services)
       - window_process: { regex: "^(ADPClientService|AdskAccessUIHost|AdskAccessCore|AdSSO|AdskIdentityManager)$" }
 
       # Ignore rules for 3rd Party applications
