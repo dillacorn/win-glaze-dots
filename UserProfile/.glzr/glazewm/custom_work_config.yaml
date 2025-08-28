@@ -179,6 +179,9 @@ window_rules:
       
   - commands: ["ignore"]
     match:
+      # Windows Applications
+      - window_process: { equals: "explorer" }
+
       # Ignore rules for Window Manager apps
       - window_process: { equals: "zebar" }
       - window_process: { equals: "yasb" }
@@ -252,7 +255,7 @@ window_rules:
       
       - window_process: { regex: "^(ADPClientService|AdskAccessUIHost|AdskAccessCore|AdSSO|AdskIdentityManager)$" }
       
-      # Ignore rules for Work monitoring applications
+      # Ignore rules for 3rd Party applications
       - window_process: { equals: "LTSVC" }
       - window_process: { equals: "LTSvcMon" }
       - window_process: { equals: "LTTray" }
