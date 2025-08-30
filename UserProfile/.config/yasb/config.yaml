@@ -27,11 +27,10 @@ bars:
       bottom: 0
       right: 4
     widgets:
-      left: ["glazewm_workspaces", "media", "cava", "taskbar"]
+      left: ["glazewm_workspaces", "taskbar"]
       center: ["active_window"]
       right:
         [
-          "notes",
           "wallpapers",
           "weather",
           "clock",
@@ -155,50 +154,6 @@ widgets:
         lazy_load_fadein: 10
         image_corner_radius: 0
         enable_cache: true
-  media:
-    type: "yasb.media.MediaWidget"
-    options:
-      label: "<span>\uf001</span> {title} "
-      label_alt: "<span>\uf001</span> {title} "
-      hide_empty: true
-      callbacks:
-        on_left: "toggle_label"
-        on_middle: "do_nothing"
-        on_right: "toggle_media_menu"
-      max_field_size:
-        label: 30
-        label_alt: 30
-      show_thumbnail: false
-      controls_only: false
-      controls_left: true
-      controls_hide: true
-      thumbnail_alpha: 80
-      thumbnail_padding: 8
-      thumbnail_corner_radius: 16
-      icons:
-        prev_track: "\ue892"
-        next_track: "\ue893"
-        play: "\ue768"
-        pause: "\ue769"
-      media_menu:
-        blur: false
-        round_corners: false
-        round_corners_type: "normal"
-        border_color: "system"
-        alignment: "right"
-        direction: "down"
-        offset_top: 6
-        offset_left: 10
-        thumbnail_corner_radius: 0
-        thumbnail_size: 80
-        max_title_size: 80
-        max_artist_size: 20
-        show_source: false
-      media_menu_icons:
-        play: "\ue768"
-        pause: "\ue769"
-        prev_track: "\ue892"
-        next_track: "\ue893"
   wifi:
     type: "yasb.wifi.WifiWidget"
     options:
@@ -220,34 +175,6 @@ widgets:
           "\udb82\udd25",
           "\udb82\udd28",
         ]
-  notes:
-    type: "yasb.notes.NotesWidget"
-    options:
-      label: "<span>\udb82\udd0c</span> {count}"
-      label_alt: "{count} notes"
-      container_padding:
-        top: 0
-        left: 0
-        bottom: 0
-        right: 0
-      menu:
-        blur: true
-        round_corners: true
-        round_corners_type: "normal"
-        border_color: "System"
-        alignment: "right"
-        direction: "down"
-        offset_top: 6
-        offset_left: 0
-        max_title_size: 150
-        show_date_time: true
-      icons:
-        note: "\udb82\udd0c"
-        delete: "\ue20d"
-      callbacks:
-        on_left: "toggle_menu"
-        on_middle: "do_nothing"
-        on_right: "toggle_label"
   glazewm_workspaces:
     type: "glazewm.workspaces.GlazewmWorkspacesWidget"
     options:
@@ -265,24 +192,3 @@ widgets:
         bluetooth_connected: "\udb80\udcb1"
       callbacks:
         on_right: "exec cmd.exe /c start ms-settings:bluetooth"
-  cava:
-    type: "yasb.cava.CavaWidget"
-    options:
-      bar_height: 12
-      min_bar_height: 0
-      gradient: 1
-      reverse: 0
-      foreground: "#89b4fa"
-      gradient_color_1: "#88c0d0"
-      gradient_color_2: "#88c0d0"
-      gradient_color_3: "#88c0d0"
-      bars_number: 8
-      bar_spacing: 2
-      bar_width: 4
-      sleep_timer: 2
-      hide_empty: false
-      container_padding:
-        top: 2
-        left: 8
-        bottom: 0
-        right: 8
