@@ -14,7 +14,7 @@ winget install Valve.Steam itch.itch GOG.Galaxy PrismLauncher.PrismLauncher ebkr
 
 ### install optional applications (one-liner)
 ```powershell
-winget install RustDesk.RustDesk CPUID.HWMonitor jeffvli.Feishin Discord.Discord OBSProject.OBSStudio MullvadVPN.MullvadBrowser voidtools.Everything KDE.Okular Ultimaker.Cura OpenWhisperSystems.Signal KeePassXCTeam.KeePassXC Bitwarden.Bitwarden KDE.Krita Meltytech.Shotcut GIMP.GIMP qBittorrent.qBittorrent NickeManarin.ScreenToGif Spotify.Spotify Betaflight.Betaflight-Configurator Ventoy.Ventoy Piriform.CCleaner AntibodySoftware.WizTree CPUID.CPU-Z TechPowerUp.GPU-Z WinSCP.WinSCP TimKosse.FileZilla.Client MoonlightGameStreamingProject.Moonlight LizardByte.Sunshine TrackerSoftware.PDF-XChangeEditor Tailscale.Tailscale
+winget install RustDesk.RustDesk CPUID.HWMonitor jeffvli.Feishin Discord.Discord OBSProject.OBSStudio MullvadVPN.MullvadBrowser voidtools.Everything KDE.Okular Ultimaker.Cura OpenWhisperSystems.Signal KeePassXCTeam.KeePassXC Bitwarden.Bitwarden KDE.Krita Meltytech.Shotcut GIMP.GIMP qBittorrent.qBittorrent NickeManarin.ScreenToGif Spotify.Spotify Betaflight.Betaflight-Configurator Ventoy.Ventoy Piriform.CCleaner AntibodySoftware.WizTree CPUID.CPU-Z TechPowerUp.GPU-Z WinSCP.WinSCP TimKosse.FileZilla.Client MoonlightGameStreamingProject.Moonlight LizardByte.Sunshine TrackerSoftware.PDF-XChangeEditor Tailscale.Tailscale Open-Shell.Open-Shell-Menu RamenSoftware.Windhawk
 ```
 
 ### install development tools (one-liner)
@@ -94,6 +94,8 @@ winget install SoftwareFreedomConservancy.QEMU SoftwareFreedomConservancy.QEMUGu
 - **Sunshine** - Game streaming server
 - **PDF-XChange Editor** - PDF editor
 - **Tailscale** - VPN mesh network
+- **Open-Shell** - Old Style Window Pop-out Menu
+- **Windhawk** - Customize Windows Internally
 
 ### Development Tools:
 - **yt-dlp** - Video downloader
