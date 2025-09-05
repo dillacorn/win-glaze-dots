@@ -241,11 +241,6 @@ window_rules:
       # Set rustdesk window to float
       - window_process: { equals: "RustDesk" }
 
-      # Set teams call window to float
-      - window_process: { equals: "ms-teams" }
-        window_class:   { equals: "TeamsWebView" }
-        window_title:   { regex: '\s\|\sMicrosoft Teams$' }
-
       # Set several windows applications to float
       - window_process: { equals: "ApplicationFrameHost" }
       
