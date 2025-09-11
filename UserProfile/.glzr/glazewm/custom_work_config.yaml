@@ -159,8 +159,8 @@ window_rules:
     
   - commands: ["move --workspace 4"]
     match:
-      # Move directory-opus to workspace 4.
-      - window_process: { regex: "dopus" }
+      # Move file manager to workspace 4.
+      - window_process: { regex: "dopus|FreeCommander" }
 
   - commands: ["move --workspace 5"]
     match:
