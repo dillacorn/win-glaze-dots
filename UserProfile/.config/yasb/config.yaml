@@ -122,18 +122,28 @@ widgets:
   taskbar:
     type: "yasb.taskbar.TaskbarWidget"
     options:
+      icon_size: 16
+      tooltip: true
+      show_only_visible: false
+      strict_filtering: true
+      monitor_exclusive: true
       animation:
         enabled: true
-      icon_size: 15
+      preview:
+        enabled: false
+        width: 240
+        delay: 400
+        padding: 8
+        margin: 8
+      title_label:
+        enabled: false
+        show: "always"
+        min_length: 10
+        max_length: 30
       ignore_apps:
         processes: []
         titles: []
         classes: []
-      container_padding:
-        top: 0
-        left: 0
-        bottom: 0
-        right: 0
   wallpapers:
     type: "yasb.wallpapers.WallpapersWidget"
     options:

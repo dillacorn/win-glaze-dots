@@ -138,12 +138,17 @@ color: var(--red);
 font-size: 14px;
 }
 .taskbar-widget {
-    background-color: var(--base2);
-    padding: 0 2 0 2;
+  background-color: var(--base2);
+  padding: 0 2px;
 }
-.taskbar-widget .app-icon {
-    padding: 0 4 0;
-    border: none;
+.taskbar-widget .app-container {
+  margin: 0 2px;
+  padding: 0 4px;
+  border: none;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 .active-window-widget {
     background-color: var(--base2);
