@@ -221,7 +221,7 @@ window_rules:
 
       # Ignore freecommander child windows
       - window_process: { regex: "FreeCommander" }
-        window_class: { regex: "^(TDlgSettings|TformQuickStarter|TfcViewerForm|TdlgInputBoxWithOptions|TdlgFcToolbarCustomizer|TfcTabGroupsDlg|TDlgTabRename|TdlgFavFolders|TfcSearchForm|TdlgMultiRename|TfcSyncDirsForm|TdlgCompareFiles|TfcAttributeChanger|TfcHashForm|TfcFileShredder|TfcFileSplitterForm|TfcFileJoinerForm|TfcFilePropertiesForm|TfcDirSizeCalcForm|TfcTreeCompareForm|TRzSelectorFolderForm|TdlgBackupFolderDef)$" }
+        window_class: { regex: "^(TDlgSettings|TformQuickStarter|TfcViewerForm|TdlgInputBoxWithOptions|TdlgFcToolbarCustomizer|TfcTabGroupsDlg|TDlgTabRename|TdlgFavFolders|TfcSearchForm|TdlgMultiRename|TfcSyncDirsForm|TdlgCompareFiles|TfcAttributeChanger|TfcHashForm|TfcFileShredder|TfcFileSplitterForm|TfcFileJoinerForm|TfcFilePropertiesForm|TfcDirSizeCalcForm|TfcTreeCompareForm|TRzSelectorFolderForm|TdlgBackupFolderDef|TfcDlgNewFolder|TfcDlgCopyMove)$" }
 
       # Ignore rules for 3rd Party applications
       - window_process: { equals: "LTSVC" }
