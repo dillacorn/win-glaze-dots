@@ -215,7 +215,7 @@ window_rules:
 
       # Ignore freecommander child windows
       - window_process: { regex: "FreeCommander" }
-        window_class: { regex: "^(TDlgSettings|TformQuickStarter|TfcViewerForm|TdlgInputBoxWithOptions|TdlgFcToolbarCustomizer|TfcTabGroupsDlg|TDlgTabRename|TdlgFavFolders|TfcSearchForm|TdlgMultiRename|TfcSyncDirsForm|TdlgCompareFiles|TfcAttributeChanger|TfcHashForm|TfcFileShredder|TfcFileSplitterForm|TfcFileJoinerForm|TfcFilePropertiesForm|TfcDirSizeCalcForm|TfcTreeCompareForm|TRzSelectorFolderForm|TdlgBackupFolderDef|TfcDlgNewFolder|TfcDlgCopyMove)$" }
+        window_class: { regex: "^(TDlgSettings|TformQuickStarter|TfcViewerForm|TdlgInputBoxWithOptions|TdlgFcToolbarCustomizer|TfcTabGroupsDlg|TDlgTabRename|TdlgFavFolders|TdlgMultiRename|TfcSyncDirsForm|TdlgCompareFiles|TfcAttributeChanger|TfcHashForm|TfcFileShredder|TfcFileSplitterForm|TfcFileJoinerForm|TfcFilePropertiesForm|TfcDirSizeCalcForm|TfcTreeCompareForm|TRzSelectorFolderForm|TdlgBackupFolderDef|TfcDlgNewFolder|TfcDlgCopyMove)$" }
 
       # Ignore rules for 3rd Party applications
       - window_process: { equals: "LTSVC" }
@@ -238,6 +238,10 @@ window_rules:
 
       # Set rustdesk window to float
       - window_process: { equals: "RustDesk" }
+
+      # Set freecommander windows to float
+      - window_process: { regex: "FreeCommander" }
+        window_class: { regex: "^(TfcSearchForm)$" }
 
       # Set several windows applications to float
       - window_process: { equals: "ApplicationFrameHost" }
