@@ -20,6 +20,12 @@ scoop update *
 # guide to make brave better
 https://github.com/libalpm64/Better-Brave-Browser
 
+# JavaScript optimization & security (recommended)
+
+brave://settings/content/v8?search=java
+
+![Chromium JavaScript optimization](https://raw.githubusercontent.com/dillacorn/arch-hypr-dots/main/browser_notes/chromium_javascript_optimization.png)
+
 # flags
 
 navigate to: `brave://flags/`
