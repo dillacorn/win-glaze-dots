@@ -1,6 +1,7 @@
-# 🖥️ Running Arch Linux in QEMU on Windows ~ Wayland Compatible
+# 🖥️ Running Linux in QEMU on Windows ~ Wayland Compatible
 
 This guide shows you how to create and run a virtual machine with **Arch Linux** using **QEMU**, managed entirely via **PowerShell** on Windows.
+(note: you can use any linux iso if your choice)
 
 ---
 
@@ -76,4 +77,5 @@ This will launch the Arch ISO and allow you to install it onto your `.img` drive
 ## 🧼 To Shut Down the VM
 
 Use `poweroff` from inside the Arch shell or shutdown from the installed system (after you set it up).
+
 
