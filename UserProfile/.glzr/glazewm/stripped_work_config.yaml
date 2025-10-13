@@ -376,7 +376,7 @@ keybindings:
 
   # Focus the workspace that last had focus.
   - commands: ["focus --recent-workspace"]
-    bindings: ["alt+ctrl+z"]
+    bindings: ["alt+ctrl+c"]
 
   # Change focus to a workspace defined in `workspaces` config.
   - commands: ["focus --workspace 1"]
