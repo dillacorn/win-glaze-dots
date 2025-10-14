@@ -67,6 +67,8 @@ This will launch the Arch ISO and allow you to install it onto your `.img` drive
 
 ## 💡 Notes
 
+- `-m 4096` 4gb of RAM allocation. (adjust to preference)
+- `-smp 4` 4 cpu threads allocated. (adjust to preference)
 - `-cpu EPYC` gives great performance and compatibility for AMD CPUs.
 - `-cpu qemu64` for Intel CPUs.
 - `-display sdl,gl=on` enables 3D acceleration for better UI experience.
@@ -78,6 +80,7 @@ This will launch the Arch ISO and allow you to install it onto your `.img` drive
 ## 🧼 To Shut Down the VM
 
 Use `poweroff` from inside the Arch shell or shutdown from the installed system (after you set it up).
+
 
 
 
