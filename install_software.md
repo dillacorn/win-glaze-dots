@@ -4,7 +4,7 @@
 
 ### install all essential applications (one-liner)
 ```powershell
-winget install SpeedCrunch.SpeedCrunch Git.Git Microsoft.WindowsTerminal AltSnap.AltSnap Alacritty.Alacritty Microsoft.VCRedist.2015+.x64 AmN.yasb Flameshot.Flameshot Flow-Launcher.Flow-Launcher File-New-Project.EarTrumpet Notepad++.Notepad++ qimgv.qimgv mpv.net LocalSend.LocalSend DisplayDriverUninstaller.DisplayDriverUninstaller Brave.Brave Microsoft.PowerToys Fastfetch-cli.Fastfetch 7zip.7zip xiph.flac glzr-io.glazewm karlstav.cava DEVCOM.JetBrainsMonoNerdFont
+winget install SpeedCrunch.SpeedCrunch Git.Git Microsoft.WindowsTerminal AltSnap.AltSnap Alacritty.Alacritty Microsoft.VCRedist.2015+.x64 AmN.yasb Flameshot.Flameshot Flow-Launcher.Flow-Launcher File-New-Project.EarTrumpet Notepad++.Notepad++ qimgv.qimgv mpv.net LocalSend.LocalSend DisplayDriverUninstaller.DisplayDriverUninstaller Brave.Brave Microsoft.PowerToys Fastfetch-cli.Fastfetch 7zip.7zip xiph.flac glzr-io.glazewm karlstav.cava DEVCOM.JetBrainsMonoNerdFont Microsoft.Sysinterals.ProcessExplorer
 ```
 
 ### install gaming applications (one-liner)
@@ -54,6 +54,7 @@ winget install SoftwareFreedomConservancy.QEMU SoftwareFreedomConservancy.QEMUGu
 - **GlazeWM** - Tiling window manager
 - **JetBrainsMonoNerdFont** - Font for yasb bar
 - **Yasb** - System information bar
+- **Process Explorer** - Replaces Task Manager
 
 ### Gaming Applications:
 - **Steam** - Game distribution platform
@@ -157,4 +158,5 @@ winget install EqualizerAPO.EqualizerAPO
 - [Nvidia GPU Drivers](https://www.nvidia.com/en-us/drivers/)
 
 - [Intel ARC GPU Drivers](https://www.intel.com/content/www/us/en/download/785597/intel-arc-iris-xe-graphics-windows.html)
+
 
