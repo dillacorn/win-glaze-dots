@@ -4,7 +4,7 @@
 
 ### install all essential applications (one-liner)
 ```powershell
-winget install SpeedCrunch.SpeedCrunch Git.Git Microsoft.WindowsTerminal AltSnap.AltSnap Alacritty.Alacritty Microsoft.VCRedist.2015+.x64 AmN.yasb Flameshot.Flameshot Flow-Launcher.Flow-Launcher File-New-Project.EarTrumpet Notepad++.Notepad++ qimgv.qimgv mpv.net LocalSend.LocalSend DisplayDriverUninstaller.DisplayDriverUninstaller Brave.Brave Microsoft.PowerToys Fastfetch-cli.Fastfetch 7zip.7zip xiph.flac glzr-io.glazewm karlstav.cava DEVCOM.JetBrainsMonoNerdFont Microsoft.Sysinterals.ProcessExplorer
+winget install SpeedCrunch.SpeedCrunch Git.Git Microsoft.WindowsTerminal AltSnap.AltSnap Alacritty.Alacritty Microsoft.VCRedist.2015+.x64 AmN.yasb Flameshot.Flameshot Flow-Launcher.Flow-Launcher File-New-Project.EarTrumpet Notepad++.Notepad++ qimgv.qimgv mpv.net LocalSend.LocalSend DisplayDriverUninstaller.DisplayDriverUninstaller Brave.Brave Microsoft.PowerToys Fastfetch-cli.Fastfetch 7zip.7zip xiph.flac glzr-io.glazewm karlstav.cava DEVCOM.JetBrainsMonoNerdFont WinsiderSS.SystemInformer
 ```
 
 ### install gaming applications (one-liner)
@@ -14,7 +14,7 @@ winget install Valve.Steam itch.itch GOG.Galaxy PrismLauncher.PrismLauncher ebkr
 
 ### install optional applications (one-liner)
 ```powershell
-winget install MarekJasinski.FreeCommanderXE RustDesk.RustDesk CPUID.HWMonitor jeffvli.Feishin Discord.Discord OBSProject.OBSStudio MullvadVPN.MullvadBrowser voidtools.Everything KDE.Okular Ultimaker.Cura OpenWhisperSystems.Signal KeePassXCTeam.KeePassXC Bitwarden.Bitwarden KDE.Krita Meltytech.Shotcut GIMP.GIMP qBittorrent.qBittorrent NickeManarin.ScreenToGif Spotify.Spotify Betaflight.Betaflight-Configurator Ventoy.Ventoy Piriform.CCleaner AntibodySoftware.WizTree CPUID.CPU-Z TechPowerUp.GPU-Z WinSCP.WinSCP TimKosse.FileZilla.Client MoonlightGameStreamingProject.Moonlight LizardByte.Sunshine TrackerSoftware.PDF-XChangeEditor Tailscale.Tailscale Open-Shell.Open-Shell-Menu RamenSoftware.Windhawk
+winget install MarekJasinski.FreeCommanderXE RustDesk.RustDesk CPUID.HWMonitor jeffvli.Feishin Discord.Discord OBSProject.OBSStudio MullvadVPN.MullvadBrowser voidtools.Everything KDE.Okular Ultimaker.Cura OpenWhisperSystems.Signal KeePassXCTeam.KeePassXC Bitwarden.Bitwarden KDE.Krita Meltytech.Shotcut GIMP.GIMP qBittorrent.qBittorrent NickeManarin.ScreenToGif Spotify.Spotify Betaflight.Betaflight-Configurator Ventoy.Ventoy Piriform.CCleaner AntibodySoftware.WizTree CPUID.CPU-Z TechPowerUp.GPU-Z WinSCP.WinSCP TimKosse.FileZilla.Client MoonlightGameStreamingProject.Moonlight LizardByte.Sunshine TrackerSoftware.PDF-XChangeEditor Tailscale.Tailscale Open-Shell.Open-Shell-Menu RamenSoftware.Windhawk Microsoft.Sysinterals.ProcessExplorer
 ```
 
 ### install development tools (one-liner)
@@ -54,7 +54,7 @@ winget install SoftwareFreedomConservancy.QEMU SoftwareFreedomConservancy.QEMUGu
 - **GlazeWM** - Tiling window manager
 - **JetBrainsMonoNerdFont** - Font for yasb bar
 - **Yasb** - System information bar
-- **Process Explorer** - Replaces Task Manager
+- **System Informer** - Replaces task manager (need more functionality? - install process explorer, slightly heavier alternative)
 
 ### Gaming Applications:
 - **Steam** - Game distribution platform
@@ -98,6 +98,7 @@ winget install SoftwareFreedomConservancy.QEMU SoftwareFreedomConservancy.QEMUGu
 - **Tailscale** - VPN mesh network
 - **Open-Shell** - Old Style Window Pop-out Menu
 - **Windhawk** - Customize Windows Internally
+- **Process Explorer** - Replaces Task Manager (little heavier than System Informer)
 
 ### Development Tools:
 - **yt-dlp** - Video downloader
@@ -158,5 +159,6 @@ winget install EqualizerAPO.EqualizerAPO
 - [Nvidia GPU Drivers](https://www.nvidia.com/en-us/drivers/)
 
 - [Intel ARC GPU Drivers](https://www.intel.com/content/www/us/en/download/785597/intel-arc-iris-xe-graphics-windows.html)
+
 
 
