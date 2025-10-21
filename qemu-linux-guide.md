@@ -1,8 +1,13 @@
-# 🖥️ Running Linux in QEMU on Windows ~ Wayland Compatible
+# 🖥️ Running Linux in QEMU on Windows — Wayland-Compatible (Software Virtualization Only)
 
 This guide shows you how to create and run a virtual machine with **Arch Linux** using **QEMU**, managed entirely via **PowerShell** on Windows.
 
-(note: you can use any linux iso of your choosing)
+> ⚠️ **Important:**  
+> Windows **blocks direct GPU passthrough (KVM/VFIO)** and **hardware acceleration** for virtual machines at the kernel level.  
+> This setup runs entirely in **software virtualization (TCG)** mode.  
+> It will work for graphical Linux environments like **Hyprland**, **Sway**, or **GNOME**, but **3D performance is CPU-bound and limited**.  
+> For real hardware acceleration and native Wayland support, **run QEMU + KVM on a Linux host** instead —  
+> or install **Linux on bare metal** *(preferred)* for direct GPU access and full compositor performance.
 
 ---
 
@@ -80,6 +85,7 @@ This will launch the Arch ISO and allow you to install it onto your `.img` drive
 ## 🧼 To Shut Down the VM
 
 Use `poweroff` from inside the Arch shell or shutdown from the installed system (after you set it up).
+
 
 
 
