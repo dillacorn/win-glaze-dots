@@ -134,11 +134,11 @@ workspaces:
   - name: "7"
     display_name: "7: PDF"
   - name: "8"
-    display_name: "8"
+    display_name: "8:    "
   - name: "9"
-    display_name: "9"
+    display_name: "9:    "
   - name: "10"
-    display_name: "10"
+    display_name: "10:   "
 
 # My Configuration: Three physical displays/monitors
 window_rules:
@@ -182,7 +182,7 @@ window_rules:
       # Windows Applications
       - window_process: { equals: "explorer" }
       - window_process: { equals: "windhawk" }
-
+    
       # Ignore rules for Window Manager apps
       - window_process: { equals: "zebar" }
       - window_process: { equals: "yasb" }
@@ -214,15 +214,15 @@ window_rules:
       # Civil 3D dialogs/popups only — leave main MDI frame managed so workspace switching works
       - window_process: { equals: "acad" }
         window_class: { regex: "^(#32770|Afx:.*|Autodesk.*Dialog|Adsk.*|WindowsForms10\\.Window\\.8\\.app\\..*|ComboLBox|tooltips_class32)$" }
-        
+      
       # Autodesk related background processes (e.g. identity manager, update services)
       - window_process: { regex: "^(ADPClientService|AdskAccessUIHost|AdskAccessCore|AdSSO|AdskIdentityManager)$" }
 
       # Ignore freecommander child windows
       - window_process: { regex: "FreeCommander" }
         window_class: { regex: "^(TDlgSettings|TformQuickStarter|TfcViewerForm|TdlgInputBoxWithOptions|TdlgFcToolbarCustomizer|TfcTabGroupsDlg|TDlgTabRename|TdlgFavFolders|TdlgMultiRename|TfcSyncDirsForm|TdlgCompareFiles|TfcAttributeChanger|TfcHashForm|TfcFileShredder|TfcFileSplitterForm|TfcFileJoinerForm|TfcFilePropertiesForm|TfcDirSizeCalcForm|TfcTreeCompareForm|TRzSelectorFolderForm|TdlgBackupFolderDef|TfcDlgNewFolder|TfcDlgCopyMove)$" }
-
-      # Ignore rules for 3rd Party applications
+      
+      # Ignore rules for Work monitoring applications
       - window_process: { equals: "LTSVC" }
       - window_process: { equals: "LTSvcMon" }
       - window_process: { equals: "LTTray" }
@@ -250,7 +250,7 @@ window_rules:
 
       # Set several windows applications to float
       - window_process: { equals: "ApplicationFrameHost" }
-      
+            
   - commands: ["set-floating --centered"]
     match:
       # Set EarTrumpets "Volume Mixer" window to float and center it
@@ -273,12 +273,12 @@ binding_modes:
       - commands: ["wm-disable-binding-mode --name resize"]
         bindings: ["escape", "enter"]
 
-  # When enabled, all keybindings are disabled except for alt+shift+z which
+  # When enabled, all keybindings are disabled except for alt+shift+p which
   # returns to default keybindings.
   - name: "pause"
     keybindings:
       - commands: ["wm-disable-binding-mode --name pause"]
-        bindings: ["alt+shift+z"]
+        bindings: ["alt+shift+p"]
 
 keybindings:
   # Toggle YASB
@@ -289,7 +289,7 @@ keybindings:
   # Launch Speedcrunch
   - commands: ['shell-exec C:\Program Files (x86)\SpeedCrunch\speedcrunch.exe']
     bindings: ["alt+shift+c"]
-
+    
   # Shift focus in a given direction.
   - commands: ["focus --direction left"]
     bindings: ["alt+h", "alt+left"]
@@ -320,20 +320,14 @@ keybindings:
   - commands: ["resize --height -2%"]
     bindings: ["alt+u", "alt+ctrl+down"]
 
-  # As an alternative to the resize keybindings above, resize mode enables
-  # resizing via arrow keys or HJKL. The binding mode is defined above with
-  # the name "resize".
-  - commands: ["wm-enable-binding-mode --name resize"]
-    bindings: ["alt+ctrl+r"]
-
-  # Disables all keybindings until alt+shift+z is pressed again.
+  # Disables all keybindings toggle.
   - commands: ["wm-enable-binding-mode --name pause"]
-    bindings: ["alt+shift+z"]
+    bindings: ["alt+shift+p"]
 
   # Change tiling direction. This determines where new tiling windows will
   # be inserted.
   - commands: ["toggle-tiling-direction"]
-    bindings: ["alt+shift+v"]
+    bindings: ["alt+shift+r"]
 
   # Change the focused window to be floating.
   - commands: ["toggle-floating --centered"]
@@ -369,16 +363,15 @@ keybindings:
   - commands: ["wm-redraw"]
     bindings: ["alt+ctrl+shift+w"]
 
-  # Launch Powershell terminal
-  # commands: ["shell-exec alacritty --title \"alacritty | powershell\" -e powershell -NoProfile -NoLogo"] <- if alacritty can be used
-  - commands: ["shell-exec powershell -NoProfile -NoLogo"]
+  # Launch Alacritty terminal
+  - commands: ["shell-exec alacritty --title \"alacritty | powershell\" -e powershell -NoProfile -NoLogo"]
     bindings: ["alt+shift+enter"]
 
   # Focus the next/previous workspace defined in `workspaces` config.
   - commands: ["focus --next-workspace"]
-    bindings: ["alt+ctrl+d"]
+    bindings: ["alt+]"]
   - commands: ["focus --prev-workspace"]
-    bindings: ["alt+ctrl+a"]
+    bindings: ["alt+["]
 
   # Focus the workspace that last had focus.
   - commands: ["focus --recent-workspace"]
