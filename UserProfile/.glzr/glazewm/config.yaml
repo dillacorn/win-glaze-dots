@@ -292,12 +292,12 @@ binding_modes:
       - commands: ["wm-disable-binding-mode --name resize"]
         bindings: ["escape", "enter"]
 
-  # When enabled, all keybindings are disabled except for alt+shift+z which
+  # When enabled, all keybindings are disabled except for alt+shift+p which
   # returns to default keybindings.
   - name: "pause"
     keybindings:
       - commands: ["wm-disable-binding-mode --name pause"]
-        bindings: ["alt+shift+z"]
+        bindings: ["alt+shift+p"]
 
 keybindings:
   # Toggle YASB
@@ -339,20 +339,14 @@ keybindings:
   - commands: ["resize --height -2%"]
     bindings: ["alt+u", "alt+ctrl+down"]
 
-  # As an alternative to the resize keybindings above, resize mode enables
-  # resizing via arrow keys or HJKL. The binding mode is defined above with
-  # the name "resize".
-  - commands: ["wm-enable-binding-mode --name resize"]
-    bindings: ["alt+ctrl+r"]
-
-  # Disables all keybindings until alt+shift+z is pressed again.
+  ## Disables all keybindings toggle.
   - commands: ["wm-enable-binding-mode --name pause"]
-    bindings: ["alt+shift+z"]
+    bindings: ["alt+shift+p"]
 
   # Change tiling direction. This determines where new tiling windows will
   # be inserted.
   - commands: ["toggle-tiling-direction"]
-    bindings: ["alt+shift+v"]
+    bindings: ["alt+shift+r"]
 
   # Change the focused window to be floating.
   - commands: ["toggle-floating --centered"]
@@ -395,9 +389,9 @@ keybindings:
 
   # Focus the next/previous workspace defined in `workspaces` config.
   - commands: ["focus --next-workspace"]
-    bindings: ["alt+ctrl+d"]
+    bindings: ["alt+]"]
   - commands: ["focus --prev-workspace"]
-    bindings: ["alt+ctrl+a"]
+    bindings: ["alt+["]
 
   # Focus the workspace that last had focus.
   - commands: ["focus --recent-workspace"]
@@ -461,3 +455,4 @@ keybindings:
   # Launch Alacritty and open the user’s scripts menu
   - commands: ["shell-exec alacritty --working-directory %USERPROFILE%\\scripts -e cmd /k menu.bat"]
     bindings: ["alt+shift+m"]
+
