@@ -256,6 +256,9 @@ window_rules:
       # Set EarTrumpets "Volume Mixer" window to float and center it
       - window_title: { regex: "Volume Mixer" }
       - window_process: { equals: "EarTrumpet" }
+
+      # Miscellaneous
+      - window_title: { regex: "(Find|Replace)" }
       
 binding_modes:
   # When enabled, the focused window can be resized via arrow keys or HJKL.
