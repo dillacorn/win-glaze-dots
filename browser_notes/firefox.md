@@ -90,5 +90,7 @@ Youtube video -> https://www.youtube.com/watch?v=SnjnAI8qn8A
 navigate to `about:config`
 
 - set "true" `gfx.webrender.layer-compositor`
-- set "true" `media.wmf.zero-copy-nv12-textures-force-enabled`
 - set "false" `media.av1.enabled`
+
+if using an AMD CPU.
+- set "true" `media.wmf.zero-copy-nv12-textures-force-enabled`
