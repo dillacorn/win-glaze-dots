@@ -1,34 +1,12 @@
 Notes From Repo: https://github.com/dillacorn/win-glaze-dots
 
-# choose a browser
-
-- ## install librewolf
+- ## install firefox
 ```sh
-scoop install extras/librewolf
+winget install Mozilla.Firefox
 ```
 
-- ## install mullvad-browser (prefered)
-```sh
-scoop install extras/mullvad-browser
-```
-
-- ## update with scoop example
-```sh
-scoop update extras/mullvad-browser
-```
-
-- ## to update all applications installed with scoop
-```sh
-scoop update *
-```
-
-# config
-
-navigate to: `about:config`
-
-change these flags:
-* middlemouse.paste: `false`
-* privacy.fingerprintingProtection: `true`
+# install user.js
+https://github.com/yokoffing/BetterFox
 
 # extensions
 
@@ -47,9 +25,9 @@ Plugins I personally can't live without:
 [`Ctrl+Number to switch tabs`](https://addons.mozilla.org/firefox/downloads/file/4192880/ctrl_number_to_switch_tabs-1.0.2.xpi)
 [`Disable YouTube Seek by Number`](https://addons.mozilla.org/firefox/downloads/file/4308468/youtube_disable_number_seek-1.4.xpi)
 [`Return YouTube Dislike`](https://addons.mozilla.org/firefox/downloads/file/4308076/return_youtube_dislikes-3.0.0.16.xpi)
-[`Tab Numbers`](https://addons.mozilla.org/firefox/downloads/file/3368371/tab_numbers-1.0.0.xpi)
 
 Some Additional Plugins:
+[`Tab Numbers`](https://addons.mozilla.org/firefox/downloads/file/3368371/tab_numbers-1.0.0.xpi)
 [`Undo Close Tab`](https://addons.mozilla.org/firefox/downloads/file/4212173/undoclosetabbutton-8.0.0.xpi)
 [`Move Tabs`](https://addons.mozilla.org/firefox/downloads/file/4272424/move_tabs_around-0.0.3resigned1.xpi)
 [`FastForward`](https://addons.mozilla.org/firefox/downloads/file/4258067/fastforwardteam-0.2383.xpi)
@@ -72,23 +50,8 @@ Some Additional Plugins:
 [`Minimalist Gruvbox by canbeardig`](https://addons.mozilla.org/firefox/downloads/file/3991777/minimalist_gruvbox-2.0.xpi)
 [`Minimalist Everforest by canbeardig`](https://addons.mozilla.org/firefox/downloads/file/4116967/minimalist_dark_and_yellow_tab-3.0.xpi)
 
-# search engine
-
-**search engines**: `(option #1)` - select a searx server (speed varies)
-
-Name:
-`Searx`
-
-Find a searx server
-`https://searx.space/`
-
-**search engine**: `(option #2)` <- faster than searx
-
-Name:
-`brave`
-
-URL with %s in place of query
-`https://search.brave.com/search?q=%s`
+# uBlock Origin
+see [yokoffing](https://github.com/yokoffing) ["filterlists" Guidelines](https://github.com/yokoffing/filterlists?tab=readme-ov-file#recommended-filters-for-ublock-origin)
 
 # custom dns server
 
@@ -111,3 +74,21 @@ https://browserleaks.com/webrtc
 enable `Show home button` and add your preferred URL.. in my case "flame" and/or "hoarder" self hosted instance
 
 disable `Show bookmarks bar`
+
+vertical tabs:
+
+![firefox_vertical_tabs_&_bar](https://raw.githubusercontent.com/dillacorn/arch-hypr-dots/main/browser_notes/firefox_vertical_tabs_&_bar.png)
+
+# Speed-up Youtube
+
+Credit to `BrenTech`
+
+Youtube video -> https://www.youtube.com/watch?v=SnjnAI8qn8A
+
+### Directions:
+
+navigate to `about:config`
+
+- set "true" `gfx.webrender.layer-compositor`
+- set "true" `media.wmf.zero-copy-nv12-textures-force-enabled`
+- set "false" `media.av1.enabled`

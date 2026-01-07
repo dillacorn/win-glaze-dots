@@ -4,17 +4,7 @@ notes from repo: https://github.com/dillacorn/win-glaze-dots
 
 - ## install brave
 ```sh
-scoop install extras/brave
-```
-
-- ## to update (specifically) brave with scoop
-```sh
-scoop update extras/brave
-```
-
-- ## to update all applications installed with scoop
-```sh
-scoop update *
+winget install Brave.Brave
 ```
 
 # guide to make brave better
