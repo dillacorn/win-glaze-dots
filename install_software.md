@@ -22,7 +22,7 @@ winget install MarekJasinski.FreeCommanderXE RustDesk.RustDesk CPUID.HWMonitor j
 winget install yt-dlp.yt-dlp GnuWin32.Make MSYS2.MSYS2 cURL.cURL aristocratos.btop4win
 ```
 
-### Virtualization (one-liner) - https://github.com/dillacorn/win-glaze-dots/blob/main/qemu-arch-scoop-guide.md
+### Virtualization (one-liner) - https://github.com/dillacorn/win-glaze-dots/blob/main/qemu-linux-guide.md
 ```powershell
 winget install SoftwareFreedomConservancy.QEMU SoftwareFreedomConservancy.QEMUGuestAgent
 ```
@@ -159,6 +159,7 @@ winget install EqualizerAPO.EqualizerAPO
 - [Nvidia GPU Drivers](https://www.nvidia.com/en-us/drivers/)
 
 - [Intel ARC GPU Drivers](https://www.intel.com/content/www/us/en/download/785597/intel-arc-iris-xe-graphics-windows.html)
+
 
 
 
