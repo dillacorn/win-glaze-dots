@@ -94,3 +94,8 @@ navigate to `about:config`
 
 if using an AMD CPU.
 - set "true" `media.wmf.zero-copy-nv12-textures-force-enabled`
+
+---
+
+# Twitch ads (script to workaround forced ads)
+https://github.com/pixeltris/TwitchAdSolutions?tab=readme-ov-file#applying-a-script-ublock-origin
