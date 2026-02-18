@@ -3,7 +3,10 @@
 # change file name to config.yaml and delete adjacent config.yaml files to use this config within the folder.
 general:
   # Commands to run when the WM has started.
-  startup_commands: ["shell-exec yasb"]
+  startup_commands:
+    - "shell-exec yasb"
+    # Hide/show Civil 3D based on whether workspace 2 is displayed.
+    - "shell-exec --hide-window powershell -NoProfile -ExecutionPolicy Bypass -File %USERPROFILE%\\.glzr\\glazewm\\scripts\\c3d-workspace-guard.ps1"
 
   # Commands to run just before the WM is shutdown.
   shutdown_commands: ["shell-exec taskkill /IM yasb.exe /F"]
@@ -142,21 +145,21 @@ workspaces:
 
 # My Configuration: Three physical displays/monitors
 window_rules:
+  # HARD IGNORE: GlazeWM must not manage Civil 3D at all.
+  - commands: ["ignore"]
+    match:
+      - window_process: { regex: "^(acad|acadlt)$" }
+
   - commands: ["move --workspace 1"]
     match:
       # Move ms-teams to workspace 1.
       - window_process: { regex: "ms-teams" }
 
-  - commands: ["move --workspace 2"]
-    match:
-      # Move autocad to workspace 2.
-      - window_process: { regex: "acad" }
-      
   - commands: ["move --workspace 3"]
     match:
       # Move outlook to workspace 3.
       - window_process: { regex: "OUTLOOK|olk" }
-    
+
   - commands: ["move --workspace 4"]
     match:
       # Move file manager to workspace 4.
@@ -176,13 +179,13 @@ window_rules:
     match:
       # Move pdf viewer/editors to workspace 7.
       - window_process: { regex: "PDFXEdit|SumatraPDF|okular|pdfeditor|Acrobat|Revu" }
-      
+
   - commands: ["ignore"]
     match:
       # Windows Applications
       - window_process: { equals: "explorer" }
       - window_process: { equals: "windhawk" }
-    
+
       # Ignore rules for Window Manager apps
       - window_process: { equals: "zebar" }
       - window_process: { equals: "yasb" }
@@ -211,17 +214,13 @@ window_rules:
       - window_process: { equals: "TextInputHost" }  # Sometimes appears instead
       - window_process: { equals: "Windows Input Experience" }
 
-      # Civil 3D dialogs/popups only — leave main MDI frame managed so workspace switching works
-      - window_process: { equals: "acad" }
-        window_class: { regex: "^(#32770|Afx:.*|Autodesk.*Dialog|Adsk.*|WindowsForms10\\.Window\\.8\\.app\\..*|ComboLBox|tooltips_class32)$" }
-      
       # Autodesk related background processes (e.g. identity manager, update services)
       - window_process: { regex: "^(ADPClientService|AdskAccessUIHost|AdskAccessCore|AdSSO|AdskIdentityManager)$" }
 
       # Ignore freecommander child windows
       - window_process: { regex: "FreeCommander" }
         window_class: { regex: "^(TDlgSettings|TformQuickStarter|TfcViewerForm|TdlgInputBoxWithOptions|TdlgFcToolbarCustomizer|TfcTabGroupsDlg|TDlgTabRename|TdlgFavFolders|TdlgMultiRename|TfcSyncDirsForm|TdlgCompareFiles|TfcAttributeChanger|TfcHashForm|TfcFileShredder|TfcFileSplitterForm|TfcFileJoinerForm|TfcFilePropertiesForm|TfcDirSizeCalcForm|TfcTreeCompareForm|TRzSelectorFolderForm|TdlgBackupFolderDef|TfcDlgNewFolder|TfcDlgCopyMove)$" }
-      
+
       # Ignore rules for Work monitoring applications
       - window_process: { equals: "LTSVC" }
       - window_process: { equals: "LTSvcMon" }
@@ -250,7 +249,7 @@ window_rules:
 
       # Set several windows applications to float
       - window_process: { equals: "ApplicationFrameHost" }
-            
+
   - commands: ["set-floating --centered"]
     match:
       # Set EarTrumpets "Volume Mixer" window to float and center it
@@ -259,7 +258,7 @@ window_rules:
 
       # Miscellaneous
       - window_title: { regex: "(Find|Replace)" }
-      
+
 binding_modes:
   # When enabled, the focused window can be resized via arrow keys or HJKL.
   - name: "resize"
@@ -292,7 +291,7 @@ keybindings:
   # Launch Speedcrunch
   - commands: ['shell-exec C:\Program Files (x86)\SpeedCrunch\speedcrunch.exe']
     bindings: ["alt+shift+c"]
-    
+
   # Shift focus in a given direction.
   - commands: ["focus --direction left"]
     bindings: ["alt+h", "alt+left"]
