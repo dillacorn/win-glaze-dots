@@ -1,0 +1,3317 @@
+{
+  Styles : [
+    {
+      Name : "Light",
+      FilePanel : {
+        CursorBorderColor : -2147483635,
+        ForeColor : -2147483640,
+        BackColor : -2147483643,
+        BackColor2 : -2147483643,
+        MarkColor : 255,
+        CursorColor : -2147483635,
+        CursorText : -2147483634,
+        GridLine : 12632256,
+        InactiveCursorColor : -2147483645,
+        InactiveMarkColor : 128
+      },
+      FreeSpaceIndicator : {
+        ForeColor : 0,
+        BackColor : 16777215,
+        ThresholdForeColor : 255
+      },
+      Path : {
+        ActiveColor : -2147483635,
+        ActiveFontColor : -2147483634,
+        InactiveColor : -2147483633,
+        InactiveFontColor : -2147483630
+      },
+      Log : {
+        InfoColor : 8388608,
+        ErrorColor : 255,
+        SuccessColor : 32768
+      },
+      SyncDirs : {
+        LeftColor : 32768,
+        RightColor : 16711680,
+        UnknownColor : 255
+      },
+      Viewer : {
+        ImageBackColor1 : -2147483643,
+        ImageBackColor2 : 536870912,
+        BookBackgroundColor : 0,
+        BookFontColor : 16777215
+      },
+      Differ : {
+        AddedColor : 11206570,
+        DeletedColor : 11184895,
+        ModifiedColor : 16755370,
+        ModifiedBinaryColor : 255
+      },
+      TreeViewMenu : {
+        BackgroundColor : -2147483617,
+        ShortcutColor : 255,
+        NormalTextColor : -2147483640,
+        SecondaryTextColor : -2147483642,
+        FoundTextColor : -2147483635,
+        UnselectableTextColor : -2147483631,
+        CursorColor : -2147483635,
+        ShortcutUnderCursor : -2147483634,
+        NormalTextUnderCursor : -2147483634,
+        SecondaryTextUnderCursor : -2147483628,
+        FoundTextUnderCursor : 65535,
+        UnselectableUnderCursor : -2147483631
+      },
+      ColumnSets : [
+        {
+          Unique : "DA3DE4A5-88FA-4776-9C06-79AB5E7BD262",
+          Name : "Default",
+          CursorBorderColor : -2147483635,
+          Columns : [
+            {
+              Unique : "2CA02056-2300-428B-9B5D-6AF6A1E0A177",
+              Title : "Name",
+              TextColor : -2147483640,
+              Background : -2147483643,
+              Background2 : -2147483643,
+              MarkColor : 255,
+              CursorColor : -2147483635,
+              CursorText : -2147483634,
+              InactiveCursorColor : -2147483645,
+              InactiveMarkColor : 128
+            },
+            {
+              Unique : "F25C602E-DEB0-4CF3-BDEC-9EFE3F6D7FB2",
+              Title : "Ext",
+              TextColor : -2147483640,
+              Background : -2147483643,
+              Background2 : -2147483643,
+              MarkColor : 255,
+              CursorColor : -2147483635,
+              CursorText : -2147483634,
+              InactiveCursorColor : -2147483645,
+              InactiveMarkColor : 128
+            },
+            {
+              Unique : "6E5E66DB-A8BF-4575-801F-0A50AD788EEC",
+              Title : "Size",
+              TextColor : -2147483640,
+              Background : -2147483643,
+              Background2 : -2147483643,
+              MarkColor : 255,
+              CursorColor : -2147483635,
+              CursorText : -2147483634,
+              InactiveCursorColor : -2147483645,
+              InactiveMarkColor : 128
+            },
+            {
+              Unique : "5CBE09DC-D457-4345-B845-3D056A1714A1",
+              Title : "Date",
+              TextColor : -2147483640,
+              Background : -2147483643,
+              Background2 : -2147483643,
+              MarkColor : 255,
+              CursorColor : -2147483635,
+              CursorText : -2147483634,
+              InactiveCursorColor : -2147483645,
+              InactiveMarkColor : 128
+            },
+            {
+              Unique : "3C651888-5720-4602-BADE-519D6470BCD0",
+              Title : "Attr",
+              TextColor : -2147483640,
+              Background : -2147483643,
+              Background2 : -2147483643,
+              MarkColor : 255,
+              CursorColor : -2147483635,
+              CursorText : -2147483634,
+              InactiveCursorColor : -2147483645,
+              InactiveMarkColor : 128
+            }
+          ]
+        }
+      ],
+      Highlighters : [
+        {
+          Name : "C++",
+          Attributes : [
+            {
+              Name : "Assembler",
+              Value : "$1FFFFFFF|$00008000|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Comment",
+              Value : "$1FFFFFFF|$00FF0000|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Default text",
+              Value : "$80000005|$80000008|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Identifier",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Illegal char",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Number",
+              Value : "$1FFFFFFF|$00800000|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Preprocessor",
+              Value : "$1FFFFFFF|$00FF0000|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Reserved word",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Space",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "String",
+              Value : "$1FFFFFFF|$00FF0000|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Symbol",
+              Value : "$1FFFFFFF|$000000FF|$1FFFFFFF|0|1|0|0"
+            }
+          ]
+        },
+        {
+          Name : "Cascading style sheets",
+          Attributes : [
+            {
+              Name : "Comment",
+              Value : "$1FFFFFFF|$00FF0000|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Default text",
+              Value : "$80000005|$80000008|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Identifier",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Key",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Measurement unit",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Number",
+              Value : "$1FFFFFFF|$00800000|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Selector",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Space",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "String",
+              Value : "$1FFFFFFF|$00FF0000|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Symbol",
+              Value : "$1FFFFFFF|$000000FF|$1FFFFFFF|0|1|0|0"
+            }
+          ]
+        },
+        {
+          Name : "Diff File",
+          Attributes : [
+            {
+              Name : "Default text",
+              Value : "$80000005|$80000008|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Diff Added line",
+              Value : "$1FFFFFFF|$00008000|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Diff Changed Line",
+              Value : "$1FFFFFFF|$00800080|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Diff Chunk Line Counts",
+              Value : "$1FFFFFFF|$00800080|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Diff Chunk Marker",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Diff Chunk New Line Count",
+              Value : "$1FFFFFFF|$00008000|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Diff Chunk Original Line Count",
+              Value : "$1FFFFFFF|$000000FF|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Diff Context Line",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Diff New File",
+              Value : "$00008000|$1FFFFFFF|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Diff Original File",
+              Value : "$000000FF|$1FFFFFFF|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Diff Removed Line",
+              Value : "$1FFFFFFF|$000000FF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Space",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Unknown word",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|2|0"
+            }
+          ]
+        },
+        {
+          Name : "HTML document",
+          Attributes : [
+            {
+              Name : "Asp",
+              Value : "$0000FFFF|$00000000|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "CDATA",
+              Value : "$1FFFFFFF|$00008000|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Comment",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Default text",
+              Value : "$80000005|$80000008|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "DOCTYPE",
+              Value : "$0000FFFF|$00000000|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Escape ampersand",
+              Value : "$1FFFFFFF|$0000FF00|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Identifier",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Reserved word",
+              Value : "$1FFFFFFF|$00FF0080|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Space",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Symbol",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Text",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Unknown word",
+              Value : "$1FFFFFFF|$000000FF|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Value",
+              Value : "$1FFFFFFF|$00FF8000|$1FFFFFFF|0|1|0|0"
+            }
+          ]
+        },
+        {
+          Name : "INI file",
+          Attributes : [
+            {
+              Name : "Comment",
+              Value : "$1FFFFFFF|$00008000|$1FFFFFFF|0|1|2|0"
+            },
+            {
+              Name : "Default text",
+              Value : "$80000005|$80000008|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Key",
+              Value : "$1FFFFFFF|$00FF0000|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Number",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Section",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Space",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "String",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Symbol",
+              Value : "$1FFFFFFF|$000000FF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Text",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            }
+          ]
+        },
+        {
+          Name : "Java",
+          Attributes : [
+            {
+              Name : "Annotation",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Comment",
+              Value : "$1FFFFFFF|$00FF0000|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Default text",
+              Value : "$80000005|$80000008|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Documentation",
+              Value : "$1FFFFFFF|$00FF0000|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Identifier",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Invalid symbol",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Number",
+              Value : "$1FFFFFFF|$00800000|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Reserved word",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Space",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "String",
+              Value : "$1FFFFFFF|$00FF0000|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Symbol",
+              Value : "$1FFFFFFF|$000000FF|$1FFFFFFF|0|1|0|0"
+            }
+          ]
+        },
+        {
+          Name : "Lazarus Form definition",
+          Attributes : [
+            {
+              Name : "Comment",
+              Value : "$1FFFFFFF|$00FF0000|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Default text",
+              Value : "$80000005|$80000008|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Identifier",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Key",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Number",
+              Value : "$1FFFFFFF|$00800000|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Space",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "String",
+              Value : "$1FFFFFFF|$00FF0000|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Symbol",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            }
+          ]
+        },
+        {
+          Name : "Lua Script",
+          Attributes : [
+            {
+              Name : "Comment",
+              Value : "$1FFFFFFF|$00008000|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Default text",
+              Value : "$80000005|$80000008|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Function",
+              Value : "$1FFFFFFF|$00C05000|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Identifier",
+              Value : "$1FFFFFFF|$80000008|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Number",
+              Value : "$1FFFFFFF|$00800080|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Reserved word",
+              Value : "$1FFFFFFF|$00FF0000|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Space",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "String",
+              Value : "$1FFFFFFF|$00000080|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Symbol",
+              Value : "$1FFFFFFF|$00800000|$1FFFFFFF|0|1|0|0"
+            }
+          ]
+        },
+        {
+          Name : "MS-DOS batch language",
+          Attributes : [
+            {
+              Name : "Comment",
+              Value : "$1FFFFFFF|$00FF0000|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Default text",
+              Value : "$80000005|$80000008|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Identifier",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Key",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Number",
+              Value : "$1FFFFFFF|$00800000|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Space",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Variable",
+              Value : "$1FFFFFFF|$00008000|$1FFFFFFF|0|1|0|0"
+            }
+          ]
+        },
+        {
+          Name : "ObjectPascal",
+          Attributes : [
+            {
+              Name : "Assembler",
+              Value : "$1FFFFFFF|$00008000|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Case label",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Comment",
+              Value : "$1FFFFFFF|$00FF0000|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Default text",
+              Value : "$80000005|$80000008|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Directive",
+              Value : "$1FFFFFFF|$000000FF|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "IDE Directive",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Identifier",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Number",
+              Value : "$1FFFFFFF|$00800000|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Procedure header name",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Reserved word",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Space",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "String",
+              Value : "$1FFFFFFF|$00FF0000|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Symbol",
+              Value : "$1FFFFFFF|$000000FF|$1FFFFFFF|0|1|0|0"
+            }
+          ]
+        },
+        {
+          Name : "PHP",
+          Attributes : [
+            {
+              Name : "Comment",
+              Value : "$1FFFFFFF|$00FF0000|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Default text",
+              Value : "$80000005|$80000008|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Identifier",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Invalid symbol",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Number",
+              Value : "$1FFFFFFF|$00800000|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Reserved word",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Space",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "String",
+              Value : "$1FFFFFFF|$00FF0000|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Symbol",
+              Value : "$1FFFFFFF|$000000FF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Variable",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            }
+          ]
+        },
+        {
+          Name : "Perl",
+          Attributes : [
+            {
+              Name : "Comment",
+              Value : "$1FFFFFFF|$00FF0000|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Default text",
+              Value : "$80000005|$80000008|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Identifier",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Illegal char",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Number",
+              Value : "$1FFFFFFF|$00800000|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Operator",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Pragma",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Reserved word",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Space",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "String",
+              Value : "$1FFFFFFF|$00800000|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Symbol",
+              Value : "$1FFFFFFF|$000000FF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Variable",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|1|0"
+            }
+          ]
+        },
+        {
+          Name : "Python",
+          Attributes : [
+            {
+              Name : "Comment",
+              Value : "$1FFFFFFF|$00808080|$1FFFFFFF|0|1|2|0"
+            },
+            {
+              Name : "Default text",
+              Value : "$80000005|$80000008|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Documentation",
+              Value : "$1FFFFFFF|$00808000|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Float",
+              Value : "$1FFFFFFF|$00FF0000|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Hexadecimal",
+              Value : "$1FFFFFFF|$00FF0000|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Identifier",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Non-reserved keyword",
+              Value : "$1FFFFFFF|$00800000|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Number",
+              Value : "$1FFFFFFF|$00FF0000|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Octal",
+              Value : "$1FFFFFFF|$00FF0000|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Reserved word",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Space",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "String",
+              Value : "$1FFFFFFF|$00FF0000|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Symbol",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "SyntaxError",
+              Value : "$1FFFFFFF|$000000FF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "System functions and variables",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|1|0"
+            }
+          ]
+        },
+        {
+          Name : "SQL",
+          Attributes : [
+            {
+              Name : "Comment",
+              Value : "$1FFFFFFF|$00FF0000|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Data type",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Default packages",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Default text",
+              Value : "$80000005|$80000008|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Exception",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|2|0"
+            },
+            {
+              Name : "Function",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Identifier",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Number",
+              Value : "$1FFFFFFF|$00800000|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Reserved word",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Reserved word (PL/SQL)",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Space",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "SQL*Plus command",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "String",
+              Value : "$1FFFFFFF|$00FF0000|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Symbol",
+              Value : "$1FFFFFFF|$000000FF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Table Name",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Variable",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            }
+          ]
+        },
+        {
+          Name : "TeX",
+          Attributes : [
+            {
+              Name : "Comment",
+              Value : "$1FFFFFFF|$00808000|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Default text",
+              Value : "$80000005|$80000008|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Math Mode",
+              Value : "$1FFFFFFF|$00008080|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Round Bracket",
+              Value : "$1FFFFFFF|$000000FF|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Space",
+              Value : "$00FFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Square Bracket",
+              Value : "$1FFFFFFF|$00800080|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "TeX Command",
+              Value : "$00FFFFFF|$00FF0000|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Text",
+              Value : "$1FFFFFFF|$00000000|$1FFFFFFF|0|1|0|0"
+            }
+          ]
+        },
+        {
+          Name : "UNIX Shell Script",
+          Attributes : [
+            {
+              Name : "Comment",
+              Value : "$1FFFFFFF|$00008000|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Default text",
+              Value : "$80000005|$80000008|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Identifier",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Number",
+              Value : "$1FFFFFFF|$00FF0000|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Reserved word",
+              Value : "$1FFFFFFF|$00800000|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Second reserved word",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Space",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "String",
+              Value : "$1FFFFFFF|$00000080|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Symbol",
+              Value : "$1FFFFFFF|$000000FF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Variable",
+              Value : "$1FFFFFFF|$00800080|$1FFFFFFF|0|1|0|0"
+            }
+          ]
+        },
+        {
+          Name : "Visual Basic",
+          Attributes : [
+            {
+              Name : "Comment",
+              Value : "$1FFFFFFF|$00FF0000|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Default text",
+              Value : "$80000005|$80000008|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Identifier",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Number",
+              Value : "$1FFFFFFF|$00800000|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Reserved word",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Space",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "String",
+              Value : "$1FFFFFFF|$00FF0000|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Symbol",
+              Value : "$1FFFFFFF|$000000FF|$1FFFFFFF|0|1|0|0"
+            }
+          ]
+        },
+        {
+          Name : "XML document",
+          Attributes : [
+            {
+              Name : "Attribute Name",
+              Value : "$1FFFFFFF|$00000080|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Attribute Value",
+              Value : "$1FFFFFFF|$00800000|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "CDATA Section",
+              Value : "$1FFFFFFF|$00008080|$1FFFFFFF|0|1|2|0"
+            },
+            {
+              Name : "Comment",
+              Value : "$00C0C0C0|$00808080|$1FFFFFFF|0|1|3|0"
+            },
+            {
+              Name : "Default text",
+              Value : "$80000005|$80000008|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "DOCTYPE Section",
+              Value : "$1FFFFFFF|$00FF0000|$1FFFFFFF|0|1|2|0"
+            },
+            {
+              Name : "Element Name",
+              Value : "$1FFFFFFF|$00000080|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Entity Reference",
+              Value : "$1FFFFFFF|$00FF0000|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Namespace Attribute Name",
+              Value : "$1FFFFFFF|$000000FF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Namespace Attribute Value",
+              Value : "$1FFFFFFF|$000000FF|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Processing Instruction",
+              Value : "$1FFFFFFF|$00FF0000|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Symbol",
+              Value : "$1FFFFFFF|$00FF0000|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Text",
+              Value : "$1FFFFFFF|$00000000|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Whitespace",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            }
+          ]
+        },
+        {
+          Name : "po language files",
+          Attributes : [
+            {
+              Name : "Comment",
+              Value : "$1FFFFFFF|$00008000|$1FFFFFFF|0|1|2|0"
+            },
+            {
+              Name : "Default text",
+              Value : "$80000005|$80000008|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Flags",
+              Value : "$1FFFFFFF|$00808000|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Identifier",
+              Value : "$1FFFFFFF|$00008000|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Key",
+              Value : "$1FFFFFFF|$00FF0000|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Previous value",
+              Value : "$1FFFFFFF|$00008080|$1FFFFFFF|0|1|2|0"
+            },
+            {
+              Name : "Space",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "String",
+              Value : "$1FFFFFFF|$00FF00FF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Text",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            }
+          ]
+        }
+      ],
+      UniHighlighters : [
+        {
+          Name : "Assembler (x86)",
+          Ranges : [
+            {
+              Name : "Root",
+              Attributes : "$80000008,$80000005;False:False.",
+              Sets : [
+                {
+                  Name : "Numbers",
+                  Attributes : "$00000080,$80000005;False:True."
+                }
+              ],
+              KeyLists : [
+                {
+                  Name : "Commands",
+                  Attributes : "$00008000,$80000005;False:True."
+                },
+                {
+                  Name : "Commands SSE2",
+                  Attributes : "$00008000,$80000005;False:True."
+                },
+                {
+                  Name : "Registers",
+                  Attributes : "$00FF0080,$80000005;False:True."
+                },
+                {
+                  Name : "Registers x86_64",
+                  Attributes : "$00FF0080,$80000005;False:True."
+                },
+                {
+                  Name : "Key Words",
+                  Attributes : "$00808000,$80000005;False:True."
+                },
+                {
+                  Name : "Segments",
+                  Attributes : "$00FF00FF,$80000005;False:True.B"
+                }
+              ],
+              Ranges : [
+                {
+                  Name : "Remarks",
+                  Attributes : "$00800000,$80000005;False:True."
+                },
+                {
+                  Name : "String",
+                  Attributes : "$000000FF,$80000005;False:True."
+                },
+                {
+                  Name : ".",
+                  Attributes : "$00FF0000,$80000005;False:True."
+                },
+                {
+                  Name : "@",
+                  Attributes : "$000080FF,$80000005;False:True."
+                },
+                {
+                  Name : "String",
+                  Attributes : "$000000FF,$80000005;False:True."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          Name : "C#",
+          Ranges : [
+            {
+              Name : "Root",
+              Attributes : "$80000008,$80000005;False:False.",
+              KeyLists : [
+                {
+                  Name : "Keywords",
+                  Attributes : "$00008000,$80000005;False:True."
+                },
+                {
+                  Name : "Contextual keywords",
+                  Attributes : "$00008000,$80000005;False:True."
+                },
+                {
+                  Name : "Data types",
+                  Attributes : "$00FF0000,$80000005;False:True."
+                },
+                {
+                  Name : ".NET Data types",
+                  Attributes : "$00008080,$80000005;False:True."
+                },
+                {
+                  Name : "Preprocessor directives",
+                  Attributes : "$00FF0080,$80000005;False:True."
+                },
+                {
+                  Name : "Operators",
+                  Attributes : "$000080FF,$80000005;False:True."
+                }
+              ],
+              Ranges : [
+                {
+                  Name : "Strings '..'",
+                  Attributes : "$000000FF,$80000005;False:True."
+                },
+                {
+                  Name : "Strings \"..\"",
+                  Attributes : "$000000FF,$80000005;False:True.",
+                  KeyLists : [
+                    {
+                      Name : "Escape",
+                      Attributes : "$000000FF,$80000005;True:True."
+                    }
+                  ]
+                },
+                {
+                  Name : "Remarks //",
+                  Attributes : "$00800000,$80000005;False:True."
+                },
+                {
+                  Name : "Remarks /*..*/",
+                  Attributes : "$00800000,$80000005;False:True."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          Name : "DC Error File",
+          Ranges : [
+            {
+              Name : "Root",
+              Attributes : "$80000008,$80000005;False:False.",
+              Sets : [
+                {
+                  Name : "Digits",
+                  Attributes : "$00808000,$1FFFFFFF;False:False."
+                }
+              ],
+              KeyLists : [
+                {
+                  Name : "Keywords",
+                  Attributes : "$00800000,$1FFFFFFF;False:False."
+                }
+              ],
+              Ranges : [
+                {
+                  Name : "Date",
+                  Attributes : "$00800000,$1FFFFFFF;False:True."
+                },
+                {
+                  Name : "About",
+                  Attributes : "$00800080,$1FFFFFFF;False:False."
+                },
+                {
+                  Name : "Exception",
+                  Attributes : "$000000D2,$1FFFFFFF;False:False."
+                },
+                {
+                  Name : "Address",
+                  Attributes : "$00000096,$1FFFFFFF;False:False."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          Name : "Go",
+          Ranges : [
+            {
+              Name : "Root",
+              Attributes : "$80000008,$80000005;False:False.",
+              KeyLists : [
+                {
+                  Name : "Keywords",
+                  Attributes : "$00FF0000,$80000005;False:True."
+                },
+                {
+                  Name : "Types",
+                  Attributes : "$00000080,$80000005;False:True."
+                },
+                {
+                  Name : "Functions",
+                  Attributes : "$00800000,$80000005;False:True."
+                }
+              ],
+              Ranges : [
+                {
+                  Name : "Strings `..`",
+                  Attributes : "$00696969,$80000005;False:True."
+                },
+                {
+                  Name : "Strings \"..\"",
+                  Attributes : "$00696969,$80000005;False:True.",
+                  KeyLists : [
+                    {
+                      Name : "Escape",
+                      Attributes : "$00696969,$80000005;True:True."
+                    }
+                  ]
+                },
+                {
+                  Name : "Remarks //",
+                  Attributes : "$00008000,$80000005;False:True."
+                },
+                {
+                  Name : "Remarks /*..*/",
+                  Attributes : "$00008000,$80000005;False:True."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          Name : "JSON",
+          Ranges : [
+            {
+              Name : "Root",
+              Attributes : "$80000008,$80000005;False:False.",
+              Sets : [
+                {
+                  Name : "Numbers",
+                  Attributes : "$00008000,$80000005;False:True."
+                }
+              ],
+              KeyLists : [
+                {
+                  Name : "Keywords",
+                  Attributes : "$000080FF,$80000005;False:True."
+                },
+                {
+                  Name : "Punctuators",
+                  Attributes : "$00800000,$80000005;False:True."
+                }
+              ],
+              Ranges : [
+                {
+                  Name : "Strings \"..\"",
+                  Attributes : "$00000080,$80000005;False:True.",
+                  KeyLists : [
+                    {
+                      Name : "Escape",
+                      Attributes : "$00000080,$80000005;True:True."
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          Name : "Java script",
+          Ranges : [
+            {
+              Name : "Root",
+              Attributes : "$80000008,$80000005;False:False.",
+              KeyLists : [
+                {
+                  Name : "Functions and key words",
+                  Attributes : "$00008000,$80000005;False:True."
+                },
+                {
+                  Name : "Reserved words",
+                  Attributes : "$00FF0000,$80000005;False:True."
+                },
+                {
+                  Name : "Common Events",
+                  Attributes : "$00FF0080,$80000005;False:True."
+                }
+              ],
+              Ranges : [
+                {
+                  Name : "Remark //",
+                  Attributes : "$00A00000,$80000005;False:True."
+                },
+                {
+                  Name : "Remark /*...*/",
+                  Attributes : "$00A00000,$80000005;False:True."
+                },
+                {
+                  Name : "Strings '..'",
+                  Attributes : "$000000FF,$80000005;False:True.",
+                  KeyLists : [
+                    {
+                      Name : "Escape",
+                      Attributes : "$000000FF,$80000005;True:True."
+                    }
+                  ]
+                },
+                {
+                  Name : "Strings \"..\"",
+                  Attributes : "$000000FF,$80000005;False:True.",
+                  KeyLists : [
+                    {
+                      Name : "Escape",
+                      Attributes : "$000000FF,$80000005;True:True."
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          Name : "Kotlin",
+          Ranges : [
+            {
+              Name : "Root",
+              Attributes : "$80000008,$80000005;False:False.",
+              Sets : [
+                {
+                  Name : "Numbers",
+                  Attributes : "$00FF0000,$80000005;False:True."
+                }
+              ],
+              KeyLists : [
+                {
+                  Name : "Keywords",
+                  Attributes : "$00800000,$80000005;False:True.B"
+                },
+                {
+                  Name : "Contextual keywords",
+                  Attributes : "$00800000,$80000005;False:True.B"
+                },
+                {
+                  Name : "Modifier keywords",
+                  Attributes : "$00800000,$80000005;False:True.B"
+                },
+                {
+                  Name : "Special Identifiers",
+                  Attributes : "$00000000,$80000005;False:True.B"
+                },
+                {
+                  Name : "Basic data types",
+                  Attributes : "$1FFFFFFF,$80000005;False:True."
+                }
+              ],
+              Ranges : [
+                {
+                  Name : "@Annotation",
+                  Attributes : "$00008080,$80000005;False:True."
+                },
+                {
+                  Name : "Strings '..'",
+                  Attributes : "$00008000,$80000005;False:True.B"
+                },
+                {
+                  Name : "Strings \"..\"",
+                  Attributes : "$00008000,$80000005;False:True.B",
+                  KeyLists : [
+                    {
+                      Name : "Escape",
+                      Attributes : "$00800000,$80000005;True:True."
+                    }
+                  ]
+                },
+                {
+                  Name : "Remarks //",
+                  Attributes : "$00808080,$80000005;False:True."
+                },
+                {
+                  Name : "Remarks /*..*/",
+                  Attributes : "$00808080,$80000005;False:True."
+                },
+                {
+                  Name : "Remarks /**..*/",
+                  Attributes : "$00808080,$80000005;False:True.I"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          Name : "PowerShell",
+          Ranges : [
+            {
+              Name : "Root",
+              Attributes : "$80000008,$80000005;False:False.",
+              KeyLists : [
+                {
+                  Name : "Keywords",
+                  Attributes : "$00FF0000,$80000005;False:True."
+                },
+                {
+                  Name : "Aliases",
+                  Attributes : "$00C08000,$80000005;False:True."
+                },
+                {
+                  Name : "Functions",
+                  Attributes : "$00000080,$80000005;False:True."
+                },
+                {
+                  Name : "Cmdlets",
+                  Attributes : "$00800080,$80000005;False:True."
+                }
+              ],
+              Ranges : [
+                {
+                  Name : "Strings @'..'@",
+                  Attributes : "$000000FF,$80000005;False:True."
+                },
+                {
+                  Name : "Strings @\"..\"@",
+                  Attributes : "$000000FF,$80000005;False:True."
+                },
+                {
+                  Name : "Strings '..'",
+                  Attributes : "$000000FF,$80000005;False:True."
+                },
+                {
+                  Name : "Strings \"..\"",
+                  Attributes : "$000000FF,$80000005;False:True."
+                },
+                {
+                  Name : "Remarks #",
+                  Attributes : "$00800000,$80000005;False:True."
+                },
+                {
+                  Name : "Remarks <#..#>",
+                  Attributes : "$00800000,$80000005;False:True."
+                },
+                {
+                  Name : "Variables",
+                  Attributes : "$00008000,$80000005;False:True."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          Name : "QML",
+          Ranges : [
+            {
+              Name : "Root",
+              Attributes : "$80000008,$80000005;False:False.",
+              KeyLists : [
+                {
+                  Name : "Keywords",
+                  Attributes : "$00008080,$80000005;False:True."
+                },
+                {
+                  Name : "Basic types",
+                  Attributes : "$00008080,$80000005;False:True."
+                },
+                {
+                  Name : "QtQuick Object Types",
+                  Attributes : "$00800080,$80000005;False:True."
+                },
+                {
+                  Name : "Aurora & Sailfish Silica Types",
+                  Attributes : "$00800080,$80000005;False:True."
+                }
+              ],
+              Ranges : [
+                {
+                  Name : "Strings '..'",
+                  Attributes : "$00008000,$80000005;False:True."
+                },
+                {
+                  Name : "Strings \"..\"",
+                  Attributes : "$00008000,$80000005;False:True."
+                },
+                {
+                  Name : "Remarks //",
+                  Attributes : "$00008000,$80000005;False:True."
+                },
+                {
+                  Name : "Remarks /*..*/",
+                  Attributes : "$00008000,$80000005;False:True."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          Name : "Rust",
+          Ranges : [
+            {
+              Name : "Root",
+              Attributes : "$80000008,$80000005;False:False.",
+              KeyLists : [
+                {
+                  Name : "Keywords",
+                  Attributes : "$00FF0000,$80000005;False:True."
+                },
+                {
+                  Name : "Macros",
+                  Attributes : "$00800000,$80000005;False:True."
+                },
+                {
+                  Name : "Operators",
+                  Attributes : "$00CC3299,$80000005;False:True."
+                },
+                {
+                  Name : "Punctuators",
+                  Attributes : "$000000FF,$80000005;False:True."
+                },
+                {
+                  Name : "Types",
+                  Attributes : "$00000080,$80000005;False:True."
+                },
+                {
+                  Name : "Complex types",
+                  Attributes : "$00000080,$80000005;False:True."
+                }
+              ],
+              Ranges : [
+                {
+                  Name : "Remarks //",
+                  Attributes : "$00008000,$80000005;False:True."
+                },
+                {
+                  Name : "Remarks /*..*/",
+                  Attributes : "$00008000,$80000005;False:True."
+                },
+                {
+                  Name : "Strings \"..\"",
+                  Attributes : "$00696969,$80000005;False:True.",
+                  KeyLists : [
+                    {
+                      Name : "Escape",
+                      Attributes : "$00696969,$80000005;True:True."
+                    }
+                  ]
+                },
+                {
+                  Name : "Chars '..'",
+                  Attributes : "$00696969,$80000005;False:True."
+                },
+                {
+                  Name : "Attributes (outer)",
+                  Attributes : "$00000096,$80000005;False:True."
+                },
+                {
+                  Name : "Attributes (inner)",
+                  Attributes : "$00000096,$80000005;False:True."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          Name : "Swift",
+          Ranges : [
+            {
+              Name : "Root",
+              Attributes : "$80000008,$80000005;False:False.",
+              KeyLists : [
+                {
+                  Name : "Keywords",
+                  Attributes : "$00FF0000,$00FFFFFF;False:True."
+                },
+                {
+                  Name : "Operators",
+                  Attributes : "$00CC3299,$80000005;False:True."
+                },
+                {
+                  Name : "Punctuators",
+                  Attributes : "$000000FF,$80000005;False:True."
+                },
+                {
+                  Name : "Types",
+                  Attributes : "$00000080,$00FFFFFF;False:True."
+                }
+              ],
+              Ranges : [
+                {
+                  Name : "Remarks //",
+                  Attributes : "$00008000,$00FFFFFF;False:True."
+                },
+                {
+                  Name : "Remarks /*..*/",
+                  Attributes : "$00008000,$00FFFFFF;False:True."
+                },
+                {
+                  Name : "Strings \"..\"",
+                  Attributes : "$00696969,$00FFFFFF;False:True.",
+                  KeyLists : [
+                    {
+                      Name : "Escape",
+                      Attributes : "$00696969,$00FFFFFF;True:True."
+                    }
+                  ]
+                },
+                {
+                  Name : "Strings \"\"\"...\"\"\"",
+                  Attributes : "$00696969,$00FFFFFF;False:True."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      Name : "Dark",
+      FilePanel : {
+        CursorBorderColor : -2147483635,
+        ForeColor : -2147483640,
+        BackColor : -2147483643,
+        BackColor2 : -2147483643,
+        MarkColor : 255,
+        CursorColor : -2147483635,
+        CursorText : -2147483634,
+        GridLine : 4737096,
+        InactiveCursorColor : -2147483645,
+        InactiveMarkColor : 128
+      },
+      FreeSpaceIndicator : {
+        ForeColor : 0,
+        BackColor : 16777215,
+        ThresholdForeColor : 255
+      },
+      Path : {
+        ActiveColor : -2147483635,
+        ActiveFontColor : -2147483634,
+        InactiveColor : -2147483633,
+        InactiveFontColor : -2147483630
+      },
+      Log : {
+        InfoColor : 12622689,
+        ErrorColor : 6383296,
+        SuccessColor : 9097847
+      },
+      SyncDirs : {
+        LeftColor : 9097847,
+        RightColor : 12622689,
+        UnknownColor : 6383296
+      },
+      Viewer : {
+        ImageBackColor1 : -2147483643,
+        ImageBackColor2 : 536870912,
+        BookBackgroundColor : 0,
+        BookFontColor : 16777215
+      },
+      Differ : {
+        AddedColor : 9097847,
+        DeletedColor : 6383296,
+        ModifiedColor : 12622689,
+        ModifiedBinaryColor : 6383296
+      },
+      TreeViewMenu : {
+        BackgroundColor : -2147483617,
+        ShortcutColor : 255,
+        NormalTextColor : -2147483640,
+        SecondaryTextColor : -2147483642,
+        FoundTextColor : -2147483635,
+        UnselectableTextColor : -2147483631,
+        CursorColor : -2147483635,
+        ShortcutUnderCursor : -2147483634,
+        NormalTextUnderCursor : -2147483634,
+        SecondaryTextUnderCursor : -2147483628,
+        FoundTextUnderCursor : 65535,
+        UnselectableUnderCursor : -2147483631
+      },
+      ColumnSets : [
+        {
+          Unique : "DA3DE4A5-88FA-4776-9C06-79AB5E7BD262",
+          Name : "Default",
+          CursorBorderColor : -2147483635,
+          Columns : [
+            {
+              Unique : "2CA02056-2300-428B-9B5D-6AF6A1E0A177",
+              Title : "Name",
+              TextColor : -2147483640,
+              Background : -2147483643,
+              Background2 : -2147483643,
+              MarkColor : 255,
+              CursorColor : -2147483635,
+              CursorText : -2147483634,
+              InactiveCursorColor : -2147483645,
+              InactiveMarkColor : 128
+            },
+            {
+              Unique : "F25C602E-DEB0-4CF3-BDEC-9EFE3F6D7FB2",
+              Title : "Ext",
+              TextColor : -2147483640,
+              Background : -2147483643,
+              Background2 : -2147483643,
+              MarkColor : 255,
+              CursorColor : -2147483635,
+              CursorText : -2147483634,
+              InactiveCursorColor : -2147483645,
+              InactiveMarkColor : 128
+            },
+            {
+              Unique : "6E5E66DB-A8BF-4575-801F-0A50AD788EEC",
+              Title : "Size",
+              TextColor : -2147483640,
+              Background : -2147483643,
+              Background2 : -2147483643,
+              MarkColor : 255,
+              CursorColor : -2147483635,
+              CursorText : -2147483634,
+              InactiveCursorColor : -2147483645,
+              InactiveMarkColor : 128
+            },
+            {
+              Unique : "5CBE09DC-D457-4345-B845-3D056A1714A1",
+              Title : "Date",
+              TextColor : -2147483640,
+              Background : -2147483643,
+              Background2 : -2147483643,
+              MarkColor : 255,
+              CursorColor : -2147483635,
+              CursorText : -2147483634,
+              InactiveCursorColor : -2147483645,
+              InactiveMarkColor : 128
+            },
+            {
+              Unique : "3C651888-5720-4602-BADE-519D6470BCD0",
+              Title : "Attr",
+              TextColor : -2147483640,
+              Background : -2147483643,
+              Background2 : -2147483643,
+              MarkColor : 255,
+              CursorColor : -2147483635,
+              CursorText : -2147483634,
+              InactiveCursorColor : -2147483645,
+              InactiveMarkColor : 128
+            }
+          ]
+        }
+      ],
+      Highlighters : [
+        {
+          Name : "Plain text",
+          Attributes : [
+            {
+              Name : "Default text",
+              Value : "$80000005|$80000008|$1FFFFFFF|0|1|0|0"
+            }
+          ]
+        },
+        {
+          Name : "C++",
+          Attributes : [
+            {
+              Name : "Assembler",
+              Value : "$1FFFFFFF|$008AD277|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Comment",
+              Value : "$1FFFFFFF|$00C09B61|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Default text",
+              Value : "$80000005|$80000008|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Identifier",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Illegal char",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Number",
+              Value : "$1FFFFFFF|$00E8BCBC|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Preprocessor",
+              Value : "$1FFFFFFF|$00C09B61|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Reserved word",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Space",
+              Value : "$1FFFFFFF|$80000005|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "String",
+              Value : "$1FFFFFFF|$00C09B61|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Symbol",
+              Value : "$1FFFFFFF|$00898BB9|$1FFFFFFF|0|1|0|0"
+            }
+          ]
+        },
+        {
+          Name : "Cascading style sheets",
+          Attributes : [
+            {
+              Name : "Comment",
+              Value : "$1FFFFFFF|$00C09B61|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Default text",
+              Value : "$80000005|$80000008|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Identifier",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Key",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Measurement unit",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Number",
+              Value : "$1FFFFFFF|$00DA9396|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Selector",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Space",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "String",
+              Value : "$1FFFFFFF|$00C09B61|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Symbol",
+              Value : "$1FFFFFFF|$006166C0|$1FFFFFFF|0|1|0|0"
+            }
+          ]
+        },
+        {
+          Name : "Diff File",
+          Attributes : [
+            {
+              Name : "Default text",
+              Value : "$80000005|$80000008|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Diff Added line",
+              Value : "$1FFFFFFF|$008AD277|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Diff Changed Line",
+              Value : "$1FFFFFFF|$00C09B61|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Diff Chunk Line Counts",
+              Value : "$1FFFFFFF|$00C09B61|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Diff Chunk Marker",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Diff Chunk New Line Count",
+              Value : "$1FFFFFFF|$008AD277|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Diff Chunk Original Line Count",
+              Value : "$1FFFFFFF|$006166C0|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Diff Context Line",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Diff New File",
+              Value : "$0076E56C|$80000011|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Diff Original File",
+              Value : "$006C6CE5|$80000017|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Diff Removed Line",
+              Value : "$1FFFFFFF|$006166C0|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Space",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Unknown word",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|2|0"
+            }
+          ]
+        },
+        {
+          Name : "HTML document",
+          Attributes : [
+            {
+              Name : "Asp",
+              Value : "$0000FFFF|$00000000|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "CDATA",
+              Value : "$1FFFFFFF|$008AD277|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Comment",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Default text",
+              Value : "$80000005|$80000008|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "DOCTYPE",
+              Value : "$0000FFFF|$00000000|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Escape ampersand",
+              Value : "$1FFFFFFF|$008AD277|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Identifier",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Reserved word",
+              Value : "$1FFFFFFF|$00D15894|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Space",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Symbol",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Text",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Unknown word",
+              Value : "$1FFFFFFF|$006166C0|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Value",
+              Value : "$1FFFFFFF|$00FBA249|$1FFFFFFF|0|1|0|0"
+            }
+          ]
+        },
+        {
+          Name : "INI file",
+          Attributes : [
+            {
+              Name : "Comment",
+              Value : "$1FFFFFFF|$008AD277|$1FFFFFFF|0|1|2|0"
+            },
+            {
+              Name : "Default text",
+              Value : "$80000005|$80000008|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Key",
+              Value : "$1FFFFFFF|$00D4914E|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Number",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Section",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Space",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "String",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Symbol",
+              Value : "$1FFFFFFF|$006166C0|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Text",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            }
+          ]
+        },
+        {
+          Name : "Java",
+          Attributes : [
+            {
+              Name : "Annotation",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Comment",
+              Value : "$1FFFFFFF|$00FF8000|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Default text",
+              Value : "$80000005|$80000008|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Documentation",
+              Value : "$1FFFFFFF|$00FF8000|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Identifier",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Invalid symbol",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Number",
+              Value : "$1FFFFFFF|$00C28789|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Reserved word",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Space",
+              Value : "$1FFFFFFF|$80000005|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "String",
+              Value : "$1FFFFFFF|$00FF8000|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Symbol",
+              Value : "$1FFFFFFF|$006166C0|$1FFFFFFF|0|1|0|0"
+            }
+          ]
+        },
+        {
+          Name : "Lazarus Form definition",
+          Attributes : [
+            {
+              Name : "Comment",
+              Value : "$1FFFFFFF|$00FF8000|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Default text",
+              Value : "$80000005|$80000008|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Identifier",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Key",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Number",
+              Value : "$1FFFFFFF|$00E8BCBC|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Space",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "String",
+              Value : "$1FFFFFFF|$00FF8000|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Symbol",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            }
+          ]
+        },
+        {
+          Name : "Lua Script",
+          Attributes : [
+            {
+              Name : "Comment",
+              Value : "$1FFFFFFF|$008AD277|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Default text",
+              Value : "$80000005|$80000008|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Function",
+              Value : "$1FFFFFFF|$00D5A6A6|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Identifier",
+              Value : "$1FFFFFFF|$80000008|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Number",
+              Value : "$1FFFFFFF|$00AC95B3|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Reserved word",
+              Value : "$1FFFFFFF|$00ECA761|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Space",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "String",
+              Value : "$1FFFFFFF|$00837189|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Symbol",
+              Value : "$1FFFFFFF|$00E8BCBC|$1FFFFFFF|0|1|0|0"
+            }
+          ]
+        },
+        {
+          Name : "MS-DOS batch language",
+          Attributes : [
+            {
+              Name : "Comment",
+              Value : "$1FFFFFFF|$00C09B61|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Default text",
+              Value : "$80000005|$80000008|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Identifier",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Key",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Number",
+              Value : "$1FFFFFFF|$00E8BCBC|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Space",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Variable",
+              Value : "$1FFFFFFF|$008AD277|$1FFFFFFF|0|1|0|0"
+            }
+          ]
+        },
+        {
+          Name : "ObjectPascal",
+          Attributes : [
+            {
+              Name : "Assembler",
+              Value : "$1FFFFFFF|$008AD277|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Case label",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Comment",
+              Value : "$1FFFFFFF|$00C09B61|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Default text",
+              Value : "$80000005|$80000008|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Directive",
+              Value : "$1FFFFFFF|$006166C0|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "IDE Directive",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Identifier",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Modifier",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Number",
+              Value : "$1FFFFFFF|$00E8BCBC|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "PasDoc-Keyword",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "PasDoc-Symbol",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "PasDoc-Unknown",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Procedure header name",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Reserved word",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Space",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "String",
+              Value : "$1FFFFFFF|$00C09B61|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Symbol",
+              Value : "$1FFFFFFF|$006166C0|$1FFFFFFF|0|1|0|0"
+            }
+          ]
+        },
+        {
+          Name : "PHP",
+          Attributes : [
+            {
+              Name : "Comment",
+              Value : "$1FFFFFFF|$00C09B61|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Default text",
+              Value : "$80000005|$80000008|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Identifier",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Invalid symbol",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Number",
+              Value : "$1FFFFFFF|$00E8BCBC|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Reserved word",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Space",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "String",
+              Value : "$1FFFFFFF|$00C09B61|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Symbol",
+              Value : "$1FFFFFFF|$006166C0|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Variable",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            }
+          ]
+        },
+        {
+          Name : "Perl",
+          Attributes : [
+            {
+              Name : "Comment",
+              Value : "$1FFFFFFF|$00C09B61|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Default text",
+              Value : "$80000005|$80000008|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Identifier",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Illegal char",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Number",
+              Value : "$1FFFFFFF|$00E8BCBC|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Operator",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Pragma",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Reserved word",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Space",
+              Value : "$1FFFFFFF|$80000005|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "String",
+              Value : "$1FFFFFFF|$00E8BCBC|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Symbol",
+              Value : "$1FFFFFFF|$006166C0|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Variable",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|1|0"
+            }
+          ]
+        },
+        {
+          Name : "Python",
+          Attributes : [
+            {
+              Name : "Comment",
+              Value : "$1FFFFFFF|$00808080|$1FFFFFFF|0|1|2|0"
+            },
+            {
+              Name : "Default text",
+              Value : "$80000005|$80000008|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Documentation",
+              Value : "$1FFFFFFF|$00808000|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Float",
+              Value : "$1FFFFFFF|$00C09B61|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Hexadecimal",
+              Value : "$1FFFFFFF|$00C09B61|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Identifier",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Non-reserved keyword",
+              Value : "$1FFFFFFF|$00E8BCBC|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Number",
+              Value : "$1FFFFFFF|$00C09B61|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Octal",
+              Value : "$1FFFFFFF|$00C09B61|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Reserved word",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Space",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "String",
+              Value : "$1FFFFFFF|$00C09B61|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Symbol",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "SyntaxError",
+              Value : "$1FFFFFFF|$006166C0|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "System functions and variables",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|1|0"
+            }
+          ]
+        },
+        {
+          Name : "SQL",
+          Attributes : [
+            {
+              Name : "Comment",
+              Value : "$1FFFFFFF|$00C09B61|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Data type",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Default packages",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Default text",
+              Value : "$80000005|$80000008|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Exception",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|2|0"
+            },
+            {
+              Name : "Function",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Identifier",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Number",
+              Value : "$1FFFFFFF|$00E8BCBC|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Reserved word",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Reserved word (PL/SQL)",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Space",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "SQL*Plus command",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "String",
+              Value : "$1FFFFFFF|$00C09B61|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Symbol",
+              Value : "$1FFFFFFF|$004D4DAA|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Table Name",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Variable",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            }
+          ]
+        },
+        {
+          Name : "TeX",
+          Attributes : [
+            {
+              Name : "Comment",
+              Value : "$1FFFFFFF|$00F0CAA6|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Default text",
+              Value : "$80000005|$80000008|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Math Mode",
+              Value : "$1FFFFFFF|$0081D2D2|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Round Bracket",
+              Value : "$1FFFFFFF|$006F6F98|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Space",
+              Value : "$8000001D|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Square Bracket",
+              Value : "$1FFFFFFF|$00AC95B3|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "TeX Command",
+              Value : "$00F0CAA6|$00F0CAA6|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Text",
+              Value : "$1FFFFFFF|$00C0C0C0|$1FFFFFFF|0|1|0|0"
+            }
+          ]
+        },
+        {
+          Name : "UNIX Shell Script",
+          Attributes : [
+            {
+              Name : "Comment",
+              Value : "$1FFFFFFF|$008AD277|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Default text",
+              Value : "$80000005|$80000008|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Identifier",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Number",
+              Value : "$1FFFFFFF|$00C09B61|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Reserved word",
+              Value : "$1FFFFFFF|$00E8BCBC|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Second reserved word",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Space",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "String",
+              Value : "$1FFFFFFF|$00837189|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Symbol",
+              Value : "$1FFFFFFF|$004D4DAA|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Unknown word",
+              Value : "$1FFFFFFF|$00808080|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Variable",
+              Value : "$1FFFFFFF|$00AC95B3|$1FFFFFFF|0|1|0|0"
+            }
+          ]
+        },
+        {
+          Name : "Visual Basic",
+          Attributes : [
+            {
+              Name : "Comment",
+              Value : "$1FFFFFFF|$00C09B61|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Default text",
+              Value : "$80000005|$80000008|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Identifier",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Number",
+              Value : "$1FFFFFFF|$00E8BCBC|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Reserved word",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Space",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "String",
+              Value : "$1FFFFFFF|$00C09B61|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Symbol",
+              Value : "$1FFFFFFF|$004D4DAA|$1FFFFFFF|0|1|0|0"
+            }
+          ]
+        },
+        {
+          Name : "XML document",
+          Attributes : [
+            {
+              Name : "Attribute Name",
+              Value : "$1FFFFFFF|$00817285|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Attribute Value",
+              Value : "$1FFFFFFF|$00E8BCBC|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "CDATA Section",
+              Value : "$1FFFFFFF|$00008080|$1FFFFFFF|0|1|2|0"
+            },
+            {
+              Name : "Comment",
+              Value : "$1FFFFFFF|$00C0C0C0|$1FFFFFFF|0|1|3|0"
+            },
+            {
+              Name : "Default text",
+              Value : "$80000005|$80000008|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "DOCTYPE Section",
+              Value : "$1FFFFFFF|$00C09B61|$1FFFFFFF|0|1|2|0"
+            },
+            {
+              Name : "Element Name",
+              Value : "$1FFFFFFF|$00837189|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Entity Reference",
+              Value : "$1FFFFFFF|$00C09B61|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Namespace Attribute Name",
+              Value : "$1FFFFFFF|$004D4DAA|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Namespace Attribute Value",
+              Value : "$1FFFFFFF|$004D4DAA|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Processing Instruction",
+              Value : "$1FFFFFFF|$00C09B61|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Symbol",
+              Value : "$1FFFFFFF|$00C09B61|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Text",
+              Value : "$1FFFFFFF|$00FFFFFF|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Whitespace",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            }
+          ]
+        },
+        {
+          Name : "po language files",
+          Attributes : [
+            {
+              Name : "Comment",
+              Value : "$1FFFFFFF|$008AD277|$1FFFFFFF|0|1|2|0"
+            },
+            {
+              Name : "Default text",
+              Value : "$80000005|$80000008|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Flags",
+              Value : "$1FFFFFFF|$00808000|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Identifier",
+              Value : "$1FFFFFFF|$008AD277|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Key",
+              Value : "$1FFFFFFF|$00E86363|$1FFFFFFF|0|1|1|0"
+            },
+            {
+              Name : "Previous value",
+              Value : "$1FFFFFFF|$00008080|$1FFFFFFF|0|1|2|0"
+            },
+            {
+              Name : "Space",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "String",
+              Value : "$1FFFFFFF|$00AF77D2|$1FFFFFFF|0|1|0|0"
+            },
+            {
+              Name : "Text",
+              Value : "$1FFFFFFF|$1FFFFFFF|$1FFFFFFF|0|1|0|0"
+            }
+          ]
+        }
+      ],
+      UniHighlighters : [
+        {
+          Name : "Assembler (x86)",
+          Ranges : [
+            {
+              Name : "Root",
+              Attributes : "$80000008,$80000005;False:False.",
+              Sets : [
+                {
+                  Name : "Numbers",
+                  Attributes : "$00E8BCBC,$80000005;False:True."
+                }
+              ],
+              KeyLists : [
+                {
+                  Name : "Commands",
+                  Attributes : "$008AD277,$80000005;False:True."
+                },
+                {
+                  Name : "Commands SSE2",
+                  Attributes : "$00008000,$80000005;False:True."
+                },
+                {
+                  Name : "Registers",
+                  Attributes : "$00E8BCBC,$80000005;False:True."
+                },
+                {
+                  Name : "Registers x86_64",
+                  Attributes : "$00E8BCBC,$80000005;False:True."
+                },
+                {
+                  Name : "Key Words",
+                  Attributes : "$00808000,$80000005;False:True."
+                },
+                {
+                  Name : "Segments",
+                  Attributes : "$00D15894,$80000005;False:True.B"
+                }
+              ],
+              Ranges : [
+                {
+                  Name : "Remarks",
+                  Attributes : "$00C09B61,$80000005;False:True."
+                },
+                {
+                  Name : "String",
+                  Attributes : "$00898BB9,$80000005;False:True."
+                },
+                {
+                  Name : ".",
+                  Attributes : "$00FBA249,$80000005;False:True."
+                },
+                {
+                  Name : "@",
+                  Attributes : "$000080FF,$80000005;False:True."
+                },
+                {
+                  Name : "String",
+                  Attributes : "$00898BB9,$80000005;False:True."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          Name : "C#",
+          Ranges : [
+            {
+              Name : "Root",
+              Attributes : "$80000008,$80000005;False:False.",
+              KeyLists : [
+                {
+                  Name : "Keywords",
+                  Attributes : "$00008000,$80000005;False:True."
+                },
+                {
+                  Name : "Contextual keywords",
+                  Attributes : "$00008000,$80000005;False:True."
+                },
+                {
+                  Name : "Data types",
+                  Attributes : "$00FBA249,$80000005;False:True."
+                },
+                {
+                  Name : ".NET Data types",
+                  Attributes : "$00008080,$80000005;False:True."
+                },
+                {
+                  Name : "Preprocessor directives",
+                  Attributes : "$00D15894,$80000005;False:True."
+                },
+                {
+                  Name : "Operators",
+                  Attributes : "$000080FF,$80000005;False:True."
+                }
+              ],
+              Ranges : [
+                {
+                  Name : "Strings '..'",
+                  Attributes : "$00898BB9,$80000005;False:True."
+                },
+                {
+                  Name : "Strings \"..\"",
+                  Attributes : "$00898BB9,$80000005;False:True.",
+                  KeyLists : [
+                    {
+                      Name : "Escape",
+                      Attributes : "$00898BB9,$80000005;True:True."
+                    }
+                  ]
+                },
+                {
+                  Name : "Remarks //",
+                  Attributes : "$00C09B61,$80000005;False:True."
+                },
+                {
+                  Name : "Remarks /*..*/",
+                  Attributes : "$00C09B61,$80000005;False:True."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          Name : "DC Error File",
+          Ranges : [
+            {
+              Name : "Root",
+              Attributes : "$00AAAAAA,$80000005;False:False.",
+              Sets : [
+                {
+                  Name : "Digits",
+                  Attributes : "$00C09B61,$80000005;False:False."
+                }
+              ],
+              KeyLists : [
+                {
+                  Name : "Keywords",
+                  Attributes : "$00C09B61,$80000005;False:False."
+                }
+              ],
+              Ranges : [
+                {
+                  Name : "Date",
+                  Attributes : "$00000000,$008AD277;False:False."
+                },
+                {
+                  Name : "About",
+                  Attributes : "$008AD277,$80000005;False:False."
+                },
+                {
+                  Name : "Exception",
+                  Attributes : "$00898BB9,$80000005;False:False."
+                },
+                {
+                  Name : "Address",
+                  Attributes : "$00898BB9,$80000005;False:False."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          Name : "Go",
+          Ranges : [
+            {
+              Name : "Root",
+              Attributes : "$80000008,$80000005;False:False.",
+              KeyLists : [
+                {
+                  Name : "Keywords",
+                  Attributes : "$00D69C56,$80000005;False:True."
+                },
+                {
+                  Name : "Types",
+                  Attributes : "$00B0C94E,$80000005;False:True."
+                },
+                {
+                  Name : "Functions",
+                  Attributes : "$00FFC14F,$80000005;False:True."
+                }
+              ],
+              Ranges : [
+                {
+                  Name : "Strings `..`",
+                  Attributes : "$007891CE,$80000005;False:True."
+                },
+                {
+                  Name : "Strings \"..\"",
+                  Attributes : "$007891CE,$80000005;False:True.",
+                  KeyLists : [
+                    {
+                      Name : "Escape",
+                      Attributes : "$007891CE,$80000005;True:True."
+                    }
+                  ]
+                },
+                {
+                  Name : "Remarks //",
+                  Attributes : "$008AD277,$80000005;False:True."
+                },
+                {
+                  Name : "Remarks /*..*/",
+                  Attributes : "$008AD277,$80000005;False:True."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          Name : "JSON",
+          Ranges : [
+            {
+              Name : "Root",
+              Attributes : "$80000008,$80000005;False:False.",
+              Sets : [
+                {
+                  Name : "Numbers",
+                  Attributes : "$008AD277,$80000005;False:True."
+                }
+              ],
+              KeyLists : [
+                {
+                  Name : "Keywords",
+                  Attributes : "$007891E2,$80000005;False:True."
+                },
+                {
+                  Name : "Punctuators",
+                  Attributes : "$00C09B61,$80000005;False:True."
+                }
+              ],
+              Ranges : [
+                {
+                  Name : "Strings \"..\"",
+                  Attributes : "$00898BB9,$80000005;False:True.",
+                  KeyLists : [
+                    {
+                      Name : "Escape",
+                      Attributes : "$00898BB9,$80000005;True:True."
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          Name : "Java script",
+          Ranges : [
+            {
+              Name : "Root",
+              Attributes : "$80000008,$80000005;False:False.",
+              KeyLists : [
+                {
+                  Name : "Functions and key words",
+                  Attributes : "$008AD277,$80000005;False:True."
+                },
+                {
+                  Name : "Reserved words",
+                  Attributes : "$00E8BCBC,$80000005;False:True."
+                },
+                {
+                  Name : "Common Events",
+                  Attributes : "$00E8BCBC,$80000005;False:True."
+                }
+              ],
+              Ranges : [
+                {
+                  Name : "Remark //",
+                  Attributes : "$00C09B61,$80000005;False:True."
+                },
+                {
+                  Name : "Remark /*...*/",
+                  Attributes : "$00C09B61,$80000005;False:True."
+                },
+                {
+                  Name : "Strings '..'",
+                  Attributes : "$00898BB9,$80000005;False:True.",
+                  KeyLists : [
+                    {
+                      Name : "Escape",
+                      Attributes : "$00898BB9,$80000005;True:True."
+                    }
+                  ]
+                },
+                {
+                  Name : "Strings \"..\"",
+                  Attributes : "$00898BB9,$80000005;False:True.",
+                  KeyLists : [
+                    {
+                      Name : "Escape",
+                      Attributes : "$00898BB9,$80000005;True:True."
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          Name : "Kotlin",
+          Ranges : [
+            {
+              Name : "Root",
+              Attributes : "$80000008,$80000005;False:False.",
+              Sets : [
+                {
+                  Name : "Numbers",
+                  Attributes : "$00B8AC2A,$80000005;False:True."
+                }
+              ],
+              KeyLists : [
+                {
+                  Name : "Keywords",
+                  Attributes : "$006D8ECF,$80000005;False:True."
+                },
+                {
+                  Name : "Contextual keywords",
+                  Attributes : "$006D8ECF,$80000005;False:True."
+                },
+                {
+                  Name : "Modifier keywords",
+                  Attributes : "$006D8ECF,$80000005;False:True."
+                },
+                {
+                  Name : "Special Identifiers",
+                  Attributes : "$1FFFFFFF,$80000005;False:True.B"
+                },
+                {
+                  Name : "Basic data types",
+                  Attributes : "$1FFFFFFF,$80000005;False:True."
+                }
+              ],
+              Ranges : [
+                {
+                  Name : "@Annotation",
+                  Attributes : "$0060AEB3,$80000005;False:True."
+                },
+                {
+                  Name : "Strings '..'",
+                  Attributes : "$0073AB6A,$80000005;False:True."
+                },
+                {
+                  Name : "Strings \"..\"",
+                  Attributes : "$0073AB6A,$80000005;False:True.",
+                  KeyLists : [
+                    {
+                      Name : "Escape",
+                      Attributes : "$006D8ECF,$80000005;True:True."
+                    }
+                  ]
+                },
+                {
+                  Name : "Remarks //",
+                  Attributes : "$00857E7A,$80000005;False:True."
+                },
+                {
+                  Name : "Remarks /*..*/",
+                  Attributes : "$00857E7A,$80000005;False:True."
+                },
+                {
+                  Name : "Remarks /**..*/",
+                  Attributes : "$006B825F,$80000005;False:True.I"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          Name : "PowerShell",
+          Ranges : [
+            {
+              Name : "Root",
+              Attributes : "$80000008,$80000005;False:False.",
+              KeyLists : [
+                {
+                  Name : "Keywords",
+                  Attributes : "$00FBA249,$80000005;False:True."
+                },
+                {
+                  Name : "Aliases",
+                  Attributes : "$00C08000,$80000005;False:True."
+                },
+                {
+                  Name : "Functions",
+                  Attributes : "$008AD277,$80000005;False:True."
+                },
+                {
+                  Name : "Cmdlets",
+                  Attributes : "$00D15894,$80000005;False:True."
+                }
+              ],
+              Ranges : [
+                {
+                  Name : "Strings @'..'@",
+                  Attributes : "$00898BB9,$80000005;False:True."
+                },
+                {
+                  Name : "Strings @\"..\"@",
+                  Attributes : "$00898BB9,$80000005;False:True."
+                },
+                {
+                  Name : "Strings '..'",
+                  Attributes : "$00898BB9,$80000005;False:True."
+                },
+                {
+                  Name : "Strings \"..\"",
+                  Attributes : "$00898BB9,$80000005;False:True."
+                },
+                {
+                  Name : "Remarks #",
+                  Attributes : "$00C09B61,$80000005;False:True."
+                },
+                {
+                  Name : "Remarks <#..#>",
+                  Attributes : "$00C09B61,$80000005;False:True."
+                },
+                {
+                  Name : "Variables",
+                  Attributes : "$00008000,$80000005;False:True."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          Name : "QML",
+          Ranges : [
+            {
+              Name : "Root",
+              Attributes : "$80000008,$80000005;False:False.",
+              KeyLists : [
+                {
+                  Name : "Keywords",
+                  Attributes : "$003278CC,$80000005;False:True."
+                },
+                {
+                  Name : "Basic types",
+                  Attributes : "$003278CC,$80000005;False:True."
+                },
+                {
+                  Name : "QtQuick Object Types",
+                  Attributes : "$006DC6FF,$80000005;False:True."
+                },
+                {
+                  Name : "Aurora & Sailfish Silica Types",
+                  Attributes : "$006DC6FF,$80000005;False:True."
+                }
+              ],
+              Ranges : [
+                {
+                  Name : "Strings '..'",
+                  Attributes : "$0059876A,$80000005;False:True."
+                },
+                {
+                  Name : "Strings \"..\"",
+                  Attributes : "$0059876A,$80000005;False:True."
+                },
+                {
+                  Name : "Remarks //",
+                  Attributes : "$00808080,$80000005;False:True."
+                },
+                {
+                  Name : "Remarks /*..*/",
+                  Attributes : "$00808080,$80000005;False:True."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          Name : "Rust",
+          Ranges : [
+            {
+              Name : "Root",
+              Attributes : "$80000008,$80000005;False:False.",
+              KeyLists : [
+                {
+                  Name : "Keywords",
+                  Attributes : "$00D69C56,$80000005;False:True."
+                },
+                {
+                  Name : "Macros",
+                  Attributes : "$00FFC14F,$80000005;False:True."
+                },
+                {
+                  Name : "Operators",
+                  Attributes : "$00E8BCBC,$80000005;False:True."
+                },
+                {
+                  Name : "Punctuators",
+                  Attributes : "$00D4D4D4,$80000005;False:True."
+                },
+                {
+                  Name : "Types",
+                  Attributes : "$00B0C94E,$80000005;False:True."
+                },
+                {
+                  Name : "Complex types",
+                  Attributes : "$00B0C94E,$80000005;False:True."
+                }
+              ],
+              Ranges : [
+                {
+                  Name : "Remarks //",
+                  Attributes : "$008AD277,$80000005;False:True."
+                },
+                {
+                  Name : "Remarks /*..*/",
+                  Attributes : "$008AD277,$80000005;False:True."
+                },
+                {
+                  Name : "Strings \"..\"",
+                  Attributes : "$007891CE,$80000005;False:True.",
+                  KeyLists : [
+                    {
+                      Name : "Escape",
+                      Attributes : "$007891CE,$80000005;True:True."
+                    }
+                  ]
+                },
+                {
+                  Name : "Chars '..'",
+                  Attributes : "$007891CE,$80000005;False:True."
+                },
+                {
+                  Name : "Attributes (outer)",
+                  Attributes : "$006166C0,$80000005;False:True."
+                },
+                {
+                  Name : "Attributes (inner)",
+                  Attributes : "$006166C0,$80000005;False:True."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          Name : "Swift",
+          Ranges : [
+            {
+              Name : "Root",
+              Attributes : "$80000008,$80000005;False:False.",
+              KeyLists : [
+                {
+                  Name : "Keywords",
+                  Attributes : "$00D69C56,$80000005;False:True."
+                },
+                {
+                  Name : "Operators",
+                  Attributes : "$00E8BCBC,$80000005;False:True."
+                },
+                {
+                  Name : "Punctuators",
+                  Attributes : "$00D4D4D4,$80000005;False:True."
+                },
+                {
+                  Name : "Types",
+                  Attributes : "$00B0C94E,$80000005;False:True."
+                }
+              ],
+              Ranges : [
+                {
+                  Name : "Remarks //",
+                  Attributes : "$008AD277,$80000005;False:True."
+                },
+                {
+                  Name : "Remarks /*..*/",
+                  Attributes : "$008AD277,$80000005;False:True."
+                },
+                {
+                  Name : "Strings \"..\"",
+                  Attributes : "$007891CE,$80000005;False:True.",
+                  KeyLists : [
+                    {
+                      Name : "Escape",
+                      Attributes : "$007891CE,$80000005;True:True."
+                    }
+                  ]
+                },
+                {
+                  Name : "Strings \"\"\"...\"\"\"",
+                  Attributes : "$007891CE,$80000005;False:True."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  FileColors : [
+  ]
+}

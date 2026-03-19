@@ -1,44 +1,51 @@
 watch_stylesheet: true
 watch_config: true
 debug: false
+
 bars:
   primary-bar:
     enabled: true
     screens: ["*"]
     class_name: "yasb-bar"
+
     alignment:
       position: "top"
       center: false
+
     blur_effect:
       enabled: false
       acrylic: false
       dark_mode: false
       round_corners: false
       border_color: None
+
     window_flags:
       always_on_top: false
       windows_app_bar: false
+
     dimensions:
       width: "100%"
       height: 26
+
     padding:
       top: 4
       left: 4
       bottom: 0
       right: 4
+
     widgets:
       left: ["glazewm_workspaces", "taskbar"]
       center: ["active_window"]
       right:
         [
           "wallpapers",
-          "weather",
           "clock",
           "volume",
           "bluetooth",
           "wifi",
           "power_menu",
         ]
+
 widgets:
   active_window:
     type: "yasb.active_window.ActiveWindowWidget"
@@ -51,46 +58,14 @@ widgets:
       max_length: 56
       max_length_ellipsis: "..."
       monitor_exclusive: true
+
   clock:
     type: "yasb.clock.ClockWidget"
     options:
       label: "<span>\udb83\ude17</span>{%a %b %d %H:%M}"
       label_alt: "<span>\udb83\ude17</span>{%A, %d %B %Y %H:%M}"
       timezones: []
-  weather:
-    type: "yasb.weather.WeatherWidget"
-    options:
-      label: "<span>{icon}</span> {temp}"
-      label_alt: "{location}: Min {min_temp}, Max {max_temp}, Humidity {humidity}"
-      api_key: "24b6c2cda6d84066b0304531241908"
-      show_alerts: true
-      update_interval: 600
-      hide_decimal: true
-      units: "metric"
-      location: "auto:ip"
-      callbacks:
-        on_left: "toggle_card"
-        on_middle: "do_nothing"
-        on_right: "toggle_label"
-      icons:
-        sunnyDay: "\ue30d"
-        clearNight: "\ue32b"
-        cloudyDay: "\udb81\udd99"
-        cloudyNight: "\ue311"
-        rainyDay: "\udb81\ude7e"
-        rainyNight: "\udb81\ude7e"
-        snowyIcyDay: "\udb81\udd98"
-        snowyIcyNight: "\udb81\udd98"
-        blizzard: "\uebaa"
-        default: "\uebaa"
-      weather_card:
-        blur: True
-        round_corners: True
-        round_corners_type: "normal"
-        border_color: "System"
-        alignment: "right"
-        direction: "down"
-        icon_size: 64
+
   volume:
     type: "yasb.volume.VolumeWidget"
     options:
@@ -104,11 +79,12 @@ widgets:
         - "\uf028"
       callbacks:
         on_right: "exec cmd.exe /c start ms-settings:sound"
+
   power_menu:
     type: "yasb.power_menu.PowerMenuWidget"
     options:
       label: "<span>\uf011</span>"
-      uptime: True
+      uptime: true
       blur: false
       blur_background: false
       animation_duration: 1000
@@ -119,6 +95,7 @@ widgets:
         signout: ["\udb80\udf43", "Sign out"]
         sleep: ["\udb82\udd04", "Sleep"]
         cancel: ["\udb81\udf3a", "Cancel"]
+
   taskbar:
     type: "yasb.taskbar.TaskbarWidget"
     options:
@@ -144,6 +121,7 @@ widgets:
         processes: []
         titles: []
         classes: []
+
   wallpapers:
     type: "yasb.wallpapers.WallpapersWidget"
     options:
@@ -164,6 +142,7 @@ widgets:
         lazy_load_fadein: 10
         image_corner_radius: 0
         enable_cache: true
+
   wifi:
     type: "yasb.wifi.WifiWidget"
     options:
@@ -185,12 +164,14 @@ widgets:
           "\udb82\udd25",
           "\udb82\udd28",
         ]
+
   glazewm_workspaces:
     type: "glazewm.workspaces.GlazewmWorkspacesWidget"
     options:
       offline_label: "Sum"
       hide_empty_workspaces: true
       hide_if_offline: true
+
   bluetooth:
     type: "yasb.bluetooth.BluetoothWidget"
     options:

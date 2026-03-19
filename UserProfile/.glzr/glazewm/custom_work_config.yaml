@@ -102,7 +102,7 @@ window_rules:
 
   - commands: ["move --workspace 4"]
     match:
-      - window_process: { regex: "dopus|FreeCommander" }
+      - window_process: { regex: "dopus|doublecmd" }
 
   - commands: ["move --workspace 5"]
     match:
@@ -153,10 +153,6 @@ window_rules:
       # Autodesk related background processes
       - window_process: { regex: "^(ADPClientService|AdskAccessUIHost|AdskAccessCore|AdSSO|AdskIdentityManager)$" }
 
-      # Ignore freecommander child windows
-      - window_process: { regex: "FreeCommander" }
-        window_class: { regex: "^(TDlgSettings|TformQuickStarter|TfcViewerForm|TdlgInputBoxWithOptions|TdlgFcToolbarCustomizer|TfcTabGroupsDlg|TDlgTabRename|TdlgFavFolders|TdlgMultiRename|TfcSyncDirsForm|TdlgCompareFiles|TfcAttributeChanger|TfcHashForm|TfcFileShredder|TfcFileSplitterForm|TfcFileJoinerForm|TfcFilePropertiesForm|TfcDirSizeCalcForm|TfcTreeCompareForm|TRzSelectorFolderForm|TdlgBackupFolderDef|TfcDlgNewFolder|TfcDlgCopyMove)$" }
-
       # Ignore rules for Work monitoring applications
       - window_process: { equals: "LTSVC" }
       - window_process: { equals: "LTSvcMon" }
@@ -169,7 +165,6 @@ window_rules:
       - window_process: { equals: "winspy" }
       - window_process: { equals: "localsend_app" }
       - window_process: { equals: "RustDesk" }
-      - window_process: { regex: "FreeCommander" }
         window_class: { regex: "^(TfcSearchForm)$" }
       - window_process: { equals: "ApplicationFrameHost" }
 
@@ -260,7 +255,7 @@ keybindings:
     bindings: ["alt+ctrl+shift+k"]
 
   - commands: ["wm-reload-config"]
-    bindings: ["alt+shift+r"]
+    bindings: ["alt+ctrl+shift+q"]
 
   - commands: ["wm-redraw"]
     bindings: ["alt+ctrl+shift+w"]

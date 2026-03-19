@@ -112,21 +112,6 @@ color: var(--red);
 .audio-container .device:hover {
     background-color: var(--base1);
 }
-.weather-widget {
-    background-color: var(--base2);
-    padding: 0;
-}
-.weather-widget .icon {
-    color: var(--text);
-    padding: 0 6px;
-}
-.weather-widget .label {
-    background-color: var(--base2);
-    color: var(--text);
-    padding: 0 6px;
-    margin: 1px;
-    border-radius: 0px;
-}
 .power-menu-widget {
     background-color: var(--base2);
     padding: 0;
