@@ -9,7 +9,7 @@ general:
   shutdown_commands: ["shell-exec taskkill /IM yasb.exe /F"]
   config_reload_commands: []
 
-  focus_follows_cursor: true
+  focus_follows_cursor: false
   toggle_workspace_on_refocus: false
 
   cursor_jump:
