@@ -1,5 +1,5 @@
 # `windows dilla.glaze.dots`
-> I just want to let others know I despise and scorn this OS.
+> This is no longer my main operating system of choice so it will not receive regular meaningful updates.
 
 > Thinking about swapping to Linux? — **Check out [awtarchy](https://github.com/dillacorn/awtarchy)!**
 
