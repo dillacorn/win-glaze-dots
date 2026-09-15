@@ -309,6 +309,10 @@ keybindings:
   - commands: ['shell-exec C:\Program Files (x86)\SpeedCrunch\speedcrunch.exe']
     bindings: ["alt+shift+c"]
 
+  # Launch default browser
+  - commands: ["shell-exec explorer.exe http:"]
+    bindings: ["win+b"]
+
   # Shift focus in a given direction.
   - commands: ["focus --direction left"]
     bindings: ["alt+h", "alt+left"]

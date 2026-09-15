@@ -201,6 +201,9 @@ keybindings:
   - commands: ["shell-exec C:\\Program Files (x86)\\SpeedCrunch\\speedcrunch.exe"]
     bindings: ["alt+shift+c"]
 
+  - commands: ["shell-exec explorer.exe http:"]
+    bindings: ["win+b"]
+
   - commands: ["focus --direction left"]
     bindings: ["alt+h", "alt+left"]
   - commands: ["focus --direction right"]
