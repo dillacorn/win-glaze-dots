@@ -119,7 +119,6 @@ window_rules:
   - commands: ["ignore"]
     match:
       # Windows Applications
-      - window_process: { equals: "explorer" }
       - window_process: { equals: "windhawk" }
 
       # Ignore rules for Window Manager apps
