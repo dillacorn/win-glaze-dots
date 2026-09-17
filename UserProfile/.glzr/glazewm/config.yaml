@@ -1,85 +1,39 @@
 # dilla.glaze.files (https://github.com/dillacorn/win-glaze-dots)
 # This config is my personalized config I use specifically for my gaming computer.
 general:
-  # Commands to run when the WM has started.
   startup_commands: ["shell-exec yasb"]
-
-  # Commands to run just before the WM is shutdown.
   shutdown_commands: ["shell-exec taskkill /IM yasb.exe /F"]
-
-  # Commands to run after the WM config is reloaded.
   config_reload_commands: []
-
-  # Whether to automatically focus windows underneath the cursor.
   focus_follows_cursor: false
-
-  # Whether to switch back and forth between the previously focused
-  # workspace when focusing the current workspace.
   toggle_workspace_on_refocus: false
-
   cursor_jump:
-    # Whether to automatically move the cursor on the specified trigger.
     enabled: true
-
-    # Trigger for cursor jump:
-    # - "monitor_focus": Jump when focus changes between monitors.
-    # - "window_focus": Jump when focus changes between windows.
     trigger: "monitor_focus"
-
-  # How windows should be hidden when switching workspaces.
-  # - 'cloak': Recommended. Hides windows with no animation.
-  # - 'hide': Legacy method (v3.5 and earlier) that has a brief animation,
-  # but has stability issues with some apps.
   hide_method: "cloak"
-  # Affects which windows get shown in the native Windows taskbar. Has no
-  # effect if `hide_method: 'hide'`.
-  # - 'true': Show all windows (regardless of workspace).
-  # - 'false': Only show windows from the currently shown workspaces.
   show_all_in_taskbar: true
 
 gaps:
-  # Whether to scale the gaps with the DPI of the monitor.
   scale_with_dpi: true
-
-  # Gap between adjacent windows.
-  inner_gap: "10px"
-
-  # Gap between windows and the screen edge.
+  inner_gap: "2px"
   outer_gap:
     top: "38px"
-    right: "10px"
-    bottom: "10px"
-    left: "10px"
+    right: "8px"
+    bottom: "8px"
+    left: "8px"
 
 window_effects:
-  # Visual effects to apply to the focused window.
   focused_window:
-    # Highlight the window with a colored border.
-    # ** Exclusive to Windows 11 due to API limitations.
     border:
       enabled: true
       color: "#b5bd68"
-
-    # Remove the title bar from the window"s frame. Note that this can
-    # cause rendering issues for some applications.
     hide_title_bar:
       enabled: false
-
-    # Change the corner style of the window"s frame.
-    # ** Exclusive to Windows 11 due to API limitations.
     corner_style:
       enabled: true
-      # Allowed values: "square", "rounded", "small_rounded".
       style: "square"
-
-    # Change the transparency of the window.
     transparency:
       enabled: false
-      # Can be something like '95%' or '0.95' for slightly transparent windows.
-      # '0' or '0%' is fully transparent (and, by consequence, unfocusable).
-      opacity: '95%'
-
-  # Visual effects to apply to non-focused windows.
+      opacity: "95%"
   other_windows:
     border:
       enabled: false
@@ -91,30 +45,16 @@ window_effects:
       style: "square"
     transparency:
       enabled: false
-      opacity: '95%'
+      opacity: "95%"
 
 window_behavior:
-  # New windows are created in this state whenever possible.
-  # Allowed values: "tiling", "floating".
   initial_state: "tiling"
-
-  # Sets the default options for when a new window is created. This also
-  # changes the defaults for when the state change commands, like
-  # `set-floating`, are used without any flags.
   state_defaults:
     floating:
-      # Whether to center floating windows by default.
       centered: false
-
-      # Whether to show floating windows as always on top.
       shown_on_top: true
-
     fullscreen:
-      # Maximize the window if possible. If the window doesn"t have a
-      # maximize button, then it"ll be fullscreen"ed normally instead.
       maximized: true
-
-      # Whether to show fullscreen windows as always on top.
       shown_on_top: true
 
 workspaces:
@@ -141,84 +81,65 @@ workspaces:
     display_name: "10: Rec"
 
 window_rules:
-  # HARD IGNORE: GlazeWM must not manage Civil 3D at all.
   - commands: ["ignore"]
     match:
       - window_process: { regex: "^(acad|acadlt)(\\.exe)?$" }
 
   - commands: ["move --workspace 1"]
     match:
-      # Move moonlight to workspace 1.
       - window_process: { regex: "Marvel-Win64-Shipping|r5apex|r5apex_dx12|Discovery|cs2|RustClient|quakelive_steam|QuakeChampions|straftat|VALORANT-Win64-Shipping|ULTRAKILL|TotallyAccurateBattlegrounds|BattleBit|helldivers2|Schedule I" }
 
   - commands: ["move --workspace 2"]
     match:
-      # Move browsers to workspace 2.
       - window_process: { regex: "librewolf|firefox|chrome|brave" }
 
   - commands: ["move --workspace 3"]
     match:
-      # Move discord to workspace 3.
       - window_process: { regex: "Discord|Vesktop|Dorion" }
 
   - commands: ["move --workspace 4"]
     match:
-      # Move Steam, itch, epic to workspace 4.
       - window_process: { regex: "steamwebhelper|EpicGamesLauncher|itch" }
 
   - commands: ["move --workspace 5"]
     match:
-      # Move spotify to workspace 5.
       - window_process: { regex: "Spotify" }
 
   - commands: ["move --workspace 5"]
     match:
-      # Move spotify to workspace 5.
       - window_process: { regex: "Feishin" }
 
   - commands: ["move --workspace 6"]
     match:
-      # Move telegram to workspace 6.
       - window_process: { regex: "Telegram" }
 
   - commands: ["move --workspace 8"]
     match:
-      # Move microsoft teams to workspace 8.
       - window_process: { regex: "ms-teams" }
 
   - commands: ["move --workspace 9"]
     match:
-      # Move shotcut to workspace 9.
       - window_process: { regex: "shotcut" }
 
   - commands: ["move --workspace 9"]
     match:
-      # Move shotcut to workspace 9.
       - window_process: { regex: "krita" }
 
   - commands: ["move --workspace 10"]
     match:
-      # Move obs to workspace 10.
       - window_process: { regex: "obs64" }
 
   - commands: ["ignore"]
     match:
-      # Windows Applications
       - window_process: { equals: "windhawk" }
-
-      # Ignore rules for Window Manager apps
       - window_process: { equals: "zebar" }
       - window_process: { equals: "yasb" }
       - window_process: { equals: "Flow.Launcher" }
       - window_process: { equals: "AltSnap" }
       - window_process: { equals: "flameshot" }
       - window_process: { equals: "LiveCaptions" }
-
-      # Ignore rule for picture-in-picture windows in browsers.
       - window_title: { regex: "[Pp]icture.in.[Pp]icture" }
         window_class: { regex: "Chrome_WidgetWin_1|MozillaDialogClass" }
-
-      # Ignore rules for various 3rd-party apps.
       - window_process: { equals: "PowerToys" }
         window_class: { regex: 'HwndWrapper\[PowerToys\.PowerAccent.*?\]' }
       - window_process: { equals: "PowerToys" }
@@ -229,57 +150,32 @@ window_rules:
       - window_process: { equals: "ui32" }
       - window_process: { equals: "wallpaper32" }
       - window_process: { equals: "wallpaper64" }
-
-      # Ignore Windows Input Experience (Civil 3D popups)
-      - window_process: { equals: "TextInputHost" }  # Sometimes appears instead
+      - window_process: { equals: "TextInputHost" }
       - window_process: { equals: "Windows Input Experience" }
-
-      # Civil 3D dialogs/popups only — leave main MDI frame managed so workspace switching works
       - window_process: { equals: "acad" }
         window_class: { regex: "^(#32770|Afx:.*|Autodesk.*Dialog|Adsk.*|WindowsForms10\\.Window\\.8\\.app\\..*|ComboLBox|tooltips_class32)$" }
-
-      # Autodesk related background processes (e.g. identity manager, update services)
       - window_process: { regex: "^(ADPClientService|AdskAccessUIHost|AdskAccessCore|AdSSO|AdskIdentityManager)$" }
-      
-      # Ignore rules for 3rd Party applications
       - window_process: { equals: "LTSVC" }
       - window_process: { equals: "LTSvcMon" }
       - window_process: { equals: "LTTray" }
-      
+
   - commands: ["set-floating"]
     match:
-      # Set Task Manager to float
       - window_process: { equals: "Taskmgr" }
-
-      # Set speedcrunch(calculator) to float
       - window_process: { equals: "speedcrunch" }
-
-      # Set winspy window to float
       - window_process: { equals: "winspy" }
-
-      # Set localsend window to float
       - window_process: { equals: "localsend_app" }
-
-      # Set rustdesk window to float
       - window_process: { equals: "RustDesk" }
-
-      # Set several windows applications to float
       - window_process: { equals: "ApplicationFrameHost" }
-
-      # Bluebeam Revu
       - window_title: { regex: "^Insert Pages$" }
-      
+
   - commands: ["set-floating --centered"]
     match:
-      # Set EarTrumpets "Volume Mixer" window to float and center it
       - window_title: { regex: "Volume Mixer" }
       - window_process: { equals: "EarTrumpet" }
-
-      # Miscellaneous
       - window_title: { regex: "(Find|Replace)" }
-      
+
 binding_modes:
-  # When enabled, the focused window can be resized via arrow keys or HJKL.
   - name: "resize"
     keybindings:
       - commands: ["resize --width -2%"]
@@ -290,32 +186,25 @@ binding_modes:
         bindings: ["k", "up"]
       - commands: ["resize --height -2%"]
         bindings: ["j", "down"]
-      # Press enter/escape to return to default keybindings.
       - commands: ["wm-disable-binding-mode --name resize"]
         bindings: ["escape", "enter"]
 
-  # When enabled, all keybindings are disabled except for alt+shift+p which
-  # returns to default keybindings.
   - name: "pause"
     keybindings:
       - commands: ["wm-disable-binding-mode --name pause"]
         bindings: ["alt+shift+p"]
 
 keybindings:
-  # Toggle YASB
   - commands:
       - shell-exec --hide-window powershell -NoProfile -Command "if (Get-Process yasb -ErrorAction SilentlyContinue) { Stop-Process -Name yasb -Force } else { Start-Process yasb }"
     bindings: ["alt+ctrl+b"]
 
-  # Launch Speedcrunch
   - commands: ['shell-exec C:\Program Files (x86)\SpeedCrunch\speedcrunch.exe']
     bindings: ["alt+shift+c"]
 
-  # Launch default browser
   - commands: ["shell-exec explorer.exe http:"]
     bindings: ["win+b"]
 
-  # Shift focus in a given direction.
   - commands: ["focus --direction left"]
     bindings: ["alt+h", "alt+left"]
   - commands: ["focus --direction right"]
@@ -325,7 +214,6 @@ keybindings:
   - commands: ["focus --direction down"]
     bindings: ["alt+j", "alt+down"]
 
-  # Move focused window in a given direction.
   - commands: ["move --direction left"]
     bindings: ["alt+shift+h", "alt+shift+left"]
   - commands: ["move --direction right"]
@@ -335,7 +223,6 @@ keybindings:
   - commands: ["move --direction down"]
     bindings: ["alt+shift+j", "alt+shift+down"]
 
-  # Resize focused window by a percentage or pixel amount.
   - commands: ["resize --width -2%"]
     bindings: ["alt+y", "alt+ctrl+right"]
   - commands: ["resize --width +2%"]
@@ -345,65 +232,54 @@ keybindings:
   - commands: ["resize --height -2%"]
     bindings: ["alt+u", "alt+ctrl+down"]
 
-  ## Disables all keybindings toggle.
   - commands: ["wm-enable-binding-mode --name pause"]
     bindings: ["alt+shift+p"]
 
-  # Change tiling direction. This determines where new tiling windows will
-  # be inserted.
   - commands: ["toggle-tiling-direction"]
     bindings: ["alt+shift+r"]
 
-  # Change the focused window to be floating.
   - commands: ["toggle-floating --centered"]
     bindings: ["alt+f"]
 
-  # Change the focused window to be tiling.
   - commands: ["toggle-tiling"]
     bindings: ["alt+t"]
 
-  # Change the focused window to be fullscreen.
   - commands:
       - "toggle-fullscreen"
       - "shell-exec --hide-window powershell -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -Command \"Start-Sleep -Milliseconds 70; Start-Process -WindowStyle Hidden glazewm -ArgumentList 'command wm-redraw'\""
     bindings: ["alt+ctrl+f"]
 
-  # Minimize focused window.
   - commands: ["toggle-minimized"]
     bindings: ["alt+m"]
 
-  # Close focused window.
   - commands: ["close"]
     bindings: ["alt+shift+q"]
 
-  # Kill GlazeWM process safely.
   - commands: ["wm-exit"]
     bindings: ["alt+ctrl+shift+k"]
 
-  # Re-evaluate configuration file.
   - commands: ["wm-reload-config"]
     bindings: ["alt+ctrl+shift+q"]
 
-  # Redraw all windows.
   - commands: ["wm-redraw"]
     bindings: ["alt+ctrl+shift+w"]
 
-  # Launch Alacritty terminal
-  # - commands: ["shell-exec alacritty --title \"alacritty | powershell\" -e powershell -NoProfile -NoLogo -NoExit -Command fastfetch"]
-  - commands: ["shell-exec alacritty --title \"alacritty | powershell\" -e powershell -NoProfile -NoLogo"]
+  # Launch a normal Windows Terminal window.
+  - commands: ["shell-exec wt.exe -w new"]
     bindings: ["alt+shift+enter"]
 
-  # Focus the next/previous workspace defined in `workspaces` config.
+  # Launch Yazi in a dedicated Windows Terminal window.
+  - commands: ["shell-exec wt.exe -w new new-tab --title \"Yazi\" --suppressApplicationTitle powershell.exe -NoProfile -NoLogo -NoExit -Command yazi"]
+    bindings: ["alt+shift+e"]
+
   - commands: ["focus --next-workspace"]
     bindings: ["alt+]"]
   - commands: ["focus --prev-workspace"]
     bindings: ["alt+["]
 
-  # Focus the workspace that last had focus.
   - commands: ["focus --recent-workspace"]
     bindings: ["alt+ctrl+c"]
 
-  # Change focus to a workspace defined in `workspaces` config.
   - commands: ["focus --workspace 1"]
     bindings: ["alt+1"]
   - commands: ["focus --workspace 2"]
@@ -425,8 +301,6 @@ keybindings:
   - commands: ["focus --workspace 10"]
     bindings: ["alt+0"]
 
-  # Move the focused window"s parent workspace to a monitor in a given
-  # direction.
   - commands: ["move-workspace --direction left"]
     bindings: ["alt+ctrl+shift+left"]
   - commands: ["move-workspace --direction right"]
@@ -436,7 +310,6 @@ keybindings:
   - commands: ["move-workspace --direction down"]
     bindings: ["alt+ctrl+shift+down"]
 
-  # Move focused window to a workspace defined in `workspaces` config.
   - commands: ["move --workspace 1"]
     bindings: ["alt+shift+1"]
   - commands: ["move --workspace 2"]
@@ -458,7 +331,6 @@ keybindings:
   - commands: ["move --workspace 10"]
     bindings: ["alt+shift+0"]
 
-  # Launch Alacritty and open the user’s scripts menu
-  - commands: ["shell-exec alacritty --working-directory %USERPROFILE%\\scripts -e cmd /k menu.bat"]
+  # Launch the user's scripts menu in Windows Terminal.
+  - commands: ["shell-exec wt.exe -w new new-tab --title \"Scripts\" --suppressApplicationTitle -d \"%USERPROFILE%\\scripts\" cmd.exe /k menu.bat"]
     bindings: ["alt+shift+m"]
-
