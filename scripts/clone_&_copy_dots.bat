@@ -63,9 +63,8 @@ if exist "%gitFile%" (
     echo Setting YAZI_FILE_ONE=%gitFile%
     setx YAZI_FILE_ONE "%gitFile%" >nul
 ) else if exist "%userProfile%\scoop\apps\git\current\usr\bin\file.exe" (
-    set "gitFile=%userProfile%\scoop\apps\git\current\usr\bin\file.exe"
-    echo Setting YAZI_FILE_ONE=!gitFile!
-    setx YAZI_FILE_ONE "!gitFile!" >nul
+    echo Setting YAZI_FILE_ONE=%userProfile%\scoop\apps\git\current\usr\bin\file.exe
+    setx YAZI_FILE_ONE "%userProfile%\scoop\apps\git\current\usr\bin\file.exe" >nul
 ) else (
     echo WARNING: Git file.exe not found. Yazi MIME detection may be incomplete.
 )
