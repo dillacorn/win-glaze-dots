@@ -7,7 +7,7 @@
 - **Package Manager**: [**winget**](https://winget.run/)
 - **Window Manager & Primary Applications**: [glazewm](https://github.com/glzr-io/glazewm) + [yasb](https://github.com/amnweb/yasb) + [altsnap](https://github.com/RamonUnch/AltSnap) + [flow-launcher](https://github.com/Flow-Launcher/Flow.Launcher) + [eartrumpet](https://github.com/File-New-Project/EarTrumpet) + [powertoys](https://github.com/microsoft/PowerToys) + [flameshot](https://github.com/flameshot-org/flameshot) + [Windows Terminal](https://github.com/microsoft/terminal) + [Yazi](https://github.com/sxyazi/yazi) + [micro](https://github.com/zyedidia/micro)
 
-Windows Terminal is the default terminal. Yazi is the terminal file manager, with Micro used for text files and qimgv used for images.
+Windows Terminal is the default terminal. Yazi is the terminal file manager; text/code opens in Micro while all other files use normal Windows file associations.
 
 ---
 ## Guides in Specific Order Of Installation and Configuration (some optional)
