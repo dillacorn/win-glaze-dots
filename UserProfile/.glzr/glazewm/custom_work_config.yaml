@@ -21,12 +21,12 @@ general:
 
 gaps:
   scale_with_dpi: true
-  inner_gap: "10px"
+  inner_gap: "2px"
   outer_gap:
     top: "38px"
-    right: "10px"
-    bottom: "10px"
-    left: "10px"
+    right: "8px"
+    bottom: "8px"
+    left: "8px"
 
 window_effects:
   focused_window:
@@ -102,7 +102,9 @@ window_rules:
 
   - commands: ["move --workspace 4"]
     match:
-      - window_process: { regex: "dopus|doublecmd" }
+      - window_process: { regex: "dopus|doublecmd|explorer" }
+      - window_process: { regex: "^WindowsTerminal(\\.exe)?$" }
+        window_title: { regex: "^Yazi$" }
 
   - commands: ["move --workspace 5"]
     match:
@@ -265,8 +267,14 @@ keybindings:
   - commands: ["wm-redraw"]
     bindings: ["alt+ctrl+shift+w"]
 
-  - commands: ["shell-exec alacritty --title \"alacritty | powershell\" -e powershell -NoProfile -NoLogo"]
+  # Launch a normal Windows Terminal window.
+  - commands: ["shell-exec wt.exe -w new"]
     bindings: ["alt+shift+enter"]
+
+  # Launch Yazi in a dedicated Windows Terminal window.
+  # The persistent title allows GlazeWM to route it to workspace 4.
+  - commands: ["shell-exec wt.exe -w new new-tab --title \"Yazi\" --suppressApplicationTitle powershell.exe -NoProfile -NoLogo -NoExit -Command yazi"]
+    bindings: ["alt+shift+e"]
 
   - commands: ["focus --next-workspace"]
     bindings: ["alt+]"]
