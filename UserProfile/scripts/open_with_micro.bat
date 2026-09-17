@@ -1,2 +1,2 @@
 @echo off
-start /b alacritty.exe -e micro "%1"
+start "" wt.exe -w new new-tab --title "Micro" --suppressApplicationTitle -d "%~dp1" micro "%~1"
