@@ -1,0 +1,55 @@
+# github.com/dillacorn/win-glaze-dots
+# %APPDATA%\yazi\config\keymap.toml
+# Adapted from the Awtarchy Yazi keymap, without Linux-only dragon-drop bindings.
+
+[mgr]
+prepend_keymap = [
+  # Movement
+  { on = ["<Up>"],    run = "arrow -1",  desc = "Up" },
+  { on = ["<Down>"],  run = "arrow 1",   desc = "Down" },
+  { on = ["k"],       run = "arrow -1",  desc = "Up" },
+  { on = ["j"],       run = "arrow 1",   desc = "Down" },
+  { on = ["gg"],      run = "arrow top", desc = "Top" },
+  { on = ["G"],       run = "arrow bot", desc = "Bottom" },
+
+  # Enter/leave
+  { on = ["<Right>"], run = "enter",     desc = "Enter directory" },
+  { on = ["l"],       run = "enter",     desc = "Enter directory" },
+  { on = ["<Enter>"], run = "open",      desc = "Open file" },
+  { on = ["<Left>"],  run = "leave",     desc = "Up one dir" },
+  { on = ["h"],       run = "leave",     desc = "Up one dir" },
+  { on = ["<Backspace>"], run = "leave", desc = "Up one dir" },
+
+  # History
+  { on = ["H"],       run = "back",      desc = "Back in history" },
+  { on = ["L"],       run = "forward",   desc = "Forward in history" },
+
+  # Selection
+  { on = ["<Space>"], run = "toggle",    desc = "Toggle select" },
+  { on = ["v"],       run = "visual_mode", desc = "Visual select mode" },
+  { on = ["<C-a>"],   run = "toggle_all --state=on",  desc = "Select all" },
+  { on = ["<C-x>"],   run = "toggle_all --state=off", desc = "Clear selection" },
+
+  # Copy/Cut/Paste
+  { on = ["y"],       run = "yank",       desc = "Yank (copy)" },
+  { on = ["Y"],       run = "yank --cut", desc = "Yank (cut)" },
+  { on = ["p"],       run = "paste",      desc = "Paste" },
+
+  # File ops
+  { on = ["n"],       run = "create --interactive", desc = "New file/dir" },
+  { on = ["r"],       run = "rename",               desc = "Rename" },
+  { on = ["dd"],      run = "remove",               desc = "Trash selection" },
+
+  # Help
+  { on = ["?"],       run = "help",       desc = "Help" }
+]
+
+[input]
+prepend_keymap = [
+  { on = ["<Esc>"], run = "close", desc = "Cancel input" }
+]
+
+[help]
+append_keymap = [
+  { on = ["q"], run = "close", desc = "Close help" }
+]
