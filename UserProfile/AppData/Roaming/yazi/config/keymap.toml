@@ -9,7 +9,7 @@ prepend_keymap = [
   { on = ["<Down>"],  run = "arrow 1",   desc = "Down" },
   { on = ["k"],       run = "arrow -1",  desc = "Up" },
   { on = ["j"],       run = "arrow 1",   desc = "Down" },
-  { on = ["gg"],      run = "arrow top", desc = "Top" },
+  { on = ["g", "g"], run = "arrow top", desc = "Top" },
   { on = ["G"],       run = "arrow bot", desc = "Bottom" },
 
   # Enter/leave
@@ -38,7 +38,7 @@ prepend_keymap = [
   # File ops
   { on = ["n"],       run = "create --interactive", desc = "New file/dir" },
   { on = ["r"],       run = "rename",               desc = "Rename" },
-  { on = ["dd"],      run = "remove",               desc = "Trash selection" },
+  { on = ["d", "d"], run = "remove",               desc = "Trash selection" },
 
   # Help
   { on = ["?"],       run = "help",       desc = "Help" }
