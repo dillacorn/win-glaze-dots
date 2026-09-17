@@ -1,0 +1,163 @@
+{
+    "$schema": "https://aka.ms/terminal-profiles-schema",
+    "actions":
+    [
+        {
+            "command": "newTab",
+            "id": "User.NewTab"
+        },
+        {
+            "command": "closeTab",
+            "id": "User.CloseTab"
+        }
+    ],
+    "alwaysShowTabs": true,
+    "copyFormatting": "none",
+    "copyOnSelect": false,
+    "defaultProfile": "{61c54bbd-c2c6-5271-96e7-009a87ff44bf}",
+    "initialCols": 120,
+    "initialRows": 30,
+    "keybindings":
+    [
+        {
+            "id": "Terminal.CopyToClipboard",
+            "keys": "ctrl+shift+c"
+        },
+        {
+            "id": "Terminal.PasteFromClipboard",
+            "keys": "ctrl+shift+v"
+        },
+        {
+            "id": "User.NewTab",
+            "keys": "ctrl+t"
+        },
+        {
+            "id": "User.CloseTab",
+            "keys": "ctrl+w"
+        },
+        {
+            "id": "Terminal.DuplicatePaneAuto",
+            "keys": "alt+shift+d"
+        }
+    ],
+    "newTabMenu":
+    [
+        {
+            "type": "remainingProfiles"
+        }
+    ],
+    "profiles":
+    {
+        "defaults":
+        {
+            "bellStyle": "window",
+            "colorScheme": "Dark Pastels",
+            "cursorShape": "filledBox",
+            "font":
+            {
+                "face": "Consolas",
+                "size": 12,
+                "weight": "normal"
+            },
+            "historySize": 10000,
+            "opacity": 100,
+            "useAcrylic": false
+        },
+        "list":
+        [
+            {
+                "commandline": "%SystemRoot%\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NoLogo",
+                "guid": "{61c54bbd-c2c6-5271-96e7-009a87ff44bf}",
+                "hidden": false,
+                "name": "Terminal",
+                "suppressApplicationTitle": true,
+                "tabTitle": "Terminal"
+            },
+            {
+                "commandline": "%SystemRoot%\\System32\\cmd.exe",
+                "guid": "{0caa0dad-35be-5f56-a8ff-afceeeaa6101}",
+                "hidden": false,
+                "name": "Command Prompt"
+            },
+            {
+                "guid": "{b453ae62-4e3d-5e58-b989-0a998ec441b8}",
+                "hidden": false,
+                "name": "Azure Cloud Shell",
+                "source": "Windows.Terminal.Azure"
+            },
+            {
+                "guid": "{2ece5bfe-50ed-5f3a-ab87-5cd4baafed2b}",
+                "hidden": false,
+                "name": "Git Bash",
+                "source": "Git"
+            },
+            {
+                "guid": "{44b98e3b-3217-5463-a423-2c155b4c8245}",
+                "hidden": false,
+                "name": "archlinux",
+                "source": "Microsoft.WSL"
+            },
+            {
+                "guid": "{4e97fb5b-38c3-521e-89fc-bf8d5ac2e345}",
+                "hidden": false,
+                "name": "Developer Command Prompt for VS 18",
+                "source": "Windows.Terminal.VisualStudio"
+            },
+            {
+                "guid": "{6d1c3c16-57a6-55e3-9fa4-36fb06c5ae99}",
+                "hidden": false,
+                "name": "Developer PowerShell for VS 18",
+                "source": "Windows.Terminal.VisualStudio"
+            }
+        ]
+    },
+    "schemes":
+    [
+        {
+            "name": "Dark Pastels",
+            "background": "#2C2C2C",
+            "foreground": "#DCDCCC",
+            "black": "#3F3F3F",
+            "red": "#705050",
+            "green": "#60B48A",
+            "yellow": "#DFAF8F",
+            "blue": "#9AB8D7",
+            "purple": "#DC8CC3",
+            "cyan": "#8CD0D3",
+            "white": "#DCDCCC",
+            "brightBlack": "#709080",
+            "brightRed": "#DCA3A3",
+            "brightGreen": "#72D5A3",
+            "brightYellow": "#F0DFAF",
+            "brightBlue": "#94BFF3",
+            "brightPurple": "#EC93D3",
+            "brightCyan": "#93E0E3",
+            "brightWhite": "#FFFFFF",
+            "cursorColor": "#DCDCCC",
+            "selectionBackground": "#5A5A5A"
+        }
+    ],
+    "theme": "Dark Pastels UI",
+    "themes":
+    [
+        {
+            "name": "Dark Pastels UI",
+            "window":
+            {
+                "applicationTheme": "dark",
+                "useMica": false
+            },
+            "tab":
+            {
+                "background": "terminalBackground",
+                "unfocusedBackground": "#2C2C2C"
+            },
+            "tabRow":
+            {
+                "background": "#2C2C2C",
+                "unfocusedBackground": "#2C2C2C"
+            }
+        }
+    ],
+    "useAcrylicInTabRow": false
+}
