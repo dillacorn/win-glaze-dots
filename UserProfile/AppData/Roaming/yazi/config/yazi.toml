@@ -1,0 +1,16 @@
+# github.com/dillacorn/win-glaze-dots
+# %APPDATA%\yazi\config\yazi.toml
+
+[opener]
+edit = [
+    { run = 'wt.exe -w new new-tab --title "Micro" --suppressApplicationTitle -d %d1 micro %s1', orphan = true, desc = "Micro", for = "windows" },
+]
+
+image-default = [
+    { run = 'cmd.exe /d /c start "" /D %d1 "C:\Program Files\qimgv\qimgv.exe" %s1', orphan = true, desc = "Open image", for = "windows" },
+]
+
+[open]
+prepend_rules = [
+    { mime = "image/*", use = "image-default" },
+]
