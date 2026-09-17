@@ -4,8 +4,10 @@
 
 ### install all essential applications (one-liner)
 ```powershell
-winget install SpeedCrunch.SpeedCrunch Git.Git Microsoft.WindowsTerminal AltSnap.AltSnap Microsoft.VCRedist.2015+.x64 AmN.yasb Flameshot.Flameshot Flow-Launcher.Flow-Launcher File-New-Project.EarTrumpet Notepad++.Notepad++ zyedidia.micro sxyazi.yazi qimgv.qimgv mpv.net LocalSend.LocalSend DisplayDriverUninstaller.DisplayDriverUninstaller Brave.Brave Microsoft.PowerToys Fastfetch-cli.Fastfetch 7zip.7zip Gyan.FFmpeg jqlang.jq oschwartz10612.Poppler sharkdp.fd BurntSushi.ripgrep.MSVC junegunn.fzf ajeetdsouza.zoxide ImageMagick.ImageMagick hpjansson.Chafa xiph.flac glzr-io.glazewm karlstav.cava DEVCOM.JetBrainsMonoNerdFont WinsiderSS.SystemInformer
+winget install SpeedCrunch.SpeedCrunch Git.Git Microsoft.WindowsTerminal AltSnap.AltSnap Microsoft.VCRedist.2015+.x64 AmN.yasb Flameshot.Flameshot Flow-Launcher.Flow-Launcher File-New-Project.EarTrumpet Notepad++.Notepad++ zyedidia.micro sxyazi.yazi qimgv.qimgv mpv.net LocalSend.LocalSend DisplayDriverUninstaller.DisplayDriverUninstaller Brave.Brave Microsoft.PowerToys Fastfetch-cli.Fastfetch 7zip.7zip Gyan.FFmpeg jqlang.jq oschwartz10612.Poppler sharkdp.fd BurntSushi.ripgrep.MSVC junegunn.fzf ajeetdsouza.zoxide ImageMagick.ImageMagick xiph.flac glzr-io.glazewm karlstav.cava DEVCOM.JetBrainsMonoNerdFont WinsiderSS.SystemInformer
 ```
+
+`resvg` is optional and only needed for SVG previews in Yazi. It is not currently available through WinGet; install it separately if SVG preview support is needed.
 
 ### install gaming applications (one-liner)
 ```powershell
@@ -59,7 +61,6 @@ winget install SoftwareFreedomConservancy.QEMU SoftwareFreedomConservancy.QEMUGu
 - **fzf** - Fuzzy finder helper used by Yazi
 - **zoxide** - Directory navigation helper used by Yazi
 - **ImageMagick** - Image conversion/preview helper used by Yazi
-- **Chafa** - Fallback terminal image renderer used by Yazi when native graphics are unavailable
 - **FLAC** - Audio codec
 - **GlazeWM** - Tiling window manager
 - **JetBrainsMonoNerdFont** - Font for yasb bar
