@@ -4,7 +4,7 @@
 
 ### install all essential applications (one-liner)
 ```powershell
-winget install SpeedCrunch.SpeedCrunch Git.Git Microsoft.WindowsTerminal AltSnap.AltSnap Alacritty.Alacritty Microsoft.VCRedist.2015+.x64 AmN.yasb Flameshot.Flameshot Flow-Launcher.Flow-Launcher File-New-Project.EarTrumpet Notepad++.Notepad++ qimgv.qimgv mpv.net LocalSend.LocalSend DisplayDriverUninstaller.DisplayDriverUninstaller Brave.Brave Microsoft.PowerToys Fastfetch-cli.Fastfetch 7zip.7zip xiph.flac glzr-io.glazewm karlstav.cava DEVCOM.JetBrainsMonoNerdFont WinsiderSS.SystemInformer
+winget install SpeedCrunch.SpeedCrunch Git.Git Microsoft.WindowsTerminal AltSnap.AltSnap Microsoft.VCRedist.2015+.x64 AmN.yasb Flameshot.Flameshot Flow-Launcher.Flow-Launcher File-New-Project.EarTrumpet Notepad++.Notepad++ zyedidia.micro sxyazi.yazi qimgv.qimgv mpv.net LocalSend.LocalSend DisplayDriverUninstaller.DisplayDriverUninstaller Brave.Brave Microsoft.PowerToys Fastfetch-cli.Fastfetch 7zip.7zip Gyan.FFmpeg jqlang.jq oschwartz10612.Poppler sharkdp.fd BurntSushi.ripgrep.MSVC junegunn.fzf ajeetdsouza.zoxide ImageMagick.ImageMagick hpjansson.Chafa xiph.flac glzr-io.glazewm karlstav.cava DEVCOM.JetBrainsMonoNerdFont WinsiderSS.SystemInformer
 ```
 
 ### install gaming applications (one-liner)
@@ -33,10 +33,11 @@ winget install SoftwareFreedomConservancy.QEMU SoftwareFreedomConservancy.QEMUGu
 
 ### Essential Applications:
 - **SpeedCrunch** - Scientific calculator
-- **Git** - Version control system
-- **Windows Terminal** - Modern terminal application
+- **Git** - Version control system; also provides `file.exe` used by Yazi for MIME detection
+- **Windows Terminal** - Default terminal application
+- **Yazi** - Terminal file manager; configured to use Micro for text files and qimgv for images
+- **Micro** - Terminal text editor
 - **AltSnap** - Window management utility
-- **Alacritty** - GPU-accelerated terminal emulator
 - **Visual C++ Redistributable** - Runtime libraries
 - **Flameshot** - Screenshot tool
 - **Flow Launcher** - Application launcher
@@ -49,7 +50,16 @@ winget install SoftwareFreedomConservancy.QEMU SoftwareFreedomConservancy.QEMUGu
 - **Brave** - Privacy-focused web browser
 - **PowerToys** - Windows utilities
 - **Fastfetch** - System information tool
-- **7-Zip** - File archiver
+- **7-Zip** - File archiver and Yazi archive helper
+- **FFmpeg** - Media preview helper used by Yazi
+- **jq** - JSON helper used by Yazi
+- **Poppler** - PDF preview helper used by Yazi
+- **fd** - Fast file search helper used by Yazi
+- **ripgrep** - Text search helper used by Yazi
+- **fzf** - Fuzzy finder helper used by Yazi
+- **zoxide** - Directory navigation helper used by Yazi
+- **ImageMagick** - Image conversion/preview helper used by Yazi
+- **Chafa** - Fallback terminal image renderer used by Yazi when native graphics are unavailable
 - **FLAC** - Audio codec
 - **GlazeWM** - Tiling window manager
 - **JetBrainsMonoNerdFont** - Font for yasb bar
@@ -137,29 +147,3 @@ Need CROPPING? -> [obs-advanced-masks Plugin | Releases](https://github.com/Fini
 
 # microphone suppression (requires Equalizer_APO)
 https://github.com/werman/noise-suppression-for-voice/releases
-
-### Install APO
-```powershell
-winget install EqualizerAPO.EqualizerAPO
-```
-
-[How to install werman noise-suppression!](https://github.com/dillacorn/win-glaze-dots/blob/main/mic_suppression_apo.md)
-
----
-
-# applications not available in official repos
-- [DistroAV | aka OBS-NDI](https://github.com/DistroAV/DistroAV)
-- [AutoDesk Software](https://manage.autodesk.com/login?t=/products)
-- [tinywhoopgo](https://tinywhoopgo.com/)
-
----
-
-# Graphics Card Drivers
-- [Advanced Micro Devices (AMD GPU) Drivers](https://www.amd.com/en/support/download/drivers.html)
-- [Nvidia GPU Drivers](https://www.nvidia.com/en-us/drivers/)
-
-- [Intel ARC GPU Drivers](https://www.intel.com/content/www/us/en/download/785597/intel-arc-iris-xe-graphics-windows.html)
-
-
-
-
