@@ -37,7 +37,7 @@ winget install SoftwareFreedomConservancy.QEMU SoftwareFreedomConservancy.QEMUGu
 - **SpeedCrunch** - Scientific calculator
 - **Git** - Version control system; also provides `file.exe` used by Yazi for MIME detection
 - **Windows Terminal** - Default terminal application
-- **Yazi** - Terminal file manager; configured to use Micro for text files and qimgv for images
+- **Yazi** - Terminal file manager; text/code opens in Micro while all other files use normal Windows file associations
 - **Micro** - Terminal text editor
 - **AltSnap** - Window management utility
 - **Visual C++ Redistributable** - Runtime libraries
