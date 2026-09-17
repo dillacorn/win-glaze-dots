@@ -167,6 +167,9 @@ window_rules:
         window_class: { regex: "^(TfcSearchForm)$" }
       - window_process: { equals: "ApplicationFrameHost" }
 
+      # Bluebeam Revu
+      - window_title: { regex: "^Insert Pages$" }
+
   - commands: ["set-floating --centered"]
     match:
       - window_title: { regex: "Volume Mixer" }
