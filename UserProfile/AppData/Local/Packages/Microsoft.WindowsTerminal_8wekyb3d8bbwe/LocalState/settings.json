@@ -9,6 +9,46 @@
         {
             "command": "closeTab",
             "id": "User.CloseTab"
+        },
+        {
+            "command": { "action": "switchToTab", "index": 0 },
+            "id": "User.SwitchToTab1"
+        },
+        {
+            "command": { "action": "switchToTab", "index": 1 },
+            "id": "User.SwitchToTab2"
+        },
+        {
+            "command": { "action": "switchToTab", "index": 2 },
+            "id": "User.SwitchToTab3"
+        },
+        {
+            "command": { "action": "switchToTab", "index": 3 },
+            "id": "User.SwitchToTab4"
+        },
+        {
+            "command": { "action": "switchToTab", "index": 4 },
+            "id": "User.SwitchToTab5"
+        },
+        {
+            "command": { "action": "switchToTab", "index": 5 },
+            "id": "User.SwitchToTab6"
+        },
+        {
+            "command": { "action": "switchToTab", "index": 6 },
+            "id": "User.SwitchToTab7"
+        },
+        {
+            "command": { "action": "switchToTab", "index": 7 },
+            "id": "User.SwitchToTab8"
+        },
+        {
+            "command": { "action": "switchToTab", "index": 8 },
+            "id": "User.SwitchToTab9"
+        },
+        {
+            "command": { "action": "switchToTab", "index": 9 },
+            "id": "User.SwitchToTab10"
         }
     ],
     "alwaysShowTabs": true,
@@ -34,6 +74,46 @@
         {
             "id": "User.CloseTab",
             "keys": "ctrl+w"
+        },
+        {
+            "id": "User.SwitchToTab1",
+            "keys": "ctrl+1"
+        },
+        {
+            "id": "User.SwitchToTab2",
+            "keys": "ctrl+2"
+        },
+        {
+            "id": "User.SwitchToTab3",
+            "keys": "ctrl+3"
+        },
+        {
+            "id": "User.SwitchToTab4",
+            "keys": "ctrl+4"
+        },
+        {
+            "id": "User.SwitchToTab5",
+            "keys": "ctrl+5"
+        },
+        {
+            "id": "User.SwitchToTab6",
+            "keys": "ctrl+6"
+        },
+        {
+            "id": "User.SwitchToTab7",
+            "keys": "ctrl+7"
+        },
+        {
+            "id": "User.SwitchToTab8",
+            "keys": "ctrl+8"
+        },
+        {
+            "id": "User.SwitchToTab9",
+            "keys": "ctrl+9"
+        },
+        {
+            "id": "User.SwitchToTab10",
+            "keys": "ctrl+0"
         },
         {
             "id": "Terminal.DuplicatePaneAuto",
