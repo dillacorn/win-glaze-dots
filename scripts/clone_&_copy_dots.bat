@@ -8,6 +8,7 @@ set "repoURL=https://github.com/dillacorn/win-glaze-dots"
 set "repoPath=%UserProfile%\win-glaze-dots"
 set "userProfile=%UserProfile%"
 set "appDataRoaming=%AppData%"
+set "localAppData=%LocalAppData%"
 
 :: =========================
 :: Fresh clone of the repo
@@ -37,11 +38,37 @@ if not exist "%userProfile%\scripts" mkdir "%userProfile%\scripts"
 xcopy "%repoPath%\UserProfile\scripts" "%userProfile%\scripts" /E /I /Y
 
 :: =========================
-:: Copy: %APPDATA%\alacritty
+:: Copy: Windows Terminal settings
 :: =========================
-echo Copying alacritty config...
-if not exist "%appDataRoaming%\alacritty" mkdir "%appDataRoaming%\alacritty"
-xcopy "%repoPath%\UserProfile\AppData\Roaming\alacritty" "%appDataRoaming%\alacritty" /E /I /Y
+echo Copying Windows Terminal settings...
+set "terminalSource=%repoPath%\UserProfile\AppData\Local\Packages\Microsoft.WindowsTerminal_8wekyb3d8bbwe\LocalState\settings.json"
+set "terminalTarget=%localAppData%\Packages\Microsoft.WindowsTerminal_8wekyb3d8bbwe\LocalState"
+if not exist "%terminalTarget%" mkdir "%terminalTarget%"
+if exist "%terminalSource%" (
+    copy /Y "%terminalSource%" "%terminalTarget%\settings.json" >nul
+) else (
+    echo WARNING: Windows Terminal settings.json not found in repo.
+)
+
+:: =========================
+:: Copy: %APPDATA%\yazi
+:: =========================
+echo Copying Yazi config...
+if not exist "%appDataRoaming%\yazi" mkdir "%appDataRoaming%\yazi"
+xcopy "%repoPath%\UserProfile\AppData\Roaming\yazi" "%appDataRoaming%\yazi" /E /I /Y
+
+:: Yazi uses Git for Windows' file.exe for MIME detection.
+set "gitFile=%ProgramFiles%\Git\usr\bin\file.exe"
+if exist "%gitFile%" (
+    echo Setting YAZI_FILE_ONE=%gitFile%
+    setx YAZI_FILE_ONE "%gitFile%" >nul
+) else if exist "%userProfile%\scoop\apps\git\current\usr\bin\file.exe" (
+    set "gitFile=%userProfile%\scoop\apps\git\current\usr\bin\file.exe"
+    echo Setting YAZI_FILE_ONE=!gitFile!
+    setx YAZI_FILE_ONE "!gitFile!" >nul
+) else (
+    echo WARNING: Git file.exe not found. Yazi MIME detection may be incomplete.
+)
 
 :: =========================
 :: Copy: %APPDATA%\flameshot
@@ -85,4 +112,5 @@ xcopy "%repoPath%\UserProfile\.config\yasb" "%userProfile%\.config\yasb" /E /I /
 :: Done
 :: =========================
 echo All files have been cloned and copied successfully!
+echo Restart terminals or sign out/reboot so new user environment variables are inherited.
 pause
