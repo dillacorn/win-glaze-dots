@@ -1,16 +1,19 @@
 # github.com/dillacorn/win-glaze-dots
 # %APPDATA%\yazi\config\yazi.toml
 
+# Keep Yazi minimally opinionated on Windows:
+# - text/code uses Micro
+# - everything else uses normal Windows file associations
+
 [opener]
 edit = [
-    { run = 'wt.exe -w new new-tab --title "Micro" --suppressApplicationTitle -d %d1 micro %s1', orphan = true, desc = "Micro", for = "windows" },
+    { run = 'wt.exe -w new new-tab --title "Micro" --suppressApplicationTitle --startingDirectory %d1 micro.exe %s', orphan = true, desc = "Micro", for = "windows" },
 ]
 
-image-default = [
-    { run = 'cmd.exe /d /c start "" /D %d1 "C:\Program Files\qimgv\qimgv.exe" %s1', orphan = true, desc = "Open image", for = "windows" },
+open = [
+    { run = 'cmd.exe /d /c start "" /D %d1 %s1', orphan = true, desc = "Open", for = "windows" },
 ]
 
-[open]
-prepend_rules = [
-    { mime = "image/*", use = "image-default" },
+play = [
+    { run = 'cmd.exe /d /c start "" /D %d1 %s1', orphan = true, desc = "Open", for = "windows" },
 ]
