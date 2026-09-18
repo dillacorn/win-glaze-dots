@@ -178,13 +178,13 @@ window_rules:
 binding_modes:
   - name: "resize"
     keybindings:
-      - commands: ["shell-exec --hide-window powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File \"%USERPROFILE%\\scripts\\glazewm_resize_direction.ps1\" left"]
+      - commands: ["shell-exec --hide-window cmd.exe /d /c call \"%USERPROFILE%\\scripts\\glazewm_resize_direction.bat\" left"]
         bindings: ["h", "left"]
-      - commands: ["shell-exec --hide-window powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File \"%USERPROFILE%\\scripts\\glazewm_resize_direction.ps1\" right"]
+      - commands: ["shell-exec --hide-window cmd.exe /d /c call \"%USERPROFILE%\\scripts\\glazewm_resize_direction.bat\" right"]
         bindings: ["l", "right"]
-      - commands: ["shell-exec --hide-window powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File \"%USERPROFILE%\\scripts\\glazewm_resize_direction.ps1\" up"]
+      - commands: ["shell-exec --hide-window cmd.exe /d /c call \"%USERPROFILE%\\scripts\\glazewm_resize_direction.bat\" up"]
         bindings: ["k", "up"]
-      - commands: ["shell-exec --hide-window powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File \"%USERPROFILE%\\scripts\\glazewm_resize_direction.ps1\" down"]
+      - commands: ["shell-exec --hide-window cmd.exe /d /c call \"%USERPROFILE%\\scripts\\glazewm_resize_direction.bat\" down"]
         bindings: ["j", "down"]
       - commands: ["wm-disable-binding-mode --name resize"]
         bindings: ["escape", "enter"]
@@ -232,13 +232,13 @@ keybindings:
   - commands: ["resize --height -2%"]
     bindings: ["alt+u"]
 
-  - commands: ["shell-exec --hide-window powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File \"%USERPROFILE%\\scripts\\glazewm_resize_direction.ps1\" left"]
+  - commands: ["shell-exec --hide-window cmd.exe /d /c call \"%USERPROFILE%\\scripts\\glazewm_resize_direction.bat\" left"]
     bindings: ["alt+ctrl+left"]
-  - commands: ["shell-exec --hide-window powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File \"%USERPROFILE%\\scripts\\glazewm_resize_direction.ps1\" right"]
+  - commands: ["shell-exec --hide-window cmd.exe /d /c call \"%USERPROFILE%\\scripts\\glazewm_resize_direction.bat\" right"]
     bindings: ["alt+ctrl+right"]
-  - commands: ["shell-exec --hide-window powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File \"%USERPROFILE%\\scripts\\glazewm_resize_direction.ps1\" up"]
+  - commands: ["shell-exec --hide-window cmd.exe /d /c call \"%USERPROFILE%\\scripts\\glazewm_resize_direction.bat\" up"]
     bindings: ["alt+ctrl+up"]
-  - commands: ["shell-exec --hide-window powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File \"%USERPROFILE%\\scripts\\glazewm_resize_direction.ps1\" down"]
+  - commands: ["shell-exec --hide-window cmd.exe /d /c call \"%USERPROFILE%\\scripts\\glazewm_resize_direction.bat\" down"]
     bindings: ["alt+ctrl+down"]
 
   - commands: ["wm-enable-binding-mode --name pause"]
