@@ -1,6 +1,7 @@
 name: Validate WGDot
 
 on:
+  workflow_dispatch:
   push:
     paths:
       - "wgdot/**"
