@@ -227,13 +227,13 @@ keybindings:
     bindings: ["alt+shift+j", "alt+shift+down"]
 
   - commands: ["resize --width -2%"]
-    bindings: ["alt+y", "alt+ctrl+right"]
+    bindings: ["alt+y"]
   - commands: ["resize --width +2%"]
-    bindings: ["alt+o", "alt+ctrl+left"]
+    bindings: ["alt+o"]
   - commands: ["resize --height +2%"]
-    bindings: ["alt+i", "alt+ctrl+up"]
+    bindings: ["alt+i"]
   - commands: ["resize --height -2%"]
-    bindings: ["alt+u", "alt+ctrl+down"]
+    bindings: ["alt+u"]
 
   - commands: ["wm-enable-binding-mode --name pause"]
     bindings: ["alt+shift+p"]
