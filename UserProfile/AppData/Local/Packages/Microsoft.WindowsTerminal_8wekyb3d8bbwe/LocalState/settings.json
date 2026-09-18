@@ -135,7 +135,7 @@
             "cursorShape": "filledBox",
             "font":
             {
-                "face": "Consolas",
+                "face": "JetBrainsMono Nerd Font Mono",
                 "size": 12,
                 "weight": "normal"
             },
