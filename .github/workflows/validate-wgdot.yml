@@ -1,0 +1,37 @@
+name: Validate WGDot
+
+on:
+  push:
+    paths:
+      - "wgdot/**"
+      - "tests/test-wgdot.ps1"
+      - "MANUAL_POWERSHELL.md"
+      - "AGENTS.md"
+      - ".github/workflows/validate-wgdot.yml"
+  pull_request:
+    paths:
+      - "wgdot/**"
+      - "tests/test-wgdot.ps1"
+      - "MANUAL_POWERSHELL.md"
+      - "AGENTS.md"
+      - ".github/workflows/validate-wgdot.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  windows-powershell-51:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate with Windows PowerShell 5.1
+        shell: powershell
+        run: powershell.exe -NoLogo -NoProfile -File tests\test-wgdot.ps1
+
+  powershell-7:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate with PowerShell 7
+        shell: pwsh
+        run: pwsh -NoLogo -NoProfile -File tests/test-wgdot.ps1

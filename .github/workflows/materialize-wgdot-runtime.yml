@@ -1,11 +1,14 @@
-name: Materialize WGDot runtime
+name: Materialize WGDot sources
 
 on:
   push:
     branches:
       - feature/wgdot-maintenance
     paths:
-      - "wgdot/wgdot.ps1.gz"
+      - "AGENTS.md.gz"
+      - "MANUAL_POWERSHELL.md.gz"
+      - "wgdot/manifest.json.gz"
+      - "tests/test-wgdot.ps1.gz"
       - ".github/workflows/materialize-wgdot-runtime.yml"
 
 permissions:
@@ -19,12 +22,15 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Materialize runtime
+      - name: Materialize sources
         run: |
-          gzip -dc wgdot/wgdot.ps1.gz > wgdot/wgdot.ps1
-          rm wgdot/wgdot.ps1.gz
+          gzip -dc AGENTS.md.gz > AGENTS.md
+          gzip -dc MANUAL_POWERSHELL.md.gz > MANUAL_POWERSHELL.md
+          gzip -dc wgdot/manifest.json.gz > wgdot/manifest.json
+          gzip -dc tests/test-wgdot.ps1.gz > tests/test-wgdot.ps1
+          rm AGENTS.md.gz MANUAL_POWERSHELL.md.gz wgdot/manifest.json.gz tests/test-wgdot.ps1.gz
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add wgdot/wgdot.ps1 wgdot/wgdot.ps1.gz
-          git commit -m "Add WGDot runtime"
+          git add -A
+          git commit -m "Add WGDot sources and tests"
           git push origin HEAD:${GITHUB_REF_NAME}
