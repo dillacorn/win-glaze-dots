@@ -34,6 +34,10 @@ Copy-Item -Path $source -Destination "$target\settings.json" -Force
 
 #### Copy and overwrite Yazi dots
 ```powershell
+$legacyClipboard = "$env:AppData\yazi\config\plugins\clipboard.yazi"
+if (Test-Path $legacyClipboard) {
+    Remove-Item -Recurse -Force $legacyClipboard
+}
 Copy-Item -Recurse -Path "$env:UserProfile\win-glaze-dots\UserProfile\AppData\Roaming\yazi" -Destination "$env:AppData\Roaming" -Force
 ```
 
