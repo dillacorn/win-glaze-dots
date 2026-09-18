@@ -55,6 +55,10 @@ if exist "%terminalSource%" (
 :: =========================
 echo Copying Yazi config...
 if not exist "%appDataRoaming%\yazi" mkdir "%appDataRoaming%\yazi"
+if exist "%appDataRoaming%\yazi\config\plugins\clipboard.yazi" (
+    echo Removing deprecated Yazi clipboard plugin...
+    rmdir /S /Q "%appDataRoaming%\yazi\config\plugins\clipboard.yazi"
+)
 xcopy "%repoPath%\UserProfile\AppData\Roaming\yazi" "%appDataRoaming%\yazi" /E /I /Y
 
 where ya >nul 2>&1
