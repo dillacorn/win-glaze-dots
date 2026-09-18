@@ -224,9 +224,9 @@ keybindings:
     bindings: ["alt+shift+j", "alt+shift+down"]
 
   - commands: ["resize --width -2%"]
-    bindings: ["alt+y", "alt+ctrl+right"]
+    bindings: ["alt+y", "alt+ctrl+left"]
   - commands: ["resize --width +2%"]
-    bindings: ["alt+o", "alt+ctrl+left"]
+    bindings: ["alt+o", "alt+ctrl+right"]
   - commands: ["resize --height +2%"]
     bindings: ["alt+i", "alt+ctrl+up"]
   - commands: ["resize --height -2%"]
