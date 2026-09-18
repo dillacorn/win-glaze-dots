@@ -57,6 +57,14 @@ echo Copying Yazi config...
 if not exist "%appDataRoaming%\yazi" mkdir "%appDataRoaming%\yazi"
 xcopy "%repoPath%\UserProfile\AppData\Roaming\yazi" "%appDataRoaming%\yazi" /E /I /Y
 
+where ya >nul 2>&1
+if errorlevel 1 (
+    echo WARNING: Yazi package helper ya was not found. Run "ya pkg install" after installing Yazi.
+) else (
+    echo Installing Yazi plugins...
+    ya pkg install || echo WARNING: Could not install Yazi plugins automatically. Run "ya pkg install" manually.
+)
+
 :: Yazi uses Git for Windows' file.exe for MIME detection.
 set "gitFile=%ProgramFiles%\Git\usr\bin\file.exe"
 if exist "%gitFile%" (
