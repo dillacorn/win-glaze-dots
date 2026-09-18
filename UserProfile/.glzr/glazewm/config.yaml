@@ -178,13 +178,13 @@ window_rules:
 binding_modes:
   - name: "resize"
     keybindings:
-      - commands: ["shell-exec --hide-window cmd.exe /d /c call \"%USERPROFILE%\\scripts\\glazewm_resize_direction.bat\" left"]
-        bindings: ["h", "left"]
-      - commands: ["shell-exec --hide-window cmd.exe /d /c call \"%USERPROFILE%\\scripts\\glazewm_resize_direction.bat\" right"]
+      - commands: ["resize --width -2%"]
         bindings: ["l", "right"]
-      - commands: ["shell-exec --hide-window cmd.exe /d /c call \"%USERPROFILE%\\scripts\\glazewm_resize_direction.bat\" up"]
+      - commands: ["resize --width +2%"]
+        bindings: ["h", "left"]
+      - commands: ["resize --height +2%"]
         bindings: ["k", "up"]
-      - commands: ["shell-exec --hide-window cmd.exe /d /c call \"%USERPROFILE%\\scripts\\glazewm_resize_direction.bat\" down"]
+      - commands: ["resize --height -2%"]
         bindings: ["j", "down"]
       - commands: ["wm-disable-binding-mode --name resize"]
         bindings: ["escape", "enter"]
@@ -231,15 +231,6 @@ keybindings:
     bindings: ["alt+i"]
   - commands: ["resize --height -2%"]
     bindings: ["alt+u"]
-
-  - commands: ["shell-exec --hide-window cmd.exe /d /c call \"%USERPROFILE%\\scripts\\glazewm_resize_direction.bat\" left"]
-    bindings: ["alt+ctrl+left"]
-  - commands: ["shell-exec --hide-window cmd.exe /d /c call \"%USERPROFILE%\\scripts\\glazewm_resize_direction.bat\" right"]
-    bindings: ["alt+ctrl+right"]
-  - commands: ["shell-exec --hide-window cmd.exe /d /c call \"%USERPROFILE%\\scripts\\glazewm_resize_direction.bat\" up"]
-    bindings: ["alt+ctrl+up"]
-  - commands: ["shell-exec --hide-window cmd.exe /d /c call \"%USERPROFILE%\\scripts\\glazewm_resize_direction.bat\" down"]
-    bindings: ["alt+ctrl+down"]
 
   - commands: ["wm-enable-binding-mode --name pause"]
     bindings: ["alt+shift+p"]
