@@ -46,4 +46,5 @@ jobs:
         run: wgdot\bootstrap.cmd
       - name: Verify installed native command
         shell: cmd
-        run: "%LOCALAPPDATA%\wgdot\bin\wgdot.exe status"
+        run: |
+          "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" status
