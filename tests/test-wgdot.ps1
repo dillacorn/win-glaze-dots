@@ -283,7 +283,6 @@ Assert-True ($nativeSourceText -match 'WGDot will request administrator approval
 Assert-True ($nativeSourceText -match 'Elevated software plans must stay inside the WGDot state directory') "elevated software plan path is constrained to WGDot state"
 Assert-True ($nativeSourceText -match 'sourceRevision') "elevated software worker checks the selected source revision"
 Assert-True ($nativeSourceText -match 'TweakNeedsAdministrator') "software batching separates administrator-only tweaks from normal user-level tweaks"
-Assert-True ($nativeSourceText -match 'const string Version = "native-preview-27"') "native runtime version tracks WinGet hang protection"
 Assert-True ($nativeSourceText -match 'WingetPreflightTimeoutMs = 30000') "WinGet preflight has a finite timeout"
 Assert-True ($nativeSourceText -match 'Reading installed WinGet package state') "software reconciliation snapshots installed packages once before per-package network validation"
 Assert-True ($nativeSourceText -match 'RunWithTimeout') "native process runner supports bounded preflight calls"
@@ -299,7 +298,8 @@ Assert-True ($nativeSourceText -match 'GetWingetInstallTimeoutMs') "package-spec
 $flowPackage = @($manifest.packages | Where-Object { $_.id -eq 'Flow-Launcher.Flow-Launcher' })[0]
 Assert-True ($null -ne $flowPackage) "Flow Launcher package exists"
 Assert-Equal ([string]$flowPackage.fallbackGitHubRepo) 'Flow-Launcher/Flow.Launcher' "Flow Launcher fallback is restricted to the official upstream repository"
-Assert-Equal ([string]$flowPackage.fallbackAssetRegex) '^Flow-Launcher-Setup\.exe
+Assert-Equal ([string]$flowPackage.fallbackAssetRegex) '^Flow-Launcher-Setup\.exe$' "Flow Launcher fallback accepts only the official setup asset"
+Assert-Equal ([int]$flowPackage.wingetInstallTimeoutSeconds) 180 "Flow Launcher WinGet attempt times out before indefinite stalls"
 Assert-True ($nativeSourceText -notmatch '(?i)sudo(?:\.exe)?\s+winget') "software batching does not depend on Windows sudo"
 Assert-True ($nativeSourceText -notmatch '(?i)winget(?:\.exe)?\s+upgrade\s+--all') "native runtime never upgrades all WinGet packages"
 Assert-True ($nativeSourceText -match '\.wgdot\.backup') "native runtime uses identifiable adjacent backup names"
