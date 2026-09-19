@@ -18,7 +18,7 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-21";
+    const string Version = "native-preview-22";
     const string RepoFullName = "dillacorn/win-glaze-dots";
     const string RepoUrl = "https://github.com/dillacorn/win-glaze-dots.git";
     const string ApiBase = "https://api.github.com/repos/dillacorn/win-glaze-dots";
@@ -3723,6 +3723,11 @@ public static class Program
         return false;
     }
 
+    static bool IsBackKey(ConsoleKey key)
+    {
+        return key == ConsoleKey.Escape || key == ConsoleKey.Q;
+    }
+
     static int ReadSingleChoice(string title, List<string> items, int initialIndex)
     {
         if (items == null || items.Count == 0) return -1;
@@ -3760,7 +3765,7 @@ public static class Program
 
             Console.WriteLine();
             Console.ForegroundColor = ConsoleColor.DarkGray;
-            Console.WriteLine("Up/Down: move   PgUp/PgDn: page   Enter: select   Esc: cancel");
+            Console.WriteLine("Up/Down: move   PgUp/PgDn: page   Enter: select   Q/Esc: back");
             Console.ResetColor();
 
             ConsoleKey key = Console.ReadKey(true).Key;
@@ -3771,7 +3776,7 @@ public static class Program
             else if (key == ConsoleKey.Home) index = 0;
             else if (key == ConsoleKey.End) index = items.Count - 1;
             else if (key == ConsoleKey.Enter) return index;
-            else if (key == ConsoleKey.Escape) return -1;
+            else if (IsBackKey(key)) return -1;
         }
     }
 
@@ -3848,7 +3853,7 @@ public static class Program
 
             Console.WriteLine();
             Console.ForegroundColor = ConsoleColor.DarkGray;
-            Console.WriteLine("Enter: open category / finish   Esc: cancel");
+            Console.WriteLine("Enter: open category / finish   Q/Esc: back");
             Console.ResetColor();
 
             ConsoleKey key = Console.ReadKey(true).Key;
@@ -3857,7 +3862,7 @@ public static class Program
             else if (key == ConsoleKey.DownArrow) index = (index + 1) % count;
             else if (key == ConsoleKey.Home) index = 0;
             else if (key == ConsoleKey.End) index = doneIndex;
-            else if (key == ConsoleKey.Escape) return null;
+            else if (IsBackKey(key)) return null;
             else if (key == ConsoleKey.Enter)
             {
                 if (index == doneIndex) return items;
@@ -3909,7 +3914,7 @@ public static class Program
             else
                 Console.WriteLine("Selected: " + selectedCount);
             Console.WriteLine("Up/Down: move   PgUp/PgDn: page   Space: toggle   A: all   N: none");
-            Console.WriteLine("Enter: accept   Esc: cancel");
+            Console.WriteLine("Enter: accept   Q/Esc: back");
             Console.ResetColor();
 
             ConsoleKey key = Console.ReadKey(true).Key;
@@ -3923,7 +3928,7 @@ public static class Program
             else if (key == ConsoleKey.A) foreach (ChoiceItem item in items) item.Selected = true;
             else if (key == ConsoleKey.N) foreach (ChoiceItem item in items) item.Selected = false;
             else if (key == ConsoleKey.Enter) return items;
-            else if (key == ConsoleKey.Escape) return null;
+            else if (IsBackKey(key)) return null;
         }
     }
 

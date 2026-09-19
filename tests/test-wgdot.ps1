@@ -210,6 +210,8 @@ Assert-True ($nativeSourceText -match 'TweakManager') "native runtime includes W
 Assert-True ($nativeSourceText -match 'ApplyMicroTextDefaults') "native runtime manages Micro text associations"
 Assert-True ($nativeSourceText -match 'ReadPackageChoicesByCategory') "software selector is grouped by category"
 Assert-True ($nativeSourceText -match 'PackageCategoryLabel') "software selector has friendly category labels"
+Assert-True ($nativeSourceText -match 'key == ConsoleKey\.Escape \|\| key == ConsoleKey\.Q') "Q and Escape share the global back-key behavior"
+Assert-True ($nativeSourceText -match 'Q/Esc: back') "keyboard UI advertises Q and Escape as back keys"
 Assert-True ($nativeSourceText -match 'launch-open-shell') "native runtime starts Open-Shell after installation"
 Assert-True ($nativeSourceText -match 'ApplyFlowLauncherAltP') "native runtime manages Flow Launcher Alt+P"
 Assert-True ($nativeSourceText -match 'ApplyEarTrumpetMixerAltV') "native runtime manages EarTrumpet Alt+V"
