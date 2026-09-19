@@ -710,13 +710,6 @@
       "defaultWork": false
     },
     {
-      "name": "Process Explorer",
-      "id": "Microsoft.Sysinternals.ProcessExplorer",
-      "category": "system",
-      "defaultNormal": false,
-      "defaultWork": false
-    },
-    {
       "name": "yt-dlp",
       "id": "yt-dlp.yt-dlp",
       "category": "media",

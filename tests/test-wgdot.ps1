@@ -74,7 +74,7 @@ Assert-True ($packageIds.ContainsKey("easymodo.qimgv")) "correct qimgv ID is cat
 Assert-True ($packageIds.ContainsKey("wagnardsoft.displaydriveruninstaller")) "correct DDU ID is cataloged"
 Assert-True ($packageIds.ContainsKey("xiph.flac")) "correct FLAC ID is cataloged"
 Assert-True ($packageIds.ContainsKey("itchio.itch")) "correct itch ID is cataloged"
-Assert-True ($packageIds.ContainsKey("microsoft.sysinternals.processexplorer")) "correct Process Explorer ID is cataloged"
+Assert-True (-not $packageIds.ContainsKey("microsoft.sysinternals.processexplorer")) "Process Explorer is not offered; System Informer is the preferred process manager"
 Assert-True (-not $packageIds.ContainsKey("alexx2000.doublecommander")) "Double Commander is not offered by WGDot"
 Assert-True ($packageIds.ContainsKey("mozilla.firefox")) "Firefox is cataloged"
 Assert-True ($packageIds.ContainsKey("vencord.vesktop")) "Vesktop is cataloged"

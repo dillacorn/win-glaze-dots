@@ -64,7 +64,6 @@ The default selection is intentionally conservative for public use. Only the WGD
 - **CPU-Z** — `CPUID.CPU-Z`
 - **GPU-Z** — `TechPowerUp.GPU-Z`
 - **Windhawk** — `RamenSoftware.Windhawk`
-- **Process Explorer** — `Microsoft.Sysinternals.ProcessExplorer`
 
 ### Networking / remote
 
