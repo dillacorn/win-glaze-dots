@@ -18,7 +18,7 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-18";
+    const string Version = "native-preview-19";
     const string RepoFullName = "dillacorn/win-glaze-dots";
     const string RepoUrl = "https://github.com/dillacorn/win-glaze-dots.git";
     const string ApiBase = "https://api.github.com/repos/dillacorn/win-glaze-dots";
@@ -2163,6 +2163,43 @@ public static class Program
                     SearchOption.AllDirectories)
                 .OrderByDescending(x => x)
                 .FirstOrDefault() ?? "";
+        }
+
+        // Normal Windows installations may not have Visual Studio/.NET reference
+        // assemblies, but the .NET Framework facade assemblies are still present
+        // in the GAC. Use those as the portable fallback.
+        string gacRoot = Path.Combine(
+            windows,
+            "Microsoft.NET",
+            "assembly",
+            "GAC_MSIL");
+
+        if (String.IsNullOrWhiteSpace(systemRuntime))
+        {
+            string gacSystemRuntime = Path.Combine(gacRoot, "System.Runtime");
+            if (Directory.Exists(gacSystemRuntime))
+            {
+                systemRuntime = Directory.GetFiles(
+                        gacSystemRuntime,
+                        "System.Runtime.dll",
+                        SearchOption.AllDirectories)
+                    .OrderByDescending(x => x)
+                    .FirstOrDefault() ?? "";
+            }
+        }
+
+        if (String.IsNullOrWhiteSpace(facadeWindowsRuntime))
+        {
+            string gacWindowsRuntime = Path.Combine(gacRoot, "System.Runtime.WindowsRuntime");
+            if (Directory.Exists(gacWindowsRuntime))
+            {
+                facadeWindowsRuntime = Directory.GetFiles(
+                        gacWindowsRuntime,
+                        "System.Runtime.WindowsRuntime.dll",
+                        SearchOption.AllDirectories)
+                    .OrderByDescending(x => x)
+                    .FirstOrDefault() ?? "";
+            }
         }
 
         var args = new StringBuilder();
