@@ -36,3 +36,14 @@ jobs:
       - name: Validate with PowerShell 7
         shell: pwsh
         run: pwsh -NoLogo -NoProfile -File tests/test-wgdot.ps1
+
+  native-bootstrap:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and install native bootstrap without PowerShell script execution
+        shell: cmd
+        run: wgdot\bootstrap.cmd
+      - name: Verify installed native command
+        shell: cmd
+        run: "%LOCALAPPDATA%\wgdot\bin\wgdot.exe status"
