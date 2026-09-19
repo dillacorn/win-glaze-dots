@@ -4,6 +4,7 @@ Set-StrictMode -Version 2.0
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $runtimePath = Join-Path $repoRoot "wgdot\wgdot.ps1"
 $manifestPath = Join-Path $repoRoot "wgdot\manifest.json"
+$launcherPath = Join-Path $repoRoot "wgdot\wgdot.cmd"
 $manualPath = Join-Path $repoRoot "MANUAL_POWERSHELL.md"
 
 function Assert-True {
@@ -76,6 +77,11 @@ $runtimeText = Get-Content -LiteralPath $runtimePath -Raw
 $launcherText = Get-Content -LiteralPath $launcherPath -Raw
 $manualText = Get-Content -LiteralPath $manualPath -Raw
 Assert-True ($runtimeText -notmatch '(?i)-ExecutionPolicy\s+Bypass') "runtime does not bypass execution policy"
+Assert-True ($launcherText -notmatch '(?i)-ExecutionPolicy\s+(Bypass|Unrestricted)') "launcher does not override execution policy"
+Assert-True ($launcherText -notmatch '(?i)Set-ExecutionPolicy') "launcher does not change execution policy"
+Assert-True ($launcherText -match 'Get-ExecutionPolicy') "launcher checks effective execution policy"
+Assert-True ($launcherText -match '(?i)Restricted') "launcher handles Restricted policy"
+Assert-True ($launcherText -match '(?i)AllSigned') "launcher handles AllSigned policy"
 Assert-True ($manualText -notmatch '(?i)-ExecutionPolicy\s+Bypass') "manual path does not bypass execution policy"
 Assert-True ($runtimeText -notmatch '(?i)winget\s+upgrade\s+--all') "runtime never upgrades all WinGet packages"
 Assert-True ($manualText -notmatch '(?i)winget\s+upgrade\s+--all') "manual path never upgrades all WinGet packages"
