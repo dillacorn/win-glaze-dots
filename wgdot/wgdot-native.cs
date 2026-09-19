@@ -18,7 +18,7 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-29";
+    const string Version = "native-preview-30";
     const int WingetPreflightTimeoutMs = 30000;
     const string RepoFullName = "dillacorn/win-glaze-dots";
     const string RepoUrl = "https://github.com/dillacorn/win-glaze-dots.git";
@@ -1915,83 +1915,236 @@ internal static class WgdotNative
         return failed == 0 ? 0 : 1;
     }
 
+    static bool IsContinueInstallationConfirmationKey(ConsoleKey key)
+    {
+        return
+            key == ConsoleKey.N ||
+            key == ConsoleKey.Enter ||
+            key == ConsoleKey.UpArrow ||
+            key == ConsoleKey.DownArrow ||
+            key == ConsoleKey.PageUp ||
+            key == ConsoleKey.PageDown ||
+            key == ConsoleKey.Home ||
+            key == ConsoleKey.End;
+    }
+
+    static bool ConfirmQuitInstallationSelection()
+    {
+        WriteTitle("Installation setup");
+        Console.ForegroundColor = ConsoleColor.Yellow;
+        Console.WriteLine("Quit the installer and discard the current selection changes?");
+        Console.ResetColor();
+        Console.WriteLine();
+        Console.WriteLine("Y: quit");
+        Console.WriteLine("N/Enter: keep configuring");
+        Console.WriteLine("Up/Down: keep configuring and return to the current menu");
+        Console.WriteLine();
+
+        while (true)
+        {
+            ConsoleKey key = Console.ReadKey(true).Key;
+            if (key == ConsoleKey.Y) return true;
+            if (IsContinueInstallationConfirmationKey(key)) return false;
+
+            // Deliberately ignore repeated Q/Esc presses. The user must make
+            // an explicit Y/N-style decision after reaching the quit guard.
+        }
+    }
+
     static InstallationSelection ConfigureInstallationSelection(
         Dictionary<string, object> manifest,
         InstallationSelection existing,
         bool includePackages)
     {
-        int initialScope = existing != null && String.Equals(existing.Scope, "work", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
-        int scopeIndex = ReadSingleChoice(
-            "Choose installation profile",
-            new List<string> { "Normal / personal PC", "Work PC" },
-            initialScope);
-        if (scopeIndex < 0) return null;
-
+        int scopeIndex = existing != null &&
+            String.Equals(existing.Scope, "work", StringComparison.OrdinalIgnoreCase)
+            ? 1
+            : 0;
         string scope = scopeIndex == 1 ? "work" : "normal";
 
-        int initialGlaze = existing != null
+        int glazeIndex = existing != null
             ? (String.Equals(existing.GlazeProfile, "work", StringComparison.OrdinalIgnoreCase) ? 1 : 0)
             : (scope == "work" ? 1 : 0);
 
-        int glazeIndex = ReadSingleChoice(
-            "Which GlazeWM config created by dillacorn do you want to use?",
-            new List<string> { "Normal", "Work" },
-            initialGlaze);
-        if (glazeIndex < 0) return null;
+        List<ChoiceItem> componentChoices = null;
+        List<ChoiceItem> packageChoices = null;
+        List<ChoiceItem> tweakChoices = null;
+        Dictionary<string, List<string>> browserOptions = null;
 
-        string glazeProfile = glazeIndex == 1 ? "work" : "normal";
-
-        var componentChoices = BuildComponentChoices(manifest, scope, existing);
-        componentChoices = ReadMultiChoice("Managed components", componentChoices);
-        if (componentChoices == null) return null;
-
-        var result = new InstallationSelection();
-        result.Scope = scope;
-        result.GlazeProfile = glazeProfile;
-        result.Components = componentChoices.Where(x => x.Selected).Select(x => x.Id).ToList();
-
-        if (includePackages)
+        int step = 0;
+        while (true)
         {
-            var browserOptions = BuildBrowserOptionSelection(manifest, scope, existing);
-            var packageChoices = BuildPackageChoices(manifest, scope, existing);
-            packageChoices = ReadPackageChoicesByCategory(
-                "Software to install / reconcile",
-                packageChoices,
-                manifest,
-                scope,
-                browserOptions);
-            if (packageChoices == null) return null;
-            result.Packages = packageChoices.Where(x => x.Selected).Select(x => x.Id).ToList();
-            result.BrowserOptions = browserOptions;
-            result.BrowserOptionsConfigured = true;
+            if (step == 0)
+            {
+                int nextScopeIndex = ReadSingleChoice(
+                    "Choose installation profile",
+                    new List<string> { "Normal / personal PC", "Work PC" },
+                    scopeIndex);
 
-            var tweakChoices = BuildTweakChoices(manifest, scope, existing, true);
-            tweakChoices = ReadMultiChoice("Windows tweaks / integrations", tweakChoices);
-            if (tweakChoices == null) return null;
-            result.Tweaks = tweakChoices.Where(x => x.Selected).Select(x => x.Id).ToList();
-            result.TweaksConfigured = true;
-        }
-        else if (existing != null)
-        {
-            result.Packages = new List<string>(existing.Packages);
-            result.BrowserOptions = new Dictionary<string, List<string>>(existing.BrowserOptions, StringComparer.OrdinalIgnoreCase);
-            result.BrowserOptionsConfigured = existing.BrowserOptionsConfigured;
-            result.Tweaks = existing.TweaksConfigured
-                ? new List<string>(existing.Tweaks)
-                : GetDefaultTweakIds(manifest, scope);
-            result.TweaksConfigured = true;
-        }
-        else
-        {
-            foreach (ChoiceItem item in BuildPackageChoices(manifest, scope, null))
-                if (item.Selected) result.Packages.Add(item.Id);
-            result.BrowserOptions = BuildBrowserOptionSelection(manifest, scope, null);
-            result.BrowserOptionsConfigured = false;
-            result.Tweaks = GetDefaultTweakIds(manifest, scope);
-            result.TweaksConfigured = true;
-        }
+                if (nextScopeIndex < 0)
+                {
+                    if (ConfirmQuitInstallationSelection()) return null;
+                    continue;
+                }
 
-        return result;
+                string nextScope = nextScopeIndex == 1 ? "work" : "normal";
+                bool scopeChanged = !String.Equals(
+                    scope,
+                    nextScope,
+                    StringComparison.OrdinalIgnoreCase);
+
+                scopeIndex = nextScopeIndex;
+                scope = nextScope;
+
+                if (scopeChanged)
+                {
+                    componentChoices = null;
+                    packageChoices = null;
+                    tweakChoices = null;
+                    browserOptions = null;
+
+                    if (existing == null)
+                        glazeIndex = scope == "work" ? 1 : 0;
+                }
+
+                step = 1;
+                continue;
+            }
+
+            if (step == 1)
+            {
+                int nextGlazeIndex = ReadSingleChoice(
+                    "Which GlazeWM config created by dillacorn do you want to use?",
+                    new List<string> { "Normal", "Work" },
+                    glazeIndex);
+
+                if (nextGlazeIndex < 0)
+                {
+                    step = 0;
+                    continue;
+                }
+
+                glazeIndex = nextGlazeIndex;
+                step = 2;
+                continue;
+            }
+
+            if (step == 2)
+            {
+                if (componentChoices == null)
+                    componentChoices = BuildComponentChoices(manifest, scope, existing);
+
+                List<ChoiceItem> editedComponents =
+                    ReadMultiChoice("Managed components", componentChoices);
+                if (editedComponents == null)
+                {
+                    step = 1;
+                    continue;
+                }
+
+                componentChoices = editedComponents;
+
+                if (!includePackages)
+                {
+                    var result = new InstallationSelection();
+                    result.Scope = scope;
+                    result.GlazeProfile = glazeIndex == 1 ? "work" : "normal";
+                    result.Components = componentChoices
+                        .Where(x => x.Selected)
+                        .Select(x => x.Id)
+                        .ToList();
+
+                    if (existing != null)
+                    {
+                        result.Packages = new List<string>(existing.Packages);
+                        result.BrowserOptions = new Dictionary<string, List<string>>(
+                            existing.BrowserOptions,
+                            StringComparer.OrdinalIgnoreCase);
+                        result.BrowserOptionsConfigured = existing.BrowserOptionsConfigured;
+                        result.Tweaks = existing.TweaksConfigured
+                            ? new List<string>(existing.Tweaks)
+                            : GetDefaultTweakIds(manifest, scope);
+                    }
+                    else
+                    {
+                        foreach (ChoiceItem item in BuildPackageChoices(manifest, scope, null))
+                            if (item.Selected) result.Packages.Add(item.Id);
+                        result.BrowserOptions = BuildBrowserOptionSelection(manifest, scope, null);
+                        result.BrowserOptionsConfigured = false;
+                        result.Tweaks = GetDefaultTweakIds(manifest, scope);
+                    }
+
+                    result.TweaksConfigured = true;
+                    return result;
+                }
+
+                step = 3;
+                continue;
+            }
+
+            if (step == 3)
+            {
+                if (browserOptions == null)
+                    browserOptions = BuildBrowserOptionSelection(manifest, scope, existing);
+                if (packageChoices == null)
+                    packageChoices = BuildPackageChoices(manifest, scope, existing);
+
+                List<ChoiceItem> editedPackages = ReadPackageChoicesByCategory(
+                    "Software to install / reconcile",
+                    packageChoices,
+                    manifest,
+                    scope,
+                    browserOptions);
+
+                if (editedPackages == null)
+                {
+                    step = 2;
+                    continue;
+                }
+
+                packageChoices = editedPackages;
+                step = 4;
+                continue;
+            }
+
+            if (step == 4)
+            {
+                if (tweakChoices == null)
+                    tweakChoices = BuildTweakChoices(manifest, scope, existing, true);
+
+                List<ChoiceItem> editedTweaks =
+                    ReadMultiChoice("Windows tweaks / integrations", tweakChoices);
+                if (editedTweaks == null)
+                {
+                    step = 3;
+                    continue;
+                }
+
+                tweakChoices = editedTweaks;
+
+                var result = new InstallationSelection();
+                result.Scope = scope;
+                result.GlazeProfile = glazeIndex == 1 ? "work" : "normal";
+                result.Components = componentChoices
+                    .Where(x => x.Selected)
+                    .Select(x => x.Id)
+                    .ToList();
+                result.Packages = packageChoices
+                    .Where(x => x.Selected)
+                    .Select(x => x.Id)
+                    .ToList();
+                result.BrowserOptions = browserOptions;
+                result.BrowserOptionsConfigured = true;
+                result.Tweaks = tweakChoices
+                    .Where(x => x.Selected)
+                    .Select(x => x.Id)
+                    .ToList();
+                result.TweaksConfigured = true;
+                return result;
+            }
+
+            throw new Exception("Unknown installation selection step.");
+        }
     }
 
     static InstallationSelection ConfigureSoftwareSelection(
@@ -2009,18 +2162,34 @@ internal static class WgdotNative
 
         var browserOptions = BuildBrowserOptionSelection(manifest, existing.Scope, existing);
         var choices = BuildPackageChoices(manifest, existing.Scope, existing);
-        choices = ReadPackageChoicesByCategory(
-            "Software to install / reconcile",
-            choices,
-            manifest,
-            existing.Scope,
-            browserOptions);
-        if (choices == null) return null;
 
-        result.Packages = choices.Where(x => x.Selected).Select(x => x.Id).ToList();
-        result.BrowserOptions = browserOptions;
-        result.BrowserOptionsConfigured = true;
-        return result;
+        while (true)
+        {
+            List<ChoiceItem> edited = ReadPackageChoicesByCategory(
+                "Software to install / reconcile",
+                choices,
+                manifest,
+                existing.Scope,
+                browserOptions);
+
+            if (edited != null)
+            {
+                choices = edited;
+                result.Packages = choices
+                    .Where(x => x.Selected)
+                    .Select(x => x.Id)
+                    .ToList();
+                result.BrowserOptions = browserOptions;
+                result.BrowserOptionsConfigured = true;
+                return result;
+            }
+
+            if (ConfirmQuitInstallationSelection())
+                return null;
+
+            // N/Enter/arrow input at the quit guard means the user wants to
+            // continue editing. Reopen the same selection with all changes kept.
+        }
     }
 
     static List<ChoiceItem> BuildComponentChoices(
@@ -7045,6 +7214,12 @@ public static class Program
                 !TweakRunsInElevatedBatch("disable-snap-assist") ||
                 TweakRunsInElevatedBatch("flow-launcher-alt-p"))
                 throw new Exception("Elevated tweak batching self-test failed.");
+
+            if (!IsContinueInstallationConfirmationKey(ConsoleKey.UpArrow) ||
+                !IsContinueInstallationConfirmationKey(ConsoleKey.DownArrow) ||
+                !IsContinueInstallationConfirmationKey(ConsoleKey.N) ||
+                IsContinueInstallationConfirmationKey(ConsoleKey.Y))
+                throw new Exception("Installation quit confirmation self-test failed.");
 
             Console.WriteLine("WGDot native runtime self-test passed.");
             return 0;

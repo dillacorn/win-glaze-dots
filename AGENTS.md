@@ -276,6 +276,13 @@ The obsolete `%APPDATA%\yazi\config\plugins\clipboard.yazi` directory may be rem
 
 Do not reintroduce Linux `wl-copy`/`wl-paste` assumptions into the Windows helper.
 
+## Installation navigation safety
+
+- Installation/reconfiguration is a staged wizard. `Q`/Esc from nested selectors backs up one wizard stage instead of immediately cancelling the whole installer.
+- Backing out past the first installation-profile screen must show an explicit quit confirmation. Quitting requires an explicit `Y`; repeated `Q`/Esc input must never count as confirmation.
+- `N`, Enter, Up/Down, PgUp/PgDn, Home, or End at the quit confirmation means the user wants to keep configuring and returns to the current installation menu.
+- Preserve in-progress selections while navigating backward/forward. If a fresh install changes Normal/Work scope, rebuild downstream scope-dependent defaults rather than mixing defaults from the previous scope.
+
 ## Investigation vs modification
 
 Treat review, investigation, diagnosis, explanation, comparison, research, and planning requests as read-only unless the user explicitly asks for changes.

@@ -2,6 +2,9 @@
 
 WGDot's interactive software selector is the preferred installation path. Packages are grouped by category instead of shown as one giant list.
 
+Installation setup now treats `Q`/Esc as **back one setup screen**. Repeated back presses cannot silently dump the user out of the installer: backing out past the first setup screen opens an explicit quit confirmation, and only `Y` quits. `N`, Enter, or beginning to navigate with the arrow/page keys keeps the installer open and preserves the in-progress selections.
+
+
 The default selection is intentionally conservative for public use. Only the WGDot desktop stack, broadly useful defaults, and practical dependencies are enabled by default; personal applications are opt-in.
 
 ## Elevation behavior
