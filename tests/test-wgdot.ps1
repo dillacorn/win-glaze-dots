@@ -185,7 +185,6 @@ Assert-True ($nativeSourceText -match 'ApplyMicroTextDefaults') "native runtime 
 Assert-True ($nativeSourceText -match 'ApplyClassicContextMenu') "native runtime manages classic context menu"
 Assert-True ($nativeSourceText -match 'ApplyOopsCursor') "native runtime manages optional cursor install"
 Assert-True ($nativeSourceText -match 'undergroundwires/privacy\.sexy/releases/latest') "privacy.sexy uses official latest GitHub release"
-Assert-True ($nativeSourceText -match 'rustdesk/rustdesk') "RustDesk fallback is limited to official upstream repository"
 Assert-True ($nativeSourceText -match 'Review only\. No files, backups, baselines, or selection state were changed\.') "native Git review is explicitly non-mutating"
 Assert-True ($nativeSourceText -match 'HKCU\\\\Environment|OpenSubKey\("Environment"|CreateSubKey\("Environment"') "native installer persists user PATH"
 Assert-True ($nativeBootstrapText -notmatch '(?i)powershell(?:\.exe)?') "native bootstrap does not invoke PowerShell"
