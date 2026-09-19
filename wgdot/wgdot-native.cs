@@ -17,7 +17,7 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-9";
+    const string Version = "native-preview-10";
     const string RepoFullName = "dillacorn/win-glaze-dots";
     const string RepoUrl = "https://github.com/dillacorn/win-glaze-dots.git";
     const string ApiBase = "https://api.github.com/repos/dillacorn/win-glaze-dots";
@@ -759,10 +759,10 @@ internal static class WgdotNative
 
             string mergeTarget = Path.Combine(sourceRoot, "merge.txt");
             string mergeLive = Path.Combine(liveRoot, "merge.txt");
-            File.WriteAllText(mergeTarget, "upstream\r\nbase\r\nthree\r\n", new UTF8Encoding(false));
-            File.WriteAllText(mergeLive, "one\r\nlocal\r\nthree\r\n", new UTF8Encoding(false));
+            File.WriteAllText(mergeTarget, "upstream-one\r\ntwo\r\nthree\r\nfour\r\nfive\r\n", new UTF8Encoding(false));
+            File.WriteAllText(mergeLive, "one\r\ntwo\r\nthree\r\nfour\r\nlocal-five\r\n", new UTF8Encoding(false));
             string mergeBaseline = GetBaselinePath("selftest-merge");
-            File.WriteAllText(mergeBaseline, "one\r\nbase\r\nthree\r\n", new UTF8Encoding(false));
+            File.WriteAllText(mergeBaseline, "one\r\ntwo\r\nthree\r\nfour\r\nfive\r\n", new UTF8Encoding(false));
 
             var mergeFile = new Dictionary<string, object>();
             mergeFile["id"] = "selftest-merge";
@@ -781,8 +781,8 @@ internal static class WgdotNative
 
             ApplyPlan(mergePlan, manifest, selection, context);
             string merged = File.ReadAllText(mergeLive);
-            if (merged.IndexOf("upstream", StringComparison.Ordinal) < 0 ||
-                merged.IndexOf("local", StringComparison.Ordinal) < 0)
+            if (merged.IndexOf("upstream-one", StringComparison.Ordinal) < 0 ||
+                merged.IndexOf("local-five", StringComparison.Ordinal) < 0)
                 throw new Exception("Three-way merge application self-test failed.");
 
             string legacy = Path.Combine(root, "clipboard.yazi");
