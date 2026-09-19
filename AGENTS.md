@@ -191,7 +191,8 @@ Therefore:
 
 - Do not use `Set-ExecutionPolicy`.
 - Do not invoke PowerShell with `-ExecutionPolicy Bypass`.
-- Do not require a downloaded custom executable for WGDot maintenance.
+- Do not require a downloaded opaque custom executable for WGDot maintenance. A native helper may be compiled locally from repository source with Windows-provided tooling, but the source must remain inspectable and the manual fallback must not depend on it.
+- A native bootstrap must not invoke PowerShell to work around execution policy. It may only perform behavior implemented natively.
 - Automatic WGDot and manual PowerShell behavior must derive from the same manifest/planning rules.
 - Preserve a pasteable PowerShell path for important operations.
 - If local policy blocks `.ps1`, do not work around policy; use the manual paste-only path.

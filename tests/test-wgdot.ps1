@@ -6,6 +6,8 @@ $runtimePath = Join-Path $repoRoot "wgdot\wgdot.ps1"
 $manifestPath = Join-Path $repoRoot "wgdot\manifest.json"
 $launcherPath = Join-Path $repoRoot "wgdot\wgdot.cmd"
 $manualPath = Join-Path $repoRoot "MANUAL_POWERSHELL.md"
+$nativeBootstrapPath = Join-Path $repoRoot "wgdot\\bootstrap.cmd"
+$nativeSourcePath = Join-Path $repoRoot "wgdot\\wgdot-native.cs"
 
 function Assert-True {
     param([bool]$Condition, [string]$Message)
@@ -20,6 +22,8 @@ function Assert-Equal {
 Assert-True (Test-Path -LiteralPath $runtimePath -PathType Leaf) "runtime exists"
 Assert-True (Test-Path -LiteralPath $manifestPath -PathType Leaf) "manifest exists"
 Assert-True (Test-Path -LiteralPath $launcherPath -PathType Leaf) "launcher exists"
+Assert-True (Test-Path -LiteralPath $nativeBootstrapPath -PathType Leaf) "native bootstrap exists"
+Assert-True (Test-Path -LiteralPath $nativeSourcePath -PathType Leaf) "native bootstrap source exists"
 
 $env:WGDOT_TEST_MODE = "1"
 . $runtimePath
@@ -76,6 +80,8 @@ Assert-True ($packageIds.ContainsKey("microsoft.sysinternals.processexplorer")) 
 $runtimeText = Get-Content -LiteralPath $runtimePath -Raw
 $launcherText = Get-Content -LiteralPath $launcherPath -Raw
 $manualText = Get-Content -LiteralPath $manualPath -Raw
+$nativeBootstrapText = Get-Content -LiteralPath $nativeBootstrapPath -Raw
+$nativeSourceText = Get-Content -LiteralPath $nativeSourcePath -Raw
 Assert-True ($runtimeText -notmatch '(?i)-ExecutionPolicy\s+Bypass') "runtime does not bypass execution policy"
 Assert-True ($launcherText -notmatch '(?i)-ExecutionPolicy\s+(Bypass|Unrestricted)') "launcher does not override execution policy"
 Assert-True ($launcherText -notmatch '(?i)Set-ExecutionPolicy') "launcher does not change execution policy"
@@ -83,6 +89,9 @@ Assert-True ($launcherText -match 'Get-ExecutionPolicy') "launcher checks effect
 Assert-True ($launcherText -match '(?i)Restricted') "launcher handles Restricted policy"
 Assert-True ($launcherText -match '(?i)AllSigned') "launcher handles AllSigned policy"
 Assert-True ($manualText -notmatch '(?i)-ExecutionPolicy\s+Bypass') "manual path does not bypass execution policy"
+Assert-True ($nativeBootstrapText -notmatch '(?i)Set-ExecutionPolicy|-ExecutionPolicy\s+(Bypass|Unrestricted)') "native bootstrap does not change or bypass execution policy"
+Assert-True ($nativeSourceText -notmatch '(?i)Set-ExecutionPolicy|-ExecutionPolicy\s+(Bypass|Unrestricted)') "native bootstrap source does not change or bypass execution policy"
+Assert-True ($nativeBootstrapText -notmatch '(?i)powershell(?:\.exe)?') "native bootstrap does not invoke PowerShell"
 Assert-True ($runtimeText -notmatch '(?i)winget\s+upgrade\s+--all') "runtime never upgrades all WinGet packages"
 Assert-True ($manualText -notmatch '(?i)winget\s+upgrade\s+--all') "manual path never upgrades all WinGet packages"
 Assert-True ($runtimeText -notmatch '(?i)rmdir\s+/s') "runtime does not use destructive CMD directory removal"
