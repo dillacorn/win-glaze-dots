@@ -179,6 +179,11 @@ Backup deletion must support review/dry-run behavior and explicit confirmation.
 
 ## GlazeWM profile model
 
+- The managed GlazeWM profiles include a `noalt` binding mode toggled with `Win+Alt+N`, modeled after Awtarchy's noalt submap. It suppresses the normal Alt-heavy GlazeWM bindings while preserving Windows-key app/screenshot alternatives.
+- Flow Launcher keeps native `Alt+P`; GlazeWM maps `Win+D` to WGDot's `flow-open` helper.
+- EarTrumpet keeps native mixer `Alt+V`; GlazeWM maps `Win+V` to WGDot's `eartrumpet-mixer` helper so both reach the same mixer action.
+- Flameshot selection capture is `Win+Shift+S` in both managed GlazeWM profiles; do not restore the old `Win+Shift+F` binding.
+
 - Yazi launcher binding uses both `lwin+shift+e` and `rwin+shift+e`. Keep both Windows-key variants together and do not restore the old `alt+shift+e` launcher bind.
 
 There are two maintained GlazeWM source profiles:

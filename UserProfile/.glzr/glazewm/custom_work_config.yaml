@@ -197,9 +197,44 @@ binding_modes:
       - commands: ["wm-disable-binding-mode --name pause"]
         bindings: ["alt+shift+p"]
 
+  # Gaming-friendly mode based on Awtarchy's noalt submap.
+  # It suppresses the normal Alt-heavy GlazeWM bindings while preserving
+  # the Windows-key launcher/screenshot alternatives.
+  - name: "noalt"
+    keybindings:
+      - commands: ["wm-disable-binding-mode --name noalt"]
+        bindings: ["lwin+alt+n", "rwin+alt+n"]
+
+      - commands: ['shell-exec --hide-window "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" flow-open']
+        bindings: ["lwin+d", "rwin+d"]
+
+      - commands: ['shell-exec --hide-window "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" eartrumpet-mixer']
+        bindings: ["lwin+v", "rwin+v"]
+
+      - commands: ["shell-exec flameshot gui"]
+        bindings: ["lwin+shift+s", "rwin+shift+s"]
+
+      - commands: ["shell-exec wt.exe -w new"]
+        bindings: ["lwin+shift+enter", "rwin+shift+enter"]
+
+      - commands: ["shell-exec wt.exe -w new new-tab --title \"Yazi\" --suppressApplicationTitle powershell.exe -NoProfile -NoLogo -NoExit -Command yazi"]
+        bindings: ["lwin+shift+e", "rwin+shift+e"]
+
+      - commands: ["shell-exec explorer.exe http:"]
+        bindings: ["lwin+b", "rwin+b"]
+
+
 keybindings:
   - commands: ["shell-exec flameshot gui"]
-    bindings: ["win+shift+f"]
+    bindings: ["lwin+shift+s", "rwin+shift+s"]
+
+  # Flow keeps Alt+P as its native hotkey; GlazeWM provides the Windows-key alias.
+  - commands: ['shell-exec --hide-window "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" flow-open']
+    bindings: ["lwin+d", "rwin+d"]
+
+  # EarTrumpet keeps Alt+V as its native mixer hotkey; this aliases Win+V to it.
+  - commands: ['shell-exec --hide-window "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" eartrumpet-mixer']
+    bindings: ["lwin+v", "rwin+v"]
 
   - commands:
       - shell-exec --hide-window powershell -NoProfile -Command "if (Get-Process yasb -ErrorAction SilentlyContinue) { Stop-Process -Name yasb -Force } else { Start-Process yasb }"
@@ -237,6 +272,9 @@ keybindings:
     bindings: ["alt+i", "alt+ctrl+up"]
   - commands: ["resize --height -2%"]
     bindings: ["alt+u", "alt+ctrl+down"]
+
+  - commands: ["wm-enable-binding-mode --name noalt"]
+    bindings: ["lwin+alt+n", "rwin+alt+n"]
 
   - commands: ["wm-enable-binding-mode --name pause"]
     bindings: ["alt+shift+p"]

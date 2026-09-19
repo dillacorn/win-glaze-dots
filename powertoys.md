@@ -2,7 +2,7 @@
 
 PowerToys is not required by the managed WGDot setup.
 
-- **Win+Shift+F -> Flameshot** is handled directly by both managed GlazeWM profiles.
+- **Win+Shift+S -> Flameshot** is handled directly by both managed GlazeWM profiles.
 - WGDot handles its Windows tweaks/integrations natively.
 - Install PowerToys only if you want one of its additional utilities.
 

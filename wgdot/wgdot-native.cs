@@ -18,7 +18,7 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-22";
+    const string Version = "native-preview-23";
     const string RepoFullName = "dillacorn/win-glaze-dots";
     const string RepoUrl = "https://github.com/dillacorn/win-glaze-dots.git";
     const string ApiBase = "https://api.github.com/repos/dillacorn/win-glaze-dots";
@@ -57,6 +57,13 @@ internal static class WgdotNative
 
     [DllImport("user32.dll", SetLastError = true)]
     static extern bool SystemParametersInfo(uint uiAction, uint uiParam, IntPtr pvParam, uint fWinIni);
+
+    [DllImport("user32.dll")]
+    static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, UIntPtr dwExtraInfo);
+
+    const byte VkMenu = 0x12;
+    const byte VkV = 0x56;
+    const uint KeyeventfKeyup = 0x0002;
 
     [DllImport("shell32.dll")]
     static extern void SHChangeNotify(uint wEventId, uint uFlags, IntPtr dwItem1, IntPtr dwItem2);
@@ -150,6 +157,8 @@ internal static class WgdotNative
             if (command == "mark-runtime") return MarkRuntimeFromArgs(args.Skip(1).ToArray());
             if (command == "maintenance-self-test") return MaintenanceSelfTest();
             if (command == "software") return SoftwareReconcile();
+            if (command == "flow-open") return OpenFlowLauncher();
+            if (command == "eartrumpet-mixer") return OpenEarTrumpetMixer();
             if (command == "update") return ManagedOperation("update", ResolveDefaultSource());
             if (command == "reset") return ManagedOperation("reset", ResolveDefaultSource());
             if (command == "review") return ManagedOperation("review", ResolveDefaultSource());
@@ -2067,6 +2076,38 @@ internal static class WgdotNative
         psi.FileName = exe;
         psi.UseShellExecute = true;
         Process.Start(psi);
+    }
+
+    static int OpenFlowLauncher()
+    {
+        string exe = FindFlowLauncherExe();
+        if (String.IsNullOrWhiteSpace(exe))
+            throw new Exception("Flow Launcher executable could not be found.");
+
+        // Flow Launcher is single-instance. Starting it again asks the existing
+        // instance to show its main window.
+        StartFlowLauncher(exe);
+        return 0;
+    }
+
+    static int OpenEarTrumpetMixer()
+    {
+        if (Process.GetProcessesByName("EarTrumpet").Length == 0)
+        {
+            RestartEarTrumpet();
+            for (int i = 0; i < 40 && Process.GetProcessesByName("EarTrumpet").Length == 0; i++)
+                System.Threading.Thread.Sleep(100);
+            System.Threading.Thread.Sleep(500);
+        }
+
+        // EarTrumpet supports one native mixer hotkey. WGDot keeps Alt+V as
+        // that native binding and lets GlazeWM's Win+V alias trigger the same
+        // action instead of opening Windows clipboard history.
+        keybd_event(VkMenu, 0, 0, UIntPtr.Zero);
+        keybd_event(VkV, 0, 0, UIntPtr.Zero);
+        keybd_event(VkV, 0, KeyeventfKeyup, UIntPtr.Zero);
+        keybd_event(VkMenu, 0, KeyeventfKeyup, UIntPtr.Zero);
+        return 0;
     }
 
     static void ApplyFlowLauncherAltP(bool enable)

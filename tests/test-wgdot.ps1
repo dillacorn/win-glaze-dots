@@ -219,7 +219,11 @@ Assert-True ($nativeSourceText -match 'key == ConsoleKey\.Escape \|\| key == Con
 Assert-True ($nativeSourceText -match 'Q/Esc: back') "keyboard UI advertises Q and Escape as back keys"
 Assert-True ($nativeSourceText -match 'launch-open-shell') "native runtime starts Open-Shell after installation"
 Assert-True ($nativeSourceText -match 'ApplyFlowLauncherAltP') "native runtime manages Flow Launcher Alt+P"
+Assert-True ($nativeSourceText -match 'OpenFlowLauncher') "native runtime exposes the Flow Launcher Win+D alias target"
+Assert-True ($nativeSourceText -match 'command == "flow-open"') "Flow Launcher alias command is dispatchable"
 Assert-True ($nativeSourceText -match 'ApplyEarTrumpetMixerAltV') "native runtime manages EarTrumpet Alt+V"
+Assert-True ($nativeSourceText -match 'OpenEarTrumpetMixer') "native runtime exposes the EarTrumpet Win+V alias target"
+Assert-True ($nativeSourceText -match 'keybd_event\(VkMenu') "EarTrumpet Win+V alias triggers the existing Alt+V mixer hotkey"
 Assert-True ($nativeSourceText -match 'ApplicationDataManager\.CreateForPackageFamily') "EarTrumpet AppX settings use Windows packaged LocalSettings"
 Assert-True ($nativeSourceText -match '40459File-New-Project\.EarTrumpet_725pr5jq8wr8a') "EarTrumpet package family is explicit"
 Assert-True ($nativeSourceText -match 'ApplyClassicContextMenu') "native runtime manages classic context menu"
@@ -250,11 +254,17 @@ $glazeWorkText = Get-Content -LiteralPath (Join-Path $repoRoot "UserProfile\.glz
 foreach ($text in @($glazeNormalText, $glazeWorkText)) {
     $globalMarker = [Environment]::NewLine + "keybindings:" + [Environment]::NewLine
     $globalIndex = $text.LastIndexOf($globalMarker)
-    $flameshotIndex = $text.IndexOf('bindings: ["win+shift+f"]')
+    $flameshotIndex = $text.IndexOf('bindings: ["lwin+shift+s", "rwin+shift+s"]')
     $bindingModesIndex = $text.IndexOf("binding_modes:")
     Assert-True ($globalIndex -ge 0) "GlazeWM has a global keybindings section"
-    Assert-True ($flameshotIndex -gt $globalIndex) "Win+Shift+F Flameshot bind is global, not trapped inside a binding mode"
-    Assert-True (-not (($bindingModesIndex -ge 0) -and ($flameshotIndex -gt $bindingModesIndex) -and ($flameshotIndex -lt $globalIndex))) "Flameshot bind is not inside resize/pause binding modes"
+    Assert-True ($flameshotIndex -gt $globalIndex) "Win+Shift+S Flameshot bind is global, not trapped inside a binding mode"
+    Assert-True (-not (($bindingModesIndex -ge 0) -and ($flameshotIndex -gt $bindingModesIndex) -and ($flameshotIndex -lt $globalIndex))) "Flameshot bind is not trapped inside a binding mode"
+    Assert-True ($text -notmatch 'win\+shift\+f') "old Win+Shift+F Flameshot bind is removed"
+    Assert-True ($text -match 'bindings:\s*\["lwin\+d",\s*"rwin\+d"\]') "Flow Launcher has Win+D aliases"
+    Assert-True ($text -match 'bindings:\s*\["lwin\+v",\s*"rwin\+v"\]') "EarTrumpet has Win+V aliases"
+    Assert-True ($text -match 'name:\s*"noalt"') "GlazeWM has a noalt binding mode"
+    Assert-True ($text -match 'wm-enable-binding-mode --name noalt') "noalt mode can be enabled"
+    Assert-True ($text -match 'wm-disable-binding-mode --name noalt') "noalt mode can be disabled"
     Assert-True ($text -match 'bindings:\s*\["lwin\+shift\+e",\s*"rwin\+shift\+e"\]') "Yazi uses both Windows keys for Win+Shift+E"
     Assert-True ($text -notmatch 'bindings:\s*\["alt\+shift\+e"\]') "Yazi no longer uses Alt+Shift+E"
     Assert-True ($text -notmatch '(?i)-ExecutionPolicy\s+Bypass') "GlazeWM managed configs do not bypass execution policy"
