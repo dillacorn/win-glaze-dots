@@ -77,7 +77,7 @@ set "WGDOT_SOURCE_REVISION=%SOURCE_REVISION%"
 if "%DOWNLOADED_SOURCE%"=="0" set "WGDOT_SOURCE_ROOT=%~dp0.."
 if "%DOWNLOADED_SOURCE%"=="1" set "WGDOT_SOURCE_ROOT="
 
-"%CSC%" /nologo /optimize+ /target:exe /out:"%OUT%" /r:System.Web.Extensions.dll "%SOURCE_FILE%"
+"%CSC%" /nologo /optimize+ /target:exe /out:"%OUT%" /r:System.Web.Extensions.dll /r:System.IO.Compression.dll /r:System.IO.Compression.FileSystem.dll /r:System.Xml.dll "%SOURCE_FILE%"
 if errorlevel 1 (
   if "%DOWNLOADED_SOURCE%"=="1" del /q "%SOURCE_FILE%" >nul 2>&1
   exit /b %ERRORLEVEL%
