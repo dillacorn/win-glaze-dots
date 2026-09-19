@@ -15,7 +15,7 @@ If this file conflicts with the current implementation, verify the implementatio
 ## Project identity
 
 - win-glaze-dots is a Windows 10/11 dotfiles and configuration project maintained by dillacorn.
-- `wgdot` is the PowerShell-first maintenance system for installing, reviewing, updating, resetting, and testing managed configuration.
+- `wgdot` is the native Windows maintenance system for installing, reviewing, updating, resetting, and testing managed configuration. Its primary runtime is compiled locally from inspectable repository C# source by `wgdot/bootstrap.cmd`, so normal operation does not depend on `.ps1` execution being allowed.
 - The project also documents manual Windows/application setup that is intentionally not fully automated.
 - The repository is a local open-source utility. Do not introduce telemetry, hosted-service dependencies, or data collection without an explicit project decision.
 
@@ -39,26 +39,33 @@ Never let memory override inspectable repository evidence.
 ```text
 Windows 10/11
     |
-    +--> wgdot/wgdot.cmd
+    +--> wgdot/bootstrap.cmd
     |       |
+    |       +--> downloads/uses inspectable wgdot-native.cs
+    |       +--> compiles locally with Windows .NET Framework csc.exe
     |       v
-    |   wgdot/wgdot.ps1
+    |   %LOCALAPPDATA%\wgdot\bin\wgdot.exe
     |       |
     |       +--> runtime self-refresh from main
+    |       +--> explicit feature-branch refresh while maintainer-testing
     |       +--> stable release resolver
     |       +--> managed config planner/executor
     |       +--> WinGet software reconciliation
-    |       +--> backup manager
+    |       +--> adjacent backup manager
     |       +--> Git-testing mode
-    |       +--> manual PowerShell renderer
     |
     +--> wgdot/manifest.json
+    |       |
+    |       +--> managed components
+    |       +--> Normal/Work defaults
+    |       +--> GlazeWM profile mapping
+    |       +--> WinGet package catalog
+    |       +--> explicit migrations
+    |
+    +--> wgdot/wgdot.ps1 + MANUAL_POWERSHELL.md
             |
-            +--> managed components
-            +--> Normal/Work defaults
-            +--> GlazeWM profile mapping
-            +--> WinGet package catalog
-            +--> explicit migrations
+            +--> compatibility/reference implementation
+            +--> paste-only PowerShell fallback for restricted environments
 
 Managed source files
     |
@@ -197,11 +204,13 @@ Therefore:
 - Preserve a pasteable PowerShell path for important operations.
 - If local policy blocks `.ps1`, do not work around policy; use the manual paste-only path.
 
-## PowerShell compatibility
+## Native runtime and PowerShell fallback compatibility
 
-The WGDot runtime targets Windows PowerShell 5.1 compatibility unless the project intentionally raises that requirement.
+The primary WGDot runtime is `wgdot/wgdot-native.cs`, compiled locally with the Windows .NET Framework C# compiler. Keep it compatible with the compiler/framework available on supported Windows 10/11 systems and do not add a dependency on a separately installed .NET SDK unless explicitly approved.
 
-Avoid PowerShell 7-only syntax and semantics in the runtime, including:
+The compatibility/reference PowerShell runtime and paste-only fallback target Windows PowerShell 5.1 unless the project intentionally raises that requirement.
+
+Avoid PowerShell 7-only syntax and semantics in PowerShell fallback/runtime files, including:
 
 - ternary expressions;
 - null-coalescing operators;
@@ -262,15 +271,21 @@ For WGDot changes, use the relevant combination of:
 ```text
 powershell -NoProfile -File tests\test-wgdot.ps1
 pwsh -NoProfile -File tests/test-wgdot.ps1
+wgdot\bootstrap.cmd
+%LOCALAPPDATA%\wgdot\bin\wgdot.exe self-test
 ```
+
+The GitHub Actions native-bootstrap job is the authoritative automated Windows compile/install test and also runs the isolated native maintenance self-test.
 
 Also inspect the final diff and require CI success on the feature branch/PR.
 
 CI must validate at minimum:
 
 - `wgdot/manifest.json` parses;
-- the runtime can be parsed/dot-sourced on Windows PowerShell 5.1;
-- no WGDot runtime/manual path contains execution-policy bypasses;
+- the native runtime compiles and self-tests with the Windows-provided .NET Framework compiler;
+- isolated native maintenance tests exercise apply/backup/baseline/merge/migration behavior;
+- the compatibility PowerShell runtime can be parsed/dot-sourced on Windows PowerShell 5.1;
+- no WGDot runtime/bootstrap/manual path contains execution-policy bypasses;
 - stable and Git-testing paths remain separated;
 - managed destinations stay within approved user-local roots;
 - GlazeWM Normal/Work variants target the same live config path;
