@@ -659,7 +659,14 @@ internal static class WgdotNative
 
     static void WriteTitle(string subtitle)
     {
-        Console.Clear();
+        try
+        {
+            if (!Console.IsOutputRedirected) Console.Clear();
+        }
+        catch
+        {
+        }
+
         Console.ForegroundColor = ConsoleColor.Cyan;
         Console.WriteLine("WGDot");
         Console.ResetColor();
