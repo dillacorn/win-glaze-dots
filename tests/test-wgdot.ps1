@@ -79,6 +79,9 @@ Assert-True (-not $packageIds.ContainsKey("alexx2000.doublecommander")) "Double 
 Assert-True ($packageIds.ContainsKey("mozilla.firefox")) "Firefox is cataloged"
 Assert-True ($packageIds.ContainsKey("vencord.vesktop")) "Vesktop is cataloged"
 Assert-True ($packageIds.ContainsKey("softfever.orcaslicer")) "OrcaSlicer is cataloged"
+Assert-True ($packageIds.ContainsKey("prusa3d.prusaslicer")) "PrusaSlicer is cataloged"
+Assert-True ($packageIds.ContainsKey("wireguard.wireguard")) "WireGuard is cataloged"
+Assert-True (-not $packageIds.ContainsKey("spotify.spotify")) "Spotify is not offered by WGDot"
 Assert-True ($packageIds.ContainsKey("rustdesk.rustdesk")) "RustDesk is cataloged"
 Assert-True (-not $packageIds.ContainsKey("discord.discord")) "Discord is not offered; Vesktop is the Discord-family option"
 Assert-True (-not $packageIds.ContainsKey("openwhispersystems.signal")) "Signal is not offered by WGDot"
@@ -102,6 +105,8 @@ $expectedDefaultOnPackages = @(
     "File-New-Project.EarTrumpet",
     "zyedidia.micro",
     "sxyazi.yazi",
+    "easymodo.qimgv",
+    "mpv.net",
     "Mozilla.Firefox",
     "7zip.7zip",
     "Gyan.FFmpeg",

@@ -2,7 +2,7 @@
 
 WGDot's interactive software selector is the preferred installation path. Packages are grouped by category instead of shown as one giant list.
 
-The default selection is intentionally conservative for public use. Only the WGDot desktop stack and practical dependencies are enabled by default; personal applications are opt-in.
+The default selection is intentionally conservative for public use. Only the WGDot desktop stack, broadly useful defaults, and practical dependencies are enabled by default; personal applications are opt-in.
 
 ## Default ON
 
@@ -16,6 +16,8 @@ The default selection is intentionally conservative for public use. Only the WGD
 - **EarTrumpet** — `File-New-Project.EarTrumpet`
 - **Micro** — `zyedidia.micro`
 - **Yazi** — `sxyazi.yazi`
+- **qimgv** — `easymodo.qimgv`
+- **mpv.net** — `mpv.net`
 - **Firefox** — `Mozilla.Firefox`
 - **7-Zip** — `7zip.7zip`
 - **FFmpeg** — `Gyan.FFmpeg`
@@ -72,6 +74,7 @@ The default selection is intentionally conservative for public use. Only the WGD
 - **qBittorrent** — `qBittorrent.qBittorrent`
 - **WinSCP** — `WinSCP.WinSCP`
 - **FileZilla** — `TimKosse.FileZilla.Client`
+- **WireGuard** — `WireGuard.WireGuard`
 - **Tailscale** — `Tailscale.Tailscale`
 
 ### Communication
@@ -80,13 +83,10 @@ The default selection is intentionally conservative for public use. Only the WGD
 
 ### Media
 
-- **qimgv** — `easymodo.qimgv`
-- **mpv.net** — `mpv.net`
 - **FLAC** — `Xiph.FLAC`
 - **Feishin** — `jeffvli.Feishin`
 - **OBS Studio** — `OBSProject.OBSStudio`
 - **Okular** — `KDE.Okular`
-- **Spotify** — `Spotify.Spotify`
 - **yt-dlp** — `yt-dlp.yt-dlp`
 - **DistroAV** — `DistroAV.DistroAV`
 
@@ -100,6 +100,7 @@ The default selection is intentionally conservative for public use. Only the WGD
 ### 3D printing
 
 - **OrcaSlicer** — `SoftFever.OrcaSlicer`
+- **PrusaSlicer** — `Prusa3D.PrusaSlicer`
 - **Cura** — `Ultimaker.Cura`
 
 ### Gaming
@@ -136,9 +137,11 @@ The default selection is intentionally conservative for public use. Only the WGD
 
 - Open-Shell is enabled by default and WGDot starts it after a successful first install.
 - Micro is the preferred text editor. Notepad++ remains available only as an opt-in editor.
+- qimgv and mpv.net are default media applications.
 - Vesktop (`Vencord.Vesktop`) is the offered Discord-family client; Discord itself is not cataloged.
-- Cura and OrcaSlicer are both optional and default OFF.
+- OrcaSlicer, PrusaSlicer, and Cura are all optional and default OFF.
+- WireGuard is available under Networking / remote and defaults OFF.
 - Steam, itch.io, GOG Galaxy, Prism Launcher, r2modman, and Epic Games Launcher are all optional and default OFF.
-- Signal, Bitwarden, Betaflight Configurator, and PDF-XChange Editor are intentionally not offered.
+- Signal, Bitwarden, Betaflight Configurator, PDF-XChange Editor, Spotify, Process Explorer, and Double Commander are intentionally not offered.
 - Deselecting an installed package does not uninstall it.
 - WGDot never runs `winget upgrade --all`; upgrade checks are opt-in and each selected package requires approval.

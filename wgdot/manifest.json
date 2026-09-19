@@ -311,15 +311,15 @@
       "name": "qimgv",
       "id": "easymodo.qimgv",
       "category": "media",
-      "defaultNormal": false,
-      "defaultWork": false
+      "defaultNormal": true,
+      "defaultWork": true
     },
     {
       "name": "mpv.net",
       "id": "mpv.net",
       "category": "media",
-      "defaultNormal": false,
-      "defaultWork": false
+      "defaultNormal": true,
+      "defaultWork": true
     },
     {
       "name": "LocalSend",
@@ -569,6 +569,13 @@
       "defaultWork": false
     },
     {
+      "name": "PrusaSlicer",
+      "id": "Prusa3D.PrusaSlicer",
+      "category": "3d-printing",
+      "defaultNormal": false,
+      "defaultWork": false
+    },
+    {
       "name": "Cura",
       "id": "Ultimaker.Cura",
       "category": "3d-printing",
@@ -614,13 +621,6 @@
       "name": "ScreenToGif",
       "id": "NickeManarin.ScreenToGif",
       "category": "creative",
-      "defaultNormal": false,
-      "defaultWork": false
-    },
-    {
-      "name": "Spotify",
-      "id": "Spotify.Spotify",
-      "category": "media",
       "defaultNormal": false,
       "defaultWork": false
     },
@@ -684,6 +684,13 @@
       "name": "Sunshine",
       "id": "LizardByte.Sunshine",
       "category": "gaming",
+      "defaultNormal": false,
+      "defaultWork": false
+    },
+    {
+      "name": "WireGuard",
+      "id": "WireGuard.WireGuard",
+      "category": "networking",
       "defaultNormal": false,
       "defaultWork": false
     },
