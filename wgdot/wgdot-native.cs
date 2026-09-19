@@ -18,7 +18,7 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-14";
+    const string Version = "native-preview-15";
     const string RepoFullName = "dillacorn/win-glaze-dots";
     const string RepoUrl = "https://github.com/dillacorn/win-glaze-dots.git";
     const string ApiBase = "https://api.github.com/repos/dillacorn/win-glaze-dots";
@@ -1453,6 +1453,10 @@ internal static class WgdotNative
 
         if (String.Equals(id, "micro-text-defaults", StringComparison.OrdinalIgnoreCase))
             ApplyMicroTextDefaults(enable);
+        else if (String.Equals(id, "flow-launcher-alt-p", StringComparison.OrdinalIgnoreCase))
+            ApplyFlowLauncherAltP(enable);
+        else if (String.Equals(id, "eartrumpet-mixer-alt-v", StringComparison.OrdinalIgnoreCase))
+            ApplyEarTrumpetMixerAltV(enable);
         else if (String.Equals(id, "clean-taskbar-items", StringComparison.OrdinalIgnoreCase))
             ApplyCleanTaskbar(enable);
         else if (String.Equals(id, "disable-printscreen-snipping", StringComparison.OrdinalIgnoreCase))
@@ -1473,8 +1477,6 @@ internal static class WgdotNative
             ApplyClassicContextMenu(enable);
         else if (String.Equals(id, "oops-all-links-cursor", StringComparison.OrdinalIgnoreCase))
             ApplyOopsCursor(enable);
-        else if (String.Equals(id, "flameshot-win-shift-f", StringComparison.OrdinalIgnoreCase))
-            Console.WriteLine("Win+Shift+F is managed in the GlazeWM config; no separate registry change is required.");
         else
             throw new Exception("Unknown WGDot tweak: " + id);
 
@@ -1649,6 +1651,361 @@ internal static class WgdotNative
                 key.SetValue(name, value, kind);
             }
         }
+    }
+
+    static void CaptureExternalSettingOriginal(string key, bool exists, string value)
+    {
+        var state = ReadJson(TweakStatePath) ?? new Dictionary<string, object>();
+        var records = new List<object>(GetList(state, "externalOriginals"));
+
+        foreach (object raw in records)
+        {
+            var record = AsDictionary(raw);
+            if (String.Equals(GetString(record, "key"), key, StringComparison.OrdinalIgnoreCase))
+                return;
+        }
+
+        var next = new Dictionary<string, object>();
+        next["key"] = key;
+        next["exists"] = exists;
+        next["value"] = value ?? "";
+        records.Add(next);
+        state["externalOriginals"] = records.ToArray();
+        WriteJson(TweakStatePath, state);
+    }
+
+    static Dictionary<string, object> GetExternalSettingOriginal(string key)
+    {
+        var state = ReadJson(TweakStatePath);
+        if (state == null) return null;
+
+        foreach (object raw in GetList(state, "externalOriginals"))
+        {
+            var record = AsDictionary(raw);
+            if (String.Equals(GetString(record, "key"), key, StringComparison.OrdinalIgnoreCase))
+                return record;
+        }
+        return null;
+    }
+
+    static string GetFlowLauncherSettingsPath()
+    {
+        return Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            "FlowLauncher",
+            "Settings",
+            "Settings.json");
+    }
+
+    static string FindFlowLauncherExe()
+    {
+        string root = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "FlowLauncher");
+
+        string direct = Path.Combine(root, "Flow.Launcher.exe");
+        if (File.Exists(direct)) return direct;
+
+        if (Directory.Exists(root))
+        {
+            foreach (string dir in Directory.GetDirectories(root, "app-*").OrderByDescending(x => x))
+            {
+                string candidate = Path.Combine(dir, "Flow.Launcher.exe");
+                if (File.Exists(candidate)) return candidate;
+            }
+        }
+
+        return "";
+    }
+
+    static bool StopProcessesByName(string processName)
+    {
+        bool found = false;
+        foreach (Process process in Process.GetProcessesByName(processName))
+        {
+            found = true;
+            try
+            {
+                process.Kill();
+                process.WaitForExit(5000);
+            }
+            catch
+            {
+            }
+            finally
+            {
+                process.Dispose();
+            }
+        }
+        return found;
+    }
+
+    static void StartFlowLauncher(string exe)
+    {
+        if (String.IsNullOrWhiteSpace(exe) || !File.Exists(exe)) return;
+        var psi = new ProcessStartInfo();
+        psi.FileName = exe;
+        psi.UseShellExecute = true;
+        Process.Start(psi);
+    }
+
+    static void ApplyFlowLauncherAltP(bool enable)
+    {
+        const string originalKey = "flow-launcher-alt-p|Hotkey";
+        string settingsPath = GetFlowLauncherSettingsPath();
+        string exe = FindFlowLauncherExe();
+        bool wasRunning = Process.GetProcessesByName("Flow.Launcher").Length > 0;
+        bool initializedHere = false;
+
+        if (enable && !File.Exists(settingsPath))
+        {
+            if (String.IsNullOrWhiteSpace(exe))
+                throw new Exception("Flow Launcher is installed/selected but its executable could not be found.");
+
+            StartFlowLauncher(exe);
+            initializedHere = true;
+
+            for (int i = 0; i < 40 && !File.Exists(settingsPath); i++)
+                System.Threading.Thread.Sleep(250);
+
+            if (!File.Exists(settingsPath))
+                throw new Exception("Flow Launcher did not create its settings file after launch.");
+        }
+
+        if (!File.Exists(settingsPath))
+        {
+            Console.WriteLine("Flow Launcher settings are not present; nothing to restore.");
+            return;
+        }
+
+        StopProcessesByName("Flow.Launcher");
+
+        var settings = ReadJson(settingsPath);
+        if (settings == null)
+            throw new Exception("Flow Launcher settings JSON could not be read.");
+
+        if (enable)
+        {
+            bool existed = settings.ContainsKey("Hotkey");
+            CaptureExternalSettingOriginal(
+                originalKey,
+                existed,
+                existed ? GetString(settings, "Hotkey") : "");
+
+            CreateBackup(settingsPath, "tweak-flow-launcher");
+            settings["Hotkey"] = "Alt + P";
+            WriteJson(settingsPath, settings);
+            Console.WriteLine("Flow Launcher hotkey set to Alt+P.");
+        }
+        else
+        {
+            var original = GetExternalSettingOriginal(originalKey);
+            if (original == null)
+            {
+                Console.WriteLine("No pre-WGDot Flow Launcher hotkey snapshot exists; leaving current setting unchanged.");
+            }
+            else
+            {
+                CreateBackup(settingsPath, "tweak-flow-launcher");
+                if (GetBool(original, "exists"))
+                    settings["Hotkey"] = GetString(original, "value");
+                else
+                    settings.Remove("Hotkey");
+                WriteJson(settingsPath, settings);
+                Console.WriteLine("Flow Launcher hotkey restored to its pre-WGDot value.");
+            }
+        }
+
+        if (wasRunning || initializedHere || enable)
+            StartFlowLauncher(exe);
+    }
+
+    static string EnsureEarTrumpetStorageHelper()
+    {
+        string helperDir = Path.Combine(CacheRoot, "eartrumpet-storage-helper-v1");
+        string helperExe = Path.Combine(helperDir, "EarTrumpetStorageHelper.exe");
+        if (File.Exists(helperExe)) return helperExe;
+
+        Directory.CreateDirectory(helperDir);
+        string sourcePath = Path.Combine(helperDir, "EarTrumpetStorageHelper.cs");
+
+        string source = @"
+using System;
+using System.IO;
+using System.Text;
+using System.Windows.Forms;
+using System.Xml.Serialization;
+using Windows.Management.Core;
+
+public class HotkeyData
+{
+    public Keys Modifiers { get; set; }
+    public Keys Key { get; set; }
+}
+
+public static class Program
+{
+    const string Family = ""40459File-New-Project.EarTrumpet_725pr5jq8wr8a"";
+    const string Setting = ""MixerHotkey"";
+
+    public static int Main(string[] args)
+    {
+        if (args.Length == 0) return 2;
+        if (args[0] == ""self-test"") return 0;
+
+        var data = ApplicationDataManager.CreateForPackageFamily(Family);
+        var values = data.LocalSettings.Values;
+
+        if (args[0] == ""get-b64"")
+        {
+            if (!values.ContainsKey(Setting))
+            {
+                Console.Write(""__MISSING__"");
+                return 0;
+            }
+
+            string value = Convert.ToString(values[Setting]) ?? """";
+            Console.Write(Convert.ToBase64String(Encoding.UTF8.GetBytes(value)));
+            return 0;
+        }
+
+        if (args[0] == ""delete"")
+        {
+            if (values.ContainsKey(Setting)) values.Remove(Setting);
+            return 0;
+        }
+
+        if (args[0] == ""set-b64"" && args.Length >= 2)
+        {
+            values[Setting] = Encoding.UTF8.GetString(Convert.FromBase64String(args[1]));
+            return 0;
+        }
+
+        if (args[0] == ""set-alt-v"")
+        {
+            var hotkey = new HotkeyData { Modifiers = Keys.Alt, Key = Keys.V };
+            var serializer = new XmlSerializer(typeof(HotkeyData));
+            using (var writer = new StringWriter())
+            {
+                serializer.Serialize(writer, hotkey);
+                values[Setting] = writer.ToString();
+            }
+            return 0;
+        }
+
+        return 2;
+    }
+}
+";
+        File.WriteAllText(sourcePath, source, new UTF8Encoding(false));
+
+        string csc = GetCscPath();
+        if (String.IsNullOrWhiteSpace(csc))
+            throw new Exception("Windows .NET Framework C# compiler was not found.");
+
+        var refs = new List<string>();
+        string windows = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
+        string metadata = Path.Combine(windows, "System32", "WinMetadata");
+
+        foreach (string file in new[]
+        {
+            "Windows.Foundation.winmd",
+            "Windows.Storage.winmd",
+            "Windows.Management.winmd"
+        })
+        {
+            string path = Path.Combine(metadata, file);
+            if (File.Exists(path)) refs.Add(path);
+        }
+
+        if (refs.Count == 0)
+        {
+            string pf86 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
+            string unionRoot = Path.Combine(pf86, "Windows Kits", "10", "UnionMetadata");
+            if (Directory.Exists(unionRoot))
+            {
+                string combined = Directory.GetFiles(unionRoot, "Windows.winmd", SearchOption.AllDirectories)
+                    .OrderByDescending(x => x)
+                    .FirstOrDefault();
+                if (!String.IsNullOrWhiteSpace(combined)) refs.Add(combined);
+            }
+        }
+
+        if (refs.Count == 0)
+            throw new Exception("Windows Runtime metadata required for EarTrumpet settings was not found.");
+
+        string runtimeDir = Path.GetDirectoryName(csc);
+        string windowsRuntime = Path.Combine(runtimeDir, "System.Runtime.WindowsRuntime.dll");
+
+        var args = new StringBuilder();
+        args.Append("/nologo /optimize+ /target:exe /out:").Append(Q(helperExe));
+        args.Append(" /r:System.Windows.Forms.dll /r:System.Xml.dll");
+        if (File.Exists(windowsRuntime))
+            args.Append(" /r:").Append(Q(windowsRuntime));
+        foreach (string reference in refs)
+            args.Append(" /r:").Append(Q(reference));
+        args.Append(" ").Append(Q(sourcePath));
+
+        ProcResult compile = Run(csc, args.ToString(), null);
+        if (compile.ExitCode != 0)
+            throw new Exception("EarTrumpet settings helper compilation failed: " +
+                LastUsefulLine(compile.StdErr + "\n" + compile.StdOut));
+
+        return helperExe;
+    }
+
+    static void RestartEarTrumpet()
+    {
+        var psi = new ProcessStartInfo();
+        psi.FileName = "explorer.exe";
+        psi.Arguments = "shell:AppsFolder\\40459File-New-Project.EarTrumpet_725pr5jq8wr8a!EarTrumpet";
+        psi.UseShellExecute = true;
+        Process.Start(psi);
+    }
+
+    static void ApplyEarTrumpetMixerAltV(bool enable)
+    {
+        const string originalKey = "eartrumpet-mixer-alt-v|MixerHotkey";
+        string helper = EnsureEarTrumpetStorageHelper();
+        bool wasRunning = StopProcessesByName("EarTrumpet");
+
+        if (enable)
+        {
+            ProcResult current = Run(helper, "get-b64", null);
+            if (current.ExitCode != 0)
+                throw new Exception("Could not read EarTrumpet packaged mixer-hotkey setting.");
+
+            string original = (current.StdOut ?? "").Trim();
+            bool existed = !String.Equals(original, "__MISSING__", StringComparison.Ordinal);
+            CaptureExternalSettingOriginal(originalKey, existed, existed ? original : "");
+
+            ProcResult set = Run(helper, "set-alt-v", null);
+            if (set.ExitCode != 0)
+                throw new Exception("Could not set EarTrumpet mixer hotkey.");
+
+            Console.WriteLine("EarTrumpet Open Mixer hotkey set to Alt+V.");
+            RestartEarTrumpet();
+            return;
+        }
+
+        var snapshot = GetExternalSettingOriginal(originalKey);
+        if (snapshot == null)
+        {
+            Console.WriteLine("No pre-WGDot EarTrumpet mixer-hotkey snapshot exists; leaving current setting unchanged.");
+            if (wasRunning) RestartEarTrumpet();
+            return;
+        }
+
+        string arguments = GetBool(snapshot, "exists")
+            ? "set-b64 " + Q(GetString(snapshot, "value"))
+            : "delete";
+
+        ProcResult restore = Run(helper, arguments, null);
+        if (restore.ExitCode != 0)
+            throw new Exception("Could not restore EarTrumpet mixer hotkey.");
+
+        Console.WriteLine("EarTrumpet mixer hotkey restored to its pre-WGDot value.");
+        if (wasRunning) RestartEarTrumpet();
     }
 
     static void ApplyCleanTaskbar(bool enable)
@@ -3237,6 +3594,11 @@ internal static class WgdotNative
             string expanded = Environment.ExpandEnvironmentVariables("%LOCALAPPDATA%\\wgdot");
             if (String.IsNullOrWhiteSpace(expanded) || expanded.IndexOf("wgdot", StringComparison.OrdinalIgnoreCase) < 0)
                 throw new Exception("Environment expansion self-test failed.");
+
+            string earHelper = EnsureEarTrumpetStorageHelper();
+            ProcResult earTest = Run(earHelper, "self-test", null);
+            if (earTest.ExitCode != 0)
+                throw new Exception("EarTrumpet packaged-settings helper self-test failed.");
 
             Console.WriteLine("WGDot native runtime self-test passed.");
             return 0;

@@ -824,6 +824,22 @@
       "defaultWork": true
     },
     {
+      "id": "flow-launcher-alt-p",
+      "name": "Flow Launcher: open with Alt+P",
+      "category": "keybinds",
+      "type": "flow-launcher-alt-p",
+      "defaultNormal": true,
+      "defaultWork": true
+    },
+    {
+      "id": "eartrumpet-mixer-alt-v",
+      "name": "EarTrumpet: open mixer with Alt+V",
+      "category": "keybinds",
+      "type": "eartrumpet-mixer-alt-v",
+      "defaultNormal": true,
+      "defaultWork": true
+    },
+    {
       "id": "clean-taskbar-items",
       "name": "Hide Search, Task View, Widgets, Chat/Copilot taskbar buttons",
       "category": "Windows settings",

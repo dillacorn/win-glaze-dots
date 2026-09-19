@@ -118,6 +118,8 @@ Assert-Equal "rustdesk/rustdesk" ([string]$rustDesk.fallbackGitHubRepo) "RustDes
 $tweakIds = @($manifest.tweaks | ForEach-Object { [string]$_.id })
 foreach ($id in @(
     "micro-text-defaults",
+    "flow-launcher-alt-p",
+    "eartrumpet-mixer-alt-v",
     "clean-taskbar-items",
     "disable-printscreen-snipping",
     "disable-enhanced-pointer-precision",
@@ -145,6 +147,12 @@ foreach ($id in @(
     Assert-True (-not [bool]$t.defaultNormal) "$id defaults off"
 }
 
+
+foreach ($id in @("flow-launcher-alt-p", "eartrumpet-mixer-alt-v")) {
+    $tweak = $manifest.tweaks | Where-Object { $_.id -eq $id } | Select-Object -First 1
+    Assert-True ([bool]$tweak.defaultNormal) "$id defaults on for Normal"
+    Assert-True ([bool]$tweak.defaultWork) "$id defaults on for Work"
+}
 
 $runtimeText = Get-Content -LiteralPath $runtimePath -Raw
 $launcherText = Get-Content -LiteralPath $launcherPath -Raw
@@ -182,6 +190,10 @@ Assert-True ($nativeSourceText -match '"maintenance-self-test"') "native runtime
 Assert-True ($nativeSourceText -match 'WGDOT_TEST_ROOT') "native maintenance self-test redirects state away from normal WGDot state"
 Assert-True ($nativeSourceText -match 'TweakManager') "native runtime includes Windows tweak manager"
 Assert-True ($nativeSourceText -match 'ApplyMicroTextDefaults') "native runtime manages Micro text associations"
+Assert-True ($nativeSourceText -match 'ApplyFlowLauncherAltP') "native runtime manages Flow Launcher Alt+P"
+Assert-True ($nativeSourceText -match 'ApplyEarTrumpetMixerAltV') "native runtime manages EarTrumpet Alt+V"
+Assert-True ($nativeSourceText -match 'ApplicationDataManager\.CreateForPackageFamily') "EarTrumpet AppX settings use Windows packaged LocalSettings"
+Assert-True ($nativeSourceText -match '40459File-New-Project\.EarTrumpet_725pr5jq8wr8a') "EarTrumpet package family is explicit"
 Assert-True ($nativeSourceText -match 'ApplyClassicContextMenu') "native runtime manages classic context menu"
 Assert-True ($nativeSourceText -match 'ApplyOopsCursor') "native runtime manages optional cursor install"
 Assert-True ($nativeSourceText -match 'undergroundwires/privacy\.sexy/releases/latest') "privacy.sexy uses official latest GitHub release"
