@@ -18,7 +18,7 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-16";
+    const string Version = "native-preview-17";
     const string RepoFullName = "dillacorn/win-glaze-dots";
     const string RepoUrl = "https://github.com/dillacorn/win-glaze-dots.git";
     const string ApiBase = "https://api.github.com/repos/dillacorn/win-glaze-dots";
@@ -849,6 +849,62 @@ internal static class WgdotNative
             if (backupState == null || GetList(backupState, "records").Count < 3)
                 throw new Exception("Backup record self-test failed.");
 
+            string registrySelfTestPath =
+                @"Software\WGDot\SelfTest\" + Guid.NewGuid().ToString("N");
+            try
+            {
+                using (RegistryKey key = Registry.CurrentUser.CreateSubKey(registrySelfTestPath))
+                {
+                    if (key == null) throw new Exception("Registry self-test key could not be created.");
+                    key.SetValue("Text", "before", RegistryValueKind.String);
+                    key.SetValue("Blob", new byte[] { 1, 2, 3 }, RegistryValueKind.Binary);
+                }
+
+                SetRegistryValueWithSnapshot(
+                    "selftest-registry", "HKCU", registrySelfTestPath,
+                    "Text", "after", RegistryValueKind.String);
+                SetRegistryValueWithSnapshot(
+                    "selftest-registry", "HKCU", registrySelfTestPath,
+                    "Blob", new byte[] { 9 }, RegistryValueKind.Binary);
+                SetRegistryValueWithSnapshot(
+                    "selftest-registry", "HKCU", registrySelfTestPath,
+                    "Transient", new byte[0], RegistryValueKind.None);
+
+                RestoreRegistryOriginals("selftest-registry");
+
+                using (RegistryKey key = Registry.CurrentUser.OpenSubKey(registrySelfTestPath, false))
+                {
+                    if (key == null ||
+                        !String.Equals(Convert.ToString(key.GetValue("Text")), "before", StringComparison.Ordinal))
+                        throw new Exception("Registry string rollback self-test failed.");
+
+                    byte[] blob = key.GetValue("Blob") as byte[];
+                    if (blob == null || !blob.SequenceEqual(new byte[] { 1, 2, 3 }))
+                        throw new Exception("Registry binary rollback self-test failed.");
+
+                    if (key.GetValue("Transient", null) != null)
+                        throw new Exception("Registry missing-value rollback self-test failed.");
+                }
+
+                string transientKey = registrySelfTestPath + @"\TransientKey";
+                SetRegistryValueWithSnapshot(
+                    "selftest-registry-key", "HKCU", transientKey,
+                    "", "owned", RegistryValueKind.String);
+                RestoreRegistryOriginals("selftest-registry-key");
+                DeleteRegistryKeyIfOriginallyAbsentAndEmpty(
+                    "selftest-registry-key", "HKCU", transientKey, "");
+
+                using (RegistryKey key = Registry.CurrentUser.OpenSubKey(transientKey, false))
+                {
+                    if (key != null)
+                        throw new Exception("Registry created-key cleanup self-test failed.");
+                }
+            }
+            finally
+            {
+                try { Registry.CurrentUser.DeleteSubKeyTree(registrySelfTestPath, false); } catch { }
+            }
+
             Console.WriteLine("WGDot native maintenance self-test passed.");
             return 0;
         }
@@ -1555,6 +1611,25 @@ internal static class WgdotNative
         }
     }
 
+    static Dictionary<string, object> GetRegistryOriginal(
+        string tweakId,
+        string hive,
+        string path,
+        string name)
+    {
+        var state = ReadJson(TweakStatePath);
+        if (state == null) return null;
+
+        string snapshotKey = RegistrySnapshotKey(tweakId, hive, path, name);
+        foreach (object raw in GetList(state, "registryOriginals"))
+        {
+            var record = AsDictionary(raw);
+            if (String.Equals(GetString(record, "key"), snapshotKey, StringComparison.Ordinal))
+                return record;
+        }
+        return null;
+    }
+
     static void CaptureRegistryOriginal(string tweakId, string hive, string path, string name)
     {
         var state = ReadJson(TweakStatePath) ?? new Dictionary<string, object>();
@@ -1568,6 +1643,7 @@ internal static class WgdotNative
                 return;
         }
 
+        bool keyExists = false;
         bool exists = false;
         object value = null;
         RegistryValueKind kind = RegistryValueKind.String;
@@ -1577,6 +1653,7 @@ internal static class WgdotNative
         {
             if (key != null)
             {
+                keyExists = true;
                 string[] names = key.GetValueNames();
                 exists = names.Any(x => String.Equals(x, name, StringComparison.OrdinalIgnoreCase));
                 if (exists)
@@ -1587,15 +1664,38 @@ internal static class WgdotNative
             }
         }
 
+        string valueEncoding = "text";
+        string serializedValue = "";
+        if (value != null)
+        {
+            if ((kind == RegistryValueKind.Binary || kind == RegistryValueKind.None) && value is byte[])
+            {
+                valueEncoding = "base64-bytes";
+                serializedValue = Convert.ToBase64String((byte[])value);
+            }
+            else if (kind == RegistryValueKind.MultiString && value is string[])
+            {
+                valueEncoding = "base64-multisz";
+                serializedValue = Convert.ToBase64String(
+                    Encoding.UTF8.GetBytes(String.Join("\0", (string[])value)));
+            }
+            else
+            {
+                serializedValue = Convert.ToString(value, CultureInfo.InvariantCulture);
+            }
+        }
+
         var next = new Dictionary<string, object>();
         next["key"] = snapshotKey;
         next["tweakId"] = tweakId;
         next["hive"] = hive;
         next["path"] = path;
         next["name"] = name;
+        next["keyExists"] = keyExists;
         next["exists"] = exists;
         next["kind"] = kind.ToString();
-        next["value"] = value == null ? "" : Convert.ToString(value, CultureInfo.InvariantCulture);
+        next["valueEncoding"] = valueEncoding;
+        next["value"] = serializedValue;
         records.Add(next);
 
         state["registryOriginals"] = records.ToArray();
@@ -1634,7 +1734,11 @@ internal static class WgdotNative
                     kind = RegistryValueKind.String;
 
                 string text = GetString(record, "value");
+                string valueEncoding = record.ContainsKey("valueEncoding")
+                    ? GetString(record, "valueEncoding")
+                    : "text";
                 object value = text;
+
                 if (kind == RegistryValueKind.DWord)
                 {
                     int number;
@@ -1647,10 +1751,99 @@ internal static class WgdotNative
                     if (Int64.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out number))
                         value = number;
                 }
+                else if (kind == RegistryValueKind.Binary || kind == RegistryValueKind.None)
+                {
+                    if (!String.Equals(valueEncoding, "base64-bytes", StringComparison.Ordinal))
+                    {
+                        Console.WriteLine("Skipping unsupported legacy binary registry snapshot: " + path + "\\" + name);
+                        continue;
+                    }
+                    value = Convert.FromBase64String(text);
+                }
+                else if (kind == RegistryValueKind.MultiString)
+                {
+                    if (!String.Equals(valueEncoding, "base64-multisz", StringComparison.Ordinal))
+                    {
+                        Console.WriteLine("Skipping unsupported legacy multi-string registry snapshot: " + path + "\\" + name);
+                        continue;
+                    }
+
+                    string decoded = Encoding.UTF8.GetString(Convert.FromBase64String(text));
+                    value = decoded.Length == 0
+                        ? new string[0]
+                        : decoded.Split(new[] { '\0' }, StringSplitOptions.None);
+                }
 
                 key.SetValue(name, value, kind);
             }
         }
+
+        var cleanupPaths = new List<string[]>();
+        foreach (object raw in GetList(state, "registryOriginals"))
+        {
+            var record = AsDictionary(raw);
+            if (!String.Equals(GetString(record, "tweakId"), tweakId, StringComparison.OrdinalIgnoreCase) ||
+                !record.ContainsKey("keyExists") ||
+                GetBool(record, "keyExists"))
+                continue;
+
+            string hive = GetString(record, "hive");
+            string path = GetString(record, "path");
+            if (!cleanupPaths.Any(x =>
+                String.Equals(x[0], hive, StringComparison.OrdinalIgnoreCase) &&
+                String.Equals(x[1], path, StringComparison.OrdinalIgnoreCase)))
+            {
+                cleanupPaths.Add(new[] { hive, path });
+            }
+        }
+
+        foreach (string[] item in cleanupPaths.OrderByDescending(x => x[1].Length))
+            DeleteRegistryKeyIfEmpty(item[0], item[1]);
+    }
+
+    static bool RegistryKeyWasAbsentInSnapshot(
+        string tweakId,
+        string hive,
+        string path,
+        string name)
+    {
+        var original = GetRegistryOriginal(tweakId, hive, path, name);
+        return original != null &&
+            original.ContainsKey("keyExists") &&
+            !GetBool(original, "keyExists");
+    }
+
+    static void DeleteRegistryKeyIfEmpty(string hive, string path)
+    {
+        int separator = path.LastIndexOf('\\');
+        if (separator <= 0 || separator >= path.Length - 1)
+            return;
+
+        RegistryKey root = GetRegistryRoot(hive, true);
+        using (RegistryKey key = root.OpenSubKey(path, false))
+        {
+            if (key == null) return;
+            if (key.GetValueNames().Length != 0 || key.GetSubKeyNames().Length != 0)
+                return;
+        }
+
+        string parentPath = path.Substring(0, separator);
+        string leaf = path.Substring(separator + 1);
+        using (RegistryKey parent = root.OpenSubKey(parentPath, true))
+        {
+            if (parent == null) return;
+            try { parent.DeleteSubKey(leaf, false); } catch { }
+        }
+    }
+
+    static void DeleteRegistryKeyIfOriginallyAbsentAndEmpty(
+        string tweakId,
+        string hive,
+        string path,
+        string name)
+    {
+        if (RegistryKeyWasAbsentInSnapshot(tweakId, hive, path, name))
+            DeleteRegistryKeyIfEmpty(hive, path);
     }
 
     static void CaptureExternalSettingOriginal(string key, bool exists, string value)
@@ -2186,20 +2379,19 @@ public static class Program
     {
         const string id = "classic-context-menu";
         string clsid = @"Software\Classes\CLSID\{86ca1aa0-34aa-4e8b-a509-50c905bae2a2}";
+        string path = clsid + @"\InprocServer32";
 
         if (!enable)
         {
-            try { Registry.CurrentUser.DeleteSubKeyTree(clsid, false); } catch { }
-            Console.WriteLine("Modern Windows 11 context menu restored. Explorer restart/sign-out may be required.");
+            RestoreRegistryOriginals(id);
+            DeleteRegistryKeyIfOriginallyAbsentAndEmpty(id, "HKCU", path, "");
+            DeleteRegistryKeyIfOriginallyAbsentAndEmpty(id, "HKCU", clsid, "");
+            Console.WriteLine("Context-menu registry state restored to its pre-WGDot values. Explorer restart/sign-out may be required.");
             return;
         }
 
-        string path = clsid + @"\InprocServer32";
-        using (RegistryKey key = Registry.CurrentUser.CreateSubKey(path))
-        {
-            if (key == null) throw new Exception("Could not create classic context-menu registry key.");
-            key.SetValue("", "", RegistryValueKind.String);
-        }
+        CaptureRegistryOriginal(id, "HKCU", clsid, "");
+        SetRegistryValueWithSnapshot(id, "HKCU", path, "", "", RegistryValueKind.String);
         Console.WriteLine("Classic Windows 11 context menu enabled. Explorer restart/sign-out may be required.");
     }
 
@@ -2218,11 +2410,22 @@ public static class Program
         const string id = "micro-text-defaults";
         const string progId = "WGDot.MicroText";
         string launcher = Path.Combine(BinRoot, "open-micro.cmd");
+        string handlerPath = @"Software\Classes\" + progId;
+        string commandPath = handlerPath + @"\shell\open\command";
 
         if (!enable)
         {
+            bool commandKeyWasAbsent = RegistryKeyWasAbsentInSnapshot(id, "HKCU", commandPath, "");
             RestoreRegistryOriginals(id);
-            try { Registry.CurrentUser.DeleteSubKeyTree(@"Software\Classes\" + progId, false); } catch { }
+
+            if (commandKeyWasAbsent)
+            {
+                DeleteRegistryKeyIfEmpty("HKCU", commandPath);
+                DeleteRegistryKeyIfEmpty("HKCU", handlerPath + @"\shell\open");
+                DeleteRegistryKeyIfEmpty("HKCU", handlerPath + @"\shell");
+            }
+            DeleteRegistryKeyIfOriginallyAbsentAndEmpty(id, "HKCU", handlerPath, "");
+
             SHChangeNotify(0x08000000, 0, IntPtr.Zero, IntPtr.Zero);
             return;
         }
@@ -2232,12 +2435,14 @@ public static class Program
             "start \"\" wt.exe -w new new-tab --title \"Micro\" --suppressApplicationTitle -d \"%~dp1\" micro \"%~1\"\r\n";
         File.WriteAllText(launcher, command, Encoding.ASCII);
 
-        using (RegistryKey commandKey = Registry.CurrentUser.CreateSubKey(
-            @"Software\Classes\" + progId + @"\shell\open\command"))
-        {
-            if (commandKey == null) throw new Exception("Could not register WGDot Micro file handler.");
-            commandKey.SetValue("", Q(launcher) + " \"%1\"", RegistryValueKind.String);
-        }
+        CaptureRegistryOriginal(id, "HKCU", handlerPath, "");
+        SetRegistryValueWithSnapshot(
+            id,
+            "HKCU",
+            commandPath,
+            "",
+            Q(launcher) + " \"%1\"",
+            RegistryValueKind.String);
 
         int protectedDefaults = 0;
         foreach (string extension in MicroTextExtensions)
@@ -2250,12 +2455,13 @@ public static class Program
                 progId,
                 RegistryValueKind.String);
 
-            using (RegistryKey openWith = Registry.CurrentUser.CreateSubKey(
-                @"Software\Classes\" + extension + @"\OpenWithProgids"))
-            {
-                if (openWith != null)
-                    openWith.SetValue(progId, new byte[0], RegistryValueKind.None);
-            }
+            SetRegistryValueWithSnapshot(
+                id,
+                "HKCU",
+                @"Software\Classes\" + extension + @"\OpenWithProgids",
+                progId,
+                new byte[0],
+                RegistryValueKind.None);
 
             using (RegistryKey userChoice = Registry.CurrentUser.OpenSubKey(
                 @"Software\Microsoft\Windows\CurrentVersion\Explorer\FileExts\" + extension + @"\UserChoice",
@@ -2361,11 +2567,13 @@ public static class Program
         SetRegistryValueWithSnapshot(
             id, "HKCU", @"Control Panel\Cursors", "", "OopsAllLinkSelects", RegistryValueKind.String);
 
-        using (RegistryKey schemes = Registry.CurrentUser.CreateSubKey(@"Control Panel\Cursors\Schemes"))
-        {
-            if (schemes == null) throw new Exception("Could not create cursor scheme registry entry.");
-            schemes.SetValue("OopsAllLinkSelects", String.Join(",", values.ToArray()), RegistryValueKind.String);
-        }
+        SetRegistryValueWithSnapshot(
+            id,
+            "HKCU",
+            @"Control Panel\Cursors\Schemes",
+            "OopsAllLinkSelects",
+            String.Join(",", values.ToArray()),
+            RegistryValueKind.String);
 
         SystemParametersInfo(0x0057, 0, IntPtr.Zero, 0x01 | 0x02);
         Console.WriteLine("Oops-all-links cursor theme installed and applied.");
