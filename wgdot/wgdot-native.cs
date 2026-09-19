@@ -18,7 +18,7 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-31";
+    const string Version = "native-preview-32";
     const int WingetPreflightTimeoutMs = 30000;
     const string RepoFullName = "dillacorn/win-glaze-dots";
     const string RepoUrl = "https://github.com/dillacorn/win-glaze-dots.git";
@@ -1410,6 +1410,7 @@ internal static class WgdotNative
         var upgradedIds = new List<string>();
         var upgradeFailedIds = new List<string>();
         var adminTweakFailedIds = new List<string>();
+        var failureDetails = new List<string>();
         string browserPolicyError = "";
         int failures = 0;
 
@@ -1438,6 +1439,7 @@ internal static class WgdotNative
                     Console.WriteLine("Package is no longer present in the active WGDot manifest; skipped: " + id);
                     Console.ResetColor();
                     failedIds.Add(id);
+                    failureDetails.Add("Package missing from active WGDot manifest: " + id);
                     failures++;
                     continue;
                 }
@@ -1456,6 +1458,7 @@ internal static class WgdotNative
                     Console.WriteLine("WinGet validation timed out for " + id + "; skipped.");
                     Console.ResetColor();
                     failedIds.Add(id);
+                    failureDetails.Add("WinGet validation timed out: " + id);
                     failures++;
                     continue;
                 }
@@ -1475,6 +1478,7 @@ internal static class WgdotNative
                         else
                         {
                             failedIds.Add(id);
+                            failureDetails.Add("Official GitHub fallback failed: " + id);
                             failures++;
                         }
                         continue;
@@ -1511,6 +1515,7 @@ internal static class WgdotNative
                     else
                     {
                         failedIds.Add(id);
+                        failureDetails.Add("WinGet failed/timed out and official GitHub fallback also failed: " + id);
                         failures++;
                     }
                 }
@@ -1523,6 +1528,10 @@ internal static class WgdotNative
                         Console.WriteLine("Install failed: " + id + " (exit " + install.ExitCode.ToString(CultureInfo.InvariantCulture) + ")");
                     Console.ResetColor();
                     failedIds.Add(id);
+                    failureDetails.Add(
+                        install.TimedOut
+                            ? "WinGet install timed out: " + id
+                            : "WinGet install failed (" + install.ExitCode.ToString(CultureInfo.InvariantCulture) + "): " + id);
                     failures++;
                 }
             }
@@ -1533,6 +1542,7 @@ internal static class WgdotNative
                 if (FindPackageById(manifest, id) == null)
                 {
                     upgradeFailedIds.Add(id);
+                    failureDetails.Add("Upgrade package missing from active WGDot manifest: " + id);
                     failures++;
                     continue;
                 }
@@ -1553,6 +1563,7 @@ internal static class WgdotNative
                     Console.WriteLine("Upgrade failed: " + id + " (exit " + upgrade.ExitCode.ToString(CultureInfo.InvariantCulture) + ")");
                     Console.ResetColor();
                     upgradeFailedIds.Add(id);
+                    failureDetails.Add("WinGet upgrade failed (" + upgrade.ExitCode.ToString(CultureInfo.InvariantCulture) + "): " + id);
                     failures++;
                 }
             }
@@ -1567,6 +1578,7 @@ internal static class WgdotNative
                 catch (Exception ex)
                 {
                     browserPolicyError = ex.Message;
+                    failureDetails.Add("Firefox extension policy: " + ex.Message);
                     Console.ForegroundColor = ConsoleColor.Yellow;
                     Console.WriteLine("Firefox extension policy failed in elevated setup: " + ex.Message);
                     Console.ResetColor();
@@ -1580,6 +1592,7 @@ internal static class WgdotNative
                 if (!TweakRunsInElevatedBatch(id))
                 {
                     adminTweakFailedIds.Add(id);
+                    failureDetails.Add("Unexpected non-elevated tweak in elevated plan: " + id);
                     failures++;
                     continue;
                 }
@@ -1595,6 +1608,7 @@ internal static class WgdotNative
                     Console.WriteLine("Administrator tweak failed: " + id + ": " + ex.Message);
                     Console.ResetColor();
                     adminTweakFailedIds.Add(id);
+                    failureDetails.Add("Administrator tweak '" + id + "': " + ex.Message);
                     failures++;
                 }
             }
@@ -1602,6 +1616,7 @@ internal static class WgdotNative
         catch (Exception ex)
         {
             result["fatalError"] = ex.Message;
+            failureDetails.Add("Elevated software worker: " + ex.Message);
             Console.ForegroundColor = ConsoleColor.Yellow;
             Console.WriteLine("WGDot elevated software worker failed: " + ex.Message);
             Console.ResetColor();
@@ -1617,6 +1632,7 @@ internal static class WgdotNative
             result["upgradeFailedIds"] = upgradeFailedIds;
             result["adminTweakFailedIds"] = adminTweakFailedIds;
             result["browserPolicyError"] = browserPolicyError;
+            result["failureDetails"] = failureDetails;
             WriteJson(resultPath, result);
         }
 
@@ -1684,6 +1700,7 @@ internal static class WgdotNative
         int unavailable = 0;
         int failed = 0;
         int upgraded = 0;
+        var failureDetails = new List<string>();
 
         Console.WriteLine();
         Console.WriteLine("Reading installed WinGet package state...");
@@ -1874,6 +1891,7 @@ internal static class WgdotNative
             if (workerExitCode != 0 && workerFailures == 0)
                 workerFailures++;
             failed += workerFailures;
+            failureDetails.AddRange(GetStringList(workerResult, "failureDetails"));
 
             foreach (string id in workerInstalled)
             {
@@ -1892,6 +1910,7 @@ internal static class WgdotNative
             Console.ForegroundColor = ConsoleColor.Yellow;
             Console.WriteLine("Browser configuration failed: " + ex.Message);
             Console.ResetColor();
+            failureDetails.Add("Browser configuration: " + ex.Message);
             failed++;
         }
 
@@ -1909,6 +1928,16 @@ internal static class WgdotNative
         Console.WriteLine("Upgraded: " + upgraded.ToString(CultureInfo.InvariantCulture));
         Console.WriteLine("Unavailable exact IDs: " + unavailable.ToString(CultureInfo.InvariantCulture));
         Console.WriteLine("Install/setup failures: " + failed.ToString(CultureInfo.InvariantCulture));
+
+        if (failureDetails.Count > 0)
+        {
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine();
+            Console.WriteLine("Failure details:");
+            foreach (string detail in failureDetails.Distinct(StringComparer.OrdinalIgnoreCase))
+                Console.WriteLine("  - " + detail);
+            Console.ResetColor();
+        }
 
         OfferGpuDriverRecommendations();
 
