@@ -10,7 +10,7 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-bootstrap-preview-1";
+    const string Version = "native-bootstrap-preview-2";
     static readonly string InstallRoot = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "wgdot");
     static readonly string BinRoot = Path.Combine(InstallRoot, "bin");
     static readonly string StateRoot = Path.Combine(InstallRoot, "state");
@@ -46,6 +46,8 @@ internal static class WgdotNative
         string sourceRoot = Environment.GetEnvironmentVariable("WGDOT_SOURCE_ROOT");
         if (String.IsNullOrWhiteSpace(sourceRoot)) sourceRoot = FindRepoRoot(AppDomain.CurrentDomain.BaseDirectory);
         if (!String.IsNullOrWhiteSpace(sourceRoot)) sourceRoot = Path.GetFullPath(sourceRoot);
+        string sourceRef = Environment.GetEnvironmentVariable("WGDOT_SOURCE_REF") ?? "";
+        string sourceRevision = Environment.GetEnvironmentVariable("WGDOT_SOURCE_REVISION") ?? "";
 
         if (!String.Equals(Path.GetFullPath(currentExe), Path.GetFullPath(targetExe), StringComparison.OrdinalIgnoreCase))
             File.Copy(currentExe, targetExe, true);
@@ -58,6 +60,8 @@ internal static class WgdotNative
         state["version"] = Version;
         state["installedAt"] = DateTime.UtcNow.ToString("o");
         state["sourceRoot"] = sourceRoot;
+        state["sourceRef"] = sourceRef;
+        state["sourceRevision"] = sourceRevision;
         state["executionPolicyIndependent"] = true;
         File.WriteAllText(InstallStatePath, Json.Serialize(state), new UTF8Encoding(false));
 
@@ -79,7 +83,12 @@ internal static class WgdotNative
         if (File.Exists(InstallStatePath))
         {
             var state = AsDictionary(Json.DeserializeObject(File.ReadAllText(InstallStatePath)));
-            Console.WriteLine("Source root: " + GetString(state, "sourceRoot"));
+            string sourceRoot = GetString(state, "sourceRoot");
+            string sourceRef = GetString(state, "sourceRef");
+            string sourceRevision = GetString(state, "sourceRevision");
+            if (!String.IsNullOrWhiteSpace(sourceRoot)) Console.WriteLine("Source root: " + sourceRoot);
+            if (!String.IsNullOrWhiteSpace(sourceRef)) Console.WriteLine("Source ref: " + sourceRef);
+            if (!String.IsNullOrWhiteSpace(sourceRevision)) Console.WriteLine("Source revision: " + sourceRevision);
             Console.WriteLine("Installed: " + GetString(state, "installedAt"));
         }
         else

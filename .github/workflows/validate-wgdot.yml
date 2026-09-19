@@ -41,9 +41,14 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Build and install native bootstrap without PowerShell script execution
+      - name: Copy only bootstrap outside repository
         shell: cmd
-        run: wgdot\bootstrap.cmd
+        run: copy /Y wgdot\bootstrap.cmd "%TEMP%\wgdot-bootstrap-test.cmd"
+      - name: Install from arbitrary directory using exact revision
+        shell: cmd
+        run: |
+          cd /d "%TEMP%"
+          call wgdot-bootstrap-test.cmd --revision ${{ github.event.pull_request.head.sha || github.sha }}
       - name: Verify installed native command
         shell: cmd
         run: |
