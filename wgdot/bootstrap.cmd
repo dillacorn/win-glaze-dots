@@ -4,6 +4,7 @@ setlocal EnableExtensions
 set "SOURCE_REF=main"
 set "SOURCE_REVISION="
 set "REMOTE_REQUESTED=0"
+set "SOURCE_EXPLICIT=0"
 
 :parse_args
 if "%~1"=="" goto args_done
@@ -14,6 +15,7 @@ if /I "%~1"=="--ref" (
   )
   set "SOURCE_REF=%~2"
   set "REMOTE_REQUESTED=1"
+  set "SOURCE_EXPLICIT=1"
   shift
   shift
   goto parse_args
@@ -25,6 +27,7 @@ if /I "%~1"=="--revision" (
   )
   set "SOURCE_REVISION=%~2"
   set "REMOTE_REQUESTED=1"
+  set "SOURCE_EXPLICIT=1"
   shift
   shift
   goto parse_args
@@ -74,6 +77,7 @@ set "DOWNLOADED_SOURCE=1"
 set "OUT=%TEMP%\wgdot-native-%RANDOM%-%RANDOM%.exe"
 set "WGDOT_SOURCE_REF=%SOURCE_REF%"
 set "WGDOT_SOURCE_REVISION=%SOURCE_REVISION%"
+set "WGDOT_SOURCE_EXPLICIT=%SOURCE_EXPLICIT%"
 if "%DOWNLOADED_SOURCE%"=="0" set "WGDOT_SOURCE_ROOT=%~dp0.."
 if "%DOWNLOADED_SOURCE%"=="1" set "WGDOT_SOURCE_ROOT="
 

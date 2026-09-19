@@ -18,7 +18,7 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-17";
+    const string Version = "native-preview-18";
     const string RepoFullName = "dillacorn/win-glaze-dots";
     const string RepoUrl = "https://github.com/dillacorn/win-glaze-dots.git";
     const string ApiBase = "https://api.github.com/repos/dillacorn/win-glaze-dots";
@@ -161,6 +161,10 @@ internal static class WgdotNative
         if (!String.IsNullOrWhiteSpace(sourceRoot)) sourceRoot = Path.GetFullPath(sourceRoot);
         string sourceRef = Environment.GetEnvironmentVariable("WGDOT_SOURCE_REF") ?? "";
         string sourceRevision = Environment.GetEnvironmentVariable("WGDOT_SOURCE_REVISION") ?? "";
+        bool sourceExplicit = String.Equals(
+            Environment.GetEnvironmentVariable("WGDOT_SOURCE_EXPLICIT"),
+            "1",
+            StringComparison.Ordinal);
 
         if (!String.Equals(Path.GetFullPath(currentExe), Path.GetFullPath(targetExe), StringComparison.OrdinalIgnoreCase))
             File.Copy(currentExe, targetExe, true);
@@ -175,6 +179,7 @@ internal static class WgdotNative
         state["sourceRoot"] = sourceRoot;
         state["sourceRef"] = sourceRef;
         state["sourceRevision"] = sourceRevision;
+        state["sourceExplicit"] = sourceExplicit;
         state["executionPolicyIndependent"] = true;
         WriteJson(BootstrapStatePath, state);
 
@@ -203,6 +208,7 @@ internal static class WgdotNative
             if (!String.IsNullOrWhiteSpace(sourceRoot)) Console.WriteLine("Runtime source root: " + sourceRoot);
             if (!String.IsNullOrWhiteSpace(sourceRef)) Console.WriteLine("Runtime source ref: " + sourceRef);
             if (!String.IsNullOrWhiteSpace(sourceRevision)) Console.WriteLine("Runtime source revision: " + sourceRevision);
+            if (GetBool(state, "sourceExplicit")) Console.WriteLine("Runtime config source: explicit ref testing");
             Console.WriteLine("Installed: " + GetString(state, "installedAt"));
         }
 
@@ -559,8 +565,13 @@ internal static class WgdotNative
         if (bootstrap != null)
         {
             string sourceRef = GetString(bootstrap, "sourceRef");
-            if (!String.IsNullOrWhiteSpace(sourceRef) &&
-                !String.Equals(sourceRef, "main", StringComparison.OrdinalIgnoreCase))
+            bool explicitRefTesting = GetBool(bootstrap, "sourceExplicit");
+            bool useRuntimeRef =
+                !String.IsNullOrWhiteSpace(sourceRef) &&
+                (explicitRefTesting ||
+                 !String.Equals(sourceRef, "main", StringComparison.OrdinalIgnoreCase));
+
+            if (useRuntimeRef)
             {
                 string revision = ResolveBranchHeadViaApi(sourceRef);
                 string sourceRoot = PrepareRevisionArchive(revision);
