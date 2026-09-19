@@ -18,7 +18,7 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-19";
+    const string Version = "native-preview-20";
     const string RepoFullName = "dillacorn/win-glaze-dots";
     const string RepoUrl = "https://github.com/dillacorn/win-glaze-dots.git";
     const string ApiBase = "https://api.github.com/repos/dillacorn/win-glaze-dots";
@@ -65,6 +65,7 @@ internal static class WgdotNative
     {
         public string Id;
         public string Label;
+        public string Category;
         public bool Selected;
     }
 
@@ -983,6 +984,39 @@ internal static class WgdotNative
         return true;
     }
 
+    static void RunPackagePostInstall(Dictionary<string, object> package)
+    {
+        string action = GetString(package, "postInstallAction");
+        if (String.IsNullOrWhiteSpace(action)) return;
+
+        if (String.Equals(action, "launch-open-shell", StringComparison.OrdinalIgnoreCase))
+        {
+            string[] candidates =
+            {
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Open-Shell", "StartMenu.exe"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "Open-Shell", "StartMenu.exe")
+            };
+
+            string exe = candidates.FirstOrDefault(File.Exists);
+            if (String.IsNullOrWhiteSpace(exe))
+            {
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine("Open-Shell installed, but StartMenu.exe was not found to launch it automatically.");
+                Console.ResetColor();
+                return;
+            }
+
+            var psi = new ProcessStartInfo();
+            psi.FileName = exe;
+            psi.UseShellExecute = true;
+            Process.Start(psi);
+            Console.WriteLine("Open-Shell started.");
+            return;
+        }
+
+        throw new Exception("Unknown package post-install action '" + action + "'.");
+    }
+
     static int SoftwareReconcile()
     {
         SourceContext source = ResolveDefaultSource();
@@ -1097,6 +1131,7 @@ internal static class WgdotNative
             if (install.ExitCode == 0)
             {
                 installed++;
+                RunPackagePostInstall(package);
             }
             else
             {
@@ -1193,7 +1228,7 @@ internal static class WgdotNative
         if (includePackages)
         {
             var packageChoices = BuildPackageChoices(manifest, scope, existing);
-            packageChoices = ReadMultiChoice("Software to install / reconcile", packageChoices);
+            packageChoices = ReadPackageChoicesByCategory("Software to install / reconcile", packageChoices);
             if (packageChoices == null) return null;
             result.Packages = packageChoices.Where(x => x.Selected).Select(x => x.Id).ToList();
 
@@ -1236,7 +1271,7 @@ internal static class WgdotNative
         result.TweaksConfigured = true;
 
         var choices = BuildPackageChoices(manifest, existing.Scope, existing);
-        choices = ReadMultiChoice("Software to install / reconcile", choices);
+        choices = ReadPackageChoicesByCategory("Software to install / reconcile", choices);
         if (choices == null) return null;
 
         result.Packages = choices.Where(x => x.Selected).Select(x => x.Id).ToList();
@@ -1294,7 +1329,8 @@ internal static class WgdotNative
             choices.Add(new ChoiceItem
             {
                 Id = id,
-                Label = name + " [" + category + "]",
+                Label = name,
+                Category = category,
                 Selected = selected
             });
         }
@@ -3656,6 +3692,104 @@ public static class Program
             else if (key == ConsoleKey.End) index = items.Count - 1;
             else if (key == ConsoleKey.Enter) return index;
             else if (key == ConsoleKey.Escape) return -1;
+        }
+    }
+
+    static string PackageCategoryLabel(string category)
+    {
+        switch ((category ?? "").ToLowerInvariant())
+        {
+            case "desktop": return "Desktop / WGDot";
+            case "runtime": return "Runtimes";
+            case "cli": return "CLI / Yazi helpers";
+            case "browsers": return "Browsers";
+            case "editors": return "Editors";
+            case "utilities": return "General utilities";
+            case "system": return "System / diagnostics";
+            case "networking": return "Networking / remote";
+            case "communication": return "Communication";
+            case "media": return "Media";
+            case "creative": return "Creative";
+            case "3d-printing": return "3D printing";
+            case "gaming": return "Gaming";
+            case "security": return "Security";
+            case "development": return "Development";
+            case "virtualization": return "Virtualization";
+            case "work": return "Work";
+            default: return String.IsNullOrWhiteSpace(category) ? "Other" : category;
+        }
+    }
+
+    static List<ChoiceItem> ReadPackageChoicesByCategory(string title, List<ChoiceItem> items)
+    {
+        if (items == null || items.Count == 0) return items;
+
+        string[] preferredOrder =
+        {
+            "desktop", "runtime", "cli", "browsers", "editors", "utilities",
+            "system", "networking", "communication", "media", "creative",
+            "3d-printing", "gaming", "security", "development", "virtualization", "work"
+        };
+
+        var categories = new List<string>();
+        foreach (string category in preferredOrder)
+            if (items.Any(x => String.Equals(x.Category, category, StringComparison.OrdinalIgnoreCase)))
+                categories.Add(category);
+
+        foreach (string category in items.Select(x => x.Category ?? "other").Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x))
+            if (!categories.Contains(category, StringComparer.OrdinalIgnoreCase))
+                categories.Add(category);
+
+        int index = 0;
+        while (true)
+        {
+            WriteTitle(title);
+
+            for (int i = 0; i < categories.Count; i++)
+            {
+                string category = categories[i];
+                List<ChoiceItem> group = items
+                    .Where(x => String.Equals(x.Category, category, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+                int selected = group.Count(x => x.Selected);
+
+                if (i == index) Console.ForegroundColor = ConsoleColor.Cyan;
+                Console.WriteLine((i == index ? "> " : "  ") +
+                    PackageCategoryLabel(category) +
+                    "  [" + selected + "/" + group.Count + "]");
+                Console.ResetColor();
+            }
+
+            int doneIndex = categories.Count;
+            if (index == doneIndex) Console.ForegroundColor = ConsoleColor.Cyan;
+            Console.WriteLine((index == doneIndex ? "> " : "  ") +
+                "Done  [" + items.Count(x => x.Selected) + "/" + items.Count + " selected]");
+            Console.ResetColor();
+
+            Console.WriteLine();
+            Console.ForegroundColor = ConsoleColor.DarkGray;
+            Console.WriteLine("Enter: open category / finish   Esc: cancel");
+            Console.ResetColor();
+
+            ConsoleKey key = Console.ReadKey(true).Key;
+            int count = categories.Count + 1;
+            if (key == ConsoleKey.UpArrow) index = (index - 1 + count) % count;
+            else if (key == ConsoleKey.DownArrow) index = (index + 1) % count;
+            else if (key == ConsoleKey.Home) index = 0;
+            else if (key == ConsoleKey.End) index = doneIndex;
+            else if (key == ConsoleKey.Escape) return null;
+            else if (key == ConsoleKey.Enter)
+            {
+                if (index == doneIndex) return items;
+
+                string category = categories[index];
+                List<ChoiceItem> group = items
+                    .Where(x => String.Equals(x.Category, category, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+
+                List<ChoiceItem> edited = ReadMultiChoice(PackageCategoryLabel(category), group);
+                if (edited == null) continue;
+            }
         }
     }
 

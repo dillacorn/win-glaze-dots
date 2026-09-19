@@ -1,149 +1,145 @@
-# Package Management with Winget
+# Package Management with WinGet
 
----
+WGDot's interactive software selector is the preferred installation path. Packages are grouped by category instead of shown as one giant list.
 
-### install all essential applications (one-liner)
-```powershell
-winget install SpeedCrunch.SpeedCrunch Git.Git Microsoft.WindowsTerminal AltSnap.AltSnap Microsoft.VCRedist.2015+.x64 AmN.yasb Flameshot.Flameshot Flow-Launcher.Flow-Launcher File-New-Project.EarTrumpet Notepad++.Notepad++ zyedidia.micro sxyazi.yazi qimgv.qimgv mpv.net LocalSend.LocalSend DisplayDriverUninstaller.DisplayDriverUninstaller Brave.Brave Microsoft.PowerToys Fastfetch-cli.Fastfetch 7zip.7zip Gyan.FFmpeg jqlang.jq oschwartz10612.Poppler sharkdp.fd BurntSushi.ripgrep.MSVC junegunn.fzf ajeetdsouza.zoxide ImageMagick.ImageMagick xiph.flac glzr-io.glazewm karlstav.cava DEVCOM.JetBrainsMonoNerdFont WinsiderSS.SystemInformer
-```
+The default selection is intentionally conservative for public use. Only the WGDot desktop stack and practical dependencies are enabled by default; personal applications are opt-in.
 
-`resvg` is optional and only needed for SVG previews in Yazi. It is not currently available through WinGet; install it separately if SVG preview support is needed.
+## Default ON
 
-### install gaming applications (one-liner)
-```powershell
-winget install Valve.Steam itch.itch GOG.Galaxy PrismLauncher.PrismLauncher ebkr.r2modman EpicGames.EpicGamesLauncher
-```
+- **Git** — `Git.Git`
+- **Windows Terminal** — `Microsoft.WindowsTerminal`
+- **AltSnap** — `AltSnap.AltSnap`
+- **Visual C++ Redistributable** — `Microsoft.VCRedist.2015+.x64`
+- **YASB** — `AmN.yasb`
+- **Flameshot** — `Flameshot.Flameshot`
+- **Flow Launcher** — `Flow-Launcher.Flow-Launcher`
+- **EarTrumpet** — `File-New-Project.EarTrumpet`
+- **Micro** — `zyedidia.micro`
+- **Yazi** — `sxyazi.yazi`
+- **Firefox** — `Mozilla.Firefox`
+- **7-Zip** — `7zip.7zip`
+- **FFmpeg** — `Gyan.FFmpeg`
+- **jq** — `jqlang.jq`
+- **Poppler** — `oschwartz10612.Poppler`
+- **fd** — `sharkdp.fd`
+- **ripgrep** — `BurntSushi.ripgrep.MSVC`
+- **fzf** — `junegunn.fzf`
+- **zoxide** — `ajeetdsouza.zoxide`
+- **ImageMagick** — `ImageMagick.ImageMagick`
+- **GlazeWM** — `glzr-io.glazewm`
+- **JetBrains Mono Nerd Font** — `DEVCOM.JetBrainsMonoNerdFont`
+- **Open-Shell** — `Open-Shell.Open-Shell-Menu`
 
-### install optional applications (one-liner)
-```powershell
-winget install RustDesk.RustDesk CPUID.HWMonitor jeffvli.Feishin Discord.Discord OBSProject.OBSStudio MullvadVPN.MullvadBrowser voidtools.Everything KDE.Okular Ultimaker.Cura OpenWhisperSystems.Signal KeePassXCTeam.KeePassXC Bitwarden.Bitwarden KDE.Krita Meltytech.Shotcut GIMP.GIMP qBittorrent.qBittorrent NickeManarin.ScreenToGif Spotify.Spotify Betaflight.Betaflight-Configurator Ventoy.Ventoy Piriform.CCleaner AntibodySoftware.WizTree CPUID.CPU-Z TechPowerUp.GPU-Z WinSCP.WinSCP TimKosse.FileZilla.Client MoonlightGameStreamingProject.Moonlight LizardByte.Sunshine TrackerSoftware.PDF-XChangeEditor Tailscale.Tailscale Open-Shell.Open-Shell-Menu RamenSoftware.Windhawk Microsoft.Sysinterals.ProcessExplorer
-```
+## Optional packages by category
 
-### install development tools (one-liner)
-```powershell
-winget install yt-dlp.yt-dlp GnuWin32.Make MSYS2.MSYS2 cURL.cURL aristocratos.btop4win
-```
+### CLI / Yazi helpers
 
-### Virtualization (one-liner) - https://github.com/dillacorn/win-glaze-dots/blob/main/qemu-linux-guide.md
-```powershell
-winget install SoftwareFreedomConservancy.QEMU SoftwareFreedomConservancy.QEMUGuestAgent
-```
+- **Fastfetch** — `Fastfetch-cli.Fastfetch`
+- **Cava** — `karlstav.cava`
+- **btop4win** — `aristocratos.btop4win`
 
----
+### Browsers
 
-## Application List with Descriptions
+- **Brave** — `Brave.Brave`
+- **Mullvad Browser** — `MullvadVPN.MullvadBrowser`
 
-### Essential Applications:
-- **SpeedCrunch** - Scientific calculator
-- **Git** - Version control system; also provides `file.exe` used by Yazi for MIME detection
-- **Windows Terminal** - Default terminal application
-- **Yazi** - Terminal file manager; text/code opens in Micro while all other files use normal Windows file associations
-- **Micro** - Terminal text editor
-- **AltSnap** - Window management utility
-- **Visual C++ Redistributable** - Runtime libraries
-- **Flameshot** - Screenshot tool
-- **Flow Launcher** - Application launcher
-- **EarTrumpet** - Volume control utility
-- **Notepad++** - Text editor
-- **qimgv** - Image viewer
-- **mpv** - Media player
-- **LocalSend** - File sharing utility
-- **Display Driver Uninstaller** - GPU driver removal tool
-- **Brave** - Privacy-focused web browser
-- **PowerToys** - Windows utilities
-- **Fastfetch** - System information tool
-- **7-Zip** - File archiver and Yazi archive helper
-- **FFmpeg** - Media preview helper used by Yazi
-- **jq** - JSON helper used by Yazi
-- **Poppler** - PDF preview helper used by Yazi
-- **fd** - Fast file search helper used by Yazi
-- **ripgrep** - Text search helper used by Yazi
-- **fzf** - Fuzzy finder helper used by Yazi
-- **zoxide** - Directory navigation helper used by Yazi
-- **ImageMagick** - Image conversion/preview helper used by Yazi
-- **FLAC** - Audio codec
-- **GlazeWM** - Tiling window manager
-- **JetBrainsMonoNerdFont** - Font for yasb bar
-- **Yasb** - System information bar
-- **System Informer** - Replaces task manager (need more functionality? - install process explorer, slightly heavier alternative)
+### Editors
 
-### Gaming Applications:
-- **Steam** - Game distribution platform
-- **itch.io** - Indie game platform
-- **GOG Galaxy** - DRM-free game launcher
-- **Prism Launcher** - Minecraft launcher
-- **r2modman** - Risk of Rain 2 mod manager
-- **Epic Games Launcher** - Epic Games store
+- **Notepad++** — `Notepad++.Notepad++`
 
-### Optional Applications:
-- **RustDesk** - Remote desktop software
-- **HWMonitor** - Hardware monitoring
-- **Feishin** - Music streaming client
-- **Discord** - Communication platform
-- **OBS Studio** - Streaming/recording software
-- **Mullvad Browser** - Privacy-focused browser
-- **Everything** - File search utility
-- **Okular** - Document viewer
-- **Cura** - 3D printing slicer
-- **Signal** - Encrypted messaging
-- **KeePassXC** - Password manager
-- **Bitwarden** - Password manager
-- **Krita** - Digital painting software
-- **Shotcut** - Video editor
-- **GIMP** - Image editor
-- **qBittorrent** - BitTorrent client
-- **ScreenToGif** - Screen recorder to GIF
-- **Spotify** - Music streaming
-- **Betaflight Configurator** - Drone firmware tool
-- **Ventoy** - Bootable USB creator
-- **CCleaner** - System cleaner
-- **WizTree** - Disk space analyzer
-- **CPU-Z** - CPU information tool
-- **GPU-Z** - GPU information tool
-- **WinSCP** - SFTP/SCP client
-- **FileZilla** - FTP client
-- **Moonlight** - Game streaming client
-- **Sunshine** - Game streaming server
-- **PDF-XChange Editor** - PDF editor
-- **Tailscale** - VPN mesh network
-- **Open-Shell** - Old Style Window Pop-out Menu
-- **Windhawk** - Customize Windows Internally
-- **Process Explorer** - Replaces Task Manager (little heavier than System Informer)
+### General utilities
 
-### Development Tools:
-- **yt-dlp** - Video downloader
-- **Make** - Build automation tool
-- **MSYS2** - Unix-like environment
-- **cURL** - Data transfer tool
-- **btop** - System monitor
+- **SpeedCrunch** — `SpeedCrunch.SpeedCrunch`
+- **Everything** — `voidtools.Everything`
 
-### Virtualization: https://github.com/dillacorn/win-glaze-dots/blob/main/qemu-arch-scoop-guide.md
-- **QEMU** - Virtualization platform
-- **QEMU guest agent** - Virtualization Guest Agent
+### System / diagnostics
 
-### update all winget apps
-```powershell
-winget upgrade --all
-```
+- **Display Driver Uninstaller** — `Wagnardsoft.DisplayDriverUninstaller`
+- **PowerToys** — `Microsoft.PowerToys`
+- **System Informer** — `WinsiderSS.SystemInformer`
+- **HWMonitor** — `CPUID.HWMonitor`
+- **Ventoy** — `Ventoy.Ventoy`
+- **CCleaner** — `Piriform.CCleaner`
+- **WizTree** — `AntibodySoftware.WizTree`
+- **CPU-Z** — `CPUID.CPU-Z`
+- **GPU-Z** — `TechPowerUp.GPU-Z`
+- **Windhawk** — `RamenSoftware.Windhawk`
+- **Process Explorer** — `Microsoft.Sysinternals.ProcessExplorer`
 
----
+### Networking / remote
 
-### Install `Teams` example (**Using WinGet**)
-```powershell
-winget install Microsoft.Teams
-```
+- **LocalSend** — `LocalSend.LocalSend`
+- **RustDesk** — `RustDesk.RustDesk`
+- **qBittorrent** — `qBittorrent.qBittorrent`
+- **WinSCP** — `WinSCP.WinSCP`
+- **FileZilla** — `TimKosse.FileZilla.Client`
+- **Tailscale** — `Tailscale.Tailscale`
 
----
-### Install DistroAV (NDI Runtime) for OBS
-```powershell
-winget install DistroAV.DistroAV
-```
+### Communication
 
-Need BLUR? -> [obs-composite-blur Plugin | Releases](https://github.com/FiniteSingularity/obs-composite-blur/releases) by [FiniteSingularity](https://github.com/FiniteSingularity)
+- **Vesktop (Vencord)** — `Vencord.Vesktop`
 
-Need CROPPING? -> [obs-advanced-masks Plugin | Releases](https://github.com/FiniteSingularity/obs-advanced-masks/releases) by [FiniteSingularity](https://github.com/FiniteSingularity)
+### Media
 
----
+- **qimgv** — `easymodo.qimgv`
+- **mpv.net** — `mpv.net`
+- **FLAC** — `Xiph.FLAC`
+- **Feishin** — `jeffvli.Feishin`
+- **OBS Studio** — `OBSProject.OBSStudio`
+- **Okular** — `KDE.Okular`
+- **Spotify** — `Spotify.Spotify`
+- **yt-dlp** — `yt-dlp.yt-dlp`
+- **DistroAV** — `DistroAV.DistroAV`
 
-# microphone suppression (requires Equalizer_APO)
-https://github.com/werman/noise-suppression-for-voice/releases
+### Creative
+
+- **Krita** — `KDE.Krita`
+- **Shotcut** — `Meltytech.Shotcut`
+- **GIMP** — `GIMP.GIMP`
+- **ScreenToGif** — `NickeManarin.ScreenToGif`
+
+### 3D printing
+
+- **OrcaSlicer** — `SoftFever.OrcaSlicer`
+- **Cura** — `Ultimaker.Cura`
+
+### Gaming
+
+- **Steam** — `Valve.Steam`
+- **itch.io** — `ItchIo.Itch`
+- **GOG Galaxy** — `GOG.Galaxy`
+- **Prism Launcher** — `PrismLauncher.PrismLauncher`
+- **r2modman** — `ebkr.r2modman`
+- **Epic Games Launcher** — `EpicGames.EpicGamesLauncher`
+- **Moonlight** — `MoonlightGameStreamingProject.Moonlight`
+- **Sunshine** — `LizardByte.Sunshine`
+
+### Security
+
+- **KeePassXC** — `KeePassXCTeam.KeePassXC`
+
+### Development
+
+- **Make** — `GnuWin32.Make`
+- **MSYS2** — `MSYS2.MSYS2`
+- **cURL** — `cURL.cURL`
+
+### Virtualization
+
+- **QEMU** — `SoftwareFreedomConservancy.QEMU`
+- **QEMU Guest Agent** — `SoftwareFreedomConservancy.QEMUGuestAgent`
+
+### Work
+
+- **Microsoft Teams** — `Microsoft.Teams`
+
+## Notes
+
+- Open-Shell is enabled by default and WGDot starts it after a successful first install.
+- Micro is the preferred text editor. Notepad++ remains available only as an opt-in editor.
+- Vesktop (`Vencord.Vesktop`) is the offered Discord-family client; Discord itself is not cataloged.
+- Cura and OrcaSlicer are both optional and default OFF.
+- Steam, itch.io, GOG Galaxy, Prism Launcher, r2modman, and Epic Games Launcher are all optional and default OFF.
+- Signal, Bitwarden, Betaflight Configurator, and PDF-XChange Editor are intentionally not offered.
+- Deselecting an installed package does not uninstall it.
+- WGDot never runs `winget upgrade --all`; upgrade checks are opt-in and each selected package requires approval.

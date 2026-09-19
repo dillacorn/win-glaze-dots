@@ -80,37 +80,52 @@ Assert-True ($packageIds.ContainsKey("mozilla.firefox")) "Firefox is cataloged"
 Assert-True ($packageIds.ContainsKey("vencord.vesktop")) "Vesktop is cataloged"
 Assert-True ($packageIds.ContainsKey("softfever.orcaslicer")) "OrcaSlicer is cataloged"
 Assert-True ($packageIds.ContainsKey("rustdesk.rustdesk")) "RustDesk is cataloged"
+Assert-True (-not $packageIds.ContainsKey("discord.discord")) "Discord is not offered; Vesktop is the Discord-family option"
+Assert-True (-not $packageIds.ContainsKey("openwhispersystems.signal")) "Signal is not offered by WGDot"
+Assert-True (-not $packageIds.ContainsKey("bitwarden.bitwarden")) "Bitwarden is not offered by WGDot"
+Assert-True (-not $packageIds.ContainsKey("betaflight.betaflight-configurator")) "Betaflight Configurator is not offered by WGDot"
+Assert-True (-not $packageIds.ContainsKey("trackersoftware.pdf-xchangeeditor")) "PDF-XChange Editor is not offered by WGDot"
 
 function Get-ManifestPackage {
     param([string]$Id)
     return $manifest.packages | Where-Object { [string]$_.id -eq $Id } | Select-Object -First 1
 }
 
-foreach ($id in @(
-    "Mozilla.Firefox",
+$expectedDefaultOnPackages = @(
+    "Git.Git",
+    "Microsoft.WindowsTerminal",
+    "AltSnap.AltSnap",
+    "Microsoft.VCRedist.2015+.x64",
+    "AmN.yasb",
+    "Flameshot.Flameshot",
+    "Flow-Launcher.Flow-Launcher",
     "File-New-Project.EarTrumpet",
-    "zyedidia.micro"
-)) {
-    $p = Get-ManifestPackage -Id $id
-    Assert-True ([bool]$p.defaultNormal) "$id defaults on for Normal"
+    "zyedidia.micro",
+    "sxyazi.yazi",
+    "Mozilla.Firefox",
+    "7zip.7zip",
+    "Gyan.FFmpeg",
+    "jqlang.jq",
+    "oschwartz10612.Poppler",
+    "sharkdp.fd",
+    "BurntSushi.ripgrep.MSVC",
+    "junegunn.fzf",
+    "ajeetdsouza.zoxide",
+    "ImageMagick.ImageMagick",
+    "glzr-io.glazewm",
+    "DEVCOM.JetBrainsMonoNerdFont",
+    "Open-Shell.Open-Shell-Menu"
+)
+
+foreach ($package in $manifest.packages) {
+    $id = [string]$package.id
+    $shouldDefaultOn = $expectedDefaultOnPackages -contains $id
+    Assert-Equal $shouldDefaultOn ([bool]$package.defaultNormal) "$id Normal default follows conservative public baseline"
+    Assert-Equal $shouldDefaultOn ([bool]$package.defaultWork) "$id Work default follows conservative public baseline"
 }
 
-foreach ($id in @(
-    "Microsoft.PowerToys",
-    "Brave.Brave",
-    "MullvadVPN.MullvadBrowser",
-    "Vencord.Vesktop",
-    "SoftFever.OrcaSlicer",
-    "MoonlightGameStreamingProject.Moonlight",
-    "LizardByte.Sunshine",
-    "RamenSoftware.Windhawk",
-    "RustDesk.RustDesk",
-    "Tailscale.Tailscale"
-)) {
-    $p = Get-ManifestPackage -Id $id
-    Assert-True (-not [bool]$p.defaultNormal) "$id defaults off for Normal"
-    Assert-True (-not [bool]$p.defaultWork) "$id defaults off for Work"
-}
+$openShell = Get-ManifestPackage -Id "Open-Shell.Open-Shell-Menu"
+Assert-Equal "launch-open-shell" ([string]$openShell.postInstallAction) "Open-Shell launches after first install"
 
 $rustDesk = Get-ManifestPackage -Id "RustDesk.RustDesk"
 Assert-Equal "rustdesk/rustdesk" ([string]$rustDesk.fallbackGitHubRepo) "RustDesk approved fallback repository"
@@ -190,6 +205,9 @@ Assert-True ($nativeSourceText -match '"maintenance-self-test"') "native runtime
 Assert-True ($nativeSourceText -match 'WGDOT_TEST_ROOT') "native maintenance self-test redirects state away from normal WGDot state"
 Assert-True ($nativeSourceText -match 'TweakManager') "native runtime includes Windows tweak manager"
 Assert-True ($nativeSourceText -match 'ApplyMicroTextDefaults') "native runtime manages Micro text associations"
+Assert-True ($nativeSourceText -match 'ReadPackageChoicesByCategory') "software selector is grouped by category"
+Assert-True ($nativeSourceText -match 'PackageCategoryLabel') "software selector has friendly category labels"
+Assert-True ($nativeSourceText -match 'launch-open-shell') "native runtime starts Open-Shell after installation"
 Assert-True ($nativeSourceText -match 'ApplyFlowLauncherAltP') "native runtime manages Flow Launcher Alt+P"
 Assert-True ($nativeSourceText -match 'ApplyEarTrumpetMixerAltV') "native runtime manages EarTrumpet Alt+V"
 Assert-True ($nativeSourceText -match 'ApplicationDataManager\.CreateForPackageFamily') "EarTrumpet AppX settings use Windows packaged LocalSettings"

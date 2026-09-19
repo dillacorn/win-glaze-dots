@@ -226,294 +226,294 @@
     {
       "name": "SpeedCrunch",
       "id": "SpeedCrunch.SpeedCrunch",
-      "category": "essential",
-      "defaultNormal": true,
-      "defaultWork": true
+      "category": "utilities",
+      "defaultNormal": false,
+      "defaultWork": false
     },
     {
       "name": "Git",
       "id": "Git.Git",
-      "category": "essential",
+      "category": "cli",
       "defaultNormal": true,
       "defaultWork": true
     },
     {
       "name": "Windows Terminal",
       "id": "Microsoft.WindowsTerminal",
-      "category": "essential",
+      "category": "desktop",
       "defaultNormal": true,
       "defaultWork": true
     },
     {
       "name": "AltSnap",
       "id": "AltSnap.AltSnap",
-      "category": "essential",
+      "category": "desktop",
       "defaultNormal": true,
       "defaultWork": true
     },
     {
       "name": "Visual C++ Redistributable",
       "id": "Microsoft.VCRedist.2015+.x64",
-      "category": "essential",
+      "category": "runtime",
       "defaultNormal": true,
       "defaultWork": true
     },
     {
       "name": "YASB",
       "id": "AmN.yasb",
-      "category": "essential",
+      "category": "desktop",
       "defaultNormal": true,
       "defaultWork": true
     },
     {
       "name": "Flameshot",
       "id": "Flameshot.Flameshot",
-      "category": "essential",
+      "category": "desktop",
       "defaultNormal": true,
       "defaultWork": true
     },
     {
       "name": "Flow Launcher",
       "id": "Flow-Launcher.Flow-Launcher",
-      "category": "essential",
+      "category": "desktop",
       "defaultNormal": true,
       "defaultWork": true
     },
     {
       "name": "EarTrumpet",
       "id": "File-New-Project.EarTrumpet",
-      "category": "essential",
+      "category": "desktop",
       "defaultNormal": true,
       "defaultWork": true
     },
     {
       "name": "Notepad++",
       "id": "Notepad++.Notepad++",
-      "category": "essential",
-      "defaultNormal": true,
-      "defaultWork": true
+      "category": "editors",
+      "defaultNormal": false,
+      "defaultWork": false
     },
     {
       "name": "Micro",
       "id": "zyedidia.micro",
-      "category": "essential",
+      "category": "desktop",
       "defaultNormal": true,
       "defaultWork": true
     },
     {
       "name": "Yazi",
       "id": "sxyazi.yazi",
-      "category": "essential",
+      "category": "desktop",
       "defaultNormal": true,
       "defaultWork": true
     },
     {
       "name": "qimgv",
       "id": "easymodo.qimgv",
-      "category": "essential",
-      "defaultNormal": true,
-      "defaultWork": true
+      "category": "media",
+      "defaultNormal": false,
+      "defaultWork": false
     },
     {
       "name": "mpv.net",
       "id": "mpv.net",
-      "category": "essential",
-      "defaultNormal": true,
-      "defaultWork": true
+      "category": "media",
+      "defaultNormal": false,
+      "defaultWork": false
     },
     {
       "name": "LocalSend",
       "id": "LocalSend.LocalSend",
-      "category": "essential",
-      "defaultNormal": true,
-      "defaultWork": true
+      "category": "networking",
+      "defaultNormal": false,
+      "defaultWork": false
     },
     {
       "name": "Display Driver Uninstaller",
       "id": "Wagnardsoft.DisplayDriverUninstaller",
-      "category": "essential",
-      "defaultNormal": true,
+      "category": "system",
+      "defaultNormal": false,
       "defaultWork": false
     },
     {
       "name": "Firefox",
       "id": "Mozilla.Firefox",
-      "category": "browser",
+      "category": "browsers",
       "defaultNormal": true,
       "defaultWork": true
     },
     {
       "name": "Brave",
       "id": "Brave.Brave",
-      "category": "essential",
+      "category": "browsers",
       "defaultNormal": false,
       "defaultWork": false
     },
     {
       "name": "PowerToys",
       "id": "Microsoft.PowerToys",
-      "category": "essential",
+      "category": "system",
       "defaultNormal": false,
       "defaultWork": false
     },
     {
       "name": "Fastfetch",
       "id": "Fastfetch-cli.Fastfetch",
-      "category": "essential",
-      "defaultNormal": true,
-      "defaultWork": true
+      "category": "cli",
+      "defaultNormal": false,
+      "defaultWork": false
     },
     {
       "name": "7-Zip",
       "id": "7zip.7zip",
-      "category": "essential",
+      "category": "cli",
       "defaultNormal": true,
       "defaultWork": true
     },
     {
       "name": "FFmpeg",
       "id": "Gyan.FFmpeg",
-      "category": "essential",
+      "category": "cli",
       "defaultNormal": true,
       "defaultWork": true
     },
     {
       "name": "jq",
       "id": "jqlang.jq",
-      "category": "essential",
+      "category": "cli",
       "defaultNormal": true,
       "defaultWork": true
     },
     {
       "name": "Poppler",
       "id": "oschwartz10612.Poppler",
-      "category": "essential",
+      "category": "cli",
       "defaultNormal": true,
       "defaultWork": true
     },
     {
       "name": "fd",
       "id": "sharkdp.fd",
-      "category": "essential",
+      "category": "cli",
       "defaultNormal": true,
       "defaultWork": true
     },
     {
       "name": "ripgrep",
       "id": "BurntSushi.ripgrep.MSVC",
-      "category": "essential",
+      "category": "cli",
       "defaultNormal": true,
       "defaultWork": true
     },
     {
       "name": "fzf",
       "id": "junegunn.fzf",
-      "category": "essential",
+      "category": "cli",
       "defaultNormal": true,
       "defaultWork": true
     },
     {
       "name": "zoxide",
       "id": "ajeetdsouza.zoxide",
-      "category": "essential",
+      "category": "cli",
       "defaultNormal": true,
       "defaultWork": true
     },
     {
       "name": "ImageMagick",
       "id": "ImageMagick.ImageMagick",
-      "category": "essential",
+      "category": "cli",
       "defaultNormal": true,
       "defaultWork": true
     },
     {
       "name": "FLAC",
       "id": "Xiph.FLAC",
-      "category": "essential",
-      "defaultNormal": true,
-      "defaultWork": true
+      "category": "media",
+      "defaultNormal": false,
+      "defaultWork": false
     },
     {
       "name": "GlazeWM",
       "id": "glzr-io.glazewm",
-      "category": "essential",
+      "category": "desktop",
       "defaultNormal": true,
       "defaultWork": true
     },
     {
       "name": "Cava",
       "id": "karlstav.cava",
-      "category": "essential",
-      "defaultNormal": true,
+      "category": "cli",
+      "defaultNormal": false,
       "defaultWork": false
     },
     {
       "name": "JetBrains Mono Nerd Font",
       "id": "DEVCOM.JetBrainsMonoNerdFont",
-      "category": "essential",
+      "category": "desktop",
       "defaultNormal": true,
       "defaultWork": true
     },
     {
       "name": "System Informer",
       "id": "WinsiderSS.SystemInformer",
-      "category": "essential",
-      "defaultNormal": true,
-      "defaultWork": true
+      "category": "system",
+      "defaultNormal": false,
+      "defaultWork": false
     },
     {
       "name": "Steam",
       "id": "Valve.Steam",
       "category": "gaming",
-      "defaultNormal": true,
+      "defaultNormal": false,
       "defaultWork": false
     },
     {
       "name": "itch.io",
       "id": "ItchIo.Itch",
       "category": "gaming",
-      "defaultNormal": true,
+      "defaultNormal": false,
       "defaultWork": false
     },
     {
       "name": "GOG Galaxy",
       "id": "GOG.Galaxy",
       "category": "gaming",
-      "defaultNormal": true,
+      "defaultNormal": false,
       "defaultWork": false
     },
     {
       "name": "Prism Launcher",
       "id": "PrismLauncher.PrismLauncher",
       "category": "gaming",
-      "defaultNormal": true,
+      "defaultNormal": false,
       "defaultWork": false
     },
     {
       "name": "r2modman",
       "id": "ebkr.r2modman",
       "category": "gaming",
-      "defaultNormal": true,
+      "defaultNormal": false,
       "defaultWork": false
     },
     {
       "name": "Epic Games Launcher",
       "id": "EpicGames.EpicGamesLauncher",
       "category": "gaming",
-      "defaultNormal": true,
+      "defaultNormal": false,
       "defaultWork": false
     },
     {
       "name": "Vesktop (Vencord)",
       "id": "Vencord.Vesktop",
-      "category": "optional",
+      "category": "communication",
       "defaultNormal": false,
       "defaultWork": false
     },
     {
       "name": "RustDesk",
       "id": "RustDesk.RustDesk",
-      "category": "optional",
+      "category": "networking",
       "defaultNormal": false,
       "defaultWork": false,
       "fallbackGitHubRepo": "rustdesk/rustdesk",
@@ -522,239 +522,205 @@
     {
       "name": "HWMonitor",
       "id": "CPUID.HWMonitor",
-      "category": "optional",
-      "defaultNormal": true,
+      "category": "system",
+      "defaultNormal": false,
       "defaultWork": false
     },
     {
       "name": "Feishin",
       "id": "jeffvli.Feishin",
-      "category": "optional",
-      "defaultNormal": true,
-      "defaultWork": false
-    },
-    {
-      "name": "Discord",
-      "id": "Discord.Discord",
-      "category": "optional",
-      "defaultNormal": true,
+      "category": "media",
+      "defaultNormal": false,
       "defaultWork": false
     },
     {
       "name": "OBS Studio",
       "id": "OBSProject.OBSStudio",
-      "category": "optional",
-      "defaultNormal": true,
+      "category": "media",
+      "defaultNormal": false,
       "defaultWork": false
     },
     {
       "name": "Mullvad Browser",
       "id": "MullvadVPN.MullvadBrowser",
-      "category": "optional",
+      "category": "browsers",
       "defaultNormal": false,
       "defaultWork": false
     },
     {
       "name": "Everything",
       "id": "voidtools.Everything",
-      "category": "optional",
-      "defaultNormal": true,
-      "defaultWork": true
+      "category": "utilities",
+      "defaultNormal": false,
+      "defaultWork": false
     },
     {
       "name": "Okular",
       "id": "KDE.Okular",
-      "category": "optional",
-      "defaultNormal": true,
-      "defaultWork": true
+      "category": "media",
+      "defaultNormal": false,
+      "defaultWork": false
     },
     {
       "name": "OrcaSlicer",
       "id": "SoftFever.OrcaSlicer",
-      "category": "optional",
+      "category": "3d-printing",
       "defaultNormal": false,
       "defaultWork": false
     },
     {
       "name": "Cura",
       "id": "Ultimaker.Cura",
-      "category": "optional",
-      "defaultNormal": true,
-      "defaultWork": false
-    },
-    {
-      "name": "Signal",
-      "id": "OpenWhisperSystems.Signal",
-      "category": "optional",
-      "defaultNormal": true,
+      "category": "3d-printing",
+      "defaultNormal": false,
       "defaultWork": false
     },
     {
       "name": "KeePassXC",
       "id": "KeePassXCTeam.KeePassXC",
-      "category": "optional",
-      "defaultNormal": true,
-      "defaultWork": true
-    },
-    {
-      "name": "Bitwarden",
-      "id": "Bitwarden.Bitwarden",
-      "category": "optional",
-      "defaultNormal": true,
-      "defaultWork": true
+      "category": "security",
+      "defaultNormal": false,
+      "defaultWork": false
     },
     {
       "name": "Krita",
       "id": "KDE.Krita",
-      "category": "optional",
-      "defaultNormal": true,
+      "category": "creative",
+      "defaultNormal": false,
       "defaultWork": false
     },
     {
       "name": "Shotcut",
       "id": "Meltytech.Shotcut",
-      "category": "optional",
-      "defaultNormal": true,
+      "category": "creative",
+      "defaultNormal": false,
       "defaultWork": false
     },
     {
       "name": "GIMP",
       "id": "GIMP.GIMP",
-      "category": "optional",
-      "defaultNormal": true,
+      "category": "creative",
+      "defaultNormal": false,
       "defaultWork": false
     },
     {
       "name": "qBittorrent",
       "id": "qBittorrent.qBittorrent",
-      "category": "optional",
-      "defaultNormal": true,
+      "category": "networking",
+      "defaultNormal": false,
       "defaultWork": false
     },
     {
       "name": "ScreenToGif",
       "id": "NickeManarin.ScreenToGif",
-      "category": "optional",
-      "defaultNormal": true,
+      "category": "creative",
+      "defaultNormal": false,
       "defaultWork": false
     },
     {
       "name": "Spotify",
       "id": "Spotify.Spotify",
-      "category": "optional",
-      "defaultNormal": true,
-      "defaultWork": false
-    },
-    {
-      "name": "Betaflight Configurator",
-      "id": "Betaflight.Betaflight-Configurator",
-      "category": "optional",
-      "defaultNormal": true,
+      "category": "media",
+      "defaultNormal": false,
       "defaultWork": false
     },
     {
       "name": "Ventoy",
       "id": "Ventoy.Ventoy",
-      "category": "optional",
-      "defaultNormal": true,
+      "category": "system",
+      "defaultNormal": false,
       "defaultWork": false
     },
     {
       "name": "CCleaner",
       "id": "Piriform.CCleaner",
-      "category": "optional",
+      "category": "system",
       "defaultNormal": false,
       "defaultWork": false
     },
     {
       "name": "WizTree",
       "id": "AntibodySoftware.WizTree",
-      "category": "optional",
-      "defaultNormal": true,
-      "defaultWork": true
+      "category": "system",
+      "defaultNormal": false,
+      "defaultWork": false
     },
     {
       "name": "CPU-Z",
       "id": "CPUID.CPU-Z",
-      "category": "optional",
-      "defaultNormal": true,
+      "category": "system",
+      "defaultNormal": false,
       "defaultWork": false
     },
     {
       "name": "GPU-Z",
       "id": "TechPowerUp.GPU-Z",
-      "category": "optional",
-      "defaultNormal": true,
+      "category": "system",
+      "defaultNormal": false,
       "defaultWork": false
     },
     {
       "name": "WinSCP",
       "id": "WinSCP.WinSCP",
-      "category": "optional",
-      "defaultNormal": true,
-      "defaultWork": true
+      "category": "networking",
+      "defaultNormal": false,
+      "defaultWork": false
     },
     {
       "name": "FileZilla",
       "id": "TimKosse.FileZilla.Client",
-      "category": "optional",
+      "category": "networking",
       "defaultNormal": false,
       "defaultWork": false
     },
     {
       "name": "Moonlight",
       "id": "MoonlightGameStreamingProject.Moonlight",
-      "category": "optional",
+      "category": "gaming",
       "defaultNormal": false,
       "defaultWork": false
     },
     {
       "name": "Sunshine",
       "id": "LizardByte.Sunshine",
-      "category": "optional",
+      "category": "gaming",
       "defaultNormal": false,
       "defaultWork": false
     },
     {
-      "name": "PDF-XChange Editor",
-      "id": "TrackerSoftware.PDF-XChangeEditor",
-      "category": "optional",
-      "defaultNormal": true,
-      "defaultWork": true
-    },
-    {
       "name": "Tailscale",
       "id": "Tailscale.Tailscale",
-      "category": "optional",
+      "category": "networking",
       "defaultNormal": false,
       "defaultWork": false
     },
     {
       "name": "Open-Shell",
       "id": "Open-Shell.Open-Shell-Menu",
-      "category": "optional",
+      "category": "desktop",
       "defaultNormal": true,
-      "defaultWork": false
+      "defaultWork": true,
+      "postInstallAction": "launch-open-shell"
     },
     {
       "name": "Windhawk",
       "id": "RamenSoftware.Windhawk",
-      "category": "optional",
+      "category": "system",
       "defaultNormal": false,
       "defaultWork": false
     },
     {
       "name": "Process Explorer",
       "id": "Microsoft.Sysinternals.ProcessExplorer",
-      "category": "optional",
-      "defaultNormal": true,
-      "defaultWork": true
+      "category": "system",
+      "defaultNormal": false,
+      "defaultWork": false
     },
     {
       "name": "yt-dlp",
       "id": "yt-dlp.yt-dlp",
-      "category": "development",
-      "defaultNormal": true,
+      "category": "media",
+      "defaultNormal": false,
       "defaultWork": false
     },
     {
@@ -781,8 +747,8 @@
     {
       "name": "btop4win",
       "id": "aristocratos.btop4win",
-      "category": "development",
-      "defaultNormal": true,
+      "category": "cli",
+      "defaultNormal": false,
       "defaultWork": false
     },
     {
@@ -804,13 +770,13 @@
       "id": "Microsoft.Teams",
       "category": "work",
       "defaultNormal": false,
-      "defaultWork": true
+      "defaultWork": false
     },
     {
       "name": "DistroAV",
       "id": "DistroAV.DistroAV",
-      "category": "optional",
-      "defaultNormal": true,
+      "category": "media",
+      "defaultNormal": false,
       "defaultWork": false
     }
   ],
