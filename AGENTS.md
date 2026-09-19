@@ -244,6 +244,8 @@ Software management is separate from managed-dot updates.
 - Normal software reconciliation keeps the interactive WGDot UI unelevated. After the user approves the selection, missing package installs, explicitly approved package upgrades, and selected administrator-only tweaks are grouped into one internal elevated WGDot worker so normal installs do not trigger one UAC prompt per package.
 - The elevated software worker may consume only a WGDot-created plan under the WGDot state directory, must validate package/tweak IDs against the active manifest/source revision, and must not launch browser configuration or ordinary user-level post-install configuration while elevated.
 - Do not prepend `runas`, `sudo`, or another elevation wrapper to every individual WinGet command. Elevate the bounded WGDot batch once, then return to the normal user process.
+- Software preflight must not issue a network-backed exact-ID lookup for packages already known installed. Take one bounded WinGet installed-state snapshot first, then validate only missing packages.
+- Silent WinGet preflight/list/show checks must use noninteractive mode and a finite timeout. A hung WinGet query must stop or skip the affected preflight with a clear message rather than freeze WGDot indefinitely.
 - Do not invent package IDs. Verify changed or questionable IDs against current WinGet data before committing them.
 
 ## Browser configuration

@@ -18,7 +18,8 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-26";
+    const string Version = "native-preview-27";
+    const int WingetPreflightTimeoutMs = 30000;
     const string RepoFullName = "dillacorn/win-glaze-dots";
     const string RepoUrl = "https://github.com/dillacorn/win-glaze-dots.git";
     const string ApiBase = "https://api.github.com/repos/dillacorn/win-glaze-dots";
@@ -160,6 +161,7 @@ internal static class WgdotNative
         public int ExitCode;
         public string StdOut;
         public string StdErr;
+        public bool TimedOut;
     }
 
     sealed class SourceContext
@@ -1427,10 +1429,20 @@ internal static class WgdotNative
                 Console.WriteLine();
                 Console.WriteLine("Installing " + id + "...");
 
-                ProcResult show = Run(
+                ProcResult show = RunWithTimeout(
                     "winget.exe",
-                    "show --id " + Q(id) + " --exact --source winget --accept-source-agreements",
-                    null);
+                    "show --id " + Q(id) + " --exact --source winget --accept-source-agreements --disable-interactivity",
+                    null,
+                    WingetPreflightTimeoutMs);
+                if (show.TimedOut)
+                {
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.WriteLine("WinGet validation timed out for " + id + "; skipped.");
+                    Console.ResetColor();
+                    failedIds.Add(id);
+                    failures++;
+                    continue;
+                }
                 if (show.ExitCode != 0)
                 {
                     string fallbackRepo = GetString(package, "fallbackGitHubRepo");
@@ -1459,20 +1471,9 @@ internal static class WgdotNative
                     continue;
                 }
 
-                ProcResult list = Run(
-                    "winget.exe",
-                    "list --id " + Q(id) + " --exact --source winget --accept-source-agreements",
-                    null);
-                if ((list.StdOut ?? "").IndexOf(id, StringComparison.OrdinalIgnoreCase) >= 0)
-                {
-                    Console.WriteLine("Already installed.");
-                    alreadyIds.Add(id);
-                    continue;
-                }
-
                 ProcResult install = RunInteractive(
                     "winget.exe",
-                    "install --id " + Q(id) + " --exact --source winget --accept-source-agreements --accept-package-agreements");
+                    "install --id " + Q(id) + " --exact --source winget --accept-source-agreements --accept-package-agreements --disable-interactivity");
 
                 if (install.ExitCode == 0)
                 {
@@ -1502,7 +1503,7 @@ internal static class WgdotNative
                 Console.WriteLine("Upgrading " + id + "...");
                 ProcResult upgrade = RunInteractive(
                     "winget.exe",
-                    "upgrade --id " + Q(id) + " --exact --source winget --accept-source-agreements --accept-package-agreements");
+                    "upgrade --id " + Q(id) + " --exact --source winget --accept-source-agreements --accept-package-agreements --disable-interactivity");
 
                 if (upgrade.ExitCode == 0)
                 {
@@ -1627,6 +1628,30 @@ internal static class WgdotNative
         int failed = 0;
         int upgraded = 0;
 
+        Console.WriteLine();
+        Console.WriteLine("Reading installed WinGet package state...");
+        ProcResult installedSnapshot = RunWithTimeout(
+            "winget.exe",
+            "list --source winget --accept-source-agreements --disable-interactivity",
+            null,
+            WingetPreflightTimeoutMs);
+        if (installedSnapshot.TimedOut)
+        {
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine("WinGet stopped responding while reading installed packages.");
+            Console.WriteLine("WGDot stopped before starting the elevated install batch.");
+            Console.ResetColor();
+            return 1;
+        }
+        if (installedSnapshot.ExitCode != 0)
+        {
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine("WinGet could not read installed package state: " + LastUsefulLine(installedSnapshot.StdErr));
+            Console.WriteLine("WGDot stopped before starting the elevated install batch.");
+            Console.ResetColor();
+            return 1;
+        }
+
         foreach (object rawPackage in GetList(manifest, "packages"))
         {
             var package = AsDictionary(rawPackage);
@@ -1636,10 +1661,29 @@ internal static class WgdotNative
             Console.WriteLine();
             Console.WriteLine("Checking " + id + "...");
 
-            ProcResult show = Run(
+            bool isInstalled =
+                (installedSnapshot.StdOut ?? "").IndexOf(id, StringComparison.OrdinalIgnoreCase) >= 0;
+            if (isInstalled)
+            {
+                Console.WriteLine("Already installed.");
+                already++;
+                installedExistingIds.Add(id);
+                continue;
+            }
+
+            ProcResult show = RunWithTimeout(
                 "winget.exe",
-                "show --id " + Q(id) + " --exact --source winget --accept-source-agreements",
-                null);
+                "show --id " + Q(id) + " --exact --source winget --accept-source-agreements --disable-interactivity",
+                null,
+                WingetPreflightTimeoutMs);
+            if (show.TimedOut)
+            {
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine("WinGet stopped responding while validating " + id + ".");
+                Console.WriteLine("WGDot stopped before starting the elevated install batch.");
+                Console.ResetColor();
+                return 1;
+            }
             if (show.ExitCode != 0)
             {
                 string fallbackRepo = GetString(package, "fallbackGitHubRepo");
@@ -1661,32 +1705,26 @@ internal static class WgdotNative
                 continue;
             }
 
-            ProcResult list = Run(
-                "winget.exe",
-                "list --id " + Q(id) + " --exact --source winget --accept-source-agreements",
-                null);
-
-            bool isInstalled = (list.StdOut ?? "").IndexOf(id, StringComparison.OrdinalIgnoreCase) >= 0;
-            if (isInstalled)
-            {
-                Console.WriteLine("Already installed.");
-                already++;
-                installedExistingIds.Add(id);
-            }
-            else
-            {
-                installIds.Add(id);
-            }
+            installIds.Add(id);
         }
 
         if (ReadYesNo("Check selected installed packages for upgrades now? [y/N]", false))
         {
             foreach (string id in installedExistingIds)
             {
-                ProcResult upgradeCheck = Run(
+                ProcResult upgradeCheck = RunWithTimeout(
                     "winget.exe",
-                    "list --id " + Q(id) + " --exact --upgrade-available --source winget --accept-source-agreements",
-                    null);
+                    "list --id " + Q(id) + " --exact --upgrade-available --source winget --accept-source-agreements --disable-interactivity",
+                    null,
+                    WingetPreflightTimeoutMs);
+
+                if (upgradeCheck.TimedOut)
+                {
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.WriteLine("WinGet upgrade check timed out for " + id + "; skipping its upgrade check.");
+                    Console.ResetColor();
+                    continue;
+                }
 
                 bool upgradeAvailable = (upgradeCheck.StdOut ?? "").IndexOf(id, StringComparison.OrdinalIgnoreCase) >= 0;
                 if (!upgradeAvailable) continue;
@@ -6569,6 +6607,25 @@ public static class Program
 
     static ProcResult Run(string fileName, string arguments, string workingDirectory)
     {
+        return RunCaptured(fileName, arguments, workingDirectory, 0);
+    }
+
+    static ProcResult RunWithTimeout(
+        string fileName,
+        string arguments,
+        string workingDirectory,
+        int timeoutMs)
+    {
+        if (timeoutMs <= 0) throw new ArgumentOutOfRangeException("timeoutMs");
+        return RunCaptured(fileName, arguments, workingDirectory, timeoutMs);
+    }
+
+    static ProcResult RunCaptured(
+        string fileName,
+        string arguments,
+        string workingDirectory,
+        int timeoutMs)
+    {
         var psi = new ProcessStartInfo();
         psi.FileName = fileName;
         psi.Arguments = arguments;
@@ -6578,12 +6635,70 @@ public static class Program
         psi.CreateNoWindow = true;
         if (!String.IsNullOrWhiteSpace(workingDirectory)) psi.WorkingDirectory = workingDirectory;
 
-        using (Process p = Process.Start(psi))
+        var stdout = new StringBuilder();
+        var stderr = new StringBuilder();
+        object stdoutLock = new object();
+        object stderrLock = new object();
+
+        using (var p = new Process())
         {
-            string stdout = p.StandardOutput.ReadToEnd();
-            string stderr = p.StandardError.ReadToEnd();
+            p.StartInfo = psi;
+            p.OutputDataReceived += delegate(object sender, DataReceivedEventArgs e)
+            {
+                if (e.Data == null) return;
+                lock (stdoutLock) stdout.AppendLine(e.Data);
+            };
+            p.ErrorDataReceived += delegate(object sender, DataReceivedEventArgs e)
+            {
+                if (e.Data == null) return;
+                lock (stderrLock) stderr.AppendLine(e.Data);
+            };
+
+            p.Start();
+            p.BeginOutputReadLine();
+            p.BeginErrorReadLine();
+
+            bool exited = true;
+            if (timeoutMs > 0)
+                exited = p.WaitForExit(timeoutMs);
+            else
+                p.WaitForExit();
+
+            if (!exited)
+            {
+                try { p.Kill(); } catch { }
+                try { p.WaitForExit(5000); } catch { }
+
+                string timedOutStdOut;
+                string timedOutStdErr;
+                lock (stdoutLock) timedOutStdOut = stdout.ToString();
+                lock (stderrLock) timedOutStdErr = stderr.ToString();
+
+                return new ProcResult
+                {
+                    ExitCode = -1,
+                    StdOut = timedOutStdOut,
+                    StdErr = timedOutStdErr,
+                    TimedOut = true
+                };
+            }
+
+            // Required by .NET Framework after asynchronous output reads so
+            // the final OutputDataReceived/ErrorDataReceived events are flushed.
             p.WaitForExit();
-            return new ProcResult { ExitCode = p.ExitCode, StdOut = stdout, StdErr = stderr };
+
+            string capturedStdOut;
+            string capturedStdErr;
+            lock (stdoutLock) capturedStdOut = stdout.ToString();
+            lock (stderrLock) capturedStdErr = stderr.ToString();
+
+            return new ProcResult
+            {
+                ExitCode = p.ExitCode,
+                StdOut = capturedStdOut,
+                StdErr = capturedStdErr,
+                TimedOut = false
+            };
         }
     }
 
@@ -6667,6 +6782,14 @@ public static class Program
                 !String.Equals(ClassifyGpuDriverProvider("NVIDIA"), "nvidia", StringComparison.Ordinal) ||
                 !String.Equals(ClassifyGpuDriverProvider("Intel Corporation"), "intel", StringComparison.Ordinal))
                 throw new Exception("GPU driver-provider classification self-test failed.");
+
+            ProcResult timeoutProbe = RunWithTimeout(
+                "cmd.exe",
+                "/d /c ping -n 3 127.0.0.1 >nul",
+                null,
+                100);
+            if (!timeoutProbe.TimedOut)
+                throw new Exception("Process timeout self-test failed.");
 
             Console.WriteLine("WGDot native runtime self-test passed.");
             return 0;

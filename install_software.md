@@ -8,6 +8,8 @@ The default selection is intentionally conservative for public use. Only the WGD
 
 WGDot keeps the interactive software selector unelevated. After the user reviews and approves the software selection, WGDot preflights the selected WinGet packages, collects any explicitly approved upgrades, and groups missing installs plus administrator-only setup into one internal elevated worker. On a normal unelevated run, this means one UAC approval for the software batch instead of one elevation prompt per installer.
 
+Preflight reads the installed WinGet package state once, then performs exact-ID source validation only for selected packages that are actually missing. Silent WinGet checks run with interactivity disabled and a 30-second timeout; if WinGet itself stops responding, WGDot reports the package/check and stops before launching a partial elevated install batch instead of hanging forever.
+
 Browser setup, browser launches, post-install application launches, and ordinary user-level tweaks are performed after the elevated worker returns, from the normal WGDot process. WGDot does not require Windows sudo and does not disable or weaken UAC.
 
 
