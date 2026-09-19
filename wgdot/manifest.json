@@ -336,11 +336,18 @@
       "defaultWork": false
     },
     {
+      "name": "Firefox",
+      "id": "Mozilla.Firefox",
+      "category": "browser",
+      "defaultNormal": true,
+      "defaultWork": true
+    },
+    {
       "name": "Brave",
       "id": "Brave.Brave",
       "category": "essential",
-      "defaultNormal": true,
-      "defaultWork": true
+      "defaultNormal": false,
+      "defaultWork": false
     },
     {
       "name": "PowerToys",
@@ -497,11 +504,18 @@
       "defaultWork": false
     },
     {
+      "name": "Vesktop (Vencord)",
+      "id": "Vencord.Vesktop",
+      "category": "optional",
+      "defaultNormal": false,
+      "defaultWork": false
+    },
+    {
       "name": "RustDesk",
       "id": "RustDesk.RustDesk",
       "category": "optional",
-      "defaultNormal": true,
-      "defaultWork": true
+      "defaultNormal": false,
+      "defaultWork": false
     },
     {
       "name": "HWMonitor",
@@ -535,7 +549,7 @@
       "name": "Mullvad Browser",
       "id": "MullvadVPN.MullvadBrowser",
       "category": "optional",
-      "defaultNormal": true,
+      "defaultNormal": false,
       "defaultWork": false
     },
     {
@@ -551,6 +565,13 @@
       "category": "optional",
       "defaultNormal": true,
       "defaultWork": true
+    },
+    {
+      "name": "OrcaSlicer",
+      "id": "SoftFever.OrcaSlicer",
+      "category": "optional",
+      "defaultNormal": false,
+      "defaultWork": false
     },
     {
       "name": "Cura",
@@ -682,14 +703,14 @@
       "name": "Moonlight",
       "id": "MoonlightGameStreamingProject.Moonlight",
       "category": "optional",
-      "defaultNormal": true,
+      "defaultNormal": false,
       "defaultWork": false
     },
     {
       "name": "Sunshine",
       "id": "LizardByte.Sunshine",
       "category": "optional",
-      "defaultNormal": true,
+      "defaultNormal": false,
       "defaultWork": false
     },
     {
@@ -703,8 +724,8 @@
       "name": "Tailscale",
       "id": "Tailscale.Tailscale",
       "category": "optional",
-      "defaultNormal": true,
-      "defaultWork": true
+      "defaultNormal": false,
+      "defaultWork": false
     },
     {
       "name": "Open-Shell",
@@ -717,7 +738,7 @@
       "name": "Windhawk",
       "id": "RamenSoftware.Windhawk",
       "category": "optional",
-      "defaultNormal": true,
+      "defaultNormal": false,
       "defaultWork": false
     },
     {
@@ -788,6 +809,112 @@
       "id": "DistroAV.DistroAV",
       "category": "optional",
       "defaultNormal": true,
+      "defaultWork": false
+    }
+  ],
+  "tweaks": [
+    {
+      "id": "micro-text-defaults",
+      "name": "Open text/code files in Windows Terminal + Micro",
+      "category": "file associations",
+      "type": "micro-text-defaults",
+      "defaultNormal": true,
+      "defaultWork": true
+    },
+    {
+      "id": "flameshot-win-shift-f",
+      "name": "Bind Win+Shift+F to Flameshot",
+      "category": "keybinds",
+      "type": "flameshot-win-shift-f",
+      "defaultNormal": true,
+      "defaultWork": true
+    },
+    {
+      "id": "clean-taskbar-items",
+      "name": "Hide Search, Task View, Widgets, Chat/Copilot taskbar buttons",
+      "category": "Windows settings",
+      "type": "clean-taskbar-items",
+      "defaultNormal": true,
+      "defaultWork": true
+    },
+    {
+      "id": "disable-printscreen-snipping",
+      "name": "Let Flameshot own Print Screen (disable Snipping Tool PrintScreen interception)",
+      "category": "Windows settings",
+      "type": "disable-printscreen-snipping",
+      "defaultNormal": true,
+      "defaultWork": true
+    },
+    {
+      "id": "disable-enhanced-pointer-precision",
+      "name": "Disable Enhance pointer precision",
+      "category": "Windows settings",
+      "type": "disable-enhanced-pointer-precision",
+      "defaultNormal": true,
+      "defaultWork": true
+    },
+    {
+      "id": "communications-do-nothing",
+      "name": "Windows communications activity: Do nothing",
+      "category": "Windows settings",
+      "type": "communications-do-nothing",
+      "defaultNormal": true,
+      "defaultWork": true
+    },
+    {
+      "id": "disable-snap-assist",
+      "name": "Disable Windows Snap Assist / snap layouts",
+      "category": "Windows settings",
+      "type": "disable-snap-assist",
+      "defaultNormal": true,
+      "defaultWork": true
+    },
+    {
+      "id": "disable-remote-assistance",
+      "name": "Disable Remote Assistance (requires elevation)",
+      "category": "Windows settings",
+      "type": "disable-remote-assistance",
+      "defaultNormal": false,
+      "defaultWork": false
+    },
+    {
+      "id": "enable-windows-sudo",
+      "name": "Enable Windows sudo (requires supported Windows build/elevation)",
+      "category": "Windows settings",
+      "type": "enable-windows-sudo",
+      "defaultNormal": false,
+      "defaultWork": false
+    },
+    {
+      "id": "reduce-visual-effects",
+      "name": "Reduce Windows animation/transparency visual effects",
+      "category": "Windows settings",
+      "type": "reduce-visual-effects",
+      "defaultNormal": false,
+      "defaultWork": false
+    },
+    {
+      "id": "classic-context-menu",
+      "name": "Enable classic Windows 11 right-click context menu",
+      "category": "Windows shell",
+      "type": "classic-context-menu",
+      "defaultNormal": false,
+      "defaultWork": false
+    },
+    {
+      "id": "oops-all-links-cursor",
+      "name": "Install and apply Oops-all-links cursor theme",
+      "category": "appearance",
+      "type": "oops-all-links-cursor",
+      "defaultNormal": false,
+      "defaultWork": false
+    },
+    {
+      "id": "privacy-sexy",
+      "name": "privacy.sexy privacy hardening",
+      "category": "privacy",
+      "type": "privacy-sexy",
+      "defaultNormal": false,
       "defaultWork": false
     }
   ]

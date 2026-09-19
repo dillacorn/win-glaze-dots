@@ -1,5 +1,5 @@
 # `windows dilla.glaze.dots`
-> This is no longer my main operating system of choice so it will not receive regular meaningful updates.
+> Windows is no longer my main operating system of choice.
 
 > Thinking about swapping to Linux? — **Check out [awtarchy](https://github.com/dillacorn/awtarchy)!**
 
