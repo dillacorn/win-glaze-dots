@@ -18,7 +18,7 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-23";
+    const string Version = "native-preview-24";
     const string RepoFullName = "dillacorn/win-glaze-dots";
     const string RepoUrl = "https://github.com/dillacorn/win-glaze-dots.git";
     const string ApiBase = "https://api.github.com/repos/dillacorn/win-glaze-dots";
@@ -39,6 +39,7 @@ internal static class WgdotNative
     static readonly string ConfigStatePath = Path.Combine(StateRoot, "config.json");
     static readonly string GitStatePath = Path.Combine(StateRoot, "git-testing.json");
     static readonly string TweakStatePath = Path.Combine(StateRoot, "tweaks.json");
+    static readonly string GpuStatePath = Path.Combine(StateRoot, "gpu-maintenance.json");
     static readonly JavaScriptSerializer Json = new JavaScriptSerializer { MaxJsonLength = int.MaxValue, RecursionLimit = 100 };
 
     static readonly IntPtr HwndBroadcast = new IntPtr(0xffff);
@@ -67,6 +68,49 @@ internal static class WgdotNative
 
     [DllImport("shell32.dll")]
     static extern void SHChangeNotify(uint wEventId, uint uFlags, IntPtr dwItem1, IntPtr dwItem2);
+
+    [StructLayout(LayoutKind.Sequential)]
+    struct SP_DEVINFO_DATA
+    {
+        public int cbSize;
+        public Guid ClassGuid;
+        public uint DevInst;
+        public IntPtr Reserved;
+    }
+
+    [DllImport("setupapi.dll", CharSet = CharSet.Auto, SetLastError = true)]
+    static extern IntPtr SetupDiGetClassDevs(
+        ref Guid ClassGuid,
+        string Enumerator,
+        IntPtr hwndParent,
+        uint Flags);
+
+    [DllImport("setupapi.dll", SetLastError = true)]
+    static extern bool SetupDiEnumDeviceInfo(
+        IntPtr DeviceInfoSet,
+        uint MemberIndex,
+        ref SP_DEVINFO_DATA DeviceInfoData);
+
+    [DllImport("setupapi.dll", CharSet = CharSet.Auto, SetLastError = true)]
+    static extern bool SetupDiGetDeviceRegistryProperty(
+        IntPtr DeviceInfoSet,
+        ref SP_DEVINFO_DATA DeviceInfoData,
+        uint Property,
+        out uint PropertyRegDataType,
+        byte[] PropertyBuffer,
+        uint PropertyBufferSize,
+        out uint RequiredSize);
+
+    [DllImport("setupapi.dll", SetLastError = true)]
+    static extern bool SetupDiDestroyDeviceInfoList(IntPtr DeviceInfoSet);
+
+    const uint DigcfPresent = 0x00000002;
+    const uint SpdrpDeviceDesc = 0x00000000;
+    const uint SpdrpHardwareId = 0x00000001;
+    const uint SpdrpDriver = 0x00000009;
+    const uint SpdrpMfg = 0x0000000B;
+    const uint SpdrpFriendlyName = 0x0000000C;
+    static readonly IntPtr InvalidHandleValue = new IntPtr(-1);
 
     sealed class ChoiceItem
     {
@@ -117,6 +161,18 @@ internal static class WgdotNative
         public Dictionary<string, object> Manifest;
     }
 
+    sealed class GpuAdapterInfo
+    {
+        public string Vendor;
+        public string Name;
+        public string HardwareId;
+        public string Manufacturer;
+        public string DriverProvider;
+        public string DriverVendor;
+        public string DriverVersion;
+        public string DriverKey;
+    }
+
     static int Main(string[] args)
     {
         bool stagedRuntime = false;
@@ -159,6 +215,10 @@ internal static class WgdotNative
             if (command == "software") return SoftwareReconcile();
             if (command == "flow-open") return OpenFlowLauncher();
             if (command == "eartrumpet-mixer") return OpenEarTrumpetMixer();
+            if (command == "gpu-driver") return GpuDriverMaintenance();
+            if (command == "gpu-stage-safe") return GpuStageSafeFromArgs(args.Skip(1).ToArray());
+            if (command == "gpu-safe-resume") return GpuSafeResume();
+            if (command == "gpu-install") return GpuInstallFromArgs(args.Skip(1).ToArray());
             if (command == "update") return ManagedOperation("update", ResolveDefaultSource());
             if (command == "reset") return ManagedOperation("reset", ResolveDefaultSource());
             if (command == "review") return ManagedOperation("review", ResolveDefaultSource());
@@ -195,6 +255,7 @@ internal static class WgdotNative
             String.Equals(command, "status", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "git-review", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "software", StringComparison.OrdinalIgnoreCase) ||
+            String.Equals(command, "gpu-driver", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "update", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "reset", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "review", StringComparison.OrdinalIgnoreCase);
@@ -295,15 +356,27 @@ internal static class WgdotNative
         Console.WriteLine("Managed selection: " + (File.Exists(InstallStatePath) ? "configured" : "not configured"));
         Console.WriteLine("Baseline: " + (File.Exists(BaselineIndexPath) ? "present" : "not initialized"));
         Console.WriteLine("Recorded backups: " + CountRecordedBackups().ToString(CultureInfo.InvariantCulture));
+
+        var gpuState = ReadJson(GpuStatePath);
+        if (gpuState != null)
+            Console.WriteLine("GPU maintenance: " + GetString(gpuState, "phase") + " (" + GpuVendorLabel(GetString(gpuState, "targetVendor")) + ")");
+
         return 0;
     }
 
     static int Menu()
     {
+        if (IsSafeMode() && HasPendingGpuSafeModeCleanup())
+            return GpuSafeResume();
+
+        if (ShowGpuPendingNotice())
+            Pause();
+
         var items = new List<string>
         {
             "Update managed dots",
             "Install / reconcile software",
+            "GPU driver maintenance",
             "Windows tweaks / integrations",
             "Reset / reconfigure managed dots",
             "Review changes without applying",
@@ -317,7 +390,7 @@ internal static class WgdotNative
         while (true)
         {
             int choice = ReadSingleChoice("Maintenance", items, 0);
-            if (choice < 0 || choice == 9) return 0;
+            if (choice < 0 || choice == 10) return 0;
 
             try
             {
@@ -333,34 +406,38 @@ internal static class WgdotNative
                 }
                 else if (choice == 2)
                 {
-                    TweakManager();
+                    GpuDriverMaintenance();
                 }
                 else if (choice == 3)
+                {
+                    TweakManager();
+                }
+                else if (choice == 4)
                 {
                     ManagedOperation("reset", ResolveDefaultSource());
                     Pause();
                 }
-                else if (choice == 4)
+                else if (choice == 5)
                 {
                     ManagedOperation("review", ResolveDefaultSource());
                     Pause();
                 }
-                else if (choice == 5)
+                else if (choice == 6)
                 {
                     BackupManager();
                 }
-                else if (choice == 6)
+                else if (choice == 7)
                 {
                     ShowManualFallback();
                     Pause();
                 }
-                else if (choice == 7)
+                else if (choice == 8)
                 {
                     WriteTitle("Version / status");
                     Status();
                     Pause();
                 }
-                else if (choice == 8)
+                else if (choice == 9)
                 {
                     ShowGitMenu();
                 }
@@ -1245,6 +1322,8 @@ internal static class WgdotNative
         selection.TweaksConfigured = true;
         WriteInstallationSelection(selection);
 
+        OfferGpuDriverRecommendations();
+
         if (ReadYesNo("Check selected packages for upgrades now? [y/N]", false))
         {
             foreach (object rawPackage in GetList(manifest, "packages"))
@@ -1515,6 +1594,776 @@ internal static class WgdotNative
                 return GetBool(tweak, "actionOnly");
         }
         return false;
+    }
+
+
+    static bool IsSafeMode()
+    {
+        return !String.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("SAFEBOOT_OPTION"));
+    }
+
+    static bool HasPendingGpuSafeModeCleanup()
+    {
+        var state = ReadJson(GpuStatePath);
+        return state != null &&
+            String.Equals(GetString(state, "phase"), "safe-mode-pending", StringComparison.OrdinalIgnoreCase);
+    }
+
+    static string GpuVendorLabel(string vendor)
+    {
+        if (String.Equals(vendor, "amd", StringComparison.OrdinalIgnoreCase)) return "AMD";
+        if (String.Equals(vendor, "nvidia", StringComparison.OrdinalIgnoreCase)) return "NVIDIA";
+        if (String.Equals(vendor, "intel", StringComparison.OrdinalIgnoreCase)) return "Intel";
+        return String.IsNullOrWhiteSpace(vendor) ? "Unknown" : vendor;
+    }
+
+    static bool IsKnownGpuVendor(string vendor)
+    {
+        return
+            String.Equals(vendor, "amd", StringComparison.OrdinalIgnoreCase) ||
+            String.Equals(vendor, "nvidia", StringComparison.OrdinalIgnoreCase) ||
+            String.Equals(vendor, "intel", StringComparison.OrdinalIgnoreCase);
+    }
+
+    static string ClassifyGpuHardwareVendor(string hardwareId)
+    {
+        string value = (hardwareId ?? "").ToUpperInvariant();
+        if (value.Contains("VEN_1002")) return "amd";
+        if (value.Contains("VEN_10DE")) return "nvidia";
+        if (value.Contains("VEN_8086")) return "intel";
+        return "";
+    }
+
+    static string ClassifyGpuDriverProvider(string provider)
+    {
+        string value = provider ?? "";
+        if (value.IndexOf("NVIDIA", StringComparison.OrdinalIgnoreCase) >= 0) return "nvidia";
+        if (value.IndexOf("Advanced Micro Devices", StringComparison.OrdinalIgnoreCase) >= 0 ||
+            Regex.IsMatch(value, @"(^|\W)AMD(\W|$)", RegexOptions.IgnoreCase))
+            return "amd";
+        if (value.IndexOf("Intel", StringComparison.OrdinalIgnoreCase) >= 0) return "intel";
+        if (value.IndexOf("Microsoft", StringComparison.OrdinalIgnoreCase) >= 0) return "microsoft";
+        return "";
+    }
+
+    static string ReadSetupDeviceProperty(
+        IntPtr deviceInfoSet,
+        ref SP_DEVINFO_DATA deviceInfo,
+        uint property)
+    {
+        byte[] buffer = new byte[8192];
+        uint regType;
+        uint required;
+        if (!SetupDiGetDeviceRegistryProperty(
+                deviceInfoSet,
+                ref deviceInfo,
+                property,
+                out regType,
+                buffer,
+                (uint)buffer.Length,
+                out required))
+            return "";
+
+        int length = (int)Math.Min((uint)buffer.Length, required);
+        if (length <= 0) return "";
+        string value = Encoding.Unicode.GetString(buffer, 0, length).TrimEnd('\0');
+        int separator = value.IndexOf('\0');
+        if (separator >= 0) value = value.Substring(0, separator);
+        return value.Trim();
+    }
+
+    static List<GpuAdapterInfo> DetectGpuAdapters()
+    {
+        var result = new List<GpuAdapterInfo>();
+        Guid displayClass = new Guid("4d36e968-e325-11ce-bfc1-08002be10318");
+        IntPtr set = SetupDiGetClassDevs(ref displayClass, null, IntPtr.Zero, DigcfPresent);
+        if (set == InvalidHandleValue) return result;
+
+        try
+        {
+            for (uint index = 0; ; index++)
+            {
+                var info = new SP_DEVINFO_DATA();
+                info.cbSize = Marshal.SizeOf(typeof(SP_DEVINFO_DATA));
+                if (!SetupDiEnumDeviceInfo(set, index, ref info))
+                    break;
+
+                string hardwareId = ReadSetupDeviceProperty(set, ref info, SpdrpHardwareId);
+                string vendor = ClassifyGpuHardwareVendor(hardwareId);
+                string name = ReadSetupDeviceProperty(set, ref info, SpdrpFriendlyName);
+                if (String.IsNullOrWhiteSpace(name))
+                    name = ReadSetupDeviceProperty(set, ref info, SpdrpDeviceDesc);
+
+                string manufacturer = ReadSetupDeviceProperty(set, ref info, SpdrpMfg);
+                string driverKey = ReadSetupDeviceProperty(set, ref info, SpdrpDriver);
+                string provider = "";
+                string version = "";
+                string driverDesc = "";
+
+                if (!String.IsNullOrWhiteSpace(driverKey))
+                {
+                    using (RegistryKey key = Registry.LocalMachine.OpenSubKey(
+                        @"SYSTEM\CurrentControlSet\Control\Class\" + driverKey,
+                        false))
+                    {
+                        if (key != null)
+                        {
+                            provider = Convert.ToString(key.GetValue("ProviderName", ""));
+                            version = Convert.ToString(key.GetValue("DriverVersion", ""));
+                            driverDesc = Convert.ToString(key.GetValue("DriverDesc", ""));
+                        }
+                    }
+                }
+
+                if (String.IsNullOrWhiteSpace(name)) name = driverDesc;
+                if (String.IsNullOrWhiteSpace(name)) name = "(unnamed display adapter)";
+
+                result.Add(new GpuAdapterInfo
+                {
+                    Vendor = vendor,
+                    Name = name,
+                    HardwareId = hardwareId,
+                    Manufacturer = manufacturer,
+                    DriverProvider = provider,
+                    DriverVendor = ClassifyGpuDriverProvider(provider),
+                    DriverVersion = version,
+                    DriverKey = driverKey
+                });
+            }
+        }
+        finally
+        {
+            SetupDiDestroyDeviceInfoList(set);
+        }
+
+        return result;
+    }
+
+    static HashSet<string> GetPhysicalGpuVendors(List<GpuAdapterInfo> adapters)
+    {
+        return new HashSet<string>(
+            adapters
+                .Where(x => IsKnownGpuVendor(x.Vendor))
+                .Select(x => x.Vendor),
+            StringComparer.OrdinalIgnoreCase);
+    }
+
+    static HashSet<string> GetInstalledDisplayDriverPackageVendors()
+    {
+        var vendors = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        ProcResult result = Run("pnputil.exe", "/enum-drivers /class Display", null);
+        if (result.ExitCode != 0) return vendors;
+
+        string text = result.StdOut ?? "";
+        if (text.IndexOf("NVIDIA", StringComparison.OrdinalIgnoreCase) >= 0)
+            vendors.Add("nvidia");
+        if (text.IndexOf("Advanced Micro Devices", StringComparison.OrdinalIgnoreCase) >= 0)
+            vendors.Add("amd");
+        if (text.IndexOf("Intel Corporation", StringComparison.OrdinalIgnoreCase) >= 0 ||
+            text.IndexOf("Intel(R) Corporation", StringComparison.OrdinalIgnoreCase) >= 0)
+            vendors.Add("intel");
+        return vendors;
+    }
+
+    static HashSet<string> GetGpuCleanupCandidates(List<GpuAdapterInfo> adapters)
+    {
+        HashSet<string> physical = GetPhysicalGpuVendors(adapters);
+        HashSet<string> installed = GetInstalledDisplayDriverPackageVendors();
+        var result = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (string vendor in installed)
+            if (!physical.Contains(vendor))
+                result.Add(vendor);
+
+        foreach (GpuAdapterInfo adapter in adapters)
+        {
+            if (!IsKnownGpuVendor(adapter.Vendor)) continue;
+            if (!IsKnownGpuVendor(adapter.DriverVendor)) continue;
+            if (!String.Equals(adapter.Vendor, adapter.DriverVendor, StringComparison.OrdinalIgnoreCase))
+                result.Add(adapter.DriverVendor);
+        }
+
+        return result;
+    }
+
+    static bool IsGpuVendorDriverHealthy(string vendor, List<GpuAdapterInfo> adapters)
+    {
+        return adapters.Any(x =>
+            String.Equals(x.Vendor, vendor, StringComparison.OrdinalIgnoreCase) &&
+            String.Equals(x.DriverVendor, vendor, StringComparison.OrdinalIgnoreCase));
+    }
+
+    static void PrintGpuStatus(List<GpuAdapterInfo> adapters)
+    {
+        if (adapters.Count == 0)
+        {
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine("No present display adapters were returned by Windows SetupAPI.");
+            Console.ResetColor();
+            return;
+        }
+
+        foreach (GpuAdapterInfo adapter in adapters)
+        {
+            string hardwareVendor = IsKnownGpuVendor(adapter.Vendor)
+                ? GpuVendorLabel(adapter.Vendor)
+                : "Other/virtual";
+            string driver = String.IsNullOrWhiteSpace(adapter.DriverProvider)
+                ? "(no provider reported)"
+                : adapter.DriverProvider;
+
+            Console.WriteLine(adapter.Name);
+            Console.WriteLine("  Hardware vendor: " + hardwareVendor);
+            Console.WriteLine("  Driver provider: " + driver);
+            if (!String.IsNullOrWhiteSpace(adapter.DriverVersion))
+                Console.WriteLine("  Driver version:  " + adapter.DriverVersion);
+
+            if (IsKnownGpuVendor(adapter.Vendor) &&
+                String.Equals(adapter.DriverVendor, adapter.Vendor, StringComparison.OrdinalIgnoreCase))
+            {
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine("  Status: vendor driver detected");
+                Console.ResetColor();
+            }
+            else if (IsKnownGpuVendor(adapter.Vendor) &&
+                     String.Equals(adapter.DriverVendor, "microsoft", StringComparison.OrdinalIgnoreCase))
+            {
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine("  Status: Microsoft/basic driver; vendor driver recommended");
+                Console.ResetColor();
+            }
+            else if (IsKnownGpuVendor(adapter.Vendor) &&
+                     IsKnownGpuVendor(adapter.DriverVendor) &&
+                     !String.Equals(adapter.DriverVendor, adapter.Vendor, StringComparison.OrdinalIgnoreCase))
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine("  Status: driver vendor does not match detected hardware");
+                Console.ResetColor();
+            }
+            else if (IsKnownGpuVendor(adapter.Vendor))
+            {
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine("  Status: matching vendor driver was not confirmed");
+                Console.ResetColor();
+            }
+
+            Console.WriteLine();
+        }
+
+        HashSet<string> cleanup = GetGpuCleanupCandidates(adapters);
+        if (cleanup.Count > 0)
+        {
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine(
+                "Possible stale/mismatched display-driver vendor packages: " +
+                String.Join(", ", cleanup.Select(GpuVendorLabel).ToArray()));
+            Console.ResetColor();
+            Console.WriteLine();
+        }
+    }
+
+    static string SelectGpuVendor(IEnumerable<string> vendors, string title)
+    {
+        List<string> ids = vendors
+            .Where(IsKnownGpuVendor)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(GpuVendorLabel)
+            .ToList();
+
+        if (ids.Count == 0) return "";
+        if (ids.Count == 1) return ids[0];
+
+        var labels = ids.Select(GpuVendorLabel).ToList();
+        labels.Add("Back");
+        int choice = ReadSingleChoice(title, labels, 0);
+        if (choice < 0 || choice >= ids.Count) return "";
+        return ids[choice];
+    }
+
+    static int GpuDriverMaintenance()
+    {
+        while (true)
+        {
+            List<GpuAdapterInfo> adapters = DetectGpuAdapters();
+
+            WriteTitle("GPU driver maintenance");
+            PrintGpuStatus(adapters);
+            Console.WriteLine("DDU cleanup is never automatic. Safe Mode/reboot changes require explicit approval.");
+            Console.WriteLine();
+            Pause();
+
+            HashSet<string> physical = GetPhysicalGpuVendors(adapters);
+            HashSet<string> cleanup = GetGpuCleanupCandidates(adapters);
+
+            var actions = new List<string>
+            {
+                "Install / repair recommended vendor driver",
+                "Clean reinstall / refresh detected GPU driver with DDU (Safe Mode)"
+            };
+            bool hasCleanup = cleanup.Count > 0;
+            if (hasCleanup)
+                actions.Add("Clean stale / mismatched vendor driver with DDU (Safe Mode)");
+            actions.Add("Refresh status");
+            actions.Add("Back");
+
+            int action = ReadSingleChoice("GPU driver maintenance", actions, 0);
+            if (action < 0 || action == actions.Count - 1) return 0;
+
+            if (action == 0)
+            {
+                string vendor = SelectGpuVendor(physical, "Select detected GPU vendor");
+                if (!String.IsNullOrWhiteSpace(vendor))
+                {
+                    InstallGpuVendorDriver(vendor);
+                    Pause();
+                }
+            }
+            else if (action == 1)
+            {
+                string vendor = SelectGpuVendor(physical, "Select GPU driver to clean/reinstall");
+                if (String.IsNullOrWhiteSpace(vendor))
+                {
+                    WriteTitle("GPU driver maintenance");
+                    Console.WriteLine("No AMD, NVIDIA, or Intel display adapter was detected.");
+                    Pause();
+                    continue;
+                }
+                ScheduleGpuDduCleanup(vendor, "refresh");
+                return 0;
+            }
+            else if (hasCleanup && action == 2)
+            {
+                string vendor = SelectGpuVendor(cleanup, "Select stale/mismatched driver vendor to clean");
+                if (!String.IsNullOrWhiteSpace(vendor))
+                {
+                    ScheduleGpuDduCleanup(vendor, "mismatch");
+                    return 0;
+                }
+            }
+        }
+    }
+
+    static void OfferGpuDriverRecommendations()
+    {
+        List<GpuAdapterInfo> adapters = DetectGpuAdapters();
+        HashSet<string> physical = GetPhysicalGpuVendors(adapters);
+        if (physical.Count == 0) return;
+
+        var missing = physical
+            .Where(vendor => !IsGpuVendorDriverHealthy(vendor, adapters))
+            .ToList();
+
+        HashSet<string> cleanup = GetGpuCleanupCandidates(adapters);
+        if (missing.Count == 0 && cleanup.Count == 0) return;
+
+        WriteTitle("GPU driver check");
+        PrintGpuStatus(adapters);
+
+        foreach (string vendor in missing)
+        {
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine(
+                GpuVendorLabel(vendor) +
+                " hardware is present but a matching active vendor display driver was not confirmed.");
+            Console.ResetColor();
+
+            if (ReadYesNo("Launch the official " + GpuVendorLabel(vendor) + " driver installer/assistant now? [y/N]", false))
+                InstallGpuVendorDriver(vendor);
+            Console.WriteLine();
+        }
+
+        if (cleanup.Count > 0)
+        {
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine("WGDot detected possible stale or mismatched GPU-vendor driver packages.");
+            Console.WriteLine("Use GPU driver maintenance for the guarded Safe Mode + DDU cleanup workflow.");
+            Console.ResetColor();
+        }
+    }
+
+    static bool ShowGpuPendingNotice()
+    {
+        var state = ReadJson(GpuStatePath);
+        if (state == null) return false;
+
+        string vendor = GetString(state, "targetVendor");
+        string phase = GetString(state, "phase");
+        if (!IsKnownGpuVendor(vendor)) return false;
+
+        List<GpuAdapterInfo> adapters = DetectGpuAdapters();
+        if (IsGpuVendorDriverHealthy(vendor, adapters))
+        {
+            SafeDeleteFile(GpuStatePath);
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine(
+                "WGDot GPU maintenance complete: a matching " +
+                GpuVendorLabel(vendor) + " display driver is active.");
+            Console.ResetColor();
+            return true;
+        }
+
+        if (String.Equals(phase, "driver-needed", StringComparison.OrdinalIgnoreCase) ||
+            String.Equals(phase, "driver-install-pending", StringComparison.OrdinalIgnoreCase))
+        {
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine("GPU DRIVER ACTION REQUIRED");
+            Console.ResetColor();
+            Console.WriteLine(
+                "The " + GpuVendorLabel(vendor) +
+                " cleanup/reinstall workflow is not finished.");
+            Console.WriteLine(
+                "A matching " + GpuVendorLabel(vendor) +
+                " display driver is not currently detected.");
+            Console.WriteLine("Open GPU driver maintenance and install the recommended vendor driver.");
+            return true;
+        }
+
+        if (String.Equals(phase, "safe-mode-pending", StringComparison.OrdinalIgnoreCase))
+        {
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine("GPU driver cleanup is staged for " + GpuVendorLabel(vendor) + ".");
+            Console.ResetColor();
+            return true;
+        }
+
+        return false;
+    }
+
+    static string ResolveOfficialGpuInstallerUrl(string vendor)
+    {
+        if (String.Equals(vendor, "intel", StringComparison.OrdinalIgnoreCase))
+            return "https://dsadata.intel.com/installer";
+
+        string page;
+        string pattern;
+        if (String.Equals(vendor, "amd", StringComparison.OrdinalIgnoreCase))
+        {
+            page = "https://www.amd.com/en/support/download/drivers.html";
+            pattern = @"https://drivers\.amd\.com/[^""'<>\s]+\.exe";
+        }
+        else if (String.Equals(vendor, "nvidia", StringComparison.OrdinalIgnoreCase))
+        {
+            page = "https://www.nvidia.com/en-us/software/nvidia-app/";
+            pattern = @"https://us\.download\.nvidia\.com/nvapp/client/[^""'<>\s]+\.exe";
+        }
+        else
+        {
+            throw new Exception("Unsupported GPU vendor: " + vendor);
+        }
+
+        using (var client = new WebClient())
+        {
+            client.Headers[HttpRequestHeader.UserAgent] = "Mozilla/5.0 WGDot";
+            string html = client.DownloadString(page);
+            Match match = Regex.Match(html, pattern, RegexOptions.IgnoreCase);
+            if (!match.Success)
+                throw new Exception(
+                    "Could not resolve the current official " +
+                    GpuVendorLabel(vendor) + " installer URL.");
+            return WebUtility.HtmlDecode(match.Value);
+        }
+    }
+
+    static void ValidateOfficialGpuInstallerUrl(string vendor, string url)
+    {
+        Uri uri;
+        if (!Uri.TryCreate(url, UriKind.Absolute, out uri) ||
+            !String.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+            throw new Exception("GPU installer URL is not valid HTTPS.");
+
+        string host = uri.Host;
+        bool valid =
+            (String.Equals(vendor, "amd", StringComparison.OrdinalIgnoreCase) &&
+             String.Equals(host, "drivers.amd.com", StringComparison.OrdinalIgnoreCase)) ||
+            (String.Equals(vendor, "nvidia", StringComparison.OrdinalIgnoreCase) &&
+             String.Equals(host, "us.download.nvidia.com", StringComparison.OrdinalIgnoreCase)) ||
+            (String.Equals(vendor, "intel", StringComparison.OrdinalIgnoreCase) &&
+             String.Equals(host, "dsadata.intel.com", StringComparison.OrdinalIgnoreCase));
+
+        if (!valid)
+            throw new Exception("Refusing unexpected " + GpuVendorLabel(vendor) + " installer host: " + host);
+    }
+
+    static int InstallGpuVendorDriver(string vendor)
+    {
+        if (!IsKnownGpuVendor(vendor))
+            throw new Exception("Unknown GPU vendor: " + vendor);
+
+        WriteTitle(GpuVendorLabel(vendor) + " driver installer");
+        Console.WriteLine("Resolving official vendor installer...");
+        string url = ResolveOfficialGpuInstallerUrl(vendor);
+        ValidateOfficialGpuInstallerUrl(vendor, url);
+
+        string gpuCache = Path.Combine(CacheRoot, "gpu");
+        Directory.CreateDirectory(gpuCache);
+        string installer = Path.Combine(
+            gpuCache,
+            vendor + "-driver-installer.exe");
+        SafeDeleteFile(installer);
+
+        Console.WriteLine("Downloading from " + new Uri(url).Host + "...");
+        using (var client = new WebClient())
+        {
+            client.Headers[HttpRequestHeader.UserAgent] = "Mozilla/5.0 WGDot";
+            client.DownloadFile(url, installer);
+        }
+
+        if (!File.Exists(installer) || new FileInfo(installer).Length < 100000)
+            throw new Exception("Downloaded GPU installer is unexpectedly small or missing.");
+
+        var state = ReadJson(GpuStatePath) ?? new Dictionary<string, object>();
+        state["phase"] = "driver-install-pending";
+        state["targetVendor"] = vendor;
+        state["installerUrl"] = url;
+        state["installerLaunchedAt"] = DateTime.UtcNow.ToString("o");
+        WriteJson(GpuStatePath, state);
+
+        Console.WriteLine("Starting official " + GpuVendorLabel(vendor) + " installer...");
+        Console.WriteLine();
+
+        if (String.Equals(vendor, "amd", StringComparison.OrdinalIgnoreCase))
+            Console.WriteLine("AMD Auto-Detect will identify the compatible Radeon driver for this PC.");
+        else if (String.Equals(vendor, "nvidia", StringComparison.OrdinalIgnoreCase))
+            Console.WriteLine("NVIDIA App will identify and install the appropriate Game Ready/Studio driver.");
+        else
+            Console.WriteLine("Intel Driver & Support Assistant will identify the compatible Intel graphics driver.");
+
+        var psi = new ProcessStartInfo();
+        psi.FileName = installer;
+        psi.UseShellExecute = true;
+        using (Process process = Process.Start(psi))
+        {
+            if (process != null)
+                process.WaitForExit();
+        }
+
+        Console.WriteLine();
+        Console.WriteLine("WGDot will verify the active display driver on the next run.");
+        return 0;
+    }
+
+    static int GpuInstallFromArgs(string[] args)
+    {
+        string vendor = GetOption(args, "--vendor");
+        return InstallGpuVendorDriver(vendor);
+    }
+
+    static string FindDduExe()
+    {
+        using (RegistryKey key = Registry.LocalMachine.OpenSubKey(
+            @"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\Display Driver Uninstaller.exe",
+            false))
+        {
+            if (key != null)
+            {
+                string path = Convert.ToString(key.GetValue("", ""));
+                if (!String.IsNullOrWhiteSpace(path) && File.Exists(path))
+                    return path;
+            }
+        }
+
+        string candidate = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
+            "Display Driver Uninstaller",
+            "Display Driver Uninstaller.exe");
+        if (File.Exists(candidate)) return candidate;
+        return "";
+    }
+
+    static string EnsureDduInstalled()
+    {
+        string exe = FindDduExe();
+        if (!String.IsNullOrWhiteSpace(exe)) return exe;
+
+        RequireExecutable("winget.exe", "WinGet is required to install Display Driver Uninstaller.");
+        Console.WriteLine("Installing Display Driver Uninstaller from its exact WinGet package...");
+        ProcResult install = RunInteractive(
+            "winget.exe",
+            "install --id Wagnardsoft.DisplayDriverUninstaller --exact --source winget --accept-source-agreements --accept-package-agreements");
+
+        if (install.ExitCode != 0)
+            throw new Exception(
+                "Display Driver Uninstaller installation failed with exit " +
+                install.ExitCode.ToString(CultureInfo.InvariantCulture) + ".");
+
+        exe = FindDduExe();
+        if (String.IsNullOrWhiteSpace(exe))
+            throw new Exception("DDU installed, but Display Driver Uninstaller.exe could not be located.");
+        return exe;
+    }
+
+    static void ScheduleGpuDduCleanup(string vendor, string reason)
+    {
+        if (!IsKnownGpuVendor(vendor))
+            throw new Exception("Unknown GPU vendor: " + vendor);
+
+        WriteTitle("DDU Safe Mode cleanup");
+        Console.ForegroundColor = ConsoleColor.Yellow;
+        Console.WriteLine("This is an advanced recovery/refresh operation.");
+        Console.ResetColor();
+        Console.WriteLine();
+        Console.WriteLine("Target driver vendor: " + GpuVendorLabel(vendor));
+        Console.WriteLine("WGDot will:");
+        Console.WriteLine("  1. ensure DDU is installed locally;");
+        Console.WriteLine("  2. stage one Safe Mode boot;");
+        Console.WriteLine("  3. register a Safe Mode RunOnce handoff;");
+        Console.WriteLine("  4. remove forced Safe Mode immediately after login;");
+        Console.WriteLine("  5. launch DDU for you to perform the vendor cleanup;");
+        Console.WriteLine("  6. remember that the correct vendor driver must be reinstalled.");
+        Console.WriteLine();
+        Console.ForegroundColor = ConsoleColor.Yellow;
+        Console.WriteLine("Before continuing:");
+        Console.WriteLine("  - know your Windows account PASSWORD; Safe Mode may not accept Windows Hello/PIN;");
+        Console.WriteLine("  - if BitLocker/device encryption is enabled, have the recovery key available;");
+        Console.WriteLine("  - disconnect Ethernet/Wi-Fi before DDU and keep it disconnected until the replacement driver is installed;");
+        Console.WriteLine("  - close work; WGDot will reboot the PC.");
+        Console.ResetColor();
+        Console.WriteLine();
+
+        if (!ReadYesNo("Stage DDU cleanup and reboot into Safe Mode? [y/N]", false))
+        {
+            Console.WriteLine("GPU cleanup cancelled.");
+            return;
+        }
+
+        EnsureDduInstalled();
+
+        if (!IsAdministrator())
+            RunElevatedSelf("gpu-stage-safe --vendor " + vendor + " --reason " + reason);
+        else
+            StageGpuSafeMode(vendor, reason);
+    }
+
+    static int GpuStageSafeFromArgs(string[] args)
+    {
+        string vendor = GetOption(args, "--vendor");
+        string reason = GetOption(args, "--reason");
+        if (String.IsNullOrWhiteSpace(reason)) reason = "refresh";
+
+        if (!IsAdministrator())
+        {
+            RunElevatedSelf("gpu-stage-safe --vendor " + vendor + " --reason " + reason);
+            return 0;
+        }
+
+        StageGpuSafeMode(vendor, reason);
+        return 0;
+    }
+
+    static void StageGpuSafeMode(string vendor, string reason)
+    {
+        if (!IsKnownGpuVendor(vendor))
+            throw new Exception("Unknown GPU vendor: " + vendor);
+
+        string ddu = EnsureDduInstalled();
+        string installedExe = Path.Combine(BinRoot, "wgdot.exe");
+        if (!File.Exists(installedExe))
+            installedExe = Process.GetCurrentProcess().MainModule.FileName;
+
+        var state = new Dictionary<string, object>();
+        state["phase"] = "safe-mode-pending";
+        state["targetVendor"] = vendor;
+        state["reason"] = reason;
+        state["dduPath"] = ddu;
+        state["stagedAt"] = DateTime.UtcNow.ToString("o");
+        WriteJson(GpuStatePath, state);
+
+        string runOncePath = @"SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce";
+        using (RegistryKey key = Registry.LocalMachine.CreateSubKey(runOncePath))
+        {
+            if (key == null)
+                throw new Exception("Could not create Safe Mode RunOnce handoff.");
+
+            key.SetValue(
+                "*WGDotGpuSafeModeResume",
+                "\"" + installedExe + "\" gpu-safe-resume",
+                RegistryValueKind.String);
+        }
+
+        ProcResult safeBoot = Run("bcdedit.exe", "/set {current} safeboot minimal", null);
+        if (safeBoot.ExitCode != 0)
+        {
+            using (RegistryKey key = Registry.LocalMachine.OpenSubKey(runOncePath, true))
+                if (key != null) key.DeleteValue("*WGDotGpuSafeModeResume", false);
+            SafeDeleteFile(GpuStatePath);
+            throw new Exception(
+                "Could not stage Safe Mode: " +
+                LastUsefulLine(safeBoot.StdErr + "\n" + safeBoot.StdOut));
+        }
+
+        Console.WriteLine("Safe Mode handoff staged. Rebooting in 15 seconds.");
+        Console.WriteLine("Use 'shutdown /a' from an elevated terminal only if you must cancel this reboot.");
+        Run("shutdown.exe", "/r /t 15 /c " + Q("WGDot GPU driver cleanup - booting once into Safe Mode"), null);
+    }
+
+    static bool RemoveForcedSafeBoot()
+    {
+        ProcResult current = Run("bcdedit.exe", "/deletevalue {current} safeboot", null);
+        if (current.ExitCode == 0) return true;
+
+        ProcResult check = Run("bcdedit.exe", "/enum {current}", null);
+        if (check.ExitCode == 0 &&
+            (check.StdOut ?? "").IndexOf("safeboot", StringComparison.OrdinalIgnoreCase) < 0)
+            return true;
+
+        ProcResult fallback = Run("bcdedit.exe", "/deletevalue {default} safeboot", null);
+        if (fallback.ExitCode == 0) return true;
+
+        ProcResult fallbackCheck = Run("bcdedit.exe", "/enum {default}", null);
+        return fallbackCheck.ExitCode == 0 &&
+            (fallbackCheck.StdOut ?? "").IndexOf("safeboot", StringComparison.OrdinalIgnoreCase) < 0;
+    }
+
+    static int GpuSafeResume()
+    {
+        if (!IsAdministrator())
+        {
+            RunElevatedSelf("gpu-safe-resume");
+            return 0;
+        }
+
+        var state = ReadJson(GpuStatePath);
+        if (state == null)
+            throw new Exception("No staged WGDot GPU cleanup state exists.");
+
+        string vendor = GetString(state, "targetVendor");
+        if (!IsKnownGpuVendor(vendor))
+            throw new Exception("Staged GPU cleanup has an invalid target vendor.");
+
+        // Remove the persistent Safe Mode setting before launching DDU so the
+        // next restart returns to normal Windows even if DDU or WGDot is closed.
+        if (!RemoveForcedSafeBoot())
+            throw new Exception(
+                "WGDot could not remove the forced Safe Mode boot flag. DDU was not launched. " +
+                "Run 'bcdedit /deletevalue {current} safeboot' from an elevated terminal before rebooting.");
+
+        string ddu = GetString(state, "dduPath");
+        if (String.IsNullOrWhiteSpace(ddu) || !File.Exists(ddu))
+            ddu = FindDduExe();
+        if (String.IsNullOrWhiteSpace(ddu))
+            throw new Exception("Display Driver Uninstaller could not be located in Safe Mode.");
+
+        state["phase"] = "driver-needed";
+        state["safeModeResumedAt"] = DateTime.UtcNow.ToString("o");
+        WriteJson(GpuStatePath, state);
+
+        WriteTitle("DDU Safe Mode cleanup");
+        Console.ForegroundColor = ConsoleColor.Green;
+        Console.WriteLine("Forced Safe Mode has already been removed. Your next restart will be normal Windows.");
+        Console.ResetColor();
+        Console.WriteLine();
+        Console.WriteLine("DDU target: " + GpuVendorLabel(vendor));
+        Console.WriteLine("Keep the internet disconnected.");
+        Console.WriteLine("In DDU, select " + GpuVendorLabel(vendor) + " and use Clean and restart.");
+        Console.WriteLine("After normal Windows returns, run 'wgdot'.");
+        Console.WriteLine("WGDot will remind you to install the correct " + GpuVendorLabel(vendor) + " driver.");
+        Console.WriteLine();
+
+        var psi = new ProcessStartInfo();
+        psi.FileName = ddu;
+        psi.UseShellExecute = true;
+        Process.Start(psi);
+        return 0;
     }
 
     static void TweakManager()
@@ -4143,6 +4992,16 @@ public static class Program
             ProcResult earTest = Run(earHelper, "self-test", null);
             if (earTest.ExitCode != 0)
                 throw new Exception("EarTrumpet packaged-settings helper self-test failed.");
+
+            if (!String.Equals(ClassifyGpuHardwareVendor(@"PCI\VEN_1002&DEV_0000"), "amd", StringComparison.Ordinal) ||
+                !String.Equals(ClassifyGpuHardwareVendor(@"PCI\VEN_10DE&DEV_0000"), "nvidia", StringComparison.Ordinal) ||
+                !String.Equals(ClassifyGpuHardwareVendor(@"PCI\VEN_8086&DEV_0000"), "intel", StringComparison.Ordinal))
+                throw new Exception("GPU PCI vendor classification self-test failed.");
+
+            if (!String.Equals(ClassifyGpuDriverProvider("Advanced Micro Devices, Inc."), "amd", StringComparison.Ordinal) ||
+                !String.Equals(ClassifyGpuDriverProvider("NVIDIA"), "nvidia", StringComparison.Ordinal) ||
+                !String.Equals(ClassifyGpuDriverProvider("Intel Corporation"), "intel", StringComparison.Ordinal))
+                throw new Exception("GPU driver-provider classification self-test failed.");
 
             Console.WriteLine("WGDot native runtime self-test passed.");
             return 0;

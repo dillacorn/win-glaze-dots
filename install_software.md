@@ -145,3 +145,16 @@ The default selection is intentionally conservative for public use. Only the WGD
 - Signal, Bitwarden, Betaflight Configurator, PDF-XChange Editor, Spotify, Process Explorer, and Double Commander are intentionally not offered.
 - Deselecting an installed package does not uninstall it.
 - WGDot never runs `winget upgrade --all`; upgrade checks are opt-in and each selected package requires approval.
+
+
+## GPU drivers
+
+WGDot has a separate GPU driver maintenance workflow in the main menu.
+
+- Detects present AMD, NVIDIA, and Intel display adapters from PCI hardware IDs.
+- Reports the active display-driver provider/version and recommends the matching vendor tooling when a vendor driver is missing.
+- Supports AMD Auto-Detect, NVIDIA App, and Intel Driver & Support Assistant from vendor-owned download endpoints.
+- Detects possible stale/mismatched display-driver vendors without treating legitimate hybrid Intel+NVIDIA / Intel+AMD systems as errors.
+- Offers a guarded DDU clean reinstall/refresh path that stages Safe Mode only after explicit confirmation.
+- DDU cleanup state survives the reboot. WGDot removes forced Safe Mode before DDU launches and remembers which vendor driver must be reinstalled afterward.
+- DDU remains available as `Wagnardsoft.DisplayDriverUninstaller`, but WGDot does not run it automatically.
