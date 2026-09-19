@@ -53,6 +53,13 @@ jobs:
         shell: cmd
         run: |
           "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" status
+      - name: Validate automatic runtime refresh handoff
+        shell: cmd
+        run: |
+          "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" mark-runtime --ref "${{ github.head_ref || github.ref_name }}" --revision 0000000000000000000000000000000000000001
+          "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" status
+          ping 127.0.0.1 -n 4 >nul
+          findstr /C:"${{ github.event.pull_request.head.sha || github.sha }}" "%LOCALAPPDATA%\wgdot\state\native-bootstrap.json"
       - name: Verify persistent user PATH
         shell: cmd
         run: |

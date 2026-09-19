@@ -85,6 +85,8 @@ Validation
 WGDot runtime and managed configuration intentionally have different lifecycles.
 
 - The installed WGDot runtime may refresh from `main`.
+- Normal user-facing WGDot invocations compare the recorded runtime revision with the configured runtime branch head before dispatch and run the refreshed runtime immediately when they differ.
+- Because Windows cannot reliably overwrite the currently running executable, a refreshed staged runtime schedules its own post-exit replacement of the installed `wgdot.exe` and records the exact revision only after that swap succeeds.
 - Normal managed-config update/reset/review operations must use an exact published stable release, never the current `main` config tree.
 - A runtime refresh from `main` must not silently change the release manifest used for a stable config operation.
 - The selected stable release supplies its own `wgdot/manifest.json` and managed source files.

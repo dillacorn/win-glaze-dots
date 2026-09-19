@@ -18,7 +18,7 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-20";
+    const string Version = "native-preview-21";
     const string RepoFullName = "dillacorn/win-glaze-dots";
     const string RepoUrl = "https://github.com/dillacorn/win-glaze-dots.git";
     const string ApiBase = "https://api.github.com/repos/dillacorn/win-glaze-dots";
@@ -112,11 +112,34 @@ internal static class WgdotNative
 
     static int Main(string[] args)
     {
+        bool stagedRuntime = false;
+
         try
         {
             ServicePointManager.SecurityProtocol |= SecurityProtocolType.Tls12;
             EnsureStateDirectories();
+            stagedRuntime = IsStagedRuntimeProcess();
+
             string command = args.Length == 0 ? "menu" : args[0].ToLowerInvariant();
+
+            if (ShouldAutoRefreshRuntime(command) &&
+                !String.Equals(Environment.GetEnvironmentVariable("WGDOT_SKIP_RUNTIME_REFRESH"), "1", StringComparison.Ordinal))
+            {
+                try
+                {
+                    int refreshedExitCode;
+                    if (TryRefreshRuntimeAndRun(args, out refreshedExitCode))
+                        return refreshedExitCode;
+                }
+                catch (Exception ex)
+                {
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.WriteLine("WGDot runtime refresh check failed; continuing installed runtime.");
+                    Console.WriteLine(ex.Message);
+                    Console.ResetColor();
+                    Console.WriteLine();
+                }
+            }
 
             if (command == "install") return Install();
             if (command == "status") return Status();
@@ -140,6 +163,45 @@ internal static class WgdotNative
             Console.Error.WriteLine("WGDot native error: " + ex.Message);
             return 1;
         }
+        finally
+        {
+            if (stagedRuntime)
+            {
+                try
+                {
+                    ScheduleStagedRuntimeInstall();
+                }
+                catch (Exception ex)
+                {
+                    Console.Error.WriteLine("WGDot runtime install finalization warning: " + ex.Message);
+                }
+            }
+        }
+    }
+
+    static bool ShouldAutoRefreshRuntime(string command)
+    {
+        return
+            String.Equals(command, "menu", StringComparison.OrdinalIgnoreCase) ||
+            String.Equals(command, "status", StringComparison.OrdinalIgnoreCase) ||
+            String.Equals(command, "git-review", StringComparison.OrdinalIgnoreCase) ||
+            String.Equals(command, "software", StringComparison.OrdinalIgnoreCase) ||
+            String.Equals(command, "update", StringComparison.OrdinalIgnoreCase) ||
+            String.Equals(command, "reset", StringComparison.OrdinalIgnoreCase) ||
+            String.Equals(command, "review", StringComparison.OrdinalIgnoreCase);
+    }
+
+    static bool IsStagedRuntimeProcess()
+    {
+        if (!String.Equals(
+                Environment.GetEnvironmentVariable("WGDOT_SKIP_RUNTIME_REFRESH"),
+                "1",
+                StringComparison.Ordinal))
+            return false;
+
+        string currentExe = Path.GetFullPath(Process.GetCurrentProcess().MainModule.FileName);
+        string installedExe = Path.GetFullPath(Path.Combine(BinRoot, "wgdot.exe"));
+        return !String.Equals(currentExe, installedExe, StringComparison.OrdinalIgnoreCase);
     }
 
     static void EnsureStateDirectories()
@@ -229,21 +291,6 @@ internal static class WgdotNative
 
     static int Menu()
     {
-        try
-        {
-            if (!String.Equals(Environment.GetEnvironmentVariable("WGDOT_SKIP_RUNTIME_REFRESH"), "1", StringComparison.Ordinal) &&
-                TryRefreshRuntimeAndRun())
-                return 0;
-        }
-        catch (Exception ex)
-        {
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine("WGDot runtime refresh check failed; continuing installed runtime.");
-            Console.WriteLine(ex.Message);
-            Console.ResetColor();
-            Console.WriteLine();
-        }
-
         var items = new List<string>
         {
             "Update managed dots",
@@ -320,8 +367,10 @@ internal static class WgdotNative
         }
     }
 
-    static bool TryRefreshRuntimeAndRun()
+    static bool TryRefreshRuntimeAndRun(string[] originalArgs, out int exitCode)
     {
+        exitCode = 0;
+
         var state = ReadJson(BootstrapStatePath);
         if (state == null) return false;
 
@@ -358,8 +407,47 @@ internal static class WgdotNative
         if (test.ExitCode != 0)
             throw new Exception("Refreshed runtime self-test failed: " + LastUsefulLine(test.StdErr));
 
+        Console.ForegroundColor = ConsoleColor.Green;
+        Console.WriteLine("Runtime refreshed. Starting the new WGDot runtime...");
+        Console.ResetColor();
+        Console.WriteLine();
+
+        string stagedArguments =
+            originalArgs == null || originalArgs.Length == 0
+                ? "menu"
+                : BuildCommandLine(originalArgs);
+
+        ProcResult staged = RunInteractiveStagedRuntime(nextExe, stagedArguments);
+        exitCode = staged.ExitCode;
+        return true;
+    }
+
+    static string BuildCommandLine(IEnumerable<string> args)
+    {
+        if (args == null) return "";
+        return String.Join(" ", args.Select(Q).ToArray());
+    }
+
+    static void ScheduleStagedRuntimeInstall()
+    {
+        string currentExe = Path.GetFullPath(Process.GetCurrentProcess().MainModule.FileName);
+        string fileName = Path.GetFileName(currentExe);
+        Match match = Regex.Match(
+            fileName ?? "",
+            "^wgdot-next-([0-9a-fA-F]{40})\\.exe$",
+            RegexOptions.IgnoreCase);
+
+        if (!match.Success)
+            return;
+
+        string revision = match.Groups[1].Value.ToLowerInvariant();
+        var state = ReadJson(BootstrapStatePath);
+        string sourceRef = state == null ? "" : GetString(state, "sourceRef");
+        if (String.IsNullOrWhiteSpace(sourceRef)) sourceRef = "main";
+        ValidateBranchName(sourceRef);
+
         string installedExe = Path.Combine(BinRoot, "wgdot.exe");
-        string helper = CreateRuntimeSwapHelper(nextExe, installedExe, sourceRef, remoteRevision);
+        string helper = CreateRuntimeSwapHelper(currentExe, installedExe, sourceRef, revision);
 
         var helperInfo = new ProcessStartInfo();
         helperInfo.FileName = "cmd.exe";
@@ -367,14 +455,6 @@ internal static class WgdotNative
         helperInfo.UseShellExecute = false;
         helperInfo.CreateNoWindow = true;
         Process.Start(helperInfo);
-
-        Console.ForegroundColor = ConsoleColor.Green;
-        Console.WriteLine("Runtime refreshed. Starting the new WGDot runtime...");
-        Console.ResetColor();
-        Console.WriteLine();
-
-        RunInteractiveStagedRuntime(nextExe, "menu");
-        return true;
     }
 
     static int MarkRuntimeFromArgs(string[] args)
@@ -439,7 +519,7 @@ internal static class WgdotNative
         lines.Add("set /a TRIES+=1");
         lines.Add("copy /Y \"%SRC%\" \"%DST%\" >nul 2>&1");
         lines.Add("if not errorlevel 1 goto done");
-        lines.Add("if %TRIES% GEQ 30 goto failed");
+        lines.Add("if %TRIES% GEQ 60 goto failed");
         lines.Add("ping 127.0.0.1 -n 2 >nul");
         lines.Add("goto retry");
         lines.Add(":done");
