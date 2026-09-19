@@ -17,7 +17,7 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-6";
+    const string Version = "native-preview-7";
     const string RepoFullName = "dillacorn/win-glaze-dots";
     const string RepoUrl = "https://github.com/dillacorn/win-glaze-dots.git";
     const string ApiBase = "https://api.github.com/repos/dillacorn/win-glaze-dots";
@@ -100,6 +100,7 @@ internal static class WgdotNative
     {
         try
         {
+            ServicePointManager.SecurityProtocol |= SecurityProtocolType.Tls12;
             EnsureStateDirectories();
             string command = args.Length == 0 ? "menu" : args[0].ToLowerInvariant();
 
@@ -205,6 +206,20 @@ internal static class WgdotNative
 
     static int Menu()
     {
+        try
+        {
+            if (TryRefreshRuntimeAndRun())
+                return 0;
+        }
+        catch (Exception ex)
+        {
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine("WGDot runtime refresh check failed; continuing installed runtime.");
+            Console.WriteLine(ex.Message);
+            Console.ResetColor();
+            Console.WriteLine();
+        }
+
         var items = new List<string>
         {
             "Update managed dots",
@@ -274,6 +289,123 @@ internal static class WgdotNative
                 Pause();
             }
         }
+    }
+
+    static bool TryRefreshRuntimeAndRun()
+    {
+        var state = ReadJson(BootstrapStatePath);
+        if (state == null) return false;
+
+        string sourceRef = GetString(state, "sourceRef");
+        if (String.IsNullOrWhiteSpace(sourceRef)) sourceRef = "main";
+        ValidateBranchName(sourceRef);
+
+        string installedRevision = GetString(state, "sourceRevision");
+        string remoteRevision = ResolveBranchHeadViaApi(sourceRef);
+
+        if (String.Equals(installedRevision, remoteRevision, StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        WriteTitle("Runtime refresh");
+        Console.WriteLine("New WGDot runtime available from " + sourceRef + ".");
+        Console.WriteLine("Installed: " + (String.IsNullOrWhiteSpace(installedRevision) ? "(unknown)" : installedRevision));
+        Console.WriteLine("Remote:    " + remoteRevision);
+        Console.WriteLine();
+
+        string sourcePath = Path.Combine(CacheRoot, "runtime-" + remoteRevision + ".cs");
+        string nextExe = Path.Combine(CacheRoot, "wgdot-next-" + remoteRevision + ".exe");
+        SafeDeleteFile(sourcePath);
+        SafeDeleteFile(nextExe);
+
+        string rawUrl = "https://raw.githubusercontent.com/" + RepoFullName + "/" + remoteRevision + "/wgdot/wgdot-native.cs";
+        using (var client = new WebClient())
+        {
+            client.Headers[HttpRequestHeader.UserAgent] = "wgdot";
+            client.DownloadFile(rawUrl, sourcePath);
+        }
+
+        CompileNativeSource(sourcePath, nextExe);
+        ProcResult test = Run(nextExe, "self-test", null);
+        if (test.ExitCode != 0)
+            throw new Exception("Refreshed runtime self-test failed: " + LastUsefulLine(test.StdErr));
+
+        state["sourceRef"] = sourceRef;
+        state["sourceRevision"] = remoteRevision;
+        state["refreshedAt"] = DateTime.UtcNow.ToString("o");
+        WriteJson(BootstrapStatePath, state);
+
+        string installedExe = Path.Combine(BinRoot, "wgdot.exe");
+        string helper = CreateRuntimeSwapHelper(nextExe, installedExe);
+
+        var helperInfo = new ProcessStartInfo();
+        helperInfo.FileName = "cmd.exe";
+        helperInfo.Arguments = "/d /c " + Q(helper);
+        helperInfo.UseShellExecute = false;
+        helperInfo.CreateNoWindow = true;
+        Process.Start(helperInfo);
+
+        Console.ForegroundColor = ConsoleColor.Green;
+        Console.WriteLine("Runtime refreshed. Starting the new WGDot runtime...");
+        Console.ResetColor();
+        Console.WriteLine();
+
+        RunInteractive(nextExe, "menu");
+        return true;
+    }
+
+    static void CompileNativeSource(string sourcePath, string outputPath)
+    {
+        string csc = GetCscPath();
+        if (String.IsNullOrWhiteSpace(csc))
+            throw new Exception("Windows .NET Framework C# compiler was not found.");
+
+        string args =
+            "/nologo /optimize+ /target:exe /out:" + Q(outputPath) +
+            " /r:System.Web.Extensions.dll" +
+            " /r:System.IO.Compression.dll" +
+            " /r:System.IO.Compression.FileSystem.dll" +
+            " /r:System.Xml.dll " +
+            Q(sourcePath);
+
+        ProcResult compile = Run(csc, args, null);
+        if (compile.ExitCode != 0)
+            throw new Exception("Runtime compilation failed: " + LastUsefulLine(compile.StdErr + "\n" + compile.StdOut));
+    }
+
+    static string GetCscPath()
+    {
+        string windows = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
+        string x64 = Path.Combine(windows, "Microsoft.NET", "Framework64", "v4.0.30319", "csc.exe");
+        if (File.Exists(x64)) return x64;
+
+        string x86 = Path.Combine(windows, "Microsoft.NET", "Framework", "v4.0.30319", "csc.exe");
+        return File.Exists(x86) ? x86 : "";
+    }
+
+    static string CreateRuntimeSwapHelper(string sourceExe, string destinationExe)
+    {
+        string helper = Path.Combine(Path.GetTempPath(), "wgdot-swap-" + Guid.NewGuid().ToString("N") + ".cmd");
+        var lines = new List<string>();
+        lines.Add("@echo off");
+        lines.Add("setlocal EnableExtensions");
+        lines.Add("set \"SRC=" + sourceExe + "\"");
+        lines.Add("set \"DST=" + destinationExe + "\"");
+        lines.Add("set /a TRIES=0");
+        lines.Add(":retry");
+        lines.Add("set /a TRIES+=1");
+        lines.Add("copy /Y \"%SRC%\" \"%DST%\" >nul 2>&1");
+        lines.Add("if not errorlevel 1 goto done");
+        lines.Add("if %TRIES% GEQ 30 goto failed");
+        lines.Add("ping 127.0.0.1 -n 2 >nul");
+        lines.Add("goto retry");
+        lines.Add(":done");
+        lines.Add("del /q \"%SRC%\" >nul 2>&1");
+        lines.Add("del /q \"%~f0\" >nul 2>&1");
+        lines.Add("exit /b 0");
+        lines.Add(":failed");
+        lines.Add("exit /b 1");
+        File.WriteAllLines(helper, lines.ToArray(), Encoding.ASCII);
+        return helper;
     }
 
     static void ShowManualFallback()
