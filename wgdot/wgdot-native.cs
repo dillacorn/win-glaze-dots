@@ -17,7 +17,7 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-8";
+    const string Version = "native-preview-9";
     const string RepoFullName = "dillacorn/win-glaze-dots";
     const string RepoUrl = "https://github.com/dillacorn/win-glaze-dots.git";
     const string ApiBase = "https://api.github.com/repos/dillacorn/win-glaze-dots";
@@ -772,8 +772,12 @@ internal static class WgdotNative
 
             component["files"] = new object[] { mergeFile };
             List<PlanItem> mergePlan = GetPlan(manifest, sourceRoot, selection, "update");
-            if (mergePlan.Count != 1 || mergePlan[0].Status != "BOTH" || mergePlan[0].Action != "MERGE")
+            PlanItem mergeItem = mergePlan.FirstOrDefault(x => x.FileId == "selftest-merge");
+            PlanItem removedItem = mergePlan.FirstOrDefault(x => x.FileId == "selftest-file");
+            if (mergeItem == null || mergeItem.Status != "BOTH" || mergeItem.Action != "MERGE")
                 throw new Exception("Three-way merge planner self-test failed.");
+            if (removedItem == null || removedItem.Status != "REMOVED-UPSTREAM" || removedItem.Action != "PRESERVE")
+                throw new Exception("Removed-upstream preservation self-test failed.");
 
             ApplyPlan(mergePlan, manifest, selection, context);
             string merged = File.ReadAllText(mergeLive);
