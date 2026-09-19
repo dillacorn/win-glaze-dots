@@ -17,13 +17,16 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-7";
+    const string Version = "native-preview-8";
     const string RepoFullName = "dillacorn/win-glaze-dots";
     const string RepoUrl = "https://github.com/dillacorn/win-glaze-dots.git";
     const string ApiBase = "https://api.github.com/repos/dillacorn/win-glaze-dots";
     const string StableTagPattern = "^v[0-9]+\\.[0-9]+\\.[0-9]+$";
 
-    static readonly string InstallRoot = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "wgdot");
+    static readonly string TestRootOverride = Environment.GetEnvironmentVariable("WGDOT_TEST_ROOT");
+    static readonly string InstallRoot = String.IsNullOrWhiteSpace(TestRootOverride)
+        ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "wgdot")
+        : Path.Combine(TestRootOverride, "wgdot");
     static readonly string BinRoot = Path.Combine(InstallRoot, "bin");
     static readonly string StateRoot = Path.Combine(InstallRoot, "state");
     static readonly string CacheRoot = Path.Combine(InstallRoot, "cache");
@@ -109,6 +112,7 @@ internal static class WgdotNative
             if (command == "menu") return Menu();
             if (command == "self-test") return SelfTest();
             if (command == "git-review") return GitReviewFromArgs(args.Skip(1).ToArray());
+            if (command == "maintenance-self-test") return MaintenanceSelfTest();
             if (command == "software") return SoftwareReconcile();
             if (command == "update") return ManagedOperation("update", ResolveDefaultSource());
             if (command == "reset") return ManagedOperation("reset", ResolveDefaultSource());
@@ -681,6 +685,139 @@ internal static class WgdotNative
             throw new Exception("Unsupported or invalid WGDot manifest.");
 
         return manifest;
+    }
+
+    static int MaintenanceSelfTest()
+    {
+        if (String.IsNullOrWhiteSpace(TestRootOverride))
+            throw new Exception("maintenance-self-test requires WGDOT_TEST_ROOT.");
+
+        string root = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "wgdot-native-maintenance-selftest-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+
+        try
+        {
+            string sourceRoot = Path.Combine(root, "source");
+            string liveRoot = Path.Combine(root, "live");
+            Directory.CreateDirectory(sourceRoot);
+            Directory.CreateDirectory(liveRoot);
+
+            string target = Path.Combine(sourceRoot, "target.txt");
+            string live = Path.Combine(liveRoot, "target.txt");
+            File.WriteAllText(target, "release-two", new UTF8Encoding(false));
+            File.WriteAllText(live, "release-one", new UTF8Encoding(false));
+
+            var file = new Dictionary<string, object>();
+            file["id"] = "selftest-file";
+            file["source"] = "target.txt";
+            file["destination"] = live;
+            file["merge"] = true;
+
+            var component = new Dictionary<string, object>();
+            component["id"] = "selftest";
+            component["name"] = "Self Test";
+            component["files"] = new object[] { file };
+
+            var manifest = new Dictionary<string, object>();
+            manifest["schemaVersion"] = 1;
+            manifest["components"] = new object[] { component };
+            manifest["migrations"] = new object[0];
+            manifest["packages"] = new object[0];
+
+            var selection = new InstallationSelection();
+            selection.Scope = "normal";
+            selection.GlazeProfile = "normal";
+            selection.Components.Add("selftest");
+
+            List<PlanItem> resetPlan = GetPlan(manifest, sourceRoot, selection, "reset");
+            if (resetPlan.Count != 1 || resetPlan[0].Status != "RESET" || resetPlan[0].Action != "REPLACE")
+                throw new Exception("Reset planner self-test failed.");
+
+            var context = new SourceContext
+            {
+                Mode = "git",
+                Branch = "selftest",
+                Revision = new string('a', 40),
+                SourceRoot = sourceRoot,
+                Manifest = manifest
+            };
+
+            ApplyPlan(resetPlan, manifest, selection, context);
+
+            if (File.ReadAllText(live) != "release-two")
+                throw new Exception("Apply self-test did not replace the live file.");
+
+            string adjacentBackup = live + ".wgdot.backup";
+            if (!File.Exists(adjacentBackup) || File.ReadAllText(adjacentBackup) != "release-one")
+                throw new Exception("Adjacent backup self-test failed.");
+
+            string baseline = GetBaselinePath("selftest-file");
+            if (!File.Exists(baseline) || File.ReadAllText(baseline) != "release-two")
+                throw new Exception("Baseline self-test failed.");
+
+            string mergeTarget = Path.Combine(sourceRoot, "merge.txt");
+            string mergeLive = Path.Combine(liveRoot, "merge.txt");
+            File.WriteAllText(mergeTarget, "upstream\r\nbase\r\nthree\r\n", new UTF8Encoding(false));
+            File.WriteAllText(mergeLive, "one\r\nlocal\r\nthree\r\n", new UTF8Encoding(false));
+            string mergeBaseline = GetBaselinePath("selftest-merge");
+            File.WriteAllText(mergeBaseline, "one\r\nbase\r\nthree\r\n", new UTF8Encoding(false));
+
+            var mergeFile = new Dictionary<string, object>();
+            mergeFile["id"] = "selftest-merge";
+            mergeFile["source"] = "merge.txt";
+            mergeFile["destination"] = mergeLive;
+            mergeFile["merge"] = true;
+
+            component["files"] = new object[] { mergeFile };
+            List<PlanItem> mergePlan = GetPlan(manifest, sourceRoot, selection, "update");
+            if (mergePlan.Count != 1 || mergePlan[0].Status != "BOTH" || mergePlan[0].Action != "MERGE")
+                throw new Exception("Three-way merge planner self-test failed.");
+
+            ApplyPlan(mergePlan, manifest, selection, context);
+            string merged = File.ReadAllText(mergeLive);
+            if (merged.IndexOf("upstream", StringComparison.Ordinal) < 0 ||
+                merged.IndexOf("local", StringComparison.Ordinal) < 0)
+                throw new Exception("Three-way merge application self-test failed.");
+
+            string legacy = Path.Combine(root, "clipboard.yazi");
+            Directory.CreateDirectory(Path.Combine(legacy, ".git"));
+            File.WriteAllText(
+                Path.Combine(legacy, ".git", "config"),
+                "[remote \"origin\"]\r\nurl = https://github.com/XYenon/clipboard.yazi.git\r\n",
+                new UTF8Encoding(false));
+
+            var migration = new Dictionary<string, object>();
+            migration["id"] = "selftest-yazi-legacy";
+            migration["component"] = "selftest";
+            migration["path"] = legacy;
+            migration["type"] = "git-remote-directory";
+            migration["expectedRemoteFragment"] = "XYenon/clipboard.yazi";
+            manifest["migrations"] = new object[] { migration };
+            component["files"] = new object[0];
+
+            ShowMigrations(manifest, selection, false);
+
+            if (Directory.Exists(legacy))
+                throw new Exception("Guarded migration self-test did not remove the known legacy directory.");
+
+            string migrationBackup = legacy + ".wgdot.backup";
+            if (!Directory.Exists(migrationBackup))
+                throw new Exception("Guarded migration self-test did not create an adjacent directory backup.");
+
+            var backupState = ReadJson(BackupStatePath);
+            if (backupState == null || GetList(backupState, "records").Count < 3)
+                throw new Exception("Backup record self-test failed.");
+
+            Console.WriteLine("WGDot native maintenance self-test passed.");
+            return 0;
+        }
+        finally
+        {
+            SafeDeleteDirectory(root);
+            SafeDeleteDirectory(InstallRoot);
+        }
     }
 
     static int SoftwareReconcile()

@@ -66,3 +66,8 @@ jobs:
         shell: cmd
         run: |
           "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" git-review --branch feature/wgdot-maintenance --revision ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Validate native maintenance mutations in isolated state
+        shell: cmd
+        run: |
+          set "WGDOT_TEST_ROOT=%TEMP%\wgdot-native-maintenance-state"
+          "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" maintenance-self-test
