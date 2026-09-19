@@ -353,8 +353,8 @@
       "name": "PowerToys",
       "id": "Microsoft.PowerToys",
       "category": "essential",
-      "defaultNormal": true,
-      "defaultWork": true
+      "defaultNormal": false,
+      "defaultWork": false
     },
     {
       "name": "Fastfetch",

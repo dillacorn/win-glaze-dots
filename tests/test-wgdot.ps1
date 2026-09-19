@@ -89,7 +89,6 @@ function Get-ManifestPackage {
 foreach ($id in @(
     "Mozilla.Firefox",
     "File-New-Project.EarTrumpet",
-    "Microsoft.PowerToys",
     "zyedidia.micro"
 )) {
     $p = Get-ManifestPackage -Id $id
@@ -97,6 +96,7 @@ foreach ($id in @(
 }
 
 foreach ($id in @(
+    "Microsoft.PowerToys",
     "Brave.Brave",
     "MullvadVPN.MullvadBrowser",
     "Vencord.Vesktop",

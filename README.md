@@ -5,7 +5,7 @@
 
 - **Operating System**: Windows 10/11
 - **Package Manager**: [**winget**](https://winget.run/)
-- **Window Manager & Primary Applications**: [glazewm](https://github.com/glzr-io/glazewm) + [yasb](https://github.com/amnweb/yasb) + [altsnap](https://github.com/RamonUnch/AltSnap) + [flow-launcher](https://github.com/Flow-Launcher/Flow.Launcher) + [eartrumpet](https://github.com/File-New-Project/EarTrumpet) + [powertoys](https://github.com/microsoft/PowerToys) + [flameshot](https://github.com/flameshot-org/flameshot) + [Windows Terminal](https://github.com/microsoft/terminal) + [Yazi](https://github.com/sxyazi/yazi) + [micro](https://github.com/zyedidia/micro)
+- **Window Manager & Primary Applications**: [glazewm](https://github.com/glzr-io/glazewm) + [yasb](https://github.com/amnweb/yasb) + [altsnap](https://github.com/RamonUnch/AltSnap) + [flow-launcher](https://github.com/Flow-Launcher/Flow.Launcher) + [eartrumpet](https://github.com/File-New-Project/EarTrumpet) + [flameshot](https://github.com/flameshot-org/flameshot) + [Windows Terminal](https://github.com/microsoft/terminal) + [Yazi](https://github.com/sxyazi/yazi) + [micro](https://github.com/zyedidia/micro)
 
 Windows Terminal is the default terminal. Yazi is the terminal file manager; text/code opens in Micro while all other files use normal Windows file associations.
 
@@ -19,7 +19,7 @@ Windows Terminal is the default terminal. Yazi is the terminal file manager; tex
 - ### [**flow-launcher_bind**](https://github.com/dillacorn/win-glaze-dots/blob/main/flow-launcher_bind.png)
 - ### [**altsnap_settings**](https://github.com/dillacorn/win-glaze-dots/blob/main/altsnap_settings.md)
 - ### [**eartrumpet_bind**](https://github.com/dillacorn/win-glaze-dots/blob/main/eartrumpet_bind.png)
-- ### [**powertoys_keyboard_remap**](https://github.com/dillacorn/win-glaze-dots/blob/main/powertoys.md)
+- ### [**optional_powertoys**](https://github.com/dillacorn/win-glaze-dots/blob/main/powertoys.md)
 - ### [**windhawk**](https://github.com/dillacorn/win-glaze-dots/blob/main/windhawk.md)
 - ### [**scripts**](https://github.com/dillacorn/win-glaze-dots/tree/main/scripts)
 - ### [**Update**](https://support.microsoft.com/en-us/windows/windows-update-faq-8a903416-6f45-0718-f5c7-375e92dddeb2) and [**Reboot**](https://support.microsoft.com/en-us/windows/restart-reboot-your-pc-110262aa-fc79-1c33-7b00-c140ae3a6dac)
