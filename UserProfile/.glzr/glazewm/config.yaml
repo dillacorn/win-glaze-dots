@@ -220,6 +220,83 @@ binding_modes:
       - commands: ["shell-exec explorer.exe http:"]
         bindings: ["lwin+b", "rwin+b"]
 
+      - commands: ["wm-enable-binding-mode --name vm"]
+        bindings: ["lwin+alt+v", "rwin+alt+v"]
+
+  # VM mode based on Awtarchy's vm submap.
+  # Normal host keybindings are replaced while active so the guest receives
+  # ordinary Alt/Windows shortcuts. Host escape controls live on Win+Alt.
+  - name: "vm"
+    keybindings:
+      - commands: ["wm-disable-binding-mode --name vm"]
+        bindings: ["lwin+alt+v", "rwin+alt+v"]
+
+      - commands: ["wm-enable-binding-mode --name noalt"]
+        bindings: ["lwin+alt+n", "rwin+alt+n"]
+
+      - commands: ["close"]
+        bindings: ["lwin+alt+q", "rwin+alt+q"]
+
+      - commands: ["toggle-floating --centered"]
+        bindings: ["lwin+alt+f", "rwin+alt+f"]
+
+      - commands: ['shell-exec --hide-window "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" flow-open']
+        bindings: ["lwin+alt+p", "rwin+alt+p"]
+
+      - commands: ["shell-exec calc.exe"]
+        bindings: ["lwin+alt+c", "rwin+alt+c"]
+
+      - commands: ['shell-exec --hide-window "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" eartrumpet-mixer']
+        bindings: ["lwin+alt+ctrl+v", "rwin+alt+ctrl+v"]
+
+      - commands: ["shell-exec flameshot gui"]
+        bindings: ["lwin+alt+s", "rwin+alt+s"]
+
+      - commands: ["shell-exec wt.exe -w new"]
+        bindings: ["lwin+alt+enter", "rwin+alt+enter"]
+
+      - commands: ["focus --workspace 1"]
+        bindings: ["lwin+alt+1", "rwin+alt+1"]
+      - commands: ["focus --workspace 2"]
+        bindings: ["lwin+alt+2", "rwin+alt+2"]
+      - commands: ["focus --workspace 3"]
+        bindings: ["lwin+alt+3", "rwin+alt+3"]
+      - commands: ["focus --workspace 4"]
+        bindings: ["lwin+alt+4", "rwin+alt+4"]
+      - commands: ["focus --workspace 5"]
+        bindings: ["lwin+alt+5", "rwin+alt+5"]
+      - commands: ["focus --workspace 6"]
+        bindings: ["lwin+alt+6", "rwin+alt+6"]
+      - commands: ["focus --workspace 7"]
+        bindings: ["lwin+alt+7", "rwin+alt+7"]
+      - commands: ["focus --workspace 8"]
+        bindings: ["lwin+alt+8", "rwin+alt+8"]
+      - commands: ["focus --workspace 9"]
+        bindings: ["lwin+alt+9", "rwin+alt+9"]
+      - commands: ["focus --workspace 10"]
+        bindings: ["lwin+alt+0", "rwin+alt+0"]
+
+      - commands: ["move --workspace 1"]
+        bindings: ["lwin+alt+shift+1", "rwin+alt+shift+1"]
+      - commands: ["move --workspace 2"]
+        bindings: ["lwin+alt+shift+2", "rwin+alt+shift+2"]
+      - commands: ["move --workspace 3"]
+        bindings: ["lwin+alt+shift+3", "rwin+alt+shift+3"]
+      - commands: ["move --workspace 4"]
+        bindings: ["lwin+alt+shift+4", "rwin+alt+shift+4"]
+      - commands: ["move --workspace 5"]
+        bindings: ["lwin+alt+shift+5", "rwin+alt+shift+5"]
+      - commands: ["move --workspace 6"]
+        bindings: ["lwin+alt+shift+6", "rwin+alt+shift+6"]
+      - commands: ["move --workspace 7"]
+        bindings: ["lwin+alt+shift+7", "rwin+alt+shift+7"]
+      - commands: ["move --workspace 8"]
+        bindings: ["lwin+alt+shift+8", "rwin+alt+shift+8"]
+      - commands: ["move --workspace 9"]
+        bindings: ["lwin+alt+shift+9", "rwin+alt+shift+9"]
+      - commands: ["move --workspace 10"]
+        bindings: ["lwin+alt+shift+0", "rwin+alt+shift+0"]
+
 
 keybindings:
   - commands: ["shell-exec flameshot gui"]
@@ -272,6 +349,9 @@ keybindings:
 
   - commands: ["wm-enable-binding-mode --name noalt"]
     bindings: ["lwin+alt+n", "rwin+alt+n"]
+
+  - commands: ["wm-enable-binding-mode --name vm"]
+    bindings: ["lwin+alt+v", "rwin+alt+v"]
 
   - commands: ["wm-enable-binding-mode --name pause"]
     bindings: ["alt+shift+p"]

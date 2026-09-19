@@ -180,6 +180,9 @@ Backup deletion must support review/dry-run behavior and explicit confirmation.
 ## GlazeWM profile model
 
 - The managed GlazeWM profiles include a `noalt` binding mode toggled with `Win+Alt+N`, modeled after Awtarchy's noalt submap. It suppresses the normal Alt-heavy GlazeWM bindings while preserving Windows-key app/screenshot alternatives.
+- The managed GlazeWM profiles include a `vm` binding mode toggled with `Win+Alt+V`, modeled after Awtarchy's VM submap. While active, ordinary global host bindings are replaced so the guest receives normal Alt/Windows shortcuts; required host controls live on `Win+Alt` combinations.
+- VM mode host controls include close (`Win+Alt+Q`), float (`Win+Alt+F`), Flow Launcher (`Win+Alt+P`), Calculator (`Win+Alt+C`), EarTrumpet (`Win+Alt+Ctrl+V`), Flameshot (`Win+Alt+S`), Terminal (`Win+Alt+Enter`), workspace focus (`Win+Alt+0..9`), and move-to-workspace (`Win+Alt+Shift+0..9`).
+- `Win+Alt+N` switches from VM mode to noalt; `Win+Alt+V` switches from noalt to VM mode. GlazeWM replaces the active binding mode when another mode is enabled.
 - Flow Launcher keeps native `Alt+P`; GlazeWM maps `Win+D` to WGDot's `flow-open` helper.
 - EarTrumpet keeps native mixer `Alt+V`; GlazeWM maps `Win+V` to WGDot's `eartrumpet-mixer` helper so both reach the same mixer action.
 - Flameshot selection capture is `Win+Shift+S` in both managed GlazeWM profiles; do not restore the old `Win+Shift+F` binding.
