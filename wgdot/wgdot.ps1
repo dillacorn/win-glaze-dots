@@ -812,7 +812,12 @@ function Invoke-WgdotPlan {
 
     Write-Host ""
     $confirm = Read-Host "Apply exactly this plan? [y/N]"
-    if ($confirm -notmatch '^[Yy]
+    if ($confirm -notmatch '^[Yy]$') {
+        Write-Host "No changes were applied." -ForegroundColor Yellow
+        return $false
+    }
+
+    foreach ($item in $Plan) {
         if ($item.Action -eq "NONE" -or $item.Action -eq "PRESERVE") { continue }
         if ($item.Action -eq "MERGE") {
             if (Invoke-WgdotMerge -Item $item) {
