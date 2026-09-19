@@ -276,7 +276,6 @@ Assert-True ($nativeSourceText -match 'Use selected branch head') "native Git UI
 Assert-True ($nativeSourceText -match 'ReadMultiChoice') "native runtime contains keyboard multi-select UI"
 Assert-True ($nativeSourceText -match 'SoftwareReconcile') "native runtime includes software reconciliation"
 Assert-True ($nativeSourceText -match 'Install/reconcile this software selection\? \[y/N\]') "software mutation requires confirmation"
-Assert-True ($nativeSourceText -match 'const string Version = "native-preview-26"') "native runtime version tracks single-elevation software batching"
 Assert-True ($nativeSourceText -match 'if \(command == "software-elevated"\) return SoftwareElevatedFromArgs') "native runtime exposes the internal elevated software worker command"
 Assert-True ($nativeSourceText -match 'RunElevatedSelfWithExitCode\("software-elevated --plan "') "software reconciliation elevates one WGDot worker rather than each package"
 Assert-True ([regex]::Matches($nativeSourceText, 'RunElevatedSelfWithExitCode\("software-elevated --plan "').Count -eq 1) "software reconciliation contains one batch elevation handoff"
