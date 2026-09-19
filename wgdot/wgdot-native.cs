@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
 using System.Web.Script.Serialization;
@@ -10,7 +11,20 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-bootstrap-preview-2";
+    const string Version = "native-bootstrap-preview-3";
+    static readonly IntPtr HwndBroadcast = new IntPtr(0xffff);
+    const uint WmSettingChange = 0x001A;
+    const uint SmtoAbortIfHung = 0x0002;
+
+    [DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+    static extern IntPtr SendMessageTimeout(
+        IntPtr hWnd,
+        uint Msg,
+        UIntPtr wParam,
+        string lParam,
+        uint fuFlags,
+        uint uTimeout,
+        out UIntPtr lpdwResult);
     static readonly string InstallRoot = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "wgdot");
     static readonly string BinRoot = Path.Combine(InstallRoot, "bin");
     static readonly string StateRoot = Path.Combine(InstallRoot, "state");
@@ -160,6 +174,21 @@ internal static class WgdotNative
                 key.SetValue("Path", next, RegistryValueKind.ExpandString);
             }
         }
+
+        BroadcastEnvironmentChange();
+    }
+
+    static void BroadcastEnvironmentChange()
+    {
+        UIntPtr result;
+        SendMessageTimeout(
+            HwndBroadcast,
+            WmSettingChange,
+            UIntPtr.Zero,
+            "Environment",
+            SmtoAbortIfHung,
+            5000,
+            out result);
     }
 
     static string FindRepoRoot(string start)

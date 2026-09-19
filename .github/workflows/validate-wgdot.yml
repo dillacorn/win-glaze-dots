@@ -53,3 +53,7 @@ jobs:
         shell: cmd
         run: |
           "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" status
+      - name: Verify persistent user PATH
+        shell: cmd
+        run: |
+          reg query HKCU\Environment /v Path | findstr /I /C:"wgdot\bin"
