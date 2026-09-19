@@ -13,7 +13,7 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-bootstrap-preview-4";
+    const string Version = "native-bootstrap-preview-5";
     const string RepoUrl = "https://github.com/dillacorn/win-glaze-dots.git";
 
     static readonly string InstallRoot = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "wgdot");
@@ -220,16 +220,40 @@ internal static class WgdotNative
             int choice = ReadSingleChoice("Advanced / Git testing", items, 0);
             if (choice < 0 || choice == 1) return;
 
-            Console.Clear();
-            Console.Write("Remote branch: ");
-            string branch = (Console.ReadLine() ?? "").Trim();
-            if (String.IsNullOrWhiteSpace(branch)) continue;
-
-            Console.Write("Exact 40-character commit (optional; Enter uses branch head): ");
-            string revision = (Console.ReadLine() ?? "").Trim();
-
             try
             {
+                List<string> branches = GetRemoteBranches();
+                if (branches.Count == 0)
+                    throw new Exception("No remote branches were found.");
+
+                string preferred = GetPreferredGitBranch();
+                int initialBranch = branches.FindIndex(x => String.Equals(x, preferred, StringComparison.OrdinalIgnoreCase));
+                if (initialBranch < 0) initialBranch = 0;
+
+                int branchIndex = ReadSingleChoice("Select remote branch", branches, initialBranch);
+                if (branchIndex < 0) continue;
+
+                string branch = branches[branchIndex];
+
+                int revisionMode = ReadSingleChoice(
+                    "Select revision",
+                    new List<string>
+                    {
+                        "Use selected branch head",
+                        "Enter exact 40-character commit manually"
+                    },
+                    0);
+                if (revisionMode < 0) continue;
+
+                string revision = "";
+                if (revisionMode == 1)
+                {
+                    WriteTitle("Exact Git-testing revision");
+                    Console.Write("Exact 40-character commit: ");
+                    revision = (Console.ReadLine() ?? "").Trim();
+                    if (String.IsNullOrWhiteSpace(revision)) continue;
+                }
+
                 GitReview(branch, revision);
             }
             catch (Exception ex)
@@ -288,6 +312,57 @@ internal static class WgdotNative
         if (!hasBaseline)
             Console.WriteLine("No baseline exists yet, so this first-install review uses reset semantics.");
         Console.ResetColor();
+    }
+
+    static List<string> GetRemoteBranches()
+    {
+        RequireExecutable("git.exe", "Git is required for WGDot Git-testing mode.");
+
+        Directory.CreateDirectory(CacheRoot);
+        string verifyRoot = Path.Combine(CacheRoot, "git-verify");
+
+        if (!Directory.Exists(Path.Combine(verifyRoot, ".git")))
+        {
+            if (Directory.Exists(verifyRoot)) Directory.Delete(verifyRoot, true);
+            ProcResult clone = Run("git.exe", "clone --filter=blob:none --no-checkout " + Q(RepoUrl) + " " + Q(verifyRoot), null);
+            if (clone.ExitCode != 0)
+                throw new Exception("Could not initialize Git-testing verification clone: " + LastUsefulLine(clone.StdErr));
+        }
+
+        ProcResult fetch = Run("git.exe", "-C " + Q(verifyRoot) + " fetch --prune origin \"+refs/heads/*:refs/remotes/origin/*\"", null);
+        if (fetch.ExitCode != 0)
+            throw new Exception("Could not fetch remote branches: " + LastUsefulLine(fetch.StdErr));
+
+        ProcResult refs = Run(
+            "git.exe",
+            "-C " + Q(verifyRoot) + " for-each-ref --format=%(refname:strip=3) refs/remotes/origin",
+            null);
+        if (refs.ExitCode != 0)
+            throw new Exception("Could not list remote branches: " + LastUsefulLine(refs.StdErr));
+
+        return (refs.StdOut ?? "")
+            .Replace("\r", "")
+            .Split('\n')
+            .Select(x => x.Trim())
+            .Where(x => !String.IsNullOrWhiteSpace(x) && !String.Equals(x, "HEAD", StringComparison.OrdinalIgnoreCase))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(x => String.Equals(x, GetPreferredGitBranch(), StringComparison.OrdinalIgnoreCase) ? 0 : 1)
+            .ThenBy(x => x, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    static string GetPreferredGitBranch()
+    {
+        var state = ReadJson(BootstrapStatePath);
+        if (state != null)
+        {
+            string sourceRef = GetString(state, "sourceRef");
+            if (!String.IsNullOrWhiteSpace(sourceRef) &&
+                !String.Equals(sourceRef, "main", StringComparison.OrdinalIgnoreCase))
+                return sourceRef;
+        }
+
+        return "feature/wgdot-maintenance";
     }
 
     static string ResolveGitRevision(string branch, string requestedRevision)
