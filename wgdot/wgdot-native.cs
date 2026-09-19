@@ -9,6 +9,7 @@ using System.Linq;
 using System.Net;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
+using System.Security.AccessControl;
 using System.Security.Principal;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -18,7 +19,7 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-32";
+    const string Version = "native-preview-33";
     const int WingetPreflightTimeoutMs = 30000;
     const string RepoFullName = "dillacorn/win-glaze-dots";
     const string RepoUrl = "https://github.com/dillacorn/win-glaze-dots.git";
@@ -3469,6 +3470,22 @@ internal static class WgdotNative
         return tweakId + "|" + hive + "|" + path + "|" + name;
     }
 
+    static RegistryKey OpenRegistryKeyForValueWrite(
+        string hive,
+        string path)
+    {
+        RegistryKey root = GetRegistryRoot(hive, true);
+
+        RegistryKey existing = root.OpenSubKey(
+            path,
+            RegistryKeyPermissionCheck.ReadWriteSubTree,
+            RegistryRights.QueryValues | RegistryRights.SetValue);
+        if (existing != null)
+            return existing;
+
+        return root.CreateSubKey(path);
+    }
+
     static void SetRegistryValueWithSnapshot(
         string tweakId,
         string hive,
@@ -3477,13 +3494,22 @@ internal static class WgdotNative
         object value,
         RegistryValueKind kind)
     {
-        CaptureRegistryOriginal(tweakId, hive, path, name);
-
-        RegistryKey root = GetRegistryRoot(hive, true);
-        using (RegistryKey key = root.CreateSubKey(path))
+        try
         {
-            if (key == null) throw new Exception("Could not open registry key: " + hive + "\\" + path);
-            key.SetValue(name, value, kind);
+            CaptureRegistryOriginal(tweakId, hive, path, name);
+
+            using (RegistryKey key = OpenRegistryKeyForValueWrite(hive, path))
+            {
+                if (key == null)
+                    throw new Exception("Could not open registry key: " + hive + "\\" + path);
+                key.SetValue(name, value, kind);
+            }
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            throw new UnauthorizedAccessException(
+                "Registry access denied: " + hive + "\\" + path + "\\" + name,
+                ex);
         }
     }
 
@@ -3594,8 +3620,7 @@ internal static class WgdotNative
             string name = GetString(record, "name");
             bool exists = GetBool(record, "exists");
 
-            RegistryKey root = GetRegistryRoot(hive, true);
-            using (RegistryKey key = root.CreateSubKey(path))
+            using (RegistryKey key = OpenRegistryKeyForValueWrite(hive, path))
             {
                 if (key == null) continue;
 
@@ -4186,6 +4211,7 @@ public static class Program
         SetRegistryValueWithSnapshot(id, "HKCU",
             @"Software\Microsoft\Windows\CurrentVersion\Search",
             "SearchboxTaskbarMode", 0, RegistryValueKind.DWord);
+        Console.WriteLine("Taskbar Search hidden.");
         SetRegistryValueWithSnapshot(id, "HKCU",
             @"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced",
             "ShowTaskViewButton", 0, RegistryValueKind.DWord);
