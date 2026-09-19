@@ -107,6 +107,8 @@ Assert-True ($nativeSourceText -match 'releases/latest') "native runtime resolve
 Assert-True ($nativeSourceText -match 'TryRefreshRuntimeAndRun') "native runtime checks for runtime refreshes"
 Assert-True ($nativeSourceText -match 'wgdot-next-') "native runtime stages a replacement executable safely"
 Assert-True ($nativeSourceText -match 'CreateRuntimeSwapHelper') "native runtime defers replacing the running executable"
+Assert-True ($nativeSourceText -match '"mark-runtime"') "runtime revision is recorded by the successfully swapped executable"
+Assert-True ($nativeSourceText -match 'WGDOT_SKIP_RUNTIME_REFRESH') "staged runtime avoids recursive refresh while being previewed"
 Assert-True ($nativeSourceText -match '"maintenance-self-test"') "native runtime exposes isolated maintenance self-test"
 Assert-True ($nativeSourceText -match 'WGDOT_TEST_ROOT') "native maintenance self-test redirects state away from normal WGDot state"
 Assert-True ($nativeSourceText -match 'Review only\. No files, backups, baselines, or selection state were changed\.') "native Git review is explicitly non-mutating"

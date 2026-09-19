@@ -17,7 +17,7 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-10";
+    const string Version = "native-preview-11";
     const string RepoFullName = "dillacorn/win-glaze-dots";
     const string RepoUrl = "https://github.com/dillacorn/win-glaze-dots.git";
     const string ApiBase = "https://api.github.com/repos/dillacorn/win-glaze-dots";
@@ -112,6 +112,7 @@ internal static class WgdotNative
             if (command == "menu") return Menu();
             if (command == "self-test") return SelfTest();
             if (command == "git-review") return GitReviewFromArgs(args.Skip(1).ToArray());
+            if (command == "mark-runtime") return MarkRuntimeFromArgs(args.Skip(1).ToArray());
             if (command == "maintenance-self-test") return MaintenanceSelfTest();
             if (command == "software") return SoftwareReconcile();
             if (command == "update") return ManagedOperation("update", ResolveDefaultSource());
@@ -212,7 +213,8 @@ internal static class WgdotNative
     {
         try
         {
-            if (TryRefreshRuntimeAndRun())
+            if (!String.Equals(Environment.GetEnvironmentVariable("WGDOT_SKIP_RUNTIME_REFRESH"), "1", StringComparison.Ordinal) &&
+                TryRefreshRuntimeAndRun())
                 return 0;
         }
         catch (Exception ex)
@@ -333,13 +335,8 @@ internal static class WgdotNative
         if (test.ExitCode != 0)
             throw new Exception("Refreshed runtime self-test failed: " + LastUsefulLine(test.StdErr));
 
-        state["sourceRef"] = sourceRef;
-        state["sourceRevision"] = remoteRevision;
-        state["refreshedAt"] = DateTime.UtcNow.ToString("o");
-        WriteJson(BootstrapStatePath, state);
-
         string installedExe = Path.Combine(BinRoot, "wgdot.exe");
-        string helper = CreateRuntimeSwapHelper(nextExe, installedExe);
+        string helper = CreateRuntimeSwapHelper(nextExe, installedExe, sourceRef, remoteRevision);
 
         var helperInfo = new ProcessStartInfo();
         helperInfo.FileName = "cmd.exe";
@@ -353,8 +350,28 @@ internal static class WgdotNative
         Console.ResetColor();
         Console.WriteLine();
 
-        RunInteractive(nextExe, "menu");
+        RunInteractiveStagedRuntime(nextExe, "menu");
         return true;
+    }
+
+    static int MarkRuntimeFromArgs(string[] args)
+    {
+        string sourceRef = GetOption(args, "--ref");
+        string revision = GetOption(args, "--revision");
+
+        if (String.IsNullOrWhiteSpace(sourceRef))
+            sourceRef = "main";
+        ValidateBranchName(sourceRef);
+
+        if (!Regex.IsMatch(revision ?? "", "^[0-9a-fA-F]{40}$"))
+            throw new Exception("mark-runtime requires a full 40-character revision.");
+
+        var state = ReadJson(BootstrapStatePath) ?? new Dictionary<string, object>();
+        state["sourceRef"] = sourceRef;
+        state["sourceRevision"] = revision.ToLowerInvariant();
+        state["refreshedAt"] = DateTime.UtcNow.ToString("o");
+        WriteJson(BootstrapStatePath, state);
+        return 0;
     }
 
     static void CompileNativeSource(string sourcePath, string outputPath)
@@ -386,7 +403,7 @@ internal static class WgdotNative
         return File.Exists(x86) ? x86 : "";
     }
 
-    static string CreateRuntimeSwapHelper(string sourceExe, string destinationExe)
+    static string CreateRuntimeSwapHelper(string sourceExe, string destinationExe, string sourceRef, string revision)
     {
         string helper = Path.Combine(Path.GetTempPath(), "wgdot-swap-" + Guid.NewGuid().ToString("N") + ".cmd");
         var lines = new List<string>();
@@ -403,6 +420,8 @@ internal static class WgdotNative
         lines.Add("ping 127.0.0.1 -n 2 >nul");
         lines.Add("goto retry");
         lines.Add(":done");
+        lines.Add("\"%DST%\" mark-runtime --ref " + Q(sourceRef) + " --revision " + Q(revision) + " >nul 2>&1");
+        lines.Add("if errorlevel 1 goto failed");
         lines.Add("del /q \"%SRC%\" >nul 2>&1");
         lines.Add("del /q \"%~f0\" >nul 2>&1");
         lines.Add("exit /b 0");
@@ -2211,6 +2230,24 @@ internal static class WgdotNative
             string stderr = p.StandardError.ReadToEnd();
             p.WaitForExit();
             return new ProcResult { ExitCode = p.ExitCode, StdOut = stdout, StdErr = stderr };
+        }
+    }
+
+    static ProcResult RunInteractiveStagedRuntime(string fileName, string arguments)
+    {
+        var psi = new ProcessStartInfo();
+        psi.FileName = fileName;
+        psi.Arguments = arguments;
+        psi.UseShellExecute = false;
+        psi.RedirectStandardOutput = false;
+        psi.RedirectStandardError = false;
+        psi.CreateNoWindow = false;
+        psi.EnvironmentVariables["WGDOT_SKIP_RUNTIME_REFRESH"] = "1";
+
+        using (Process p = Process.Start(psi))
+        {
+            p.WaitForExit();
+            return new ProcResult { ExitCode = p.ExitCode, StdOut = "", StdErr = "" };
         }
     }
 
