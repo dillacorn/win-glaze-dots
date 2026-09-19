@@ -137,12 +137,19 @@ try {
 
     $oldIndex = [pscustomobject]@{ files = @([pscustomobject]@{ fileId = "fake-file"; component = "fake"; destination = $live; sha256 = (Get-WgdotSha256 -Path (Get-WgdotBaselinePath -FileId "fake-file")) }) }
     Write-WgdotJson -Path $script:BaselineIndexPath -Value $oldIndex
-    $removedManifest = [pscustomobject]@{ components = @(); migrations = @() }
-    $removedInstallation = [pscustomobject]@{ components = @(); glazewmProfile = "normal" }
+    $removedManifest = [pscustomobject]@{
+        components = @([pscustomobject]@{ id = "fake"; name = "Fake"; files = @() })
+        migrations = @()
+    }
+    $removedInstallation = [pscustomobject]@{ components = @("fake"); glazewmProfile = "normal" }
     $removedPlan = @(Get-WgdotPlan -Manifest $removedManifest -SourceRoot $sourceRoot -Installation $removedInstallation -Mode update)
-    Assert-Equal "REMOVED-UPSTREAM" $removedPlan[0].Status "upstream removal is tracked"
+    Assert-Equal "REMOVED-UPSTREAM" $removedPlan[0].Status "upstream removal is tracked for a still-selected component"
     Assert-Equal "PRESERVE" $removedPlan[0].Action "upstream removal preserves live file"
     Assert-True (-not [bool]$removedPlan[0].CommitTargetBaseline) "removed-upstream does not advance baseline"
+
+    $deselectedInstallation = [pscustomobject]@{ components = @(); glazewmProfile = "normal" }
+    $deselectedPlan = @(Get-WgdotPlan -Manifest $removedManifest -SourceRoot $sourceRoot -Installation $deselectedInstallation -Mode update)
+    Assert-Equal 0 $deselectedPlan.Count "deselected components stop baseline ownership without deleting live files"
 
     $backup = New-WgdotBackup -Path $live -Operation "test"
     Assert-True (Test-Path -LiteralPath $backup -PathType Leaf) "backup was created"
@@ -156,6 +163,32 @@ try {
 
     Set-Content -LiteralPath (Join-Path $legacy ".git\config") -Value '[remote "origin"]`nurl = https://example.invalid/custom.git'
     Assert-True (-not (Test-WgdotLegacyMigrationMatch -Migration $migration)) "custom same-name Yazi plugin is not treated as managed legacy"
+
+    $knownLegacy = Join-Path $temp "known-clipboard.yazi"
+    New-Item -ItemType Directory -Path (Join-Path $knownLegacy ".git") -Force | Out-Null
+    Set-Content -LiteralPath (Join-Path $knownLegacy ".git\config") -Value '[remote "origin"]`nurl = https://github.com/XYenon/clipboard.yazi.git'
+    $migrationManifest = [pscustomobject]@{
+        components = @()
+        migrations = @([pscustomobject]@{
+            id = "remove-test-legacy"
+            component = "yazi"
+            path = $knownLegacy
+            type = "git-remote-directory"
+            expectedRemoteFragment = "XYenon/clipboard.yazi"
+        })
+    }
+    $migrationInstallation = [pscustomobject]@{ components = @("yazi"); glazewmProfile = "normal" }
+    Invoke-WgdotMigrations -Manifest $migrationManifest -Installation $migrationInstallation
+    Assert-True (-not (Test-Path -LiteralPath $knownLegacy)) "known legacy migration removes the positively identified directory"
+    $migrationState = Read-WgdotJson -Path $script:BackupStatePath
+    $migrationBackup = @($migrationState.records | Where-Object { $_.operation -eq "migration" -and $_.original -eq $knownLegacy } | Select-Object -Last 1)
+    Assert-True ($migrationBackup.Count -eq 1) "legacy directory migration records one backup"
+    Assert-True (Test-Path -LiteralPath ([string]$migrationBackup[0].backup) -PathType Container) "legacy directory migration creates an adjacent directory backup"
+
+    $script:ConfigStatePath = Join-Path $temp "config.json"
+    $reviewResult = Invoke-WgdotPlan -Plan @($plan) -Manifest $fakeManifest -Installation $installation -SourceMode stable -Tag "v9.9.9" -Revision ("a" * 40) -ReviewOnly
+    Assert-True (-not [bool]$reviewResult) "review reports no apply"
+    Assert-True (-not (Test-Path -LiteralPath $script:ConfigStatePath)) "review does not write config state"
 } finally {
     Remove-Item -LiteralPath $temp -Recurse -Force -ErrorAction SilentlyContinue
 }

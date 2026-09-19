@@ -508,8 +508,10 @@ function Get-WgdotPlan {
     if ($null -ne $oldIndex) {
         $currentIds = @{}
         foreach ($item in $plan) { $currentIds[$item.FileId] = $true }
+        $selectedComponentIds = @{}
+        foreach ($component in $selectedComponents) { $selectedComponentIds[[string]$component.id] = $true }
         foreach ($old in @($oldIndex.files)) {
-            if (-not $currentIds.ContainsKey([string]$old.fileId)) {
+            if ($selectedComponentIds.ContainsKey([string]$old.component) -and -not $currentIds.ContainsKey([string]$old.fileId)) {
                 $destination = [string]$old.destination
                 if (Test-Path -LiteralPath $destination) {
                     $plan += [pscustomobject]@{
@@ -576,7 +578,7 @@ function New-WgdotBackup {
         [Parameter(Mandatory = $true)][string]$Operation
     )
 
-    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
+    if (-not (Test-Path -LiteralPath $Path)) {
         return $null
     }
 
@@ -591,7 +593,11 @@ function New-WgdotBackup {
         }
     }
 
-    Copy-Item -LiteralPath $Path -Destination $backup
+    if (Test-Path -LiteralPath $Path -PathType Container) {
+        Copy-Item -LiteralPath $Path -Destination $backup -Recurse
+    } else {
+        Copy-Item -LiteralPath $Path -Destination $backup
+    }
     Add-WgdotBackupRecord -Original $Path -Backup $backup -Operation $Operation
     return $backup
 }
@@ -700,7 +706,9 @@ function Invoke-WgdotMigrations {
         if (Test-WgdotLegacyMigrationMatch -Migration $migration) {
             Write-Host "MIGRATION matched: $($migration.id) -> $path"
             if (-not $WhatIfOnly) {
+                $backup = New-WgdotBackup -Path $path -Operation "migration"
                 Remove-Item -LiteralPath $path -Recurse -Force
+                Write-Host "Migration backup: $backup"
             }
         } else {
             Write-Warning "Migration target exists but was not positively identified as WGDot-managed; preserving: $path"
@@ -772,13 +780,15 @@ function Commit-WgdotBaseline {
         }
     }
     Write-WgdotJson -Path $script:BaselineIndexPath -Value ([pscustomobject]@{ files = $index; generatedAt = (Get-Date).ToString("o") })
-    Write-WgdotJson -Path $script:ConfigStatePath -Value ([pscustomobject]@{
-        mode = $SourceMode
-        tag = $Tag
-        revision = $Revision
-        appliedAt = (Get-Date).ToString("o")
-        glazewmProfile = [string]$Installation.glazewmProfile
-    })
+    if ($SourceMode -eq "stable") {
+        Write-WgdotJson -Path $script:ConfigStatePath -Value ([pscustomobject]@{
+            mode = "stable"
+            tag = $Tag
+            revision = $Revision
+            appliedAt = (Get-Date).ToString("o")
+            glazewmProfile = [string]$Installation.glazewmProfile
+        })
+    }
 }
 
 function Invoke-WgdotPlan {
@@ -793,11 +803,407 @@ function Invoke-WgdotPlan {
     )
 
     Show-WgdotPlan -Plan $Plan
-    Invoke-WgdotMigrations -Manifest $Manifest -Installation $Installation -WhatIfOnly:$ReviewOnly
+    Invoke-WgdotMigrations -Manifest $Manifest -Installation $Installation -WhatIfOnly
     if ($ReviewOnly) {
         Write-Host ""
         Write-Host "Review only: no changes were applied." -ForegroundColor Green
+        return $false
+    }
+
+    Write-Host ""
+    $confirm = Read-Host "Apply exactly this plan? [y/N]"
+    if ($confirm -notmatch '^[Yy]
+        if ($item.Action -eq "NONE" -or $item.Action -eq "PRESERVE") { continue }
+        if ($item.Action -eq "MERGE") {
+            if (Invoke-WgdotMerge -Item $item) {
+                $item.CommitTargetBaseline = $true
+            }
+            continue
+        }
+        if ($item.Action -eq "REPLACE") {
+            New-WgdotBackup -Path $item.Destination -Operation "replace" | Out-Null
+        }
+        Invoke-WgdotAtomicCopy -Source $item.Target -Destination $item.Destination -Validator $item.Validator
+    }
+
+    Invoke-WgdotMigrations -Manifest $Manifest -Installation $Installation
+    Invoke-WgdotPostActions -Manifest $Manifest -Installation $Installation
+    Commit-WgdotBaseline -Plan $Plan -SourceMode $SourceMode -Tag $Tag -Revision $Revision -Installation $Installation
+    Write-Host "WGDot managed configuration applied." -ForegroundColor Green
+    return $true
+}
+
+function Resolve-WgdotStableSource {
+    $release = Get-WgdotStableRelease
+    $source = Get-WgdotSourceRoot -Revision $release.Revision
+    $manifest = Read-WgdotManifest -SourceRoot $source
+    return [pscustomobject]@{ Release = $release; Source = $source; Manifest = $manifest }
+}
+
+function Get-WgdotGitRevision {
+    param(
+        [Parameter(Mandatory = $true)][string]$Branch,
+        [string]$Revision
+    )
+
+    $git = Get-Command git.exe -ErrorAction SilentlyContinue
+    if ($null -eq $git) { throw "Git is required for WGDot Git-testing mode." }
+
+    $tmp = Join-Path $script:CacheRoot "git-verify"
+    if (-not (Test-Path -LiteralPath (Join-Path $tmp ".git"))) {
+        if (Test-Path -LiteralPath $tmp) { Remove-Item -LiteralPath $tmp -Recurse -Force }
+        & $git.Source clone --filter=blob:none --no-checkout $script:RepoUrl $tmp | Out-Null
+        if ($LASTEXITCODE -ne 0) { throw "Could not initialize Git-testing verification clone." }
+    }
+
+    & $git.Source -C $tmp fetch --prune origin "+refs/heads/*:refs/remotes/origin/*" | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw "Could not fetch remote branches." }
+
+    $branchRef = "refs/remotes/origin/$Branch"
+    $head = (& $git.Source -C $tmp rev-parse --verify $branchRef 2>$null).Trim()
+    if ($LASTEXITCODE -ne 0 -or $head -notmatch '^[0-9a-fA-F]{40}$') {
+        throw "Remote branch '$Branch' was not found."
+    }
+
+    if ([string]::IsNullOrWhiteSpace($Revision)) {
+        return $head.ToLowerInvariant()
+    }
+    if ($Revision -notmatch '^[0-9a-fA-F]{40}$') {
+        throw "Exact Git-testing revision must be a full 40-character SHA."
+    }
+
+    & $git.Source -C $tmp cat-file -e "$Revision^{commit}" 2>$null
+    if ($LASTEXITCODE -ne 0) { throw "Commit '$Revision' is unavailable after fetching the selected repository." }
+    & $git.Source -C $tmp merge-base --is-ancestor $Revision $branchRef
+    if ($LASTEXITCODE -ne 0) { throw "Commit '$Revision' does not belong to branch '$Branch'." }
+    return $Revision.ToLowerInvariant()
+}
+
+function Invoke-WgdotManagedOperation {
+    param(
+        [ValidateSet("update", "reset", "review")][string]$Mode,
+        [ValidateSet("stable", "git")][string]$SourceMode = "stable",
+        [string]$Branch,
+        [string]$Revision
+    )
+
+    Initialize-WgdotStateDirectories
+    $previousStable = $null
+    $previousConfig = Read-WgdotJson -Path $script:ConfigStatePath
+    if ($null -ne $previousConfig -and [string]$previousConfig.mode -eq "stable") {
+        $previousStable = [string]$previousConfig.tag
+    } else {
+        $previousGit = Read-WgdotJson -Path $script:GitStatePath
+        if ($null -ne $previousGit -and $previousGit.PSObject.Properties.Name -contains "stableRelease") {
+            $previousStable = [string]$previousGit.stableRelease
+        }
+    }
+
+    if ($SourceMode -eq "stable") {
+        $resolved = Resolve-WgdotStableSource
+        $sourceRoot = $resolved.Source
+        $manifest = $resolved.Manifest
+        $sourceRevision = [string]$resolved.Release.Revision
+        $tag = [string]$resolved.Release.Tag
+    } else {
+        if ([string]::IsNullOrWhiteSpace($Branch)) { throw "Git-testing requires a branch." }
+        $sourceRevision = Get-WgdotGitRevision -Branch $Branch -Revision $Revision
+        $sourceRoot = Get-WgdotSourceRoot -Revision $sourceRevision
+        $manifest = Read-WgdotManifest -SourceRoot $sourceRoot
+        $tag = $null
+    }
+
+    $installation = Read-WgdotJson -Path $script:InstallStatePath
+    $selectionChanged = $false
+    if ($null -eq $installation -or $Mode -eq "reset") {
+        $installation = New-WgdotInstallationSelection -Manifest $manifest
+        if ($null -eq $installation) { return }
+        $selectionChanged = $true
+    }
+
+    $hasBaseline = Test-Path -LiteralPath $script:BaselineIndexPath -PathType Leaf
+    $effectiveMode = if ($Mode -eq "reset" -or -not $hasBaseline) { "reset" } else { "update" }
+    $plan = @(Get-WgdotPlan -Manifest $manifest -SourceRoot $sourceRoot -Installation $installation -Mode $effectiveMode)
+    $review = ($Mode -eq "review") -or $ReviewOnly
+    $applied = Invoke-WgdotPlan -Plan $plan -Manifest $manifest -Installation $installation -SourceMode $SourceMode -Tag $tag -Revision $sourceRevision -ReviewOnly:$review
+
+    if ($review -or -not $applied) {
         return
+    }
+
+    if ($selectionChanged) {
+        Write-WgdotJson -Path $script:InstallStatePath -Value $installation
+    }
+
+    if ($SourceMode -eq "git") {
+        Write-WgdotJson -Path $script:GitStatePath -Value ([pscustomobject]@{
+            branch = $Branch
+            revision = $sourceRevision
+            stableRelease = $previousStable
+            testedAt = (Get-Date).ToString("o")
+        })
+    } elseif (Test-Path -LiteralPath $script:GitStatePath) {
+        Remove-Item -LiteralPath $script:GitStatePath -Force
+    }
+}
+
+function Test-WgdotPackageAvailable {
+    param([Parameter(Mandatory = $true)][string]$PackageId)
+    $winget = Get-Command winget.exe -ErrorAction SilentlyContinue
+    if ($null -eq $winget) { throw "WinGet was not found." }
+    & $winget.Source show --id $PackageId --exact --source winget --accept-source-agreements *> $null
+    return ($LASTEXITCODE -eq 0)
+}
+
+function Invoke-WgdotSoftwareReconcile {
+    Initialize-WgdotStateDirectories
+    $installation = Read-WgdotJson -Path $script:InstallStatePath
+    $resolved = Resolve-WgdotStableSource
+    $manifest = $resolved.Manifest
+    if ($null -eq $installation) {
+        $installation = New-WgdotInstallationSelection -Manifest $manifest
+        if ($null -eq $installation) { return }
+        Write-WgdotJson -Path $script:InstallStatePath -Value $installation
+    }
+
+    $wanted = @{}
+    foreach ($id in @($installation.packages)) { $wanted[[string]$id] = $true }
+    $winget = Get-Command winget.exe -ErrorAction SilentlyContinue
+    if ($null -eq $winget) { throw "WinGet was not found." }
+
+    foreach ($package in $manifest.packages) {
+        $id = [string]$package.id
+        if (-not $wanted.ContainsKey($id)) { continue }
+        Write-Host "Checking $id..."
+        if (-not (Test-WgdotPackageAvailable -PackageId $id)) {
+            Write-Warning "WinGet package not currently available by exact ID: $id"
+            continue
+        }
+        $installedOutput = (& $winget.Source list --id $id --exact --source winget --accept-source-agreements 2>$null | Out-String)
+        if ($installedOutput.IndexOf($id, [System.StringComparison]::OrdinalIgnoreCase) -lt 0) {
+            Write-Host "Installing $id"
+            & $winget.Source install --id $id --exact --source winget --accept-source-agreements --accept-package-agreements
+        }
+    }
+
+    Write-Host ""
+    $answer = Read-Host "Check selected packages for upgrades now? [y/N]"
+    if ($answer -match '^[Yy]$') {
+        foreach ($package in $manifest.packages) {
+            $id = [string]$package.id
+            if (-not $wanted.ContainsKey($id)) { continue }
+            $upgradeOutput = (& $winget.Source list --id $id --exact --upgrade-available --source winget --accept-source-agreements 2>$null | Out-String)
+            if ($upgradeOutput.IndexOf($id, [System.StringComparison]::OrdinalIgnoreCase) -lt 0) { continue }
+            $approve = Read-Host "Upgrade $id? [y/N]"
+            if ($approve -match '^[Yy]$') {
+                & $winget.Source upgrade --id $id --exact --source winget --accept-source-agreements --accept-package-agreements
+            }
+        }
+    }
+}
+
+function Convert-WgdotPlanToPowerShell {
+    param([Parameter(Mandatory = $true)][object[]]$Plan)
+
+    Write-Host "# Pasteable PowerShell generated from the same WGDot plan"
+    Write-Host '$ErrorActionPreference = "Stop"'
+    foreach ($item in $Plan) {
+        $dest = $item.Destination.Replace("'", "''")
+        if ($item.Action -eq "NONE" -or $item.Action -eq "PRESERVE") {
+            Write-Host "# $($item.Status): preserve '$dest'"
+            continue
+        }
+        $src = ([string]$item.Target).Replace("'", "''")
+        Write-Host "`$dest = '$dest'"
+        Write-Host "`$src = '$src'"
+        Write-Host "New-Item -ItemType Directory -Force -Path (Split-Path -Parent `$dest) | Out-Null"
+        Write-Host "if (Test-Path -LiteralPath `$dest) {"
+        Write-Host '    $backup = "$dest.wgdot.backup"'
+        Write-Host '    if (Test-Path -LiteralPath $backup) { $backup = "$dest.wgdot.backup.$(Get-Date -Format ''yyyyMMdd-HHmmss'')" }' 
+        Write-Host "    Copy-Item -LiteralPath `$dest -Destination `$backup"
+        Write-Host "}"
+        Write-Host "Copy-Item -LiteralPath `$src -Destination `$dest -Force"
+        Write-Host ""
+    }
+}
+
+function Show-WgdotManualCommands {
+    $resolved = Resolve-WgdotStableSource
+    $installation = Read-WgdotJson -Path $script:InstallStatePath
+    if ($null -eq $installation) {
+        $installation = New-WgdotInstallationSelection -Manifest $resolved.Manifest
+        if ($null -eq $installation) { return }
+    }
+    $mode = if ($null -eq (Read-WgdotJson -Path $script:ConfigStatePath)) { "reset" } else { "update" }
+    $plan = @(Get-WgdotPlan -Manifest $resolved.Manifest -SourceRoot $resolved.Source -Installation $installation -Mode $mode)
+    Convert-WgdotPlanToPowerShell -Plan $plan
+}
+
+function Show-WgdotBackupManager {
+    Initialize-WgdotStateDirectories
+    $state = Read-WgdotJson -Path $script:BackupStatePath
+    $records = @()
+    if ($null -ne $state -and $state.PSObject.Properties.Name -contains "records") {
+        $records = @($state.records | Where-Object { Test-Path -LiteralPath ([string]$_.backup) })
+    }
+    Write-WgdotTitle -Subtitle "Backup manager"
+    if ($records.Count -eq 0) {
+        Write-Host "No recorded WGDot backups exist."
+        [Console]::ReadKey($true) | Out-Null
+        return
+    }
+
+    $ageText = Read-Host "Only show backups older than N days (blank = all)"
+    if (-not [string]::IsNullOrWhiteSpace($ageText)) {
+        $days = 0
+        if (-not [int]::TryParse($ageText, [ref]$days) -or $days -lt 0) {
+            Write-Warning "Invalid age filter; showing all backups."
+        } else {
+            $cutoff = (Get-Date).AddDays(-$days)
+            $records = @($records | Where-Object { [datetime]$_.createdAt -lt $cutoff })
+        }
+    }
+
+    if ($records.Count -eq 0) {
+        Write-Host "No WGDot backups match that filter."
+        [Console]::ReadKey($true) | Out-Null
+        return
+    }
+
+    $choices = @()
+    for ($i = 0; $i -lt $records.Count; $i++) {
+        $record = $records[$i]
+        $choices += [pscustomobject]@{
+            Id = [string]$i
+            Label = "$($record.createdAt)  $($record.backup)"
+            Selected = $false
+        }
+    }
+    $choices = Read-WgdotMultiChoice -Title "Select WGDot backups to delete" -Items $choices
+    if ($null -eq $choices) { return }
+    $selected = @($choices | Where-Object { $_.Selected })
+    if ($selected.Count -eq 0) { return }
+
+    Write-WgdotTitle -Subtitle "Backup cleanup review"
+    foreach ($choice in $selected) {
+        Write-Host "DELETE  $($records[[int]$choice.Id].backup)"
+    }
+    Write-Host ""
+    Write-Host "Dry-run complete. Nothing has been deleted yet." -ForegroundColor Yellow
+    $confirm = Read-Host "Delete exactly these recorded WGDot backups? [y/N]"
+    if ($confirm -notmatch '^[Yy]$') { return }
+
+    $deleteSet = @{}
+    foreach ($choice in $selected) {
+        $record = $records[[int]$choice.Id]
+        $deleteSet[[string]$record.backup] = $true
+        if (Test-Path -LiteralPath ([string]$record.backup) -PathType Container) {
+            Remove-Item -LiteralPath ([string]$record.backup) -Recurse -Force
+        } elseif (Test-Path -LiteralPath ([string]$record.backup) -PathType Leaf) {
+            Remove-Item -LiteralPath ([string]$record.backup) -Force
+        }
+    }
+
+    $allRecords = @()
+    if ($null -ne $state -and $state.PSObject.Properties.Name -contains "records") { $allRecords = @($state.records) }
+    $remaining = @($allRecords | Where-Object { -not $deleteSet.ContainsKey([string]$_.backup) })
+    Write-WgdotJson -Path $script:BackupStatePath -Value ([pscustomobject]@{ records = $remaining })
+    Write-Host "Selected WGDot backups deleted." -ForegroundColor Green
+    [Console]::ReadKey($true) | Out-Null
+}
+
+function Show-WgdotStatus {
+    Write-WgdotTitle -Subtitle "Version / status"
+    $runtime = Read-WgdotJson -Path $script:RuntimeStatePath
+    $config = Read-WgdotJson -Path $script:ConfigStatePath
+    $install = Read-WgdotJson -Path $script:InstallStatePath
+    $git = Read-WgdotJson -Path $script:GitStatePath
+    Write-Host "Runtime:    $($runtime | ConvertTo-Json -Compress)"
+    Write-Host "Config:     $($config | ConvertTo-Json -Compress)"
+    Write-Host "Selection:  $($install | ConvertTo-Json -Compress -Depth 10)"
+    Write-Host "Git test:   $($git | ConvertTo-Json -Compress)"
+    Write-Host ""
+    Write-Host "Press any key to return."
+    [Console]::ReadKey($true) | Out-Null
+}
+
+function Show-WgdotGitMenu {
+    $branchName = Read-Host "Remote branch"
+    if ([string]::IsNullOrWhiteSpace($branchName)) { return }
+    $exact = Read-Host "Exact 40-character commit (optional; Enter uses branch head)"
+    $modeIndex = Read-WgdotSingleChoice -Title "Git-testing operation" -Items @("Review", "Update", "Reset")
+    if ($modeIndex -lt 0) { return }
+    $mode = @("review", "update", "reset")[$modeIndex]
+    Invoke-WgdotManagedOperation -Mode $mode -SourceMode git -Branch $branchName -Revision $exact
+    Write-Host ""
+    Write-Host "Press any key to continue."
+    [Console]::ReadKey($true) | Out-Null
+}
+
+function Show-WgdotMenu {
+    Initialize-WgdotStateDirectories
+    try {
+        $refreshed = Update-WgdotRuntimeFromMain
+        if ($refreshed -and (Test-Path -LiteralPath $script:RuntimeScriptPath -PathType Leaf)) {
+            Write-Host "Restarting with refreshed WGDot runtime..."
+            & powershell.exe -NoLogo -NoProfile -File $script:RuntimeScriptPath menu
+            return
+        }
+    } catch {
+        Write-Warning "Runtime refresh check failed: $($_.Exception.Message)"
+    }
+
+    while ($true) {
+        $items = @(
+            "Update managed dots",
+            "Install / reconcile software",
+            "Reset / reconfigure managed dots",
+            "Review changes without applying",
+            "Backup manager",
+            "Manual PowerShell commands",
+            "Version / status",
+            "Advanced / Git testing",
+            "Exit"
+        )
+        $choice = Read-WgdotSingleChoice -Title "Maintenance" -Items $items
+        if ($choice -lt 0 -or $choice -eq 8) { return }
+        try {
+            if ($choice -eq 0) { Invoke-WgdotManagedOperation -Mode update -SourceMode stable }
+            elseif ($choice -eq 1) { Invoke-WgdotSoftwareReconcile }
+            elseif ($choice -eq 2) { Invoke-WgdotManagedOperation -Mode reset -SourceMode stable }
+            elseif ($choice -eq 3) { Invoke-WgdotManagedOperation -Mode review -SourceMode stable }
+            elseif ($choice -eq 4) { Show-WgdotBackupManager }
+            elseif ($choice -eq 5) { Write-WgdotTitle -Subtitle "Manual PowerShell commands"; Show-WgdotManualCommands; Write-Host ""; Write-Host "Press any key to return."; [Console]::ReadKey($true) | Out-Null }
+            elseif ($choice -eq 6) { Show-WgdotStatus }
+            elseif ($choice -eq 7) { Show-WgdotGitMenu }
+        } catch {
+            Write-Host ""
+            Write-Host "ERROR: $($_.Exception.Message)" -ForegroundColor Red
+            Write-Host "Press any key to return."
+            [Console]::ReadKey($true) | Out-Null
+        }
+    }
+}
+
+if ($env:WGDOT_TEST_MODE -ne "1") {
+    switch ($Command.ToLowerInvariant()) {
+        "menu" { Show-WgdotMenu }
+        "install" { Install-WgdotRuntime }
+        "update" { Invoke-WgdotManagedOperation -Mode update -SourceMode stable }
+        "reset" { Invoke-WgdotManagedOperation -Mode reset -SourceMode stable }
+        "review" { Invoke-WgdotManagedOperation -Mode review -SourceMode stable }
+        "software" { Invoke-WgdotSoftwareReconcile }
+        "manual" { Show-WgdotManualCommands }
+        "git" {
+            if ([string]::IsNullOrWhiteSpace($Branch)) { throw "Use -Branch with the git command." }
+            Invoke-WgdotManagedOperation -Mode $(if ($ReviewOnly) { "review" } else { "update" }) -SourceMode git -Branch $Branch -Revision $Revision
+        }
+        default { throw "Unknown WGDot command '$Command'. Run wgdot with no arguments for the menu." }
+    }
+}
+) {
+        Write-Host "No changes were applied." -ForegroundColor Yellow
+        return $false
     }
 
     foreach ($item in $Plan) {

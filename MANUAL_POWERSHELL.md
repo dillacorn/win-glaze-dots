@@ -79,8 +79,14 @@ $legacyClipboard = Join-Path $env:APPDATA "yazi\config\plugins\clipboard.yazi"
 $legacyGitConfig = Join-Path $legacyClipboard ".git\config"
 if (Test-Path -LiteralPath $legacyClipboard -PathType Container) {
     if ((Test-Path -LiteralPath $legacyGitConfig -PathType Leaf) -and ((Get-Content -LiteralPath $legacyGitConfig -Raw).IndexOf("XYenon/clipboard.yazi", [StringComparison]::OrdinalIgnoreCase) -ge 0)) {
+        $legacyBackup = "$legacyClipboard.wgdot.backup"
+        if (Test-Path -LiteralPath $legacyBackup) {
+            $legacyBackup = "$legacyClipboard.wgdot.backup.$(Get-Date -Format 'yyyyMMdd-HHmmss')"
+        }
+        Copy-Item -LiteralPath $legacyClipboard -Destination $legacyBackup -Recurse
         Remove-Item -LiteralPath $legacyClipboard -Recurse -Force
         Write-Host "Removed known legacy XYenon Yazi clipboard plugin."
+        Write-Host "Backup: $legacyBackup"
     } else {
         Write-Warning "Legacy clipboard.yazi path exists but is not positively identified as the old managed plugin; preserved it."
     }
