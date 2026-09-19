@@ -4,6 +4,13 @@ WGDot's interactive software selector is the preferred installation path. Packag
 
 The default selection is intentionally conservative for public use. Only the WGDot desktop stack, broadly useful defaults, and practical dependencies are enabled by default; personal applications are opt-in.
 
+## Elevation behavior
+
+WGDot keeps the interactive software selector unelevated. After the user reviews and approves the software selection, WGDot preflights the selected WinGet packages, collects any explicitly approved upgrades, and groups missing installs plus administrator-only setup into one internal elevated worker. On a normal unelevated run, this means one UAC approval for the software batch instead of one elevation prompt per installer.
+
+Browser setup, browser launches, post-install application launches, and ordinary user-level tweaks are performed after the elevated worker returns, from the normal WGDot process. WGDot does not require Windows sudo and does not disable or weaken UAC.
+
+
 ## Default ON
 
 - **Git** — `Git.Git`

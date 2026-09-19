@@ -18,7 +18,7 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-25";
+    const string Version = "native-preview-26";
     const string RepoFullName = "dillacorn/win-glaze-dots";
     const string RepoUrl = "https://github.com/dillacorn/win-glaze-dots.git";
     const string ApiBase = "https://api.github.com/repos/dillacorn/win-glaze-dots";
@@ -224,6 +224,7 @@ internal static class WgdotNative
             if (command == "mark-runtime") return MarkRuntimeFromArgs(args.Skip(1).ToArray());
             if (command == "maintenance-self-test") return MaintenanceSelfTest();
             if (command == "software") return SoftwareReconcile();
+            if (command == "software-elevated") return SoftwareElevatedFromArgs(args.Skip(1).ToArray());
             if (command == "flow-open") return OpenFlowLauncher();
             if (command == "eartrumpet-mixer") return OpenEarTrumpetMixer();
             if (command == "gpu-driver") return GpuDriverMaintenance();
@@ -1335,6 +1336,235 @@ internal static class WgdotNative
         throw new Exception("Unknown package post-install action '" + action + "'.");
     }
 
+    static Dictionary<string, object> FindPackageById(
+        Dictionary<string, object> manifest,
+        string packageId)
+    {
+        foreach (object rawPackage in GetList(manifest, "packages"))
+        {
+            var package = AsDictionary(rawPackage);
+            if (String.Equals(
+                    GetString(package, "id"),
+                    packageId,
+                    StringComparison.OrdinalIgnoreCase))
+                return package;
+        }
+        return null;
+    }
+
+    static string NormalizeSoftwarePlanPath(string planPath)
+    {
+        if (String.IsNullOrWhiteSpace(planPath))
+            throw new Exception("Missing WGDot elevated software plan path.");
+
+        string full = Path.GetFullPath(planPath);
+        string root = Path.GetFullPath(StateRoot);
+        string rootPrefix =
+            root.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) +
+            Path.DirectorySeparatorChar;
+        string fileName = Path.GetFileName(full);
+
+        if (!full.StartsWith(rootPrefix, StringComparison.OrdinalIgnoreCase) ||
+            !fileName.StartsWith("software-elevated-", StringComparison.OrdinalIgnoreCase) ||
+            !fileName.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
+            throw new Exception("Elevated software plans must stay inside the WGDot state directory.");
+
+        return full;
+    }
+
+    static int SoftwareElevatedFromArgs(string[] args)
+    {
+        if (!IsAdministrator())
+            throw new Exception("The WGDot software worker requires administrator rights.");
+
+        string planPath = GetOption(args, "--plan");
+        return RunSoftwareElevatedPlan(planPath);
+    }
+
+    static int RunSoftwareElevatedPlan(string rawPlanPath)
+    {
+        string planPath = NormalizeSoftwarePlanPath(rawPlanPath);
+        string resultPath = planPath + ".result";
+        var result = new Dictionary<string, object>();
+        var installedIds = new List<string>();
+        var alreadyIds = new List<string>();
+        var unavailableIds = new List<string>();
+        var failedIds = new List<string>();
+        var upgradedIds = new List<string>();
+        var upgradeFailedIds = new List<string>();
+        var adminTweakFailedIds = new List<string>();
+        int failures = 0;
+
+        try
+        {
+            Dictionary<string, object> plan = ReadJson(planPath);
+            if (plan == null)
+                throw new Exception("WGDot elevated software plan was not found.");
+
+            SourceContext source = ResolveDefaultSource();
+            Dictionary<string, object> manifest = source.Manifest;
+            string expectedRevision = GetString(plan, "sourceRevision");
+            if (!String.IsNullOrWhiteSpace(expectedRevision) &&
+                !String.Equals(expectedRevision, source.Revision, StringComparison.OrdinalIgnoreCase))
+                throw new Exception("WGDot software plan source changed before elevation. Re-run software reconciliation.");
+
+            RequireExecutable("winget.exe", "WinGet was not found.");
+
+            foreach (string id in GetStringList(plan, "packageIds")
+                .Distinct(StringComparer.OrdinalIgnoreCase))
+            {
+                Dictionary<string, object> package = FindPackageById(manifest, id);
+                if (package == null)
+                {
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.WriteLine("Package is no longer present in the active WGDot manifest; skipped: " + id);
+                    Console.ResetColor();
+                    failedIds.Add(id);
+                    failures++;
+                    continue;
+                }
+
+                Console.WriteLine();
+                Console.WriteLine("Installing " + id + "...");
+
+                ProcResult show = Run(
+                    "winget.exe",
+                    "show --id " + Q(id) + " --exact --source winget --accept-source-agreements",
+                    null);
+                if (show.ExitCode != 0)
+                {
+                    string fallbackRepo = GetString(package, "fallbackGitHubRepo");
+                    string fallbackAssetRegex = GetString(package, "fallbackAssetRegex");
+                    if (!String.IsNullOrWhiteSpace(fallbackRepo) &&
+                        !String.IsNullOrWhiteSpace(fallbackAssetRegex))
+                    {
+                        Console.ForegroundColor = ConsoleColor.Yellow;
+                        Console.WriteLine("Exact WinGet ID unavailable; using approved upstream GitHub fallback for " + id + ".");
+                        Console.ResetColor();
+
+                        if (InstallGitHubReleasePackage(package))
+                            installedIds.Add(id);
+                        else
+                        {
+                            failedIds.Add(id);
+                            failures++;
+                        }
+                        continue;
+                    }
+
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.WriteLine("Unavailable by exact WinGet ID; skipped: " + id);
+                    Console.ResetColor();
+                    unavailableIds.Add(id);
+                    continue;
+                }
+
+                ProcResult list = Run(
+                    "winget.exe",
+                    "list --id " + Q(id) + " --exact --source winget --accept-source-agreements",
+                    null);
+                if ((list.StdOut ?? "").IndexOf(id, StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    Console.WriteLine("Already installed.");
+                    alreadyIds.Add(id);
+                    continue;
+                }
+
+                ProcResult install = RunInteractive(
+                    "winget.exe",
+                    "install --id " + Q(id) + " --exact --source winget --accept-source-agreements --accept-package-agreements");
+
+                if (install.ExitCode == 0)
+                {
+                    installedIds.Add(id);
+                }
+                else
+                {
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.WriteLine("Install failed: " + id + " (exit " + install.ExitCode.ToString(CultureInfo.InvariantCulture) + ")");
+                    Console.ResetColor();
+                    failedIds.Add(id);
+                    failures++;
+                }
+            }
+
+            foreach (string id in GetStringList(plan, "upgradeIds")
+                .Distinct(StringComparer.OrdinalIgnoreCase))
+            {
+                if (FindPackageById(manifest, id) == null)
+                {
+                    upgradeFailedIds.Add(id);
+                    failures++;
+                    continue;
+                }
+
+                Console.WriteLine();
+                Console.WriteLine("Upgrading " + id + "...");
+                ProcResult upgrade = RunInteractive(
+                    "winget.exe",
+                    "upgrade --id " + Q(id) + " --exact --source winget --accept-source-agreements --accept-package-agreements");
+
+                if (upgrade.ExitCode == 0)
+                {
+                    upgradedIds.Add(id);
+                }
+                else
+                {
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.WriteLine("Upgrade failed: " + id + " (exit " + upgrade.ExitCode.ToString(CultureInfo.InvariantCulture) + ")");
+                    Console.ResetColor();
+                    upgradeFailedIds.Add(id);
+                    failures++;
+                }
+            }
+
+            foreach (string id in GetStringList(plan, "adminTweakIds")
+                .Distinct(StringComparer.OrdinalIgnoreCase))
+            {
+                if (!TweakNeedsAdministrator(id))
+                {
+                    adminTweakFailedIds.Add(id);
+                    failures++;
+                    continue;
+                }
+
+                try
+                {
+                    ApplyTweak(id, true, false);
+                }
+                catch (Exception ex)
+                {
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.WriteLine("Administrator tweak failed: " + id + ": " + ex.Message);
+                    Console.ResetColor();
+                    adminTweakFailedIds.Add(id);
+                    failures++;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            result["fatalError"] = ex.Message;
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine("WGDot elevated software worker failed: " + ex.Message);
+            Console.ResetColor();
+            failures++;
+        }
+        finally
+        {
+            result["installedIds"] = installedIds;
+            result["alreadyIds"] = alreadyIds;
+            result["unavailableIds"] = unavailableIds;
+            result["failedIds"] = failedIds;
+            result["upgradedIds"] = upgradedIds;
+            result["upgradeFailedIds"] = upgradeFailedIds;
+            result["adminTweakFailedIds"] = adminTweakFailedIds;
+            WriteJson(resultPath, result);
+        }
+
+        return failures == 0 ? 0 : 1;
+    }
+
     static int SoftwareReconcile()
     {
         SourceContext source = ResolveDefaultSource();
@@ -1374,6 +1604,8 @@ internal static class WgdotNative
         Console.WriteLine();
         Console.WriteLine("Only missing packages will be installed.");
         Console.WriteLine("Exact WinGet IDs are validated before install.");
+        Console.WriteLine("Package installs and administrator-only setup are grouped behind one elevation request.");
+        Console.WriteLine("Browser and user-level configuration returns to the normal unelevated WGDot process.");
         Console.WriteLine("No global upgrade command is used.");
         Console.WriteLine();
 
@@ -1386,10 +1618,14 @@ internal static class WgdotNative
         RequireExecutable("winget.exe", "WinGet was not found.");
 
         var wanted = new HashSet<string>(selection.Packages, StringComparer.OrdinalIgnoreCase);
+        var installIds = new List<string>();
+        var installedExistingIds = new List<string>();
+        var upgradeIds = new List<string>();
         int installed = 0;
         int already = 0;
         int unavailable = 0;
         int failed = 0;
+        int upgraded = 0;
 
         foreach (object rawPackage in GetList(manifest, "packages"))
         {
@@ -1408,16 +1644,13 @@ internal static class WgdotNative
             {
                 string fallbackRepo = GetString(package, "fallbackGitHubRepo");
                 string fallbackAssetRegex = GetString(package, "fallbackAssetRegex");
-                if (!String.IsNullOrWhiteSpace(fallbackRepo) && !String.IsNullOrWhiteSpace(fallbackAssetRegex))
+                if (!String.IsNullOrWhiteSpace(fallbackRepo) &&
+                    !String.IsNullOrWhiteSpace(fallbackAssetRegex))
                 {
                     Console.ForegroundColor = ConsoleColor.Yellow;
-                    Console.WriteLine("Exact WinGet ID unavailable; using approved upstream GitHub fallback for " + id + ".");
+                    Console.WriteLine("Exact WinGet ID unavailable; approved upstream fallback will be handled in the elevated batch for " + id + ".");
                     Console.ResetColor();
-
-                    if (InstallGitHubReleasePackage(package))
-                        installed++;
-                    else
-                        failed++;
+                    installIds.Add(id);
                     continue;
                 }
 
@@ -1438,25 +1671,96 @@ internal static class WgdotNative
             {
                 Console.WriteLine("Already installed.");
                 already++;
-                continue;
-            }
-
-            Console.WriteLine("Installing " + id + "...");
-            ProcResult install = RunInteractive(
-                "winget.exe",
-                "install --id " + Q(id) + " --exact --source winget --accept-source-agreements --accept-package-agreements");
-
-            if (install.ExitCode == 0)
-            {
-                installed++;
-                RunPackagePostInstall(package);
+                installedExistingIds.Add(id);
             }
             else
             {
-                Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.WriteLine("Install failed: " + id + " (exit " + install.ExitCode.ToString(CultureInfo.InvariantCulture) + ")");
-                Console.ResetColor();
-                failed++;
+                installIds.Add(id);
+            }
+        }
+
+        if (ReadYesNo("Check selected installed packages for upgrades now? [y/N]", false))
+        {
+            foreach (string id in installedExistingIds)
+            {
+                ProcResult upgradeCheck = Run(
+                    "winget.exe",
+                    "list --id " + Q(id) + " --exact --upgrade-available --source winget --accept-source-agreements",
+                    null);
+
+                bool upgradeAvailable = (upgradeCheck.StdOut ?? "").IndexOf(id, StringComparison.OrdinalIgnoreCase) >= 0;
+                if (!upgradeAvailable) continue;
+
+                if (ReadYesNo("Upgrade " + id + "? [y/N]", false))
+                    upgradeIds.Add(id);
+            }
+        }
+
+        List<string> adminTweakIds = selection.Tweaks
+            .Where(TweakNeedsAdministrator)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (installIds.Count > 0 || upgradeIds.Count > 0 || adminTweakIds.Count > 0)
+        {
+            string planPath = Path.Combine(
+                StateRoot,
+                "software-elevated-" + Guid.NewGuid().ToString("N") + ".json");
+            string resultPath = planPath + ".result";
+            var plan = new Dictionary<string, object>();
+            plan["sourceRevision"] = source.Revision;
+            plan["packageIds"] = installIds;
+            plan["upgradeIds"] = upgradeIds;
+            plan["adminTweakIds"] = adminTweakIds;
+            WriteJson(planPath, plan);
+
+            Dictionary<string, object> workerResult = null;
+            int workerExitCode = 1;
+            try
+            {
+                Console.WriteLine();
+                if (!IsAdministrator())
+                {
+                    Console.ForegroundColor = ConsoleColor.Cyan;
+                    Console.WriteLine("WGDot will request administrator approval once for this software batch.");
+                    Console.ResetColor();
+                }
+
+                workerExitCode = IsAdministrator()
+                    ? RunSoftwareElevatedPlan(planPath)
+                    : RunElevatedSelfWithExitCode("software-elevated --plan " + Q(planPath));
+
+                workerResult = ReadJson(resultPath);
+                if (workerResult == null)
+                    throw new Exception("WGDot elevated software worker did not return a result.");
+            }
+            finally
+            {
+                SafeDeleteFile(planPath);
+                SafeDeleteFile(resultPath);
+            }
+
+            List<string> workerInstalled = GetStringList(workerResult, "installedIds");
+            installed += workerInstalled.Count;
+            already += GetStringList(workerResult, "alreadyIds").Count;
+            unavailable += GetStringList(workerResult, "unavailableIds").Count;
+            upgraded += GetStringList(workerResult, "upgradedIds").Count;
+
+            int workerFailures =
+                GetStringList(workerResult, "failedIds").Count +
+                GetStringList(workerResult, "upgradeFailedIds").Count +
+                GetStringList(workerResult, "adminTweakFailedIds").Count;
+            if (!String.IsNullOrWhiteSpace(GetString(workerResult, "fatalError")))
+                workerFailures++;
+            if (workerExitCode != 0 && workerFailures == 0)
+                workerFailures++;
+            failed += workerFailures;
+
+            foreach (string id in workerInstalled)
+            {
+                Dictionary<string, object> package = FindPackageById(manifest, id);
+                if (package != null)
+                    RunPackagePostInstall(package);
             }
         }
 
@@ -1472,13 +1776,6 @@ internal static class WgdotNative
             failed++;
         }
 
-        Console.WriteLine();
-        Console.WriteLine("Software reconciliation complete.");
-        Console.WriteLine("Installed: " + installed.ToString(CultureInfo.InvariantCulture));
-        Console.WriteLine("Already installed: " + already.ToString(CultureInfo.InvariantCulture));
-        Console.WriteLine("Unavailable exact IDs: " + unavailable.ToString(CultureInfo.InvariantCulture));
-        Console.WriteLine("Install failures: " + failed.ToString(CultureInfo.InvariantCulture));
-
         ApplySelectedInstallTweaks(manifest, selection);
         selection.Tweaks = selection.Tweaks
             .Where(id => !IsActionOnlyTweak(manifest, id))
@@ -1486,38 +1783,15 @@ internal static class WgdotNative
         selection.TweaksConfigured = true;
         WriteInstallationSelection(selection);
 
+        Console.WriteLine();
+        Console.WriteLine("Software reconciliation complete.");
+        Console.WriteLine("Installed: " + installed.ToString(CultureInfo.InvariantCulture));
+        Console.WriteLine("Already installed: " + already.ToString(CultureInfo.InvariantCulture));
+        Console.WriteLine("Upgraded: " + upgraded.ToString(CultureInfo.InvariantCulture));
+        Console.WriteLine("Unavailable exact IDs: " + unavailable.ToString(CultureInfo.InvariantCulture));
+        Console.WriteLine("Install/setup failures: " + failed.ToString(CultureInfo.InvariantCulture));
+
         OfferGpuDriverRecommendations();
-
-        if (ReadYesNo("Check selected packages for upgrades now? [y/N]", false))
-        {
-            foreach (object rawPackage in GetList(manifest, "packages"))
-            {
-                var package = AsDictionary(rawPackage);
-                string id = GetString(package, "id");
-                if (!wanted.Contains(id)) continue;
-
-                ProcResult upgradeCheck = Run(
-                    "winget.exe",
-                    "list --id " + Q(id) + " --exact --upgrade-available --source winget --accept-source-agreements",
-                    null);
-
-                bool upgradeAvailable = (upgradeCheck.StdOut ?? "").IndexOf(id, StringComparison.OrdinalIgnoreCase) >= 0;
-                if (!upgradeAvailable) continue;
-
-                if (!ReadYesNo("Upgrade " + id + "? [y/N]", false)) continue;
-
-                ProcResult upgrade = RunInteractive(
-                    "winget.exe",
-                    "upgrade --id " + Q(id) + " --exact --source winget --accept-source-agreements --accept-package-agreements");
-
-                if (upgrade.ExitCode != 0)
-                {
-                    Console.ForegroundColor = ConsoleColor.Yellow;
-                    Console.WriteLine("Upgrade failed: " + id + " (exit " + upgrade.ExitCode.ToString(CultureInfo.InvariantCulture) + ")");
-                    Console.ResetColor();
-                }
-            }
-        }
 
         return failed == 0 ? 0 : 1;
     }
@@ -2713,6 +2987,9 @@ internal static class WgdotNative
 
         foreach (string id in selection.Tweaks.ToList())
         {
+            if (TweakNeedsAdministrator(id))
+                continue;
+
             if (IsActionOnlyTweak(manifest, id))
                 RunActionTweak(id);
             else
@@ -2731,13 +3008,16 @@ internal static class WgdotNative
         return 0;
     }
 
-    static void ApplyTweak(string id, bool enable, bool allowElevation)
+    static bool TweakNeedsAdministrator(string id)
     {
-        bool needsAdmin =
+        return
             String.Equals(id, "disable-remote-assistance", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(id, "enable-windows-sudo", StringComparison.OrdinalIgnoreCase);
+    }
 
-        if (needsAdmin && !IsAdministrator())
+    static void ApplyTweak(string id, bool enable, bool allowElevation)
+    {
+        if (TweakNeedsAdministrator(id) && !IsAdministrator())
         {
             if (!allowElevation)
                 throw new Exception("Tweak '" + id + "' requires administrator rights.");
@@ -2803,7 +3083,7 @@ internal static class WgdotNative
         }
     }
 
-    static void RunElevatedSelf(string arguments)
+    static int RunElevatedSelfWithExitCode(string arguments)
     {
         var psi = new ProcessStartInfo();
         psi.FileName = Process.GetCurrentProcess().MainModule.FileName;
@@ -2814,9 +3094,15 @@ internal static class WgdotNative
         using (Process p = Process.Start(psi))
         {
             p.WaitForExit();
-            if (p.ExitCode != 0)
-                throw new Exception("Elevated WGDot tweak failed with exit code " + p.ExitCode.ToString(CultureInfo.InvariantCulture) + ".");
+            return p.ExitCode;
         }
+    }
+
+    static void RunElevatedSelf(string arguments)
+    {
+        int exitCode = RunElevatedSelfWithExitCode(arguments);
+        if (exitCode != 0)
+            throw new Exception("Elevated WGDot operation failed with exit code " + exitCode.ToString(CultureInfo.InvariantCulture) + ".");
     }
 
     static RegistryKey GetRegistryRoot(string hive, bool writable)
