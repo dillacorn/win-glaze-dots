@@ -18,6 +18,7 @@ function Assert-Equal {
 
 Assert-True (Test-Path -LiteralPath $runtimePath -PathType Leaf) "runtime exists"
 Assert-True (Test-Path -LiteralPath $manifestPath -PathType Leaf) "manifest exists"
+Assert-True (Test-Path -LiteralPath $launcherPath -PathType Leaf) "launcher exists"
 
 $env:WGDOT_TEST_MODE = "1"
 . $runtimePath
@@ -72,6 +73,7 @@ Assert-True ($packageIds.ContainsKey("itchio.itch")) "correct itch ID is catalog
 Assert-True ($packageIds.ContainsKey("microsoft.sysinternals.processexplorer")) "correct Process Explorer ID is cataloged"
 
 $runtimeText = Get-Content -LiteralPath $runtimePath -Raw
+$launcherText = Get-Content -LiteralPath $launcherPath -Raw
 $manualText = Get-Content -LiteralPath $manualPath -Raw
 Assert-True ($runtimeText -notmatch '(?i)-ExecutionPolicy\s+Bypass') "runtime does not bypass execution policy"
 Assert-True ($manualText -notmatch '(?i)-ExecutionPolicy\s+Bypass') "manual path does not bypass execution policy"
