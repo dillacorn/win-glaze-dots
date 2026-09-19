@@ -181,9 +181,6 @@ window_rules:
 binding_modes:
   - name: "resize"
     keybindings:
-  - commands: ["shell-exec flameshot gui"]
-    bindings: ["win+shift+f"]
-
       - commands: ["resize --width -2%"]
         bindings: ["l", "right"]
       - commands: ["resize --width +2%"]
@@ -201,6 +198,9 @@ binding_modes:
         bindings: ["alt+shift+p"]
 
 keybindings:
+  - commands: ["shell-exec flameshot gui"]
+    bindings: ["win+shift+f"]
+
   - commands:
       - shell-exec --hide-window powershell -NoProfile -Command "if (Get-Process yasb -ErrorAction SilentlyContinue) { Stop-Process -Name yasb -Force } else { Start-Process yasb }"
     bindings: ["alt+ctrl+b"]

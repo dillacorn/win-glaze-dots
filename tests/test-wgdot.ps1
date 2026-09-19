@@ -199,7 +199,13 @@ Assert-True ($runtimeText -notmatch '(?i)rmdir\s+/s') "runtime does not use dest
 $glazeNormalText = Get-Content -LiteralPath (Join-Path $repoRoot "UserProfile\.glzr\glazewm\config.yaml") -Raw
 $glazeWorkText = Get-Content -LiteralPath (Join-Path $repoRoot "UserProfile\.glzr\glazewm\custom_work_config.yaml") -Raw
 foreach ($text in @($glazeNormalText, $glazeWorkText)) {
-    Assert-True ($text -match 'bindings:\s*\["win\+shift\+f"\]') "GlazeWM binds Win+Shift+F to Flameshot"
+    $globalMarker = [Environment]::NewLine + "keybindings:" + [Environment]::NewLine
+    $globalIndex = $text.LastIndexOf($globalMarker)
+    $flameshotIndex = $text.IndexOf('bindings: ["win+shift+f"]')
+    $bindingModesIndex = $text.IndexOf("binding_modes:")
+    Assert-True ($globalIndex -ge 0) "GlazeWM has a global keybindings section"
+    Assert-True ($flameshotIndex -gt $globalIndex) "Win+Shift+F Flameshot bind is global, not trapped inside a binding mode"
+    Assert-True (-not (($bindingModesIndex -ge 0) -and ($flameshotIndex -gt $bindingModesIndex) -and ($flameshotIndex -lt $globalIndex))) "Flameshot bind is not inside resize/pause binding modes"
     Assert-True ($text -notmatch '(?i)-ExecutionPolicy\s+Bypass') "GlazeWM managed configs do not bypass execution policy"
 }
 
