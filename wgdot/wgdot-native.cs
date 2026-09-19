@@ -18,7 +18,7 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-28";
+    const string Version = "native-preview-29";
     const int WingetPreflightTimeoutMs = 30000;
     const string RepoFullName = "dillacorn/win-glaze-dots";
     const string RepoUrl = "https://github.com/dillacorn/win-glaze-dots.git";
@@ -1410,6 +1410,7 @@ internal static class WgdotNative
         var upgradedIds = new List<string>();
         var upgradeFailedIds = new List<string>();
         var adminTweakFailedIds = new List<string>();
+        string browserPolicyError = "";
         int failures = 0;
 
         try
@@ -1556,10 +1557,27 @@ internal static class WgdotNative
                 }
             }
 
+            if (GetBool(plan, "firefoxPolicyConfigured"))
+            {
+                try
+                {
+                    ApplyFirefoxExtensionInstallPolicy(
+                        GetStringList(plan, "firefoxInstallUrls"));
+                }
+                catch (Exception ex)
+                {
+                    browserPolicyError = ex.Message;
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.WriteLine("Firefox extension policy failed in elevated setup: " + ex.Message);
+                    Console.ResetColor();
+                    failures++;
+                }
+            }
+
             foreach (string id in GetStringList(plan, "adminTweakIds")
                 .Distinct(StringComparer.OrdinalIgnoreCase))
             {
-                if (!TweakNeedsAdministrator(id))
+                if (!TweakRunsInElevatedBatch(id))
                 {
                     adminTweakFailedIds.Add(id);
                     failures++;
@@ -1568,6 +1586,7 @@ internal static class WgdotNative
 
                 try
                 {
+                    Console.WriteLine("Applying elevated setup: " + id + "...");
                     ApplyTweak(id, true, false);
                 }
                 catch (Exception ex)
@@ -1597,6 +1616,7 @@ internal static class WgdotNative
             result["upgradedIds"] = upgradedIds;
             result["upgradeFailedIds"] = upgradeFailedIds;
             result["adminTweakFailedIds"] = adminTweakFailedIds;
+            result["browserPolicyError"] = browserPolicyError;
             WriteJson(resultPath, result);
         }
 
@@ -1772,11 +1792,31 @@ internal static class WgdotNative
         }
 
         List<string> adminTweakIds = selection.Tweaks
-            .Where(TweakNeedsAdministrator)
+            .Where(TweakRunsInElevatedBatch)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-        if (installIds.Count > 0 || upgradeIds.Count > 0 || adminTweakIds.Count > 0)
+        bool firefoxPolicyConfigured = selection.BrowserOptionsConfigured;
+        List<string> firefoxInstallUrls = firefoxPolicyConfigured
+            ? GetDesiredFirefoxExtensionInstallUrls(manifest, selection)
+            : new List<string>();
+        bool firefoxPolicyNeedsMutation = false;
+        if (firefoxPolicyConfigured)
+        {
+            try
+            {
+                firefoxPolicyNeedsMutation =
+                    FirefoxExtensionInstallPolicyNeedsMutation(firefoxInstallUrls);
+            }
+            catch (UnauthorizedAccessException)
+            {
+                // A policy ACL can deny the normal token even for HKCU.
+                // Let the already-bounded elevated worker handle it.
+                firefoxPolicyNeedsMutation = true;
+            }
+        }
+
+        if (installIds.Count > 0 || upgradeIds.Count > 0 || adminTweakIds.Count > 0 || firefoxPolicyNeedsMutation)
         {
             string planPath = Path.Combine(
                 StateRoot,
@@ -1787,6 +1827,8 @@ internal static class WgdotNative
             plan["packageIds"] = installIds;
             plan["upgradeIds"] = upgradeIds;
             plan["adminTweakIds"] = adminTweakIds;
+            plan["firefoxPolicyConfigured"] = firefoxPolicyConfigured;
+            plan["firefoxInstallUrls"] = firefoxInstallUrls;
             WriteJson(planPath, plan);
 
             Dictionary<string, object> workerResult = null;
@@ -1825,6 +1867,8 @@ internal static class WgdotNative
                 GetStringList(workerResult, "failedIds").Count +
                 GetStringList(workerResult, "upgradeFailedIds").Count +
                 GetStringList(workerResult, "adminTweakFailedIds").Count;
+            if (!String.IsNullOrWhiteSpace(GetString(workerResult, "browserPolicyError")))
+                workerFailures++;
             if (!String.IsNullOrWhiteSpace(GetString(workerResult, "fatalError")))
                 workerFailures++;
             if (workerExitCode != 0 && workerFailures == 0)
@@ -1841,7 +1885,7 @@ internal static class WgdotNative
 
         try
         {
-            ApplyBrowserConfiguration(manifest, selection);
+            ApplyBrowserConfiguration(manifest, selection, false);
         }
         catch (Exception ex)
         {
@@ -3062,7 +3106,7 @@ internal static class WgdotNative
 
         foreach (string id in selection.Tweaks.ToList())
         {
-            if (TweakNeedsAdministrator(id))
+            if (TweakRunsInElevatedBatch(id))
                 continue;
 
             if (IsActionOnlyTweak(manifest, id))
@@ -3090,6 +3134,19 @@ internal static class WgdotNative
             String.Equals(id, "enable-windows-sudo", StringComparison.OrdinalIgnoreCase);
     }
 
+    static bool TweakRunsInElevatedBatch(string id)
+    {
+        return
+            TweakNeedsAdministrator(id) ||
+            String.Equals(id, "clean-taskbar-items", StringComparison.OrdinalIgnoreCase) ||
+            String.Equals(id, "disable-printscreen-snipping", StringComparison.OrdinalIgnoreCase) ||
+            String.Equals(id, "disable-enhanced-pointer-precision", StringComparison.OrdinalIgnoreCase) ||
+            String.Equals(id, "communications-do-nothing", StringComparison.OrdinalIgnoreCase) ||
+            String.Equals(id, "disable-snap-assist", StringComparison.OrdinalIgnoreCase) ||
+            String.Equals(id, "reduce-visual-effects", StringComparison.OrdinalIgnoreCase) ||
+            String.Equals(id, "classic-context-menu", StringComparison.OrdinalIgnoreCase);
+    }
+
     static void ApplyTweak(string id, bool enable, bool allowElevation)
     {
         if (TweakNeedsAdministrator(id) && !IsAdministrator())
@@ -3102,6 +3159,28 @@ internal static class WgdotNative
             return;
         }
 
+        try
+        {
+            ApplyTweakCore(id, enable);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            if (!allowElevation || IsAdministrator())
+                throw;
+
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine("Windows denied normal-user access for tweak '" + id + "'; retrying it once with administrator approval.");
+            Console.ResetColor();
+            RunElevatedSelf(
+                "apply-tweak --id " + Q(id) + " --enable " + (enable ? "1" : "0"));
+            return;
+        }
+
+        RefreshShellSettings();
+    }
+
+    static void ApplyTweakCore(string id, bool enable)
+    {
         if (String.Equals(id, "micro-text-defaults", StringComparison.OrdinalIgnoreCase))
             ApplyMicroTextDefaults(enable);
         else if (String.Equals(id, "flow-launcher-alt-p", StringComparison.OrdinalIgnoreCase))
@@ -3130,8 +3209,6 @@ internal static class WgdotNative
             ApplyOopsCursor(enable);
         else
             throw new Exception("Unknown WGDot tweak: " + id);
-
-        RefreshShellSettings();
     }
 
     static void RunActionTweak(string id)
@@ -5655,7 +5732,8 @@ public static class Program
 
     static void ApplyBrowserConfiguration(
         Dictionary<string, object> manifest,
-        InstallationSelection selection)
+        InstallationSelection selection,
+        bool applyFirefoxExtensionPolicy)
     {
         if (selection == null || !selection.BrowserOptionsConfigured)
         {
@@ -5683,7 +5761,8 @@ public static class Program
             {
                 ApplyFirefoxBrowserOptions(
                     browser,
-                    packageSelected ? selectedOptions : new List<string>());
+                    packageSelected ? selectedOptions : new List<string>(),
+                    applyFirefoxExtensionPolicy);
             }
             else if (String.Equals(mode, "guided-chrome-web-store", StringComparison.OrdinalIgnoreCase))
             {
@@ -5708,7 +5787,8 @@ public static class Program
 
     static void ApplyFirefoxBrowserOptions(
         Dictionary<string, object> browser,
-        List<string> selectedOptions)
+        List<string> selectedOptions,
+        bool applyExtensionPolicy)
     {
         var selected = new HashSet<string>(
             selectedOptions ?? new List<string>(),
@@ -5735,12 +5815,69 @@ public static class Program
             }
         }
 
-        ApplyFirefoxExtensionInstallPolicy(installUrls);
+        if (applyExtensionPolicy)
+            ApplyFirefoxExtensionInstallPolicy(installUrls);
 
         bool enableBetterfox =
             betterfoxOption != null &&
             selected.Contains(GetString(betterfoxOption, "id"));
         ApplyBetterfox(betterfoxOption, enableBetterfox, GetFirefoxRoot());
+    }
+
+    static List<string> GetDesiredFirefoxExtensionInstallUrls(
+        Dictionary<string, object> manifest,
+        InstallationSelection selection)
+    {
+        var result = new List<string>();
+        if (selection == null || !selection.BrowserOptionsConfigured)
+            return result;
+
+        var selectedPackages = new HashSet<string>(
+            selection.Packages ?? new List<string>(),
+            StringComparer.OrdinalIgnoreCase);
+
+        foreach (object rawBrowser in GetList(manifest, "browserOptions"))
+        {
+            var browser = AsDictionary(rawBrowser);
+            if (!String.Equals(
+                    GetString(browser, "mode"),
+                    "firefox-managed",
+                    StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            string packageId = GetString(browser, "packageId");
+            if (!selectedPackages.Contains(packageId))
+                return result;
+
+            List<string> selectedOptions;
+            if (!selection.BrowserOptions.TryGetValue(packageId, out selectedOptions))
+                selectedOptions = new List<string>();
+
+            var selected = new HashSet<string>(
+                selectedOptions,
+                StringComparer.OrdinalIgnoreCase);
+
+            foreach (object rawOption in GetList(browser, "options"))
+            {
+                var option = AsDictionary(rawOption);
+                if (!String.Equals(
+                        GetString(option, "kind"),
+                        "firefox-extension",
+                        StringComparison.OrdinalIgnoreCase))
+                    continue;
+                if (!selected.Contains(GetString(option, "id")))
+                    continue;
+
+                string url = GetString(option, "installUrl");
+                if (!String.IsNullOrWhiteSpace(url) &&
+                    !result.Contains(url, StringComparer.OrdinalIgnoreCase))
+                    result.Add(url);
+            }
+
+            return result;
+        }
+
+        return result;
     }
 
     static string GetFirefoxRoot()
@@ -5823,6 +5960,23 @@ public static class Program
         }
 
         return merged;
+    }
+
+    static bool FirefoxExtensionInstallPolicyNeedsMutation(List<string> desiredUrls)
+    {
+        Dictionary<string, object> state =
+            ReadJson(BrowserStatePath) ??
+            new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+        List<string> previousOwned = GetStringList(state, "firefoxOwnedInstallUrls");
+        List<string> current = ReadFirefoxInstallPolicyUrls();
+        List<string> nextOwned;
+        List<string> merged = MergeManagedFirefoxInstallUrls(
+            current,
+            previousOwned,
+            desiredUrls,
+            out nextOwned);
+
+        return !current.SequenceEqual(merged, StringComparer.OrdinalIgnoreCase);
     }
 
     static void ApplyFirefoxExtensionInstallPolicy(List<string> desiredUrls)
@@ -6886,6 +7040,11 @@ public static class Program
             timeoutPackage["wingetInstallTimeoutSeconds"] = 45;
             if (GetWingetInstallTimeoutMs(timeoutPackage) != 45000)
                 throw new Exception("WinGet install timeout manifest self-test failed.");
+
+            if (!TweakRunsInElevatedBatch("clean-taskbar-items") ||
+                !TweakRunsInElevatedBatch("disable-snap-assist") ||
+                TweakRunsInElevatedBatch("flow-launcher-alt-p"))
+                throw new Exception("Elevated tweak batching self-test failed.");
 
             Console.WriteLine("WGDot native runtime self-test passed.");
             return 0;

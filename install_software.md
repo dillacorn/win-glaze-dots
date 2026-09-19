@@ -10,7 +10,7 @@ WGDot keeps the interactive software selector unelevated. After the user reviews
 
 Preflight reads the installed WinGet package state once, then performs exact-ID source validation only for selected packages that are actually missing. Silent WinGet checks run with interactivity disabled and a 30-second timeout; if WinGet itself stops responding, WGDot reports the package/check and stops before launching a partial elevated install batch instead of hanging forever.
 
-Browser setup, browser launches, post-install application launches, and ordinary user-level tweaks are performed after the elevated worker returns, from the normal WGDot process. WGDot does not require Windows sudo and does not disable or weaken UAC.
+Firefox's Windows extension-policy registry mutation and registry-heavy Windows setup tweaks are handled inside the same bounded elevated worker when needed. Betterfox profile changes, Brave/Mullvad browser interaction, Flow Launcher/EarTrumpet application configuration, browser launches, and post-install application launches still run from the normal unelevated WGDot process. WGDot does not require Windows sudo and does not disable or weaken UAC.
 
 
 ## Default ON
