@@ -822,14 +822,6 @@
       "defaultWork": true
     },
     {
-      "id": "flameshot-win-shift-f",
-      "name": "Bind Win+Shift+F to Flameshot",
-      "category": "keybinds",
-      "type": "flameshot-win-shift-f",
-      "defaultNormal": true,
-      "defaultWork": true
-    },
-    {
       "id": "clean-taskbar-items",
       "name": "Hide Search, Task View, Widgets, Chat/Copilot taskbar buttons",
       "category": "Windows settings",
@@ -879,11 +871,12 @@
     },
     {
       "id": "enable-windows-sudo",
-      "name": "Enable Windows sudo (requires supported Windows build/elevation)",
+      "name": "Enable Windows sudo (force-new-window; requires elevation)",
       "category": "Windows settings",
       "type": "enable-windows-sudo",
       "defaultNormal": false,
-      "defaultWork": false
+      "defaultWork": false,
+      "actionOnly": true
     },
     {
       "id": "reduce-visual-effects",
@@ -911,11 +904,12 @@
     },
     {
       "id": "privacy-sexy",
-      "name": "privacy.sexy privacy hardening",
+      "name": "Run/update privacy.sexy privacy hardening",
       "category": "privacy",
       "type": "privacy-sexy",
       "defaultNormal": false,
-      "defaultWork": false
+      "defaultWork": false,
+      "actionOnly": true
     }
   ]
 }

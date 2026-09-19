@@ -178,6 +178,9 @@ window_rules:
 binding_modes:
   - name: "resize"
     keybindings:
+  - commands: ["shell-exec flameshot gui"]
+    bindings: ["win+shift+f"]
+
       - commands: ["resize --width -2%"]
         bindings: ["l", "right"]
       - commands: ["resize --width +2%"]
@@ -246,7 +249,7 @@ keybindings:
 
   - commands:
       - "toggle-fullscreen"
-      - "shell-exec --hide-window powershell -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -Command \"Start-Sleep -Milliseconds 70; Start-Process -WindowStyle Hidden glazewm -ArgumentList 'command wm-redraw'\""
+      - "shell-exec --hide-window powershell -NoProfile -WindowStyle Hidden -Command \"Start-Sleep -Milliseconds 70; Start-Process -WindowStyle Hidden glazewm -ArgumentList 'command wm-redraw'\""
     bindings: ["alt+ctrl+f"]
 
   - commands: ["toggle-minimized"]

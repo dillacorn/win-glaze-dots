@@ -9,6 +9,7 @@ using System.Linq;
 using System.Net;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
+using System.Security.Principal;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Web.Script.Serialization;
@@ -17,7 +18,7 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-11";
+    const string Version = "native-preview-13";
     const string RepoFullName = "dillacorn/win-glaze-dots";
     const string RepoUrl = "https://github.com/dillacorn/win-glaze-dots.git";
     const string ApiBase = "https://api.github.com/repos/dillacorn/win-glaze-dots";
@@ -37,6 +38,7 @@ internal static class WgdotNative
     static readonly string BackupStatePath = Path.Combine(StateRoot, "backups.json");
     static readonly string ConfigStatePath = Path.Combine(StateRoot, "config.json");
     static readonly string GitStatePath = Path.Combine(StateRoot, "git-testing.json");
+    static readonly string TweakStatePath = Path.Combine(StateRoot, "tweaks.json");
     static readonly JavaScriptSerializer Json = new JavaScriptSerializer { MaxJsonLength = int.MaxValue, RecursionLimit = 100 };
 
     static readonly IntPtr HwndBroadcast = new IntPtr(0xffff);
@@ -53,6 +55,12 @@ internal static class WgdotNative
         uint uTimeout,
         out UIntPtr lpdwResult);
 
+    [DllImport("user32.dll", SetLastError = true)]
+    static extern bool SystemParametersInfo(uint uiAction, uint uiParam, IntPtr pvParam, uint fWinIni);
+
+    [DllImport("shell32.dll")]
+    static extern void SHChangeNotify(uint wEventId, uint uFlags, IntPtr dwItem1, IntPtr dwItem2);
+
     sealed class ChoiceItem
     {
         public string Id;
@@ -66,6 +74,8 @@ internal static class WgdotNative
         public string GlazeProfile;
         public List<string> Components = new List<string>();
         public List<string> Packages = new List<string>();
+        public List<string> Tweaks = new List<string>();
+        public bool TweaksConfigured;
     }
 
     sealed class PlanItem
@@ -112,6 +122,7 @@ internal static class WgdotNative
             if (command == "menu") return Menu();
             if (command == "self-test") return SelfTest();
             if (command == "git-review") return GitReviewFromArgs(args.Skip(1).ToArray());
+            if (command == "apply-tweak") return ApplyTweakFromArgs(args.Skip(1).ToArray());
             if (command == "mark-runtime") return MarkRuntimeFromArgs(args.Skip(1).ToArray());
             if (command == "maintenance-self-test") return MaintenanceSelfTest();
             if (command == "software") return SoftwareReconcile();
@@ -230,6 +241,7 @@ internal static class WgdotNative
         {
             "Update managed dots",
             "Install / reconcile software",
+            "Windows tweaks / integrations",
             "Reset / reconfigure managed dots",
             "Review changes without applying",
             "Backup manager",
@@ -242,7 +254,7 @@ internal static class WgdotNative
         while (true)
         {
             int choice = ReadSingleChoice("Maintenance", items, 0);
-            if (choice < 0 || choice == 8) return 0;
+            if (choice < 0 || choice == 9) return 0;
 
             try
             {
@@ -258,30 +270,34 @@ internal static class WgdotNative
                 }
                 else if (choice == 2)
                 {
-                    ManagedOperation("reset", ResolveDefaultSource());
-                    Pause();
+                    TweakManager();
                 }
                 else if (choice == 3)
                 {
-                    ManagedOperation("review", ResolveDefaultSource());
+                    ManagedOperation("reset", ResolveDefaultSource());
                     Pause();
                 }
                 else if (choice == 4)
                 {
-                    BackupManager();
+                    ManagedOperation("review", ResolveDefaultSource());
+                    Pause();
                 }
                 else if (choice == 5)
+                {
+                    BackupManager();
+                }
+                else if (choice == 6)
                 {
                     ShowManualFallback();
                     Pause();
                 }
-                else if (choice == 6)
+                else if (choice == 7)
                 {
                     WriteTitle("Version / status");
                     Status();
                     Pause();
                 }
-                else if (choice == 7)
+                else if (choice == 8)
                 {
                     ShowGitMenu();
                 }
@@ -878,6 +894,7 @@ internal static class WgdotNative
         WriteTitle("Software reconciliation review");
         Console.WriteLine("Profile: " + selection.Scope);
         Console.WriteLine("Selected packages: " + selectedCount.ToString(CultureInfo.InvariantCulture));
+        Console.WriteLine("Selected setup tweaks: " + selection.Tweaks.Count.ToString(CultureInfo.InvariantCulture));
         Console.WriteLine();
         Console.WriteLine("Only missing packages will be installed.");
         Console.WriteLine("Exact WinGet IDs are validated before install.");
@@ -890,7 +907,6 @@ internal static class WgdotNative
             return 0;
         }
 
-        WriteInstallationSelection(selection);
         RequireExecutable("winget.exe", "WinGet was not found.");
 
         var wanted = new HashSet<string>(selection.Packages, StringComparer.OrdinalIgnoreCase);
@@ -958,6 +974,13 @@ internal static class WgdotNative
         Console.WriteLine("Already installed: " + already.ToString(CultureInfo.InvariantCulture));
         Console.WriteLine("Unavailable exact IDs: " + unavailable.ToString(CultureInfo.InvariantCulture));
         Console.WriteLine("Install failures: " + failed.ToString(CultureInfo.InvariantCulture));
+
+        ApplySelectedInstallTweaks(manifest, selection);
+        selection.Tweaks = selection.Tweaks
+            .Where(id => !IsActionOnlyTweak(manifest, id))
+            .ToList();
+        selection.TweaksConfigured = true;
+        WriteInstallationSelection(selection);
 
         if (ReadYesNo("Check selected packages for upgrades now? [y/N]", false))
         {
@@ -1034,15 +1057,27 @@ internal static class WgdotNative
             packageChoices = ReadMultiChoice("Software to install / reconcile", packageChoices);
             if (packageChoices == null) return null;
             result.Packages = packageChoices.Where(x => x.Selected).Select(x => x.Id).ToList();
+
+            var tweakChoices = BuildTweakChoices(manifest, scope, existing, true);
+            tweakChoices = ReadMultiChoice("Windows tweaks / integrations", tweakChoices);
+            if (tweakChoices == null) return null;
+            result.Tweaks = tweakChoices.Where(x => x.Selected).Select(x => x.Id).ToList();
+            result.TweaksConfigured = true;
         }
         else if (existing != null)
         {
             result.Packages = new List<string>(existing.Packages);
+            result.Tweaks = existing.TweaksConfigured
+                ? new List<string>(existing.Tweaks)
+                : GetDefaultTweakIds(manifest, scope);
+            result.TweaksConfigured = true;
         }
         else
         {
             foreach (ChoiceItem item in BuildPackageChoices(manifest, scope, null))
                 if (item.Selected) result.Packages.Add(item.Id);
+            result.Tweaks = GetDefaultTweakIds(manifest, scope);
+            result.TweaksConfigured = true;
         }
 
         return result;
@@ -1056,6 +1091,10 @@ internal static class WgdotNative
         result.Scope = existing.Scope;
         result.GlazeProfile = existing.GlazeProfile;
         result.Components = new List<string>(existing.Components);
+        result.Tweaks = existing.TweaksConfigured
+            ? new List<string>(existing.Tweaks)
+            : GetDefaultTweakIds(manifest, existing.Scope);
+        result.TweaksConfigured = true;
 
         var choices = BuildPackageChoices(manifest, existing.Scope, existing);
         choices = ReadMultiChoice("Software to install / reconcile", choices);
@@ -1133,6 +1172,8 @@ internal static class WgdotNative
         result.GlazeProfile = GetString(state, "glazewmProfile");
         result.Components = GetStringList(state, "components");
         result.Packages = GetStringList(state, "packages");
+        result.Tweaks = GetStringList(state, "tweaks");
+        result.TweaksConfigured = state.ContainsKey("tweaks");
 
         if (String.IsNullOrWhiteSpace(result.Scope) ||
             String.IsNullOrWhiteSpace(result.GlazeProfile) ||
@@ -1149,8 +1190,828 @@ internal static class WgdotNative
         state["glazewmProfile"] = selection.GlazeProfile;
         state["components"] = selection.Components.ToArray();
         state["packages"] = selection.Packages.ToArray();
+        state["tweaks"] = selection.Tweaks.ToArray();
         state["configuredAt"] = DateTime.UtcNow.ToString("o");
         WriteJson(InstallStatePath, state);
+    }
+
+    static List<ChoiceItem> BuildTweakChoices(
+        Dictionary<string, object> manifest,
+        string scope,
+        InstallationSelection existing,
+        bool includeActionOnly)
+    {
+        var existingSet = existing != null && existing.TweaksConfigured
+            ? new HashSet<string>(existing.Tweaks, StringComparer.OrdinalIgnoreCase)
+            : null;
+
+        var choices = new List<ChoiceItem>();
+        foreach (object raw in GetList(manifest, "tweaks"))
+        {
+            var tweak = AsDictionary(raw);
+            string id = GetString(tweak, "id");
+            bool actionOnly = GetBool(tweak, "actionOnly");
+            if (actionOnly && !includeActionOnly) continue;
+
+            bool selected = actionOnly
+                ? false
+                : (existingSet != null
+                    ? existingSet.Contains(id)
+                    : (scope == "work" ? GetBool(tweak, "defaultWork") : GetBool(tweak, "defaultNormal")));
+
+            choices.Add(new ChoiceItem
+            {
+                Id = id,
+                Label = GetString(tweak, "name") + " [" + GetString(tweak, "category") + "]",
+                Selected = selected
+            });
+        }
+        return choices;
+    }
+
+    static List<string> GetDefaultTweakIds(Dictionary<string, object> manifest, string scope)
+    {
+        var result = new List<string>();
+        foreach (object raw in GetList(manifest, "tweaks"))
+        {
+            var tweak = AsDictionary(raw);
+            if (GetBool(tweak, "actionOnly")) continue;
+            bool selected = scope == "work" ? GetBool(tweak, "defaultWork") : GetBool(tweak, "defaultNormal");
+            if (selected) result.Add(GetString(tweak, "id"));
+        }
+        return result;
+    }
+
+    static bool IsActionOnlyTweak(Dictionary<string, object> manifest, string id)
+    {
+        foreach (object raw in GetList(manifest, "tweaks"))
+        {
+            var tweak = AsDictionary(raw);
+            if (String.Equals(GetString(tweak, "id"), id, StringComparison.OrdinalIgnoreCase))
+                return GetBool(tweak, "actionOnly");
+        }
+        return false;
+    }
+
+    static void TweakManager()
+    {
+        SourceContext source = ResolveDefaultSource();
+        Dictionary<string, object> manifest = source.Manifest;
+        InstallationSelection existing = ReadInstallationSelection();
+
+        if (existing == null)
+        {
+            WriteTitle("Windows tweaks / integrations");
+            Console.WriteLine("No WGDot install profile exists yet.");
+            Console.WriteLine("Run Install / reconcile software first so WGDot can remember Normal/Work defaults.");
+            Pause();
+            return;
+        }
+
+        var oldPersistent = existing.TweaksConfigured
+            ? new HashSet<string>(existing.Tweaks.Where(id => !IsActionOnlyTweak(manifest, id)), StringComparer.OrdinalIgnoreCase)
+            : new HashSet<string>(GetDefaultTweakIds(manifest, existing.Scope), StringComparer.OrdinalIgnoreCase);
+
+        List<ChoiceItem> choices = BuildTweakChoices(manifest, existing.Scope, existing, true);
+        choices = ReadMultiChoice("Windows tweaks / integrations", choices);
+        if (choices == null) return;
+
+        var requested = new HashSet<string>(
+            choices.Where(x => x.Selected).Select(x => x.Id),
+            StringComparer.OrdinalIgnoreCase);
+        var newPersistent = new HashSet<string>(
+            requested.Where(id => !IsActionOnlyTweak(manifest, id)),
+            StringComparer.OrdinalIgnoreCase);
+        var actions = requested.Where(id => IsActionOnlyTweak(manifest, id)).ToList();
+
+        WriteTitle("Windows tweak review");
+        foreach (object raw in GetList(manifest, "tweaks"))
+        {
+            var tweak = AsDictionary(raw);
+            string id = GetString(tweak, "id");
+            string name = GetString(tweak, "name");
+
+            if (IsActionOnlyTweak(manifest, id))
+            {
+                if (actions.Contains(id, StringComparer.OrdinalIgnoreCase))
+                    Console.WriteLine("RUN      " + name);
+            }
+            else if (!oldPersistent.Contains(id) && newPersistent.Contains(id))
+            {
+                Console.WriteLine("ENABLE   " + name);
+            }
+            else if (oldPersistent.Contains(id) && !newPersistent.Contains(id))
+            {
+                Console.WriteLine("DISABLE  " + name);
+            }
+        }
+
+        if (oldPersistent.SetEquals(newPersistent) && actions.Count == 0)
+        {
+            Console.WriteLine("No tweak changes selected.");
+            Pause();
+            return;
+        }
+
+        Console.WriteLine();
+        if (!ReadYesNo("Apply exactly these tweak changes? [y/N]", false))
+            return;
+
+        foreach (string id in oldPersistent.Where(x => !newPersistent.Contains(x)).ToList())
+            ApplyTweak(id, false, true);
+
+        foreach (string id in newPersistent.Where(x => !oldPersistent.Contains(x)).ToList())
+            ApplyTweak(id, true, true);
+
+        foreach (string id in actions)
+            RunActionTweak(id);
+
+        existing.Tweaks = newPersistent.ToList();
+        existing.TweaksConfigured = true;
+        WriteInstallationSelection(existing);
+
+        Console.ForegroundColor = ConsoleColor.Green;
+        Console.WriteLine("WGDot tweak selection applied.");
+        Console.ResetColor();
+        Pause();
+    }
+
+    static void ApplySelectedInstallTweaks(Dictionary<string, object> manifest, InstallationSelection selection)
+    {
+        if (selection == null || selection.Tweaks == null || selection.Tweaks.Count == 0) return;
+
+        Console.WriteLine();
+        Console.WriteLine("Applying selected Windows tweaks / integrations...");
+
+        foreach (string id in selection.Tweaks.ToList())
+        {
+            if (IsActionOnlyTweak(manifest, id))
+                RunActionTweak(id);
+            else
+                ApplyTweak(id, true, true);
+        }
+    }
+
+    static int ApplyTweakFromArgs(string[] args)
+    {
+        string id = GetOption(args, "--id");
+        string enabled = GetOption(args, "--enable");
+        if (String.IsNullOrWhiteSpace(id) || (enabled != "0" && enabled != "1"))
+            throw new Exception("apply-tweak requires --id <id> --enable <0|1>.");
+
+        ApplyTweak(id, enabled == "1", false);
+        return 0;
+    }
+
+    static void ApplyTweak(string id, bool enable, bool allowElevation)
+    {
+        bool needsAdmin =
+            String.Equals(id, "disable-remote-assistance", StringComparison.OrdinalIgnoreCase) ||
+            String.Equals(id, "enable-windows-sudo", StringComparison.OrdinalIgnoreCase);
+
+        if (needsAdmin && !IsAdministrator())
+        {
+            if (!allowElevation)
+                throw new Exception("Tweak '" + id + "' requires administrator rights.");
+
+            RunElevatedSelf(
+                "apply-tweak --id " + Q(id) + " --enable " + (enable ? "1" : "0"));
+            return;
+        }
+
+        if (String.Equals(id, "micro-text-defaults", StringComparison.OrdinalIgnoreCase))
+            ApplyMicroTextDefaults(enable);
+        else if (String.Equals(id, "clean-taskbar-items", StringComparison.OrdinalIgnoreCase))
+            ApplyCleanTaskbar(enable);
+        else if (String.Equals(id, "disable-printscreen-snipping", StringComparison.OrdinalIgnoreCase))
+            ApplyPrintScreenSnipping(enable);
+        else if (String.Equals(id, "disable-enhanced-pointer-precision", StringComparison.OrdinalIgnoreCase))
+            ApplyPointerPrecision(enable);
+        else if (String.Equals(id, "communications-do-nothing", StringComparison.OrdinalIgnoreCase))
+            ApplyCommunicationsDucking(enable);
+        else if (String.Equals(id, "disable-snap-assist", StringComparison.OrdinalIgnoreCase))
+            ApplySnapAssist(enable);
+        else if (String.Equals(id, "disable-remote-assistance", StringComparison.OrdinalIgnoreCase))
+            ApplyRemoteAssistance(enable);
+        else if (String.Equals(id, "enable-windows-sudo", StringComparison.OrdinalIgnoreCase))
+            ApplyWindowsSudo(enable);
+        else if (String.Equals(id, "reduce-visual-effects", StringComparison.OrdinalIgnoreCase))
+            ApplyReducedVisualEffects(enable);
+        else if (String.Equals(id, "classic-context-menu", StringComparison.OrdinalIgnoreCase))
+            ApplyClassicContextMenu(enable);
+        else if (String.Equals(id, "oops-all-links-cursor", StringComparison.OrdinalIgnoreCase))
+            ApplyOopsCursor(enable);
+        else if (String.Equals(id, "flameshot-win-shift-f", StringComparison.OrdinalIgnoreCase))
+            Console.WriteLine("Win+Shift+F is managed in the GlazeWM config; no separate registry change is required.");
+        else
+            throw new Exception("Unknown WGDot tweak: " + id);
+
+        RefreshShellSettings();
+    }
+
+    static void RunActionTweak(string id)
+    {
+        if (String.Equals(id, "privacy-sexy", StringComparison.OrdinalIgnoreCase))
+        {
+            RunPrivacySexy();
+            return;
+        }
+        throw new Exception("Unknown WGDot action tweak: " + id);
+    }
+
+    static bool IsAdministrator()
+    {
+        try
+        {
+            WindowsIdentity identity = WindowsIdentity.GetCurrent();
+            WindowsPrincipal principal = new WindowsPrincipal(identity);
+            return principal.IsInRole(WindowsBuiltInRole.Administrator);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    static void RunElevatedSelf(string arguments)
+    {
+        var psi = new ProcessStartInfo();
+        psi.FileName = Process.GetCurrentProcess().MainModule.FileName;
+        psi.Arguments = arguments;
+        psi.UseShellExecute = true;
+        psi.Verb = "runas";
+
+        using (Process p = Process.Start(psi))
+        {
+            p.WaitForExit();
+            if (p.ExitCode != 0)
+                throw new Exception("Elevated WGDot tweak failed with exit code " + p.ExitCode.ToString(CultureInfo.InvariantCulture) + ".");
+        }
+    }
+
+    static RegistryKey GetRegistryRoot(string hive, bool writable)
+    {
+        if (String.Equals(hive, "HKCU", StringComparison.OrdinalIgnoreCase))
+            return Registry.CurrentUser;
+        if (String.Equals(hive, "HKLM", StringComparison.OrdinalIgnoreCase))
+            return Registry.LocalMachine;
+        throw new Exception("Unknown registry hive: " + hive);
+    }
+
+    static string RegistrySnapshotKey(string tweakId, string hive, string path, string name)
+    {
+        return tweakId + "|" + hive + "|" + path + "|" + name;
+    }
+
+    static void SetRegistryValueWithSnapshot(
+        string tweakId,
+        string hive,
+        string path,
+        string name,
+        object value,
+        RegistryValueKind kind)
+    {
+        CaptureRegistryOriginal(tweakId, hive, path, name);
+
+        RegistryKey root = GetRegistryRoot(hive, true);
+        using (RegistryKey key = root.CreateSubKey(path))
+        {
+            if (key == null) throw new Exception("Could not open registry key: " + hive + "\\" + path);
+            key.SetValue(name, value, kind);
+        }
+    }
+
+    static void CaptureRegistryOriginal(string tweakId, string hive, string path, string name)
+    {
+        var state = ReadJson(TweakStatePath) ?? new Dictionary<string, object>();
+        var records = new List<object>(GetList(state, "registryOriginals"));
+        string snapshotKey = RegistrySnapshotKey(tweakId, hive, path, name);
+
+        foreach (object raw in records)
+        {
+            var record = AsDictionary(raw);
+            if (String.Equals(GetString(record, "key"), snapshotKey, StringComparison.Ordinal))
+                return;
+        }
+
+        bool exists = false;
+        object value = null;
+        RegistryValueKind kind = RegistryValueKind.String;
+
+        RegistryKey root = GetRegistryRoot(hive, false);
+        using (RegistryKey key = root.OpenSubKey(path, false))
+        {
+            if (key != null)
+            {
+                string[] names = key.GetValueNames();
+                exists = names.Any(x => String.Equals(x, name, StringComparison.OrdinalIgnoreCase));
+                if (exists)
+                {
+                    value = key.GetValue(name, null, RegistryValueOptions.DoNotExpandEnvironmentNames);
+                    kind = key.GetValueKind(name);
+                }
+            }
+        }
+
+        var next = new Dictionary<string, object>();
+        next["key"] = snapshotKey;
+        next["tweakId"] = tweakId;
+        next["hive"] = hive;
+        next["path"] = path;
+        next["name"] = name;
+        next["exists"] = exists;
+        next["kind"] = kind.ToString();
+        next["value"] = value == null ? "" : Convert.ToString(value, CultureInfo.InvariantCulture);
+        records.Add(next);
+
+        state["registryOriginals"] = records.ToArray();
+        WriteJson(TweakStatePath, state);
+    }
+
+    static void RestoreRegistryOriginals(string tweakId)
+    {
+        var state = ReadJson(TweakStatePath);
+        if (state == null) return;
+
+        foreach (object raw in GetList(state, "registryOriginals"))
+        {
+            var record = AsDictionary(raw);
+            if (!String.Equals(GetString(record, "tweakId"), tweakId, StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            string hive = GetString(record, "hive");
+            string path = GetString(record, "path");
+            string name = GetString(record, "name");
+            bool exists = GetBool(record, "exists");
+
+            RegistryKey root = GetRegistryRoot(hive, true);
+            using (RegistryKey key = root.CreateSubKey(path))
+            {
+                if (key == null) continue;
+
+                if (!exists)
+                {
+                    try { key.DeleteValue(name, false); } catch { }
+                    continue;
+                }
+
+                RegistryValueKind kind;
+                if (!Enum.TryParse(GetString(record, "kind"), out kind))
+                    kind = RegistryValueKind.String;
+
+                string text = GetString(record, "value");
+                object value = text;
+                if (kind == RegistryValueKind.DWord)
+                {
+                    int number;
+                    if (Int32.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out number))
+                        value = number;
+                }
+                else if (kind == RegistryValueKind.QWord)
+                {
+                    long number;
+                    if (Int64.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out number))
+                        value = number;
+                }
+
+                key.SetValue(name, value, kind);
+            }
+        }
+    }
+
+    static void ApplyCleanTaskbar(bool enable)
+    {
+        const string id = "clean-taskbar-items";
+        if (!enable)
+        {
+            RestoreRegistryOriginals(id);
+            return;
+        }
+
+        SetRegistryValueWithSnapshot(id, "HKCU",
+            @"Software\Microsoft\Windows\CurrentVersion\Search",
+            "SearchboxTaskbarMode", 0, RegistryValueKind.DWord);
+        SetRegistryValueWithSnapshot(id, "HKCU",
+            @"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced",
+            "ShowTaskViewButton", 0, RegistryValueKind.DWord);
+        SetRegistryValueWithSnapshot(id, "HKCU",
+            @"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced",
+            "TaskbarDa", 0, RegistryValueKind.DWord);
+        SetRegistryValueWithSnapshot(id, "HKCU",
+            @"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced",
+            "TaskbarMn", 0, RegistryValueKind.DWord);
+        SetRegistryValueWithSnapshot(id, "HKCU",
+            @"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced",
+            "ShowCopilotButton", 0, RegistryValueKind.DWord);
+    }
+
+    static void ApplyPrintScreenSnipping(bool enable)
+    {
+        const string id = "disable-printscreen-snipping";
+        if (!enable)
+        {
+            RestoreRegistryOriginals(id);
+            return;
+        }
+
+        SetRegistryValueWithSnapshot(id, "HKCU",
+            @"Control Panel\Keyboard",
+            "PrintScreenKeyForSnippingEnabled", 0, RegistryValueKind.DWord);
+    }
+
+    static void ApplyPointerPrecision(bool enable)
+    {
+        const string id = "disable-enhanced-pointer-precision";
+        if (!enable)
+        {
+            RestoreRegistryOriginals(id);
+            return;
+        }
+
+        SetRegistryValueWithSnapshot(id, "HKCU", @"Control Panel\Mouse", "MouseSpeed", "0", RegistryValueKind.String);
+        SetRegistryValueWithSnapshot(id, "HKCU", @"Control Panel\Mouse", "MouseThreshold1", "0", RegistryValueKind.String);
+        SetRegistryValueWithSnapshot(id, "HKCU", @"Control Panel\Mouse", "MouseThreshold2", "0", RegistryValueKind.String);
+    }
+
+    static void ApplyCommunicationsDucking(bool enable)
+    {
+        const string id = "communications-do-nothing";
+        if (!enable)
+        {
+            RestoreRegistryOriginals(id);
+            return;
+        }
+
+        SetRegistryValueWithSnapshot(id, "HKCU",
+            @"Software\Microsoft\Multimedia\Audio",
+            "UserDuckingPreference", 3, RegistryValueKind.DWord);
+    }
+
+    static void ApplySnapAssist(bool enable)
+    {
+        const string id = "disable-snap-assist";
+        if (!enable)
+        {
+            RestoreRegistryOriginals(id);
+            return;
+        }
+
+        SetRegistryValueWithSnapshot(id, "HKCU",
+            @"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced",
+            "SnapAssist", 0, RegistryValueKind.DWord);
+        SetRegistryValueWithSnapshot(id, "HKCU",
+            @"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced",
+            "EnableSnapAssistFlyout", 0, RegistryValueKind.DWord);
+        SetRegistryValueWithSnapshot(id, "HKCU",
+            @"Control Panel\Desktop",
+            "WindowArrangementActive", "0", RegistryValueKind.String);
+    }
+
+    static void ApplyRemoteAssistance(bool enable)
+    {
+        const string id = "disable-remote-assistance";
+        if (!enable)
+        {
+            RestoreRegistryOriginals(id);
+            return;
+        }
+
+        SetRegistryValueWithSnapshot(id, "HKLM",
+            @"Software\Policies\Microsoft\Windows NT\Terminal Services",
+            "fAllowToGetHelp", 0, RegistryValueKind.DWord);
+    }
+
+    static void ApplyWindowsSudo(bool enable)
+    {
+        if (!enable)
+        {
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine("WGDot does not force-disable Windows sudo. Disable it from System > Advanced if desired.");
+            Console.ResetColor();
+            return;
+        }
+
+        string sudo = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "System32", "sudo.exe");
+        if (!File.Exists(sudo))
+            throw new Exception("Windows sudo is unavailable. It requires Windows 11 24H2 or newer.");
+
+        ProcResult result = RunInteractive(sudo, "config --enable forceNewWindow");
+        if (result.ExitCode != 0)
+            throw new Exception("Windows sudo configuration failed.");
+    }
+
+    static void ApplyReducedVisualEffects(bool enable)
+    {
+        const string id = "reduce-visual-effects";
+        if (!enable)
+        {
+            RestoreRegistryOriginals(id);
+            return;
+        }
+
+        SetRegistryValueWithSnapshot(id, "HKCU",
+            @"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize",
+            "EnableTransparency", 0, RegistryValueKind.DWord);
+        SetRegistryValueWithSnapshot(id, "HKCU",
+            @"Control Panel\Desktop\WindowMetrics",
+            "MinAnimate", "0", RegistryValueKind.String);
+    }
+
+    static void ApplyClassicContextMenu(bool enable)
+    {
+        const string id = "classic-context-menu";
+        string clsid = @"Software\Classes\CLSID\{86ca1aa0-34aa-4e8b-a509-50c905bae2a2}";
+
+        if (!enable)
+        {
+            try { Registry.CurrentUser.DeleteSubKeyTree(clsid, false); } catch { }
+            Console.WriteLine("Modern Windows 11 context menu restored. Explorer restart/sign-out may be required.");
+            return;
+        }
+
+        string path = clsid + @"\InprocServer32";
+        using (RegistryKey key = Registry.CurrentUser.CreateSubKey(path))
+        {
+            if (key == null) throw new Exception("Could not create classic context-menu registry key.");
+            key.SetValue("", "", RegistryValueKind.String);
+        }
+        Console.WriteLine("Classic Windows 11 context menu enabled. Explorer restart/sign-out may be required.");
+    }
+
+    static readonly string[] MicroTextExtensions = new[]
+    {
+        ".txt", ".md", ".markdown", ".log", ".ini", ".cfg", ".conf",
+        ".json", ".jsonc", ".yaml", ".yml", ".toml", ".xml", ".csv", ".tsv",
+        ".css", ".scss", ".less", ".html", ".htm",
+        ".js", ".mjs", ".cjs", ".ts", ".tsx", ".jsx",
+        ".py", ".lua", ".rs", ".go", ".c", ".h", ".cpp", ".hpp",
+        ".java", ".kt", ".kts", ".cs", ".sql", ".properties", ".env"
+    };
+
+    static void ApplyMicroTextDefaults(bool enable)
+    {
+        const string id = "micro-text-defaults";
+        const string progId = "WGDot.MicroText";
+        string launcher = Path.Combine(BinRoot, "open-micro.cmd");
+
+        if (!enable)
+        {
+            RestoreRegistryOriginals(id);
+            try { Registry.CurrentUser.DeleteSubKeyTree(@"Software\Classes\" + progId, false); } catch { }
+            SHChangeNotify(0x08000000, 0, IntPtr.Zero, IntPtr.Zero);
+            return;
+        }
+
+        string command =
+            "@echo off\r\n" +
+            "start \"\" wt.exe -w new new-tab --title \"Micro\" --suppressApplicationTitle -d \"%~dp1\" micro \"%~1\"\r\n";
+        File.WriteAllText(launcher, command, Encoding.ASCII);
+
+        using (RegistryKey commandKey = Registry.CurrentUser.CreateSubKey(
+            @"Software\Classes\" + progId + @"\shell\open\command"))
+        {
+            if (commandKey == null) throw new Exception("Could not register WGDot Micro file handler.");
+            commandKey.SetValue("", Q(launcher) + " \"%1\"", RegistryValueKind.String);
+        }
+
+        int protectedDefaults = 0;
+        foreach (string extension in MicroTextExtensions)
+        {
+            SetRegistryValueWithSnapshot(
+                id,
+                "HKCU",
+                @"Software\Classes\" + extension,
+                "",
+                progId,
+                RegistryValueKind.String);
+
+            using (RegistryKey openWith = Registry.CurrentUser.CreateSubKey(
+                @"Software\Classes\" + extension + @"\OpenWithProgids"))
+            {
+                if (openWith != null)
+                    openWith.SetValue(progId, new byte[0], RegistryValueKind.None);
+            }
+
+            using (RegistryKey userChoice = Registry.CurrentUser.OpenSubKey(
+                @"Software\Microsoft\Windows\CurrentVersion\Explorer\FileExts\" + extension + @"\UserChoice",
+                false))
+            {
+                if (userChoice != null) protectedDefaults++;
+            }
+        }
+
+        SHChangeNotify(0x08000000, 0, IntPtr.Zero, IntPtr.Zero);
+
+        Console.WriteLine("Registered Windows Terminal + Micro for " + MicroTextExtensions.Length +
+            " text/code extensions.");
+        if (protectedDefaults > 0)
+        {
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine(
+                protectedDefaults + " extensions already have Windows-protected UserChoice defaults. " +
+                "WGDot registered Micro as the handler but did not bypass Windows' default-app protection.");
+            Console.ResetColor();
+        }
+    }
+
+    static void ApplyOopsCursor(bool enable)
+    {
+        const string id = "oops-all-links-cursor";
+        if (!enable)
+        {
+            RestoreRegistryOriginals(id);
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine("Cursor registry values were restored to their pre-WGDot values.");
+            Console.ResetColor();
+            SystemParametersInfo(0x0057, 0, IntPtr.Zero, 0x01 | 0x02);
+            return;
+        }
+
+        string tempDir = Path.Combine(CacheRoot, "oops-all-links");
+        string zipPath = Path.Combine(tempDir, "OopsAllLinkSelects.zip");
+        string cursorDir = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+            "Cursors",
+            "OopsAllLinkSelects");
+
+        Directory.CreateDirectory(tempDir);
+        SafeDeleteFile(zipPath);
+
+        using (var client = new WebClient())
+        {
+            client.Headers[HttpRequestHeader.UserAgent] = "wgdot";
+            client.DownloadFile(
+                "https://www.rw-designer.com/cursor-downloadset.php?id=oops-all-link-selects",
+                zipPath);
+        }
+
+        using (FileStream stream = File.OpenRead(zipPath))
+        {
+            if (stream.ReadByte() != 0x50 || stream.ReadByte() != 0x4B)
+                throw new Exception("Oops-all-links download was not a valid ZIP archive.");
+        }
+
+        if (Directory.Exists(cursorDir))
+        {
+            CreateBackup(cursorDir, "cursor");
+            Directory.Delete(cursorDir, true);
+        }
+        Directory.CreateDirectory(cursorDir);
+        ZipFile.ExtractToDirectory(zipPath, cursorDir);
+
+        string[,] mappings = new string[,]
+        {
+            { "Arrow", "default.cur" },
+            { "Help", "help.cur" },
+            { "AppStarting", "busy.ani" },
+            { "Wait", "busy.ani" },
+            { "Crosshair", "precision select.cur" },
+            { "IBeam", "handwrite.cur" },
+            { "NWPen", "handwrite.cur" },
+            { "No", "unavailable.ani" },
+            { "SizeNS", "resize vertical.cur" },
+            { "SizeWE", "resize horizontal.cur" },
+            { "SizeNWSE", "resize backslash.cur" },
+            { "SizeNESW", "resize slash.cur" },
+            { "SizeAll", "move.cur" },
+            { "UpArrow", "alt select.cur" },
+            { "Hand", "link select.cur" }
+        };
+
+        var values = new List<string>();
+        for (int i = 0; i < mappings.GetLength(0); i++)
+        {
+            string name = mappings[i, 0];
+            string path = Path.Combine(cursorDir, mappings[i, 1]);
+            if (!File.Exists(path))
+                throw new Exception("Cursor archive is missing expected file: " + mappings[i, 1]);
+
+            SetRegistryValueWithSnapshot(
+                id, "HKCU", @"Control Panel\Cursors", name, path, RegistryValueKind.String);
+            values.Add(path);
+        }
+
+        SetRegistryValueWithSnapshot(
+            id, "HKCU", @"Control Panel\Cursors", "CursorBaseSize", 48, RegistryValueKind.DWord);
+        SetRegistryValueWithSnapshot(
+            id, "HKCU", @"Control Panel\Cursors", "", "OopsAllLinkSelects", RegistryValueKind.String);
+
+        using (RegistryKey schemes = Registry.CurrentUser.CreateSubKey(@"Control Panel\Cursors\Schemes"))
+        {
+            if (schemes == null) throw new Exception("Could not create cursor scheme registry entry.");
+            schemes.SetValue("OopsAllLinkSelects", String.Join(",", values.ToArray()), RegistryValueKind.String);
+        }
+
+        SystemParametersInfo(0x0057, 0, IntPtr.Zero, 0x01 | 0x02);
+        Console.WriteLine("Oops-all-links cursor theme installed and applied.");
+    }
+
+    static void RunPrivacySexy()
+    {
+        WriteTitle("privacy.sexy");
+
+        int preset = ReadSingleChoice(
+            "Preferred privacy.sexy recommendation level",
+            new List<string> { "Standard (repo guide default)", "Strict", "Cancel" },
+            0);
+        if (preset < 0 || preset == 2) return;
+
+        string presetName = preset == 1 ? "Strict" : "Standard";
+        Console.WriteLine();
+        Console.WriteLine("WGDot will install/update the official privacy.sexy desktop app.");
+        Console.WriteLine("Selected recommendation level: " + presetName);
+        Console.WriteLine();
+        Console.ForegroundColor = ConsoleColor.Yellow;
+        Console.WriteLine(
+            "privacy.sexy does not currently expose a supported headless CLI/API for generating " +
+            "and executing that recommendation set. WGDot will not fake one or disable antivirus.");
+        Console.WriteLine(
+            "The official app will open so you can select " + presetName +
+            " and approve its generated script/run operation.");
+        Console.ResetColor();
+        Console.WriteLine();
+
+        if (!ReadYesNo("Install/update and open official privacy.sexy now? [y/N]", false))
+            return;
+
+        RequireExecutable("winget.exe", "WinGet was not found.");
+        const string packageId = "undergroundwires.privacy.sexy";
+
+        ProcResult shown = Run(
+            "winget.exe",
+            "show --id " + Q(packageId) + " --exact --source winget --accept-source-agreements",
+            null);
+        if (shown.ExitCode != 0)
+            throw new Exception("Official privacy.sexy WinGet package is unavailable.");
+
+        ProcResult listed = Run(
+            "winget.exe",
+            "list --id " + Q(packageId) + " --exact --source winget --accept-source-agreements",
+            null);
+
+        if ((listed.StdOut ?? "").IndexOf(packageId, StringComparison.OrdinalIgnoreCase) >= 0)
+        {
+            RunInteractive(
+                "winget.exe",
+                "upgrade --id " + Q(packageId) +
+                " --exact --source winget --accept-source-agreements --accept-package-agreements");
+        }
+        else
+        {
+            ProcResult installed = RunInteractive(
+                "winget.exe",
+                "install --id " + Q(packageId) +
+                " --exact --source winget --accept-source-agreements --accept-package-agreements");
+            if (installed.ExitCode != 0)
+                throw new Exception("privacy.sexy installation failed.");
+        }
+
+        string exe = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "Programs",
+            "privacy.sexy",
+            "privacy.sexy.exe");
+
+        if (File.Exists(exe))
+        {
+            var psi = new ProcessStartInfo();
+            psi.FileName = exe;
+            psi.UseShellExecute = true;
+            Process.Start(psi);
+        }
+        else
+        {
+            var psi = new ProcessStartInfo();
+            psi.FileName = "https://privacy.sexy/";
+            psi.UseShellExecute = true;
+            Process.Start(psi);
+        }
+
+        var state = ReadJson(TweakStatePath) ?? new Dictionary<string, object>();
+        state["privacySexyPreset"] = presetName;
+        state["privacySexyLastOpenedAt"] = DateTime.UtcNow.ToString("o");
+        WriteJson(TweakStatePath, state);
+    }
+
+    static void RefreshShellSettings()
+    {
+        UIntPtr ignored;
+        try
+        {
+            SendMessageTimeout(
+                HwndBroadcast,
+                WmSettingChange,
+                UIntPtr.Zero,
+                null,
+                SmtoAbortIfHung,
+                2000,
+                out ignored);
+        }
+        catch
+        {
+        }
+
+        try { SHChangeNotify(0x08000000, 0, IntPtr.Zero, IntPtr.Zero); } catch { }
     }
 
     static int ManagedOperation(string mode, SourceContext source)
