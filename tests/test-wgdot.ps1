@@ -35,7 +35,6 @@ Assert-Equal "dillacorn/win-glaze-dots" ([string]$manifest.runtime.repository) "
 $componentIds = @($manifest.components | ForEach-Object { [string]$_.id })
 Assert-True ($componentIds -contains "glazewm") "GlazeWM component exists"
 Assert-True ($componentIds -contains "yazi") "Yazi component exists"
-Assert-True ($componentIds -contains "doublecmd") "Double Commander component exists"
 
 $glaze = $manifest.components | Where-Object { $_.id -eq "glazewm" } | Select-Object -First 1
 Assert-Equal "UserProfile/.glzr/glazewm/config.yaml" ([string]$glaze.files[0].sourceByGlazeProfile.normal) "normal GlazeWM source"
@@ -76,6 +75,7 @@ Assert-True ($packageIds.ContainsKey("wagnardsoft.displaydriveruninstaller")) "c
 Assert-True ($packageIds.ContainsKey("xiph.flac")) "correct FLAC ID is cataloged"
 Assert-True ($packageIds.ContainsKey("itchio.itch")) "correct itch ID is cataloged"
 Assert-True ($packageIds.ContainsKey("microsoft.sysinternals.processexplorer")) "correct Process Explorer ID is cataloged"
+Assert-True (-not $packageIds.ContainsKey("alexx2000.doublecommander")) "Double Commander is not offered by WGDot"
 
 $runtimeText = Get-Content -LiteralPath $runtimePath -Raw
 $launcherText = Get-Content -LiteralPath $launcherPath -Raw

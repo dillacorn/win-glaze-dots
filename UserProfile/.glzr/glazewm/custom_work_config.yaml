@@ -102,7 +102,7 @@ window_rules:
 
   - commands: ["move --workspace 4"]
     match:
-      - window_process: { regex: "dopus|doublecmd|explorer" }
+      - window_process: { regex: "dopus|explorer" }
       - window_process: { regex: "^WindowsTerminal(\\.exe)?$" }
         window_title: { regex: "^Yazi$" }
 

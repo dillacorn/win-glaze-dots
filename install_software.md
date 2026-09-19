@@ -16,7 +16,7 @@ winget install Valve.Steam itch.itch GOG.Galaxy PrismLauncher.PrismLauncher ebkr
 
 ### install optional applications (one-liner)
 ```powershell
-winget install alexx2000.DoubleCommander RustDesk.RustDesk CPUID.HWMonitor jeffvli.Feishin Discord.Discord OBSProject.OBSStudio MullvadVPN.MullvadBrowser voidtools.Everything KDE.Okular Ultimaker.Cura OpenWhisperSystems.Signal KeePassXCTeam.KeePassXC Bitwarden.Bitwarden KDE.Krita Meltytech.Shotcut GIMP.GIMP qBittorrent.qBittorrent NickeManarin.ScreenToGif Spotify.Spotify Betaflight.Betaflight-Configurator Ventoy.Ventoy Piriform.CCleaner AntibodySoftware.WizTree CPUID.CPU-Z TechPowerUp.GPU-Z WinSCP.WinSCP TimKosse.FileZilla.Client MoonlightGameStreamingProject.Moonlight LizardByte.Sunshine TrackerSoftware.PDF-XChangeEditor Tailscale.Tailscale Open-Shell.Open-Shell-Menu RamenSoftware.Windhawk Microsoft.Sysinterals.ProcessExplorer
+winget install RustDesk.RustDesk CPUID.HWMonitor jeffvli.Feishin Discord.Discord OBSProject.OBSStudio MullvadVPN.MullvadBrowser voidtools.Everything KDE.Okular Ultimaker.Cura OpenWhisperSystems.Signal KeePassXCTeam.KeePassXC Bitwarden.Bitwarden KDE.Krita Meltytech.Shotcut GIMP.GIMP qBittorrent.qBittorrent NickeManarin.ScreenToGif Spotify.Spotify Betaflight.Betaflight-Configurator Ventoy.Ventoy Piriform.CCleaner AntibodySoftware.WizTree CPUID.CPU-Z TechPowerUp.GPU-Z WinSCP.WinSCP TimKosse.FileZilla.Client MoonlightGameStreamingProject.Moonlight LizardByte.Sunshine TrackerSoftware.PDF-XChangeEditor Tailscale.Tailscale Open-Shell.Open-Shell-Menu RamenSoftware.Windhawk Microsoft.Sysinterals.ProcessExplorer
 ```
 
 ### install development tools (one-liner)
@@ -76,7 +76,6 @@ winget install SoftwareFreedomConservancy.QEMU SoftwareFreedomConservancy.QEMUGu
 - **Epic Games Launcher** - Epic Games store
 
 ### Optional Applications:
-- **Double Commander** - File Browser
 - **RustDesk** - Remote desktop software
 - **HWMonitor** - Hardware monitoring
 - **Feishin** - Music streaming client

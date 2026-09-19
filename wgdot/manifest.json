@@ -143,34 +143,6 @@
       ]
     },
     {
-      "id": "doublecmd",
-      "name": "Double Commander",
-      "defaultNormal": true,
-      "defaultWork": true,
-      "files": [
-        {
-          "id": "doublecmd-colors",
-          "source": "UserProfile/AppData/Roaming/doublecmd/colors.json",
-          "destination": "%APPDATA%\\doublecmd\\colors.json",
-          "merge": true,
-          "validator": "json"
-        },
-        {
-          "id": "doublecmd-config",
-          "source": "UserProfile/AppData/Roaming/doublecmd/doublecmd.cfg",
-          "destination": "%APPDATA%\\doublecmd\\doublecmd.cfg",
-          "merge": true
-        },
-        {
-          "id": "doublecmd-shortcuts",
-          "source": "UserProfile/AppData/Roaming/doublecmd/shortcuts.scf",
-          "destination": "%APPDATA%\\doublecmd\\shortcuts.scf",
-          "merge": true,
-          "validator": "xml"
-        }
-      ]
-    },
-    {
       "id": "btop",
       "name": "btop",
       "defaultNormal": true,
@@ -523,13 +495,6 @@
       "category": "gaming",
       "defaultNormal": true,
       "defaultWork": false
-    },
-    {
-      "name": "Double Commander",
-      "id": "alexx2000.DoubleCommander",
-      "category": "optional",
-      "defaultNormal": true,
-      "defaultWork": true
     },
     {
       "name": "RustDesk",

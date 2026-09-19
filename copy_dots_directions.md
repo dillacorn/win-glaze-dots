@@ -56,10 +56,6 @@ Restart terminals or sign out/reboot after changing user environment variables s
 Copy-Item -Recurse -Path "$env:UserProfile\win-glaze-dots\UserProfile\AppData\Roaming\flameshot" -Destination "$env:AppData\Roaming" -Force
 ```
 
-#### Copy and overwrite `double commander` dots
-```powershell
-Copy-Item -Recurse -Path "$env:UserProfile\win-glaze-dots\UserProfile\AppData\Roaming\doublecmd" -Destination "$env:AppData\Roaming" -Force
-```
 
 ### Copy scoop dotfiles
 
