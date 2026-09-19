@@ -515,7 +515,9 @@
       "id": "RustDesk.RustDesk",
       "category": "optional",
       "defaultNormal": false,
-      "defaultWork": false
+      "defaultWork": false,
+      "fallbackGitHubRepo": "rustdesk/rustdesk",
+      "fallbackAssetRegex": "^rustdesk-.*-x86_64\\.exe$"
     },
     {
       "name": "HWMonitor",
@@ -875,8 +877,7 @@
       "category": "Windows settings",
       "type": "enable-windows-sudo",
       "defaultNormal": false,
-      "defaultWork": false,
-      "actionOnly": true
+      "defaultWork": false
     },
     {
       "id": "reduce-visual-effects",

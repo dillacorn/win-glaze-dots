@@ -18,7 +18,7 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-13";
+    const string Version = "native-preview-14";
     const string RepoFullName = "dillacorn/win-glaze-dots";
     const string RepoUrl = "https://github.com/dillacorn/win-glaze-dots.git";
     const string ApiBase = "https://api.github.com/repos/dillacorn/win-glaze-dots";
@@ -859,6 +859,63 @@ internal static class WgdotNative
         }
     }
 
+    static bool InstallGitHubReleasePackage(Dictionary<string, object> package)
+    {
+        string repo = GetString(package, "fallbackGitHubRepo");
+        string assetPattern = GetString(package, "fallbackAssetRegex");
+        string name = GetString(package, "name");
+
+        if (!Regex.IsMatch(repo ?? "", "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"))
+            throw new Exception("Invalid fallback GitHub repository for " + name + ".");
+
+        var release = GetJsonUrl("https://api.github.com/repos/" + repo + "/releases/latest");
+        string assetUrl = "";
+        string assetName = "";
+
+        foreach (object rawAsset in GetList(release, "assets"))
+        {
+            var asset = AsDictionary(rawAsset);
+            string candidate = GetString(asset, "name");
+            if (Regex.IsMatch(candidate, assetPattern, RegexOptions.IgnoreCase))
+            {
+                assetName = candidate;
+                assetUrl = GetString(asset, "browser_download_url");
+                break;
+            }
+        }
+
+        if (String.IsNullOrWhiteSpace(assetUrl))
+        {
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine("No matching upstream release installer found for " + name + ".");
+            Console.ResetColor();
+            return false;
+        }
+
+        string packageCache = Path.Combine(CacheRoot, "package-fallback");
+        Directory.CreateDirectory(packageCache);
+        string installer = Path.Combine(packageCache, assetName);
+        SafeDeleteFile(installer);
+
+        using (var client = new WebClient())
+        {
+            client.Headers[HttpRequestHeader.UserAgent] = "wgdot";
+            client.DownloadFile(assetUrl, installer);
+        }
+
+        Console.WriteLine("Launching official upstream installer: " + assetName);
+        ProcResult result = RunInteractive(installer, "");
+        if (result.ExitCode != 0)
+        {
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine(name + " installer failed with exit " + result.ExitCode.ToString(CultureInfo.InvariantCulture) + ".");
+            Console.ResetColor();
+            return false;
+        }
+
+        return true;
+    }
+
     static int SoftwareReconcile()
     {
         SourceContext source = ResolveDefaultSource();
@@ -930,6 +987,21 @@ internal static class WgdotNative
                 null);
             if (show.ExitCode != 0)
             {
+                string fallbackRepo = GetString(package, "fallbackGitHubRepo");
+                string fallbackAssetRegex = GetString(package, "fallbackAssetRegex");
+                if (!String.IsNullOrWhiteSpace(fallbackRepo) && !String.IsNullOrWhiteSpace(fallbackAssetRegex))
+                {
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.WriteLine("Exact WinGet ID unavailable; using approved upstream GitHub fallback for " + id + ".");
+                    Console.ResetColor();
+
+                    if (InstallGitHubReleasePackage(package))
+                        installed++;
+                    else
+                        failed++;
+                    continue;
+                }
+
                 Console.ForegroundColor = ConsoleColor.Yellow;
                 Console.WriteLine("Unavailable by exact WinGet ID; skipped: " + id);
                 Console.ResetColor();
@@ -1683,11 +1755,13 @@ internal static class WgdotNative
 
     static void ApplyWindowsSudo(bool enable)
     {
+        const string id = "enable-windows-sudo";
+        const string path = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Sudo";
+
         if (!enable)
         {
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine("WGDot does not force-disable Windows sudo. Disable it from System > Advanced if desired.");
-            Console.ResetColor();
+            RestoreRegistryOriginals(id);
+            Console.WriteLine("Windows sudo setting restored to its pre-WGDot value.");
             return;
         }
 
@@ -1695,9 +1769,15 @@ internal static class WgdotNative
         if (!File.Exists(sudo))
             throw new Exception("Windows sudo is unavailable. It requires Windows 11 24H2 or newer.");
 
-        ProcResult result = RunInteractive(sudo, "config --enable forceNewWindow");
-        if (result.ExitCode != 0)
-            throw new Exception("Windows sudo configuration failed.");
+        SetRegistryValueWithSnapshot(
+            id,
+            "HKLM",
+            path,
+            "Enabled",
+            1,
+            RegistryValueKind.DWord);
+
+        Console.WriteLine("Windows sudo enabled in force-new-window mode.");
     }
 
     static void ApplyReducedVisualEffects(bool enable)
@@ -1934,37 +2014,35 @@ internal static class WgdotNative
         if (!ReadYesNo("Install/update and open official privacy.sexy now? [y/N]", false))
             return;
 
-        RequireExecutable("winget.exe", "WinGet was not found.");
-        const string packageId = "undergroundwires.privacy.sexy";
+        var release = GetJsonUrl("https://api.github.com/repos/undergroundwires/privacy.sexy/releases/latest");
+        string installerUrl = "";
+        string installerName = "";
 
-        ProcResult shown = Run(
-            "winget.exe",
-            "show --id " + Q(packageId) + " --exact --source winget --accept-source-agreements",
-            null);
-        if (shown.ExitCode != 0)
-            throw new Exception("Official privacy.sexy WinGet package is unavailable.");
-
-        ProcResult listed = Run(
-            "winget.exe",
-            "list --id " + Q(packageId) + " --exact --source winget --accept-source-agreements",
-            null);
-
-        if ((listed.StdOut ?? "").IndexOf(packageId, StringComparison.OrdinalIgnoreCase) >= 0)
+        foreach (object rawAsset in GetList(release, "assets"))
         {
-            RunInteractive(
-                "winget.exe",
-                "upgrade --id " + Q(packageId) +
-                " --exact --source winget --accept-source-agreements --accept-package-agreements");
+            var asset = AsDictionary(rawAsset);
+            string name = GetString(asset, "name");
+            if (Regex.IsMatch(name, "^privacy\\.sexy-Setup-.*\\.exe$", RegexOptions.IgnoreCase))
+            {
+                installerName = name;
+                installerUrl = GetString(asset, "browser_download_url");
+                break;
+            }
         }
-        else
+
+        if (String.IsNullOrWhiteSpace(installerUrl))
+            throw new Exception("Could not locate the official privacy.sexy Windows installer in the latest upstream release.");
+
+        string installerPath = Path.Combine(CacheRoot, installerName);
+        using (var client = new WebClient())
         {
-            ProcResult installed = RunInteractive(
-                "winget.exe",
-                "install --id " + Q(packageId) +
-                " --exact --source winget --accept-source-agreements --accept-package-agreements");
-            if (installed.ExitCode != 0)
-                throw new Exception("privacy.sexy installation failed.");
+            client.Headers[HttpRequestHeader.UserAgent] = "wgdot";
+            client.DownloadFile(installerUrl, installerPath);
         }
+
+        ProcResult installed = RunInteractive(installerPath, "");
+        if (installed.ExitCode != 0)
+            throw new Exception("privacy.sexy installer exited with code " + installed.ExitCode.ToString(CultureInfo.InvariantCulture) + ".");
 
         string exe = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),

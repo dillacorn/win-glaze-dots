@@ -76,6 +76,75 @@ Assert-True ($packageIds.ContainsKey("xiph.flac")) "correct FLAC ID is cataloged
 Assert-True ($packageIds.ContainsKey("itchio.itch")) "correct itch ID is cataloged"
 Assert-True ($packageIds.ContainsKey("microsoft.sysinternals.processexplorer")) "correct Process Explorer ID is cataloged"
 Assert-True (-not $packageIds.ContainsKey("alexx2000.doublecommander")) "Double Commander is not offered by WGDot"
+Assert-True ($packageIds.ContainsKey("mozilla.firefox")) "Firefox is cataloged"
+Assert-True ($packageIds.ContainsKey("vencord.vesktop")) "Vesktop is cataloged"
+Assert-True ($packageIds.ContainsKey("softfever.orcaslicer")) "OrcaSlicer is cataloged"
+Assert-True ($packageIds.ContainsKey("rustdesk.rustdesk")) "RustDesk is cataloged"
+
+function Get-ManifestPackage {
+    param([string]$Id)
+    return $manifest.packages | Where-Object { [string]$_.id -eq $Id } | Select-Object -First 1
+}
+
+foreach ($id in @(
+    "Mozilla.Firefox",
+    "File-New-Project.EarTrumpet",
+    "Microsoft.PowerToys",
+    "zyedidia.micro"
+)) {
+    $p = Get-ManifestPackage -Id $id
+    Assert-True ([bool]$p.defaultNormal) "$id defaults on for Normal"
+}
+
+foreach ($id in @(
+    "Brave.Brave",
+    "MullvadVPN.MullvadBrowser",
+    "Vencord.Vesktop",
+    "SoftFever.OrcaSlicer",
+    "MoonlightGameStreamingProject.Moonlight",
+    "LizardByte.Sunshine",
+    "RamenSoftware.Windhawk",
+    "RustDesk.RustDesk",
+    "Tailscale.Tailscale"
+)) {
+    $p = Get-ManifestPackage -Id $id
+    Assert-True (-not [bool]$p.defaultNormal) "$id defaults off for Normal"
+    Assert-True (-not [bool]$p.defaultWork) "$id defaults off for Work"
+}
+
+$rustDesk = Get-ManifestPackage -Id "RustDesk.RustDesk"
+Assert-Equal "rustdesk/rustdesk" ([string]$rustDesk.fallbackGitHubRepo) "RustDesk approved fallback repository"
+
+$tweakIds = @($manifest.tweaks | ForEach-Object { [string]$_.id })
+foreach ($id in @(
+    "micro-text-defaults",
+    "clean-taskbar-items",
+    "disable-printscreen-snipping",
+    "disable-enhanced-pointer-precision",
+    "communications-do-nothing",
+    "disable-snap-assist",
+    "disable-remote-assistance",
+    "enable-windows-sudo",
+    "reduce-visual-effects",
+    "classic-context-menu",
+    "oops-all-links-cursor",
+    "privacy-sexy"
+)) {
+    Assert-True ($tweakIds -contains $id) "Windows tweak exists: $id"
+}
+
+foreach ($id in @(
+    "classic-context-menu",
+    "oops-all-links-cursor",
+    "privacy-sexy",
+    "disable-remote-assistance",
+    "enable-windows-sudo",
+    "reduce-visual-effects"
+)) {
+    $t = $manifest.tweaks | Where-Object { $_.id -eq $id } | Select-Object -First 1
+    Assert-True (-not [bool]$t.defaultNormal) "$id defaults off"
+}
+
 
 $runtimeText = Get-Content -LiteralPath $runtimePath -Raw
 $launcherText = Get-Content -LiteralPath $launcherPath -Raw
@@ -111,6 +180,12 @@ Assert-True ($nativeSourceText -match '"mark-runtime"') "runtime revision is rec
 Assert-True ($nativeSourceText -match 'WGDOT_SKIP_RUNTIME_REFRESH') "staged runtime avoids recursive refresh while being previewed"
 Assert-True ($nativeSourceText -match '"maintenance-self-test"') "native runtime exposes isolated maintenance self-test"
 Assert-True ($nativeSourceText -match 'WGDOT_TEST_ROOT') "native maintenance self-test redirects state away from normal WGDot state"
+Assert-True ($nativeSourceText -match 'TweakManager') "native runtime includes Windows tweak manager"
+Assert-True ($nativeSourceText -match 'ApplyMicroTextDefaults') "native runtime manages Micro text associations"
+Assert-True ($nativeSourceText -match 'ApplyClassicContextMenu') "native runtime manages classic context menu"
+Assert-True ($nativeSourceText -match 'ApplyOopsCursor') "native runtime manages optional cursor install"
+Assert-True ($nativeSourceText -match 'undergroundwires/privacy\.sexy/releases/latest') "privacy.sexy uses official latest GitHub release"
+Assert-True ($nativeSourceText -match 'rustdesk/rustdesk') "RustDesk fallback is limited to official upstream repository"
 Assert-True ($nativeSourceText -match 'Review only\. No files, backups, baselines, or selection state were changed\.') "native Git review is explicitly non-mutating"
 Assert-True ($nativeSourceText -match 'HKCU\\\\Environment|OpenSubKey\("Environment"|CreateSubKey\("Environment"') "native installer persists user PATH"
 Assert-True ($nativeBootstrapText -notmatch '(?i)powershell(?:\.exe)?') "native bootstrap does not invoke PowerShell"
@@ -121,6 +196,13 @@ Assert-True ($nativeBootstrapText -match '(?i)curl\.exe') "native bootstrap has 
 Assert-True ($runtimeText -notmatch '(?i)winget\s+upgrade\s+--all') "runtime never upgrades all WinGet packages"
 Assert-True ($manualText -notmatch '(?i)winget\s+upgrade\s+--all') "manual path never upgrades all WinGet packages"
 Assert-True ($runtimeText -notmatch '(?i)rmdir\s+/s') "runtime does not use destructive CMD directory removal"
+
+$glazeNormalText = Get-Content -LiteralPath (Join-Path $repoRoot "UserProfile\.glzr\glazewm\config.yaml") -Raw
+$glazeWorkText = Get-Content -LiteralPath (Join-Path $repoRoot "UserProfile\.glzr\glazewm\custom_work_config.yaml") -Raw
+foreach ($text in @($glazeNormalText, $glazeWorkText)) {
+    Assert-True ($text -match 'bindings:\s*\["win\+shift\+f"\]') "GlazeWM binds Win+Shift+F to Flameshot"
+    Assert-True ($text -notmatch '(?i)-ExecutionPolicy\s+Bypass') "GlazeWM managed configs do not bypass execution policy"
+}
 
 $temp = Join-Path $env:LOCALAPPDATA ("wgdot-test-" + [guid]::NewGuid().ToString("N"))
 New-Item -ItemType Directory -Path $temp -Force | Out-Null
