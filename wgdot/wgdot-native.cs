@@ -43,7 +43,7 @@ internal static class WgdotNative
 
         string currentExe = Process.GetCurrentProcess().MainModule.FileName;
         string targetExe = Path.Combine(BinRoot, "wgdot.exe");
-        string sourceRoot = FindRepoRoot(AppDomain.CurrentDomain.BaseDirectory);
+        string sourceRoot = Environment.GetEnvironmentVariable("WGDOT_SOURCE_ROOT");\n        if (String.IsNullOrWhiteSpace(sourceRoot)) sourceRoot = FindRepoRoot(AppDomain.CurrentDomain.BaseDirectory);\n        if (!String.IsNullOrWhiteSpace(sourceRoot)) sourceRoot = Path.GetFullPath(sourceRoot);
 
         if (!String.Equals(Path.GetFullPath(currentExe), Path.GetFullPath(targetExe), StringComparison.OrdinalIgnoreCase))
             File.Copy(currentExe, targetExe, true);
