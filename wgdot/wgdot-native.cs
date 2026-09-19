@@ -6079,15 +6079,15 @@ public static class Program
             string managedProfile = Path.Combine(
                 firefoxRoot,
                 wgdotRelativePath.Replace('/', Path.DirectorySeparatorChar));
-            string userJs = Path.Combine(managedProfile, "user.js");
+            string managedUserJs = Path.Combine(managedProfile, "user.js");
             string expectedHash = GetString(betterfoxState, "lastUserJsSha256");
-            if (File.Exists(userJs) && !String.IsNullOrWhiteSpace(expectedHash))
+            if (File.Exists(managedUserJs) && !String.IsNullOrWhiteSpace(expectedHash))
             {
-                string currentHash = Sha256OrNull(userJs);
+                string currentHash = Sha256OrNull(managedUserJs);
                 if (String.Equals(currentHash, expectedHash, StringComparison.OrdinalIgnoreCase))
                 {
-                    CreateBackup(userJs, "browser-betterfox-rollback");
-                    SafeDeleteFile(userJs);
+                    CreateBackup(managedUserJs, "browser-betterfox-rollback");
+                    SafeDeleteFile(managedUserJs);
                     Console.WriteLine("WGDot Betterfox user.js removed; the dedicated profile was preserved.");
                 }
                 else
