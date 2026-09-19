@@ -277,7 +277,7 @@ keybindings:
   # Launch Yazi in a dedicated Windows Terminal window.
   # The persistent title allows GlazeWM to route it to workspace 4.
   - commands: ["shell-exec wt.exe -w new new-tab --title \"Yazi\" --suppressApplicationTitle powershell.exe -NoProfile -NoLogo -NoExit -Command yazi"]
-    bindings: ["alt+shift+e"]
+    bindings: ["lwin+shift+e", "rwin+shift+e"]
 
   - commands: ["focus --next-workspace"]
     bindings: ["alt+]"]

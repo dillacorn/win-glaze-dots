@@ -255,6 +255,8 @@ foreach ($text in @($glazeNormalText, $glazeWorkText)) {
     Assert-True ($globalIndex -ge 0) "GlazeWM has a global keybindings section"
     Assert-True ($flameshotIndex -gt $globalIndex) "Win+Shift+F Flameshot bind is global, not trapped inside a binding mode"
     Assert-True (-not (($bindingModesIndex -ge 0) -and ($flameshotIndex -gt $bindingModesIndex) -and ($flameshotIndex -lt $globalIndex))) "Flameshot bind is not inside resize/pause binding modes"
+    Assert-True ($text -match 'bindings:\s*\["lwin\+shift\+e",\s*"rwin\+shift\+e"\]') "Yazi uses both Windows keys for Win+Shift+E"
+    Assert-True ($text -notmatch 'bindings:\s*\["alt\+shift\+e"\]') "Yazi no longer uses Alt+Shift+E"
     Assert-True ($text -notmatch '(?i)-ExecutionPolicy\s+Bypass') "GlazeWM managed configs do not bypass execution policy"
 }
 

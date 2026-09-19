@@ -273,7 +273,7 @@ keybindings:
 
   # Launch Yazi in a dedicated Windows Terminal window.
   - commands: ["shell-exec wt.exe -w new new-tab --title \"Yazi\" --suppressApplicationTitle powershell.exe -NoProfile -NoLogo -NoExit -Command yazi"]
-    bindings: ["alt+shift+e"]
+    bindings: ["lwin+shift+e", "rwin+shift+e"]
 
   - commands: ["focus --next-workspace"]
     bindings: ["alt+]"]

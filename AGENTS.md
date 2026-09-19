@@ -179,6 +179,8 @@ Backup deletion must support review/dry-run behavior and explicit confirmation.
 
 ## GlazeWM profile model
 
+- Yazi launcher binding uses both `lwin+shift+e` and `rwin+shift+e`. Keep both Windows-key variants together and do not restore the old `alt+shift+e` launcher bind.
+
 There are two maintained GlazeWM source profiles:
 
 - Normal: `UserProfile/.glzr/glazewm/config.yaml`
