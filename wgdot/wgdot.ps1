@@ -389,7 +389,10 @@ function Read-WgdotMultiChoice {
 }
 
 function New-WgdotInstallationSelection {
-    param([Parameter(Mandatory = $true)]$Manifest)
+    param(
+        [Parameter(Mandatory = $true)]$Manifest,
+        $Existing = $null
+    )
 
     $scopeIndex = Read-WgdotSingleChoice -Title "Choose installation profile" -Items @("Normal / personal PC", "Work PC")
     if ($scopeIndex -lt 0) { return $null }
@@ -415,11 +418,37 @@ function New-WgdotInstallationSelection {
     $packageChoices = Read-WgdotMultiChoice -Title "Software to install/reconcile" -Items $packageChoices
     if ($null -eq $packageChoices) { return $null }
 
+    $browserOptions = [ordered]@{}
+    foreach ($browser in @($Manifest.browserOptions)) {
+        $packageId = [string]$browser.packageId
+        $preserved = $false
+
+        if ($null -ne $Existing -and
+            $Existing.PSObject.Properties.Name -contains "browserOptions" -and
+            $null -ne $Existing.browserOptions) {
+            $existingProperty = $Existing.browserOptions.PSObject.Properties[$packageId]
+            if ($null -ne $existingProperty) {
+                $browserOptions[$packageId] = @($existingProperty.Value | ForEach-Object { [string]$_ })
+                $preserved = $true
+            }
+        }
+
+        if (-not $preserved) {
+            $defaults = @()
+            foreach ($option in @($browser.options)) {
+                $selected = if ($scope -eq "work") { [bool]$option.defaultWork } else { [bool]$option.defaultNormal }
+                if ($selected) { $defaults += [string]$option.id }
+            }
+            $browserOptions[$packageId] = $defaults
+        }
+    }
+
     return [pscustomobject]@{
         scope = $scope
         glazewmProfile = $glazeProfile
         components = @($componentChoices | Where-Object { $_.Selected } | ForEach-Object { $_.Id })
         packages = @($packageChoices | Where-Object { $_.Selected } | ForEach-Object { $_.Id })
+        browserOptions = [pscustomobject]$browserOptions
         configuredAt = (Get-Date).ToString("o")
     }
 }
@@ -919,9 +948,10 @@ function Invoke-WgdotManagedOperation {
     }
 
     $installation = Read-WgdotJson -Path $script:InstallStatePath
+    $existingInstallation = $installation
     $selectionChanged = $false
     if ($null -eq $installation -or $Mode -eq "reset") {
-        $installation = New-WgdotInstallationSelection -Manifest $manifest
+        $installation = New-WgdotInstallationSelection -Manifest $manifest -Existing $existingInstallation
         if ($null -eq $installation) { return }
         $selectionChanged = $true
     }

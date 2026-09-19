@@ -130,6 +130,84 @@ foreach ($package in $manifest.packages) {
     Assert-Equal $shouldDefaultOn ([bool]$package.defaultWork) "$id Work default follows conservative public baseline"
 }
 
+function Get-BrowserDefinition {
+    param([string]$PackageId)
+    return $manifest.browserOptions |
+        Where-Object { [string]$_.packageId -eq $PackageId } |
+        Select-Object -First 1
+}
+
+Assert-Equal 3 @($manifest.browserOptions).Count "exactly the supported WGDot browsers have browser-specific definitions"
+
+$firefoxBrowser = Get-BrowserDefinition -PackageId "Mozilla.Firefox"
+Assert-True ($null -ne $firefoxBrowser) "Firefox browser options exist"
+Assert-Equal "firefox-managed" ([string]$firefoxBrowser.mode) "Firefox uses managed signed-addon setup"
+$firefoxOptionIds = @($firefoxBrowser.options | ForEach-Object { [string]$_.id })
+$firefoxDefaultOn = @(
+    "betterfox",
+    "canvasblocker",
+    "clearurls",
+    "ctrl-number",
+    "localcdn",
+    "return-youtube-dislike",
+    "sponsorblock",
+    "ublock-origin"
+)
+$firefoxDefaultOff = @("dark-reader", "scroll-anywhere")
+foreach ($id in $firefoxDefaultOn) {
+    Assert-True ($firefoxOptionIds -contains $id) "Firefox option exists: $id"
+    $option = $firefoxBrowser.options | Where-Object { [string]$_.id -eq $id } | Select-Object -First 1
+    Assert-True ([bool]$option.defaultNormal) "Firefox $id defaults on for Normal"
+    Assert-True ([bool]$option.defaultWork) "Firefox $id defaults on for Work"
+}
+foreach ($id in $firefoxDefaultOff) {
+    Assert-True ($firefoxOptionIds -contains $id) "Firefox option exists: $id"
+    $option = $firefoxBrowser.options | Where-Object { [string]$_.id -eq $id } | Select-Object -First 1
+    Assert-True (-not [bool]$option.defaultNormal) "Firefox $id defaults off for Normal"
+    Assert-True (-not [bool]$option.defaultWork) "Firefox $id defaults off for Work"
+}
+Assert-Equal 10 $firefoxOptionIds.Count "Firefox exposes only the researched WGDot option set"
+$betterfox = $firefoxBrowser.options | Where-Object { [string]$_.id -eq "betterfox" } | Select-Object -First 1
+Assert-Equal "https://raw.githubusercontent.com/yokoffing/Betterfox/main/user.js" ([string]$betterfox.sourceUrl) "Betterfox uses official upstream user.js"
+foreach ($option in @($firefoxBrowser.options | Where-Object { [string]$_.kind -eq "firefox-extension" })) {
+    Assert-True (([string]$option.installUrl) -match '^https://addons\.mozilla\.org/firefox/downloads/latest/.+/latest\.xpi$') "Firefox extension uses signed AMO latest XPI: $($option.id)"
+}
+
+$braveBrowser = Get-BrowserDefinition -PackageId "Brave.Brave"
+Assert-True ($null -ne $braveBrowser) "Brave browser options exist"
+Assert-Equal "guided-chrome-web-store" ([string]$braveBrowser.mode) "Brave uses browser-approved Chrome Web Store setup"
+$braveOptionIds = @($braveBrowser.options | ForEach-Object { [string]$_.id })
+Assert-Equal 5 $braveOptionIds.Count "Brave exposes only researched supported add-ons/features"
+foreach ($id in @("return-youtube-dislike", "sponsorblock")) {
+    $option = $braveBrowser.options | Where-Object { [string]$_.id -eq $id } | Select-Object -First 1
+    Assert-True ([bool]$option.defaultNormal) "Brave $id defaults on"
+    Assert-True ([bool]$option.defaultWork) "Brave $id defaults on for Work"
+}
+foreach ($id in @("dark-reader", "scroll-anywhere")) {
+    $option = $braveBrowser.options | Where-Object { [string]$_.id -eq $id } | Select-Object -First 1
+    Assert-True (-not [bool]$option.defaultNormal) "Brave $id defaults off"
+    Assert-True (-not [bool]$option.defaultWork) "Brave $id defaults off for Work"
+}
+$braveUbo = $braveBrowser.options | Where-Object { [string]$_.id -eq "ublock-origin" } | Select-Object -First 1
+Assert-True ($null -ne $braveUbo) "Brave exposes its supported full uBlock Origin path"
+Assert-Equal "brave-mv2-settings" ([string]$braveUbo.kind) "Brave uBlock Origin uses Brave-hosted Manifest V2 settings"
+Assert-Equal "brave://settings/extensions/v2" ([string]$braveUbo.settingsUrl) "Brave uBlock Origin points to Brave's supported Manifest V2 page"
+Assert-True (-not [bool]$braveUbo.defaultNormal) "Brave full uBlock Origin defaults off to avoid stacking with Shields"
+Assert-True (-not [bool]$braveUbo.defaultWork) "Brave full uBlock Origin defaults off for Work"
+foreach ($id in @("clearurls", "canvasblocker", "localcdn", "ctrl-number")) {
+    Assert-True (-not ($braveOptionIds -contains $id)) "Brave omits redundant/unsupported option: $id"
+}
+foreach ($option in @($braveBrowser.options | Where-Object { [string]$_.kind -eq "chrome-web-store" })) {
+    Assert-True (([string]$option.storeUrl) -match '^https://chromewebstore\.google\.com/detail/') "Brave option uses official Chrome Web Store: $($option.id)"
+}
+
+$mullvadBrowser = Get-BrowserDefinition -PackageId "MullvadVPN.MullvadBrowser"
+Assert-True ($null -ne $mullvadBrowser) "Mullvad Browser definition exists"
+Assert-Equal "preserve-upstream" ([string]$mullvadBrowser.mode) "Mullvad Browser is preserve-upstream only"
+Assert-Equal 0 @($mullvadBrowser.options).Count "Mullvad Browser cannot receive WGDot extensions or custom settings"
+Assert-True (([string]$mullvadBrowser.notice) -match 'exactly as shipped') "Mullvad Browser UI recommends upstream configuration"
+Assert-True (([string]$mullvadBrowser.notice) -match 'VPN') "Mullvad Browser UI recommends VPN use"
+
 $openShell = Get-ManifestPackage -Id "Open-Shell.Open-Shell-Menu"
 Assert-Equal "launch-open-shell" ([string]$openShell.postInstallAction) "Open-Shell launches after first install"
 
@@ -181,6 +259,8 @@ $manualText = Get-Content -LiteralPath $manualPath -Raw
 $nativeBootstrapText = Get-Content -LiteralPath $nativeBootstrapPath -Raw
 $nativeSourceText = Get-Content -LiteralPath $nativeSourcePath -Raw
 Assert-True ($runtimeText -notmatch '(?i)-ExecutionPolicy\s+Bypass') "runtime does not bypass execution policy"
+Assert-True ($runtimeText -match 'browserOptions = \[pscustomobject\]\$browserOptions') "PowerShell fallback persists browser option state on fresh/reconfigure selection"
+Assert-True ($runtimeText -match 'New-WgdotInstallationSelection -Manifest \$manifest -Existing \$existingInstallation') "PowerShell reset path preserves existing browser option selections"
 Assert-True ($launcherText -notmatch '(?i)-ExecutionPolicy\s+(Bypass|Unrestricted)') "launcher does not override execution policy"
 Assert-True ($launcherText -notmatch '(?i)Set-ExecutionPolicy') "launcher does not change execution policy"
 Assert-True ($launcherText -match 'Get-ExecutionPolicy') "launcher checks effective execution policy"
@@ -216,6 +296,21 @@ Assert-True ($nativeSourceText -match 'TweakManager') "native runtime includes W
 Assert-True ($nativeSourceText -match 'ApplyMicroTextDefaults') "native runtime manages Micro text associations"
 Assert-True ($nativeSourceText -match 'ReadPackageChoicesByCategory') "software selector is grouped by category"
 Assert-True ($nativeSourceText -match 'PackageCategoryLabel') "software selector has friendly category labels"
+Assert-True ($nativeSourceText -match 'E: extensions/options') "Browser category advertises E for nested browser options"
+Assert-True ($nativeSourceText -match 'IsBrowserOptionsKey\(ConsoleKey\.E\)') "E opens browser-specific options"
+Assert-True ($nativeSourceText -match 'ReadBrowserOptionChoices') "browser-specific options use a nested keyboard checklist"
+Assert-True ($nativeSourceText -match 'BrowserOptionsConfigured') "browser selection migration state is explicit"
+Assert-True ($nativeSourceText -match 'Software\\Policies\\Mozilla\\Firefox\\Extensions\\Install') "Firefox uses Mozilla Extensions.Install Windows policy"
+Assert-True ($nativeSourceText -match 'Profiles/wgdot\.betterfox') "Betterfox uses a dedicated WGDot Firefox profile"
+Assert-True ($nativeSourceText -match 'Make the WGDot Betterfox profile the Firefox default\? \[y/N\]') "Betterfox default-profile change requires explicit review"
+Assert-True ($nativeSourceText -match 'Firefox default profile changed outside WGDot') "Betterfox rollback preserves newer user default-profile changes"
+Assert-True ($nativeSourceText -match 'manual Add to Brave approval') "Brave Chrome Web Store setup requires browser/user approval"
+Assert-True ($nativeSourceText -match 'brave://settings/extensions/v2') "Brave full uBlock Origin uses Brave's supported Manifest V2 settings page"
+Assert-True ($nativeSourceText -match 'braveGuidedReviewedOptions') "Brave guided extension pages are remembered instead of reopening every reconcile"
+Assert-True ($nativeSourceText -match 'Close Firefox before WGDot creates the dedicated Betterfox profile') "Betterfox profile metadata is not rewritten while Firefox is running"
+Assert-True ($nativeSourceText -match 'defaultProfileReviewed') "Betterfox remembers a reviewed default-profile choice"
+Assert-True ($nativeSourceText -match 'Browser selection persistence self-test failed') "native self-test covers persisted browser selections"
+Assert-True ($nativeSourceText -match 'Firefox default-profile rollback self-test failed') "native self-test isolates Betterfox default-profile rollback"
 Assert-True ($nativeSourceText -match 'key == ConsoleKey\.Escape \|\| key == ConsoleKey\.Q') "Q and Escape share the global back-key behavior"
 Assert-True ($nativeSourceText -match 'Q/Esc: back') "keyboard UI advertises Q and Escape as back keys"
 Assert-True ($nativeSourceText -match 'launch-open-shell') "native runtime starts Open-Shell after installation"

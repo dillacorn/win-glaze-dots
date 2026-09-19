@@ -18,7 +18,7 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-24";
+    const string Version = "native-preview-25";
     const string RepoFullName = "dillacorn/win-glaze-dots";
     const string RepoUrl = "https://github.com/dillacorn/win-glaze-dots.git";
     const string ApiBase = "https://api.github.com/repos/dillacorn/win-glaze-dots";
@@ -40,6 +40,7 @@ internal static class WgdotNative
     static readonly string GitStatePath = Path.Combine(StateRoot, "git-testing.json");
     static readonly string TweakStatePath = Path.Combine(StateRoot, "tweaks.json");
     static readonly string GpuStatePath = Path.Combine(StateRoot, "gpu-maintenance.json");
+    static readonly string BrowserStatePath = Path.Combine(StateRoot, "browser-management.json");
     static readonly JavaScriptSerializer Json = new JavaScriptSerializer { MaxJsonLength = int.MaxValue, RecursionLimit = 100 };
 
     static readonly IntPtr HwndBroadcast = new IntPtr(0xffff);
@@ -128,6 +129,16 @@ internal static class WgdotNative
         public List<string> Packages = new List<string>();
         public List<string> Tweaks = new List<string>();
         public bool TweaksConfigured;
+        public Dictionary<string, List<string>> BrowserOptions =
+            new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+        public bool BrowserOptionsConfigured;
+    }
+
+    sealed class IniSection
+    {
+        public string Name;
+        public Dictionary<string, string> Values =
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
     }
 
     sealed class PlanItem
@@ -1083,6 +1094,147 @@ internal static class WgdotNative
                 try { Registry.CurrentUser.DeleteSubKeyTree(registrySelfTestPath, false); } catch { }
             }
 
+            if (!IsBrowserOptionsKey(ConsoleKey.E) ||
+                !IsBackKey(ConsoleKey.Q) ||
+                !IsBackKey(ConsoleKey.Escape))
+                throw new Exception("Browser keyboard navigation self-test failed.");
+
+            var firefoxBrowser = new Dictionary<string, object>();
+            firefoxBrowser["packageId"] = "Mozilla.Firefox";
+            firefoxBrowser["name"] = "Firefox";
+            firefoxBrowser["mode"] = "firefox-managed";
+            firefoxBrowser["options"] = new object[]
+            {
+                new Dictionary<string, object>
+                {
+                    { "id", "betterfox" },
+                    { "name", "Betterfox" },
+                    { "defaultNormal", true },
+                    { "defaultWork", true }
+                },
+                new Dictionary<string, object>
+                {
+                    { "id", "dark-reader" },
+                    { "name", "Dark Reader" },
+                    { "defaultNormal", false },
+                    { "defaultWork", false }
+                }
+            };
+
+            var mullvadBrowser = new Dictionary<string, object>();
+            mullvadBrowser["packageId"] = "MullvadVPN.MullvadBrowser";
+            mullvadBrowser["name"] = "Mullvad Browser";
+            mullvadBrowser["mode"] = "preserve-upstream";
+            mullvadBrowser["options"] = new object[0];
+
+            var browserManifest = new Dictionary<string, object>();
+            browserManifest["browserOptions"] = new object[]
+            {
+                firefoxBrowser,
+                mullvadBrowser
+            };
+
+            Dictionary<string, List<string>> browserDefaults =
+                BuildBrowserOptionSelection(browserManifest, "normal", null);
+            if (!browserDefaults.ContainsKey("Mozilla.Firefox") ||
+                browserDefaults["Mozilla.Firefox"].Count != 1 ||
+                !browserDefaults["Mozilla.Firefox"].Contains("betterfox") ||
+                !browserDefaults.ContainsKey("MullvadVPN.MullvadBrowser") ||
+                browserDefaults["MullvadVPN.MullvadBrowser"].Count != 0)
+                throw new Exception("Browser manifest/default self-test failed.");
+
+            var browserSelection = new InstallationSelection();
+            browserSelection.Scope = "normal";
+            browserSelection.GlazeProfile = "normal";
+            browserSelection.Components.Add("selftest");
+            browserSelection.Packages.Add("Mozilla.Firefox");
+            browserSelection.BrowserOptions = browserDefaults;
+            browserSelection.BrowserOptionsConfigured = true;
+            WriteInstallationSelection(browserSelection);
+
+            InstallationSelection browserRoundTrip = ReadInstallationSelection();
+            if (browserRoundTrip == null ||
+                !browserRoundTrip.BrowserOptionsConfigured ||
+                !browserRoundTrip.BrowserOptions.ContainsKey("Mozilla.Firefox") ||
+                !browserRoundTrip.BrowserOptions["Mozilla.Firefox"].Contains("betterfox") ||
+                !browserRoundTrip.BrowserOptions.ContainsKey("MullvadVPN.MullvadBrowser") ||
+                browserRoundTrip.BrowserOptions["MullvadVPN.MullvadBrowser"].Count != 0)
+                throw new Exception("Browser selection persistence self-test failed.");
+
+            List<string> nextOwned;
+            List<string> mergedInstallUrls = MergeManagedFirefoxInstallUrls(
+                new[]
+                {
+                    "https://example.invalid/external.xpi",
+                    "https://addons.mozilla.org/old-wgdot.xpi"
+                },
+                new[] { "https://addons.mozilla.org/old-wgdot.xpi" },
+                new[]
+                {
+                    "https://example.invalid/external.xpi",
+                    "https://addons.mozilla.org/new-wgdot.xpi"
+                },
+                out nextOwned);
+            if (mergedInstallUrls.Count != 2 ||
+                !mergedInstallUrls.Contains("https://example.invalid/external.xpi") ||
+                !mergedInstallUrls.Contains("https://addons.mozilla.org/new-wgdot.xpi") ||
+                mergedInstallUrls.Contains("https://addons.mozilla.org/old-wgdot.xpi") ||
+                nextOwned.Count != 1 ||
+                !nextOwned.Contains("https://addons.mozilla.org/new-wgdot.xpi"))
+                throw new Exception("Firefox managed extension policy merge self-test failed.");
+
+            string firefoxTestRoot = Path.Combine(root, "firefox-profile-selftest");
+            Directory.CreateDirectory(
+                Path.Combine(firefoxTestRoot, "Profiles", "existing.default"));
+            File.WriteAllText(
+                Path.Combine(firefoxTestRoot, "profiles.ini"),
+                "[General]\r\nStartWithLastProfile=1\r\nVersion=2\r\n\r\n" +
+                "[Profile0]\r\nName=Existing\r\nIsRelative=1\r\n" +
+                "Path=Profiles/existing.default\r\nDefault=1\r\n\r\n" +
+                "[InstallABC]\r\nDefault=Profiles/existing.default\r\nLocked=1\r\n",
+                new UTF8Encoding(false));
+            File.WriteAllText(
+                Path.Combine(firefoxTestRoot, "installs.ini"),
+                "[ABC]\r\nDefault=Profiles/existing.default\r\nLocked=1\r\n",
+                new UTF8Encoding(false));
+
+            string beforeDefault = GetFirefoxDefaultProfilePath(firefoxTestRoot);
+            if (!String.Equals(
+                beforeDefault,
+                "Profiles/existing.default",
+                StringComparison.OrdinalIgnoreCase))
+                throw new Exception("Firefox default-profile discovery self-test failed.");
+
+            string wgdotProfile = EnsureWgdotFirefoxProfile(firefoxTestRoot);
+            if (!Directory.Exists(Path.Combine(
+                firefoxTestRoot,
+                wgdotProfile.Replace('/', Path.DirectorySeparatorChar))))
+                throw new Exception("WGDot Firefox profile creation self-test failed.");
+
+            if (!File.Exists(
+                Path.Combine(firefoxTestRoot, "profiles.ini") + ".wgdot.backup"))
+                throw new Exception("Firefox profile metadata backup self-test failed.");
+
+            SetFirefoxDefaultProfile(
+                firefoxTestRoot,
+                wgdotProfile,
+                beforeDefault);
+            if (!String.Equals(
+                GetFirefoxDefaultProfilePath(firefoxTestRoot),
+                wgdotProfile,
+                StringComparison.OrdinalIgnoreCase))
+                throw new Exception("Firefox default-profile set self-test failed.");
+
+            RestoreFirefoxDefaultProfile(
+                firefoxTestRoot,
+                beforeDefault,
+                wgdotProfile);
+            if (!String.Equals(
+                GetFirefoxDefaultProfilePath(firefoxTestRoot),
+                beforeDefault,
+                StringComparison.OrdinalIgnoreCase))
+                throw new Exception("Firefox default-profile rollback self-test failed.");
+
             Console.WriteLine("WGDot native maintenance self-test passed.");
             return 0;
         }
@@ -1308,6 +1460,18 @@ internal static class WgdotNative
             }
         }
 
+        try
+        {
+            ApplyBrowserConfiguration(manifest, selection);
+        }
+        catch (Exception ex)
+        {
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine("Browser configuration failed: " + ex.Message);
+            Console.ResetColor();
+            failed++;
+        }
+
         Console.WriteLine();
         Console.WriteLine("Software reconciliation complete.");
         Console.WriteLine("Installed: " + installed.ToString(CultureInfo.InvariantCulture));
@@ -1395,10 +1559,18 @@ internal static class WgdotNative
 
         if (includePackages)
         {
+            var browserOptions = BuildBrowserOptionSelection(manifest, scope, existing);
             var packageChoices = BuildPackageChoices(manifest, scope, existing);
-            packageChoices = ReadPackageChoicesByCategory("Software to install / reconcile", packageChoices);
+            packageChoices = ReadPackageChoicesByCategory(
+                "Software to install / reconcile",
+                packageChoices,
+                manifest,
+                scope,
+                browserOptions);
             if (packageChoices == null) return null;
             result.Packages = packageChoices.Where(x => x.Selected).Select(x => x.Id).ToList();
+            result.BrowserOptions = browserOptions;
+            result.BrowserOptionsConfigured = true;
 
             var tweakChoices = BuildTweakChoices(manifest, scope, existing, true);
             tweakChoices = ReadMultiChoice("Windows tweaks / integrations", tweakChoices);
@@ -1409,6 +1581,8 @@ internal static class WgdotNative
         else if (existing != null)
         {
             result.Packages = new List<string>(existing.Packages);
+            result.BrowserOptions = new Dictionary<string, List<string>>(existing.BrowserOptions, StringComparer.OrdinalIgnoreCase);
+            result.BrowserOptionsConfigured = existing.BrowserOptionsConfigured;
             result.Tweaks = existing.TweaksConfigured
                 ? new List<string>(existing.Tweaks)
                 : GetDefaultTweakIds(manifest, scope);
@@ -1418,6 +1592,8 @@ internal static class WgdotNative
         {
             foreach (ChoiceItem item in BuildPackageChoices(manifest, scope, null))
                 if (item.Selected) result.Packages.Add(item.Id);
+            result.BrowserOptions = BuildBrowserOptionSelection(manifest, scope, null);
+            result.BrowserOptionsConfigured = false;
             result.Tweaks = GetDefaultTweakIds(manifest, scope);
             result.TweaksConfigured = true;
         }
@@ -1438,11 +1614,19 @@ internal static class WgdotNative
             : GetDefaultTweakIds(manifest, existing.Scope);
         result.TweaksConfigured = true;
 
+        var browserOptions = BuildBrowserOptionSelection(manifest, existing.Scope, existing);
         var choices = BuildPackageChoices(manifest, existing.Scope, existing);
-        choices = ReadPackageChoicesByCategory("Software to install / reconcile", choices);
+        choices = ReadPackageChoicesByCategory(
+            "Software to install / reconcile",
+            choices,
+            manifest,
+            existing.Scope,
+            browserOptions);
         if (choices == null) return null;
 
         result.Packages = choices.Where(x => x.Selected).Select(x => x.Id).ToList();
+        result.BrowserOptions = browserOptions;
+        result.BrowserOptionsConfigured = true;
         return result;
     }
 
@@ -1517,6 +1701,8 @@ internal static class WgdotNative
         result.Packages = GetStringList(state, "packages");
         result.Tweaks = GetStringList(state, "tweaks");
         result.TweaksConfigured = state.ContainsKey("tweaks");
+        result.BrowserOptions = ReadBrowserOptionsState(state);
+        result.BrowserOptionsConfigured = state.ContainsKey("browserOptions");
 
         if (String.IsNullOrWhiteSpace(result.Scope) ||
             String.IsNullOrWhiteSpace(result.GlazeProfile) ||
@@ -1534,8 +1720,77 @@ internal static class WgdotNative
         state["components"] = selection.Components.ToArray();
         state["packages"] = selection.Packages.ToArray();
         state["tweaks"] = selection.Tweaks.ToArray();
+        if (selection.BrowserOptionsConfigured)
+        {
+            var browserOptions = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+            foreach (KeyValuePair<string, List<string>> pair in selection.BrowserOptions)
+                browserOptions[pair.Key] = pair.Value.ToArray();
+            state["browserOptions"] = browserOptions;
+        }
         state["configuredAt"] = DateTime.UtcNow.ToString("o");
         WriteJson(InstallStatePath, state);
+    }
+
+
+    static Dictionary<string, List<string>> ReadBrowserOptionsState(Dictionary<string, object> state)
+    {
+        var result = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+        if (state == null || !state.ContainsKey("browserOptions")) return result;
+
+        Dictionary<string, object> map = GetDictionary(state, "browserOptions");
+        foreach (KeyValuePair<string, object> pair in map)
+        {
+            var wrapper = new Dictionary<string, object>();
+            wrapper["items"] = pair.Value;
+            result[pair.Key] = GetStringList(wrapper, "items");
+        }
+        return result;
+    }
+
+    static Dictionary<string, object> GetBrowserDefinition(
+        Dictionary<string, object> manifest,
+        string packageId)
+    {
+        foreach (object raw in GetList(manifest, "browserOptions"))
+        {
+            var browser = AsDictionary(raw);
+            if (String.Equals(GetString(browser, "packageId"), packageId, StringComparison.OrdinalIgnoreCase))
+                return browser;
+        }
+        return null;
+    }
+
+    static Dictionary<string, List<string>> BuildBrowserOptionSelection(
+        Dictionary<string, object> manifest,
+        string scope,
+        InstallationSelection existing)
+    {
+        var result = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+        if (existing != null && existing.BrowserOptionsConfigured)
+        {
+            foreach (KeyValuePair<string, List<string>> pair in existing.BrowserOptions)
+                result[pair.Key] = new List<string>(pair.Value);
+        }
+
+        foreach (object rawBrowser in GetList(manifest, "browserOptions"))
+        {
+            var browser = AsDictionary(rawBrowser);
+            string packageId = GetString(browser, "packageId");
+            if (String.IsNullOrWhiteSpace(packageId) || result.ContainsKey(packageId)) continue;
+
+            var defaults = new List<string>();
+            foreach (object rawOption in GetList(browser, "options"))
+            {
+                var option = AsDictionary(rawOption);
+                bool selected = scope == "work"
+                    ? GetBool(option, "defaultWork")
+                    : GetBool(option, "defaultNormal");
+                if (selected) defaults.Add(GetString(option, "id"));
+            }
+            result[packageId] = defaults;
+        }
+
+        return result;
     }
 
     static List<ChoiceItem> BuildTweakChoices(
@@ -4695,7 +4950,12 @@ public static class Program
         }
     }
 
-    static List<ChoiceItem> ReadPackageChoicesByCategory(string title, List<ChoiceItem> items)
+    static List<ChoiceItem> ReadPackageChoicesByCategory(
+        string title,
+        List<ChoiceItem> items,
+        Dictionary<string, object> manifest,
+        string scope,
+        Dictionary<string, List<string>> browserOptions)
     {
         if (items == null || items.Count == 0) return items;
 
@@ -4762,9 +5022,218 @@ public static class Program
                     .Where(x => String.Equals(x.Category, category, StringComparison.OrdinalIgnoreCase))
                     .ToList();
 
-                List<ChoiceItem> edited = ReadMultiChoice(PackageCategoryLabel(category), group);
+                List<ChoiceItem> edited = String.Equals(category, "browsers", StringComparison.OrdinalIgnoreCase)
+                    ? ReadBrowserPackageChoices(
+                        PackageCategoryLabel(category),
+                        group,
+                        manifest,
+                        scope,
+                        browserOptions)
+                    : ReadMultiChoice(PackageCategoryLabel(category), group);
                 if (edited == null) continue;
             }
+        }
+    }
+
+    static bool IsBrowserOptionsKey(ConsoleKey key)
+    {
+        return key == ConsoleKey.E;
+    }
+
+    static string BrowserOptionSummary(
+        Dictionary<string, object> manifest,
+        string packageId,
+        Dictionary<string, List<string>> browserOptions)
+    {
+        Dictionary<string, object> browser = GetBrowserDefinition(manifest, packageId);
+        if (browser == null) return "";
+
+        string mode = GetString(browser, "mode");
+        if (String.Equals(mode, "preserve-upstream", StringComparison.OrdinalIgnoreCase))
+            return "  [as shipped]";
+
+        int total = GetList(browser, "options").Count;
+        List<string> selected;
+        if (!browserOptions.TryGetValue(packageId, out selected))
+            selected = new List<string>();
+        return "  [" + selected.Count.ToString(CultureInfo.InvariantCulture) +
+            "/" + total.ToString(CultureInfo.InvariantCulture) + " options]";
+    }
+
+    static List<ChoiceItem> ReadBrowserPackageChoices(
+        string title,
+        List<ChoiceItem> items,
+        Dictionary<string, object> manifest,
+        string scope,
+        Dictionary<string, List<string>> browserOptions)
+    {
+        if (items == null || items.Count == 0) return items;
+        int index = 0;
+
+        while (true)
+        {
+            WriteTitle(title);
+
+            for (int i = 0; i < items.Count; i++)
+            {
+                string mark = items[i].Selected ? "[x]" : "[ ]";
+                if (i == index) Console.ForegroundColor = ConsoleColor.Cyan;
+                Console.WriteLine(
+                    (i == index ? "> " : "  ") +
+                    mark + " " + items[i].Label +
+                    BrowserOptionSummary(manifest, items[i].Id, browserOptions));
+                Console.ResetColor();
+            }
+
+            Console.WriteLine();
+            Console.ForegroundColor = ConsoleColor.DarkGray;
+            Console.WriteLine("Up/Down: move   Space: toggle   E: extensions/options");
+            Console.WriteLine("Enter: accept   Q/Esc: back");
+            Console.ResetColor();
+
+            ConsoleKey key = Console.ReadKey(true).Key;
+            if (key == ConsoleKey.UpArrow) index = (index - 1 + items.Count) % items.Count;
+            else if (key == ConsoleKey.DownArrow) index = (index + 1) % items.Count;
+            else if (key == ConsoleKey.Home) index = 0;
+            else if (key == ConsoleKey.End) index = items.Count - 1;
+            else if (key == ConsoleKey.Spacebar) items[index].Selected = !items[index].Selected;
+            else if (IsBrowserOptionsKey(key))
+                EditBrowserOptions(manifest, scope, items[index].Id, browserOptions);
+            else if (key == ConsoleKey.Enter) return items;
+            else if (IsBackKey(key)) return null;
+        }
+    }
+
+    static void EditBrowserOptions(
+        Dictionary<string, object> manifest,
+        string scope,
+        string packageId,
+        Dictionary<string, List<string>> browserOptions)
+    {
+        Dictionary<string, object> browser = GetBrowserDefinition(manifest, packageId);
+        if (browser == null) return;
+
+        string browserName = GetString(browser, "name");
+        string notice = GetString(browser, "notice");
+        List<object> optionDefs = GetList(browser, "options");
+
+        if (optionDefs.Count == 0)
+        {
+            ShowBrowserNotice(browserName, notice);
+            return;
+        }
+
+        List<string> selected;
+        if (!browserOptions.TryGetValue(packageId, out selected))
+        {
+            selected = new List<string>();
+            foreach (object rawOption in optionDefs)
+            {
+                var option = AsDictionary(rawOption);
+                bool enabled = scope == "work"
+                    ? GetBool(option, "defaultWork")
+                    : GetBool(option, "defaultNormal");
+                if (enabled) selected.Add(GetString(option, "id"));
+            }
+        }
+
+        var selectedSet = new HashSet<string>(selected, StringComparer.OrdinalIgnoreCase);
+        var choices = new List<ChoiceItem>();
+        foreach (object rawOption in optionDefs)
+        {
+            var option = AsDictionary(rawOption);
+            string id = GetString(option, "id");
+            choices.Add(new ChoiceItem
+            {
+                Id = id,
+                Label = GetString(option, "name"),
+                Selected = selectedSet.Contains(id)
+            });
+        }
+
+        List<ChoiceItem> edited = ReadBrowserOptionChoices(
+            browserName + " extensions / options",
+            notice,
+            choices);
+        if (edited == null) return;
+
+        browserOptions[packageId] = edited
+            .Where(x => x.Selected)
+            .Select(x => x.Id)
+            .ToList();
+    }
+
+    static List<ChoiceItem> ReadBrowserOptionChoices(
+        string title,
+        string notice,
+        List<ChoiceItem> items)
+    {
+        if (items == null || items.Count == 0) return items;
+        int index = 0;
+        const int pageSize = 18;
+
+        while (true)
+        {
+            WriteTitle(title);
+
+            if (!String.IsNullOrWhiteSpace(notice))
+            {
+                Console.ForegroundColor = ConsoleColor.DarkGray;
+                Console.WriteLine(notice);
+                Console.ResetColor();
+                Console.WriteLine();
+            }
+
+            int start = 0;
+            if (items.Count > pageSize)
+            {
+                start = index - pageSize / 2;
+                if (start < 0) start = 0;
+                int maxStart = items.Count - pageSize;
+                if (start > maxStart) start = maxStart;
+            }
+            int end = Math.Min(items.Count, start + pageSize);
+
+            for (int i = start; i < end; i++)
+            {
+                string mark = items[i].Selected ? "[x]" : "[ ]";
+                if (i == index) Console.ForegroundColor = ConsoleColor.Cyan;
+                Console.WriteLine((i == index ? "> " : "  ") + mark + " " + items[i].Label);
+                Console.ResetColor();
+            }
+
+            Console.WriteLine();
+            Console.ForegroundColor = ConsoleColor.DarkGray;
+            Console.WriteLine("Up/Down: move   Space: toggle");
+            Console.WriteLine("Enter: accept   Q/Esc: back");
+            Console.ResetColor();
+
+            ConsoleKey key = Console.ReadKey(true).Key;
+            if (key == ConsoleKey.UpArrow) index = (index - 1 + items.Count) % items.Count;
+            else if (key == ConsoleKey.DownArrow) index = (index + 1) % items.Count;
+            else if (key == ConsoleKey.PageUp) index = Math.Max(0, index - pageSize);
+            else if (key == ConsoleKey.PageDown) index = Math.Min(items.Count - 1, index + pageSize);
+            else if (key == ConsoleKey.Home) index = 0;
+            else if (key == ConsoleKey.End) index = items.Count - 1;
+            else if (key == ConsoleKey.Spacebar) items[index].Selected = !items[index].Selected;
+            else if (key == ConsoleKey.Enter) return items;
+            else if (IsBackKey(key)) return null;
+        }
+    }
+
+    static void ShowBrowserNotice(string browserName, string notice)
+    {
+        while (true)
+        {
+            WriteTitle(browserName + " browser options");
+            Console.WriteLine(notice);
+            Console.WriteLine();
+            Console.ForegroundColor = ConsoleColor.DarkGray;
+            Console.WriteLine("Enter/Q/Esc: back");
+            Console.ResetColor();
+
+            ConsoleKey key = Console.ReadKey(true).Key;
+            if (key == ConsoleKey.Enter || IsBackKey(key)) return;
         }
     }
 
@@ -4820,6 +5289,916 @@ public static class Program
             else if (key == ConsoleKey.Enter) return items;
             else if (IsBackKey(key)) return null;
         }
+    }
+
+
+    static void ApplyBrowserConfiguration(
+        Dictionary<string, object> manifest,
+        InstallationSelection selection)
+    {
+        if (selection == null || !selection.BrowserOptionsConfigured)
+        {
+            Console.WriteLine();
+            Console.WriteLine("Browser options are not configured yet; existing browser state is preserved.");
+            return;
+        }
+
+        var selectedPackages = new HashSet<string>(
+            selection.Packages ?? new List<string>(),
+            StringComparer.OrdinalIgnoreCase);
+
+        foreach (object rawBrowser in GetList(manifest, "browserOptions"))
+        {
+            var browser = AsDictionary(rawBrowser);
+            string packageId = GetString(browser, "packageId");
+            string mode = GetString(browser, "mode");
+            bool packageSelected = selectedPackages.Contains(packageId);
+
+            List<string> selectedOptions;
+            if (!selection.BrowserOptions.TryGetValue(packageId, out selectedOptions))
+                selectedOptions = new List<string>();
+
+            if (String.Equals(mode, "firefox-managed", StringComparison.OrdinalIgnoreCase))
+            {
+                ApplyFirefoxBrowserOptions(
+                    browser,
+                    packageSelected ? selectedOptions : new List<string>());
+            }
+            else if (String.Equals(mode, "guided-chrome-web-store", StringComparison.OrdinalIgnoreCase))
+            {
+                if (packageSelected)
+                    ApplyBraveBrowserOptions(browser, selectedOptions);
+            }
+            else if (String.Equals(mode, "preserve-upstream", StringComparison.OrdinalIgnoreCase))
+            {
+                if (packageSelected)
+                {
+                    Console.WriteLine();
+                    Console.WriteLine(GetString(browser, "name") + ":");
+                    Console.WriteLine(GetString(browser, "notice"));
+                }
+            }
+            else if (!String.IsNullOrWhiteSpace(mode))
+            {
+                throw new Exception("Unknown browser management mode '" + mode + "'.");
+            }
+        }
+    }
+
+    static void ApplyFirefoxBrowserOptions(
+        Dictionary<string, object> browser,
+        List<string> selectedOptions)
+    {
+        var selected = new HashSet<string>(
+            selectedOptions ?? new List<string>(),
+            StringComparer.OrdinalIgnoreCase);
+        var installUrls = new List<string>();
+        Dictionary<string, object> betterfoxOption = null;
+
+        foreach (object rawOption in GetList(browser, "options"))
+        {
+            var option = AsDictionary(rawOption);
+            string id = GetString(option, "id");
+            string kind = GetString(option, "kind");
+
+            if (String.Equals(kind, "firefox-extension", StringComparison.OrdinalIgnoreCase) &&
+                selected.Contains(id))
+            {
+                string installUrl = GetString(option, "installUrl");
+                if (!String.IsNullOrWhiteSpace(installUrl))
+                    installUrls.Add(installUrl);
+            }
+            else if (String.Equals(kind, "betterfox", StringComparison.OrdinalIgnoreCase))
+            {
+                betterfoxOption = option;
+            }
+        }
+
+        ApplyFirefoxExtensionInstallPolicy(installUrls);
+
+        bool enableBetterfox =
+            betterfoxOption != null &&
+            selected.Contains(GetString(betterfoxOption, "id"));
+        ApplyBetterfox(betterfoxOption, enableBetterfox, GetFirefoxRoot());
+    }
+
+    static string GetFirefoxRoot()
+    {
+        return Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            "Mozilla",
+            "Firefox");
+    }
+
+    static List<string> ReadFirefoxInstallPolicyUrls()
+    {
+        const string path = @"Software\Policies\Mozilla\Firefox\Extensions\Install";
+        var numbered = new List<KeyValuePair<int, string>>();
+
+        using (RegistryKey key = Registry.CurrentUser.OpenSubKey(path, false))
+        {
+            if (key == null) return new List<string>();
+
+            foreach (string name in key.GetValueNames())
+            {
+                int number;
+                if (!Int32.TryParse(name, NumberStyles.Integer, CultureInfo.InvariantCulture, out number))
+                    continue;
+
+                RegistryValueKind kind = key.GetValueKind(name);
+                if (kind != RegistryValueKind.String && kind != RegistryValueKind.ExpandString)
+                    throw new Exception(
+                        "Firefox Extensions.Install policy value '" + name +
+                        "' is not a string; WGDot will not rewrite it.");
+
+                object value = key.GetValue(
+                    name,
+                    null,
+                    RegistryValueOptions.DoNotExpandEnvironmentNames);
+                string url = value == null ? "" : Convert.ToString(value);
+                if (!String.IsNullOrWhiteSpace(url))
+                    numbered.Add(new KeyValuePair<int, string>(number, url));
+            }
+        }
+
+        return numbered
+            .OrderBy(x => x.Key)
+            .Select(x => x.Value)
+            .ToList();
+    }
+
+    static List<string> MergeManagedFirefoxInstallUrls(
+        IEnumerable<string> current,
+        IEnumerable<string> previousOwned,
+        IEnumerable<string> desired,
+        out List<string> nextOwned)
+    {
+        var oldOwned = new HashSet<string>(
+            previousOwned ?? new string[0],
+            StringComparer.OrdinalIgnoreCase);
+        var desiredList = (desired ?? new string[0])
+            .Where(x => !String.IsNullOrWhiteSpace(x))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var external = new List<string>();
+        foreach (string url in current ?? new string[0])
+        {
+            if (String.IsNullOrWhiteSpace(url) || oldOwned.Contains(url)) continue;
+            if (!external.Contains(url, StringComparer.OrdinalIgnoreCase))
+                external.Add(url);
+        }
+
+        var externalSet = new HashSet<string>(external, StringComparer.OrdinalIgnoreCase);
+        var merged = new List<string>(external);
+        nextOwned = new List<string>();
+
+        foreach (string url in desiredList)
+        {
+            if (!merged.Contains(url, StringComparer.OrdinalIgnoreCase))
+                merged.Add(url);
+            if (!externalSet.Contains(url))
+                nextOwned.Add(url);
+        }
+
+        return merged;
+    }
+
+    static void ApplyFirefoxExtensionInstallPolicy(List<string> desiredUrls)
+    {
+        const string path = @"Software\Policies\Mozilla\Firefox\Extensions\Install";
+
+        Dictionary<string, object> state =
+            ReadJson(BrowserStatePath) ??
+            new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+        List<string> previousOwned = GetStringList(state, "firefoxOwnedInstallUrls");
+        List<string> current = ReadFirefoxInstallPolicyUrls();
+        List<string> nextOwned;
+        List<string> merged = MergeManagedFirefoxInstallUrls(
+            current,
+            previousOwned,
+            desiredUrls,
+            out nextOwned);
+
+        bool same = current.SequenceEqual(merged, StringComparer.OrdinalIgnoreCase);
+        if (!same)
+        {
+            using (RegistryKey key = Registry.CurrentUser.CreateSubKey(path))
+            {
+                if (key == null)
+                    throw new Exception("Could not open Firefox Extensions.Install policy.");
+
+                foreach (string name in key.GetValueNames())
+                {
+                    int number;
+                    if (Int32.TryParse(name, NumberStyles.Integer, CultureInfo.InvariantCulture, out number))
+                        key.DeleteValue(name, false);
+                }
+
+                for (int i = 0; i < merged.Count; i++)
+                {
+                    key.SetValue(
+                        (i + 1).ToString(CultureInfo.InvariantCulture),
+                        merged[i],
+                        RegistryValueKind.String);
+                }
+            }
+
+            if (merged.Count == 0)
+                DeleteRegistryKeyIfEmpty("HKCU", path);
+        }
+
+        state["firefoxOwnedInstallUrls"] = nextOwned.ToArray();
+        WriteJson(BrowserStatePath, state);
+
+        Console.WriteLine();
+        Console.WriteLine(
+            "Firefox signed extension install requests: " +
+            desiredUrls.Count.ToString(CultureInfo.InvariantCulture) + ".");
+        if (previousOwned.Count > 0 && nextOwned.Count == 0)
+            Console.WriteLine("WGDot-owned Firefox extension install policy entries were removed.");
+    }
+
+    static void ApplyBraveBrowserOptions(
+        Dictionary<string, object> browser,
+        List<string> selectedOptions)
+    {
+        var selected = new HashSet<string>(
+            selectedOptions ?? new List<string>(),
+            StringComparer.OrdinalIgnoreCase);
+
+        Dictionary<string, object> state =
+            ReadJson(BrowserStatePath) ??
+            new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+        var reviewed = new HashSet<string>(
+            GetStringList(state, "braveGuidedReviewedOptions"),
+            StringComparer.OrdinalIgnoreCase);
+        reviewed.IntersectWith(selected);
+
+        var storeOptions = new List<Dictionary<string, object>>();
+        var braveSettingsOptions = new List<Dictionary<string, object>>();
+
+        foreach (object rawOption in GetList(browser, "options"))
+        {
+            var option = AsDictionary(rawOption);
+            string id = GetString(option, "id");
+            if (!selected.Contains(id) || reviewed.Contains(id)) continue;
+
+            string kind = GetString(option, "kind");
+            if (String.Equals(kind, "chrome-web-store", StringComparison.OrdinalIgnoreCase))
+                storeOptions.Add(option);
+            else if (String.Equals(kind, "brave-mv2-settings", StringComparison.OrdinalIgnoreCase))
+                braveSettingsOptions.Add(option);
+        }
+
+        if (storeOptions.Count == 0 && braveSettingsOptions.Count == 0)
+        {
+            state["braveGuidedReviewedOptions"] = reviewed.ToArray();
+            WriteJson(BrowserStatePath, state);
+            return;
+        }
+
+        Console.WriteLine();
+        Console.WriteLine(GetString(browser, "notice"));
+
+        if (braveSettingsOptions.Count > 0)
+        {
+            Console.WriteLine();
+            Console.WriteLine("uBlock Origin uses Brave's supported Manifest V2 extension page.");
+            if (ReadYesNo(
+                "Open Brave's Manifest V2 extension settings for uBlock Origin? [y/N]",
+                false))
+            {
+                foreach (Dictionary<string, object> option in braveSettingsOptions)
+                {
+                    OpenBraveInternalUrl(GetString(option, "settingsUrl"));
+                    reviewed.Add(GetString(option, "id"));
+                }
+            }
+        }
+
+        if (storeOptions.Count > 0)
+        {
+            Console.WriteLine();
+            Console.WriteLine(
+                "Selected Brave Chrome Web Store pages: " +
+                storeOptions.Count.ToString(CultureInfo.InvariantCulture) + ".");
+            if (ReadYesNo(
+                "Open the selected official Chrome Web Store pages for manual Add to Brave approval? [y/N]",
+                false))
+            {
+                foreach (Dictionary<string, object> option in storeOptions)
+                {
+                    OpenUrl(GetString(option, "storeUrl"));
+                    reviewed.Add(GetString(option, "id"));
+                }
+            }
+        }
+
+        state["braveGuidedReviewedOptions"] = reviewed.ToArray();
+        WriteJson(BrowserStatePath, state);
+    }
+
+    static string FindBraveExecutable()
+    {
+        const string appPath =
+            @"Software\Microsoft\Windows\CurrentVersion\App Paths\brave.exe";
+
+        foreach (RegistryKey root in new[] { Registry.CurrentUser, Registry.LocalMachine })
+        {
+            try
+            {
+                using (RegistryKey key = root.OpenSubKey(appPath, false))
+                {
+                    if (key != null)
+                    {
+                        string registered = Convert.ToString(key.GetValue(null, ""));
+                        if (!String.IsNullOrWhiteSpace(registered) && File.Exists(registered))
+                            return registered;
+                    }
+                }
+            }
+            catch
+            {
+            }
+        }
+
+        string[] roots =
+        {
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
+            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86)
+        };
+
+        foreach (string root in roots
+            .Where(x => !String.IsNullOrWhiteSpace(x))
+            .Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            string candidate = Path.Combine(
+                root,
+                "BraveSoftware",
+                "Brave-Browser",
+                "Application",
+                "brave.exe");
+            if (File.Exists(candidate)) return candidate;
+        }
+
+        return "";
+    }
+
+    static void OpenBraveInternalUrl(string url)
+    {
+        if (!String.Equals(
+            url,
+            "brave://settings/extensions/v2",
+            StringComparison.OrdinalIgnoreCase))
+            throw new Exception("Unsupported Brave internal setup URL.");
+
+        string braveExe = FindBraveExecutable();
+        if (String.IsNullOrWhiteSpace(braveExe))
+        {
+            Console.WriteLine(
+                "Brave executable was not found. Open brave://settings/extensions/v2 manually and enable uBlock Origin.");
+            return;
+        }
+
+        var psi = new ProcessStartInfo();
+        psi.FileName = braveExe;
+        psi.Arguments = "\"" + url + "\"";
+        psi.UseShellExecute = true;
+        Process.Start(psi);
+    }
+
+    static void OpenUrl(string url)
+    {
+        if (!Uri.IsWellFormedUriString(url, UriKind.Absolute))
+            throw new Exception("Invalid browser URL: " + url);
+
+        Uri uri = new Uri(url);
+        if (!String.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+            throw new Exception("WGDot only opens HTTPS browser setup URLs.");
+
+        var psi = new ProcessStartInfo();
+        psi.FileName = url;
+        psi.UseShellExecute = true;
+        Process.Start(psi);
+    }
+
+    static List<IniSection> ReadIniSections(string path)
+    {
+        var sections = new List<IniSection>();
+        IniSection current = null;
+
+        if (!File.Exists(path)) return sections;
+
+        foreach (string rawLine in File.ReadAllLines(path))
+        {
+            string line = rawLine.Trim();
+            if (line.Length == 0 || line.StartsWith(";") || line.StartsWith("#"))
+                continue;
+
+            if (line.StartsWith("[") && line.EndsWith("]") && line.Length > 2)
+            {
+                current = new IniSection();
+                current.Name = line.Substring(1, line.Length - 2);
+                sections.Add(current);
+                continue;
+            }
+
+            int equals = line.IndexOf('=');
+            if (current == null || equals <= 0) continue;
+
+            string key = line.Substring(0, equals).Trim();
+            string value = line.Substring(equals + 1).Trim();
+            current.Values[key] = value;
+        }
+
+        return sections;
+    }
+
+    static string SerializeIniSections(List<IniSection> sections)
+    {
+        var sb = new StringBuilder();
+        foreach (IniSection section in sections)
+        {
+            if (String.IsNullOrWhiteSpace(section.Name)) continue;
+            sb.Append('[').Append(section.Name).Append("]\r\n");
+            foreach (KeyValuePair<string, string> pair in section.Values)
+                sb.Append(pair.Key).Append('=').Append(pair.Value ?? "").Append("\r\n");
+            sb.Append("\r\n");
+        }
+        return sb.ToString();
+    }
+
+    static void WriteIniSectionsIfChanged(
+        string path,
+        List<IniSection> sections,
+        string operation)
+    {
+        string next = SerializeIniSections(sections);
+        string current = File.Exists(path) ? File.ReadAllText(path) : "";
+        if (String.Equals(current, next, StringComparison.Ordinal)) return;
+
+        if (File.Exists(path))
+            CreateBackup(path, operation);
+
+        Directory.CreateDirectory(Path.GetDirectoryName(path));
+        File.WriteAllText(path, next, new UTF8Encoding(false));
+    }
+
+    static string GetIniDefaultPath(List<IniSection> sections)
+    {
+        foreach (IniSection section in sections)
+        {
+            if (!section.Name.StartsWith("Install", StringComparison.OrdinalIgnoreCase))
+                continue;
+            string value;
+            if (section.Values.TryGetValue("Default", out value) &&
+                !String.IsNullOrWhiteSpace(value))
+                return value;
+        }
+
+        foreach (IniSection section in sections)
+        {
+            if (!section.Name.StartsWith("Profile", StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            string isDefault;
+            string path;
+            if (section.Values.TryGetValue("Default", out isDefault) &&
+                String.Equals(isDefault, "1", StringComparison.OrdinalIgnoreCase) &&
+                section.Values.TryGetValue("Path", out path) &&
+                !String.IsNullOrWhiteSpace(path))
+                return path;
+        }
+
+        return "";
+    }
+
+    static string GetFirefoxDefaultProfilePath(string firefoxRoot)
+    {
+        string profilesPath = Path.Combine(firefoxRoot, "profiles.ini");
+        string installsPath = Path.Combine(firefoxRoot, "installs.ini");
+
+        List<IniSection> profiles = ReadIniSections(profilesPath);
+        string fromProfiles = GetIniDefaultPath(profiles);
+        if (!String.IsNullOrWhiteSpace(fromProfiles)) return fromProfiles;
+
+        foreach (IniSection section in ReadIniSections(installsPath))
+        {
+            string value;
+            if (section.Values.TryGetValue("Default", out value) &&
+                !String.IsNullOrWhiteSpace(value))
+                return value;
+        }
+
+        return "";
+    }
+
+    static bool FirefoxProfileRegistered(string firefoxRoot, string relativePath)
+    {
+        string profilesPath = Path.Combine(firefoxRoot, "profiles.ini");
+        foreach (IniSection section in ReadIniSections(profilesPath))
+        {
+            if (!section.Name.StartsWith("Profile", StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            string path;
+            if (section.Values.TryGetValue("Path", out path) &&
+                String.Equals(
+                    (path ?? "").Replace('\\', '/'),
+                    (relativePath ?? "").Replace('\\', '/'),
+                    StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+        return false;
+    }
+
+    static bool IsProcessRunning(string processName)
+    {
+        Process[] processes = Process.GetProcessesByName(processName);
+        try
+        {
+            return processes.Length > 0;
+        }
+        finally
+        {
+            foreach (Process process in processes)
+                process.Dispose();
+        }
+    }
+
+    static string EnsureWgdotFirefoxProfile(string firefoxRoot)
+    {
+        const string relativePath = "Profiles/wgdot.betterfox";
+        string profilesPath = Path.Combine(firefoxRoot, "profiles.ini");
+        Directory.CreateDirectory(firefoxRoot);
+        Directory.CreateDirectory(
+            Path.Combine(firefoxRoot, relativePath.Replace('/', Path.DirectorySeparatorChar)));
+
+        List<IniSection> sections = ReadIniSections(profilesPath);
+        if (sections.Count == 0)
+        {
+            var general = new IniSection();
+            general.Name = "General";
+            general.Values["StartWithLastProfile"] = "1";
+            general.Values["Version"] = "2";
+            sections.Add(general);
+        }
+
+        IniSection profile = sections.FirstOrDefault(x =>
+        {
+            if (!x.Name.StartsWith("Profile", StringComparison.OrdinalIgnoreCase)) return false;
+            string path;
+            return x.Values.TryGetValue("Path", out path) &&
+                String.Equals(
+                    path.Replace('\\', '/'),
+                    relativePath,
+                    StringComparison.OrdinalIgnoreCase);
+        });
+
+        if (profile == null)
+        {
+            int nextIndex = 0;
+            foreach (IniSection section in sections)
+            {
+                if (!section.Name.StartsWith("Profile", StringComparison.OrdinalIgnoreCase))
+                    continue;
+                int value;
+                if (Int32.TryParse(
+                    section.Name.Substring("Profile".Length),
+                    NumberStyles.Integer,
+                    CultureInfo.InvariantCulture,
+                    out value))
+                    nextIndex = Math.Max(nextIndex, value + 1);
+            }
+
+            profile = new IniSection();
+            profile.Name = "Profile" + nextIndex.ToString(CultureInfo.InvariantCulture);
+            profile.Values["Name"] = "WGDot Betterfox";
+            profile.Values["IsRelative"] = "1";
+            profile.Values["Path"] = relativePath;
+            sections.Add(profile);
+            WriteIniSectionsIfChanged(
+                profilesPath,
+                sections,
+                "browser-firefox-profiles");
+        }
+
+        return relativePath;
+    }
+
+    static void SetFirefoxDefaultProfile(
+        string firefoxRoot,
+        string targetRelativePath,
+        string previousDefault)
+    {
+        string profilesPath = Path.Combine(firefoxRoot, "profiles.ini");
+        List<IniSection> profiles = ReadIniSections(profilesPath);
+        bool foundTarget = false;
+
+        foreach (IniSection section in profiles)
+        {
+            if (!section.Name.StartsWith("Profile", StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            string path;
+            bool isTarget =
+                section.Values.TryGetValue("Path", out path) &&
+                String.Equals(
+                    path.Replace('\\', '/'),
+                    targetRelativePath.Replace('\\', '/'),
+                    StringComparison.OrdinalIgnoreCase);
+            if (isTarget)
+            {
+                section.Values["Default"] = "1";
+                foundTarget = true;
+            }
+            else
+            {
+                section.Values.Remove("Default");
+            }
+        }
+
+        if (!foundTarget)
+            throw new Exception("WGDot Firefox profile is not registered in profiles.ini.");
+
+        List<IniSection> profileInstalls = profiles
+            .Where(x => x.Name.StartsWith("Install", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        foreach (IniSection section in profileInstalls)
+        {
+            string current;
+            bool matchesPrevious =
+                section.Values.TryGetValue("Default", out current) &&
+                String.Equals(
+                    (current ?? "").Replace('\\', '/'),
+                    (previousDefault ?? "").Replace('\\', '/'),
+                    StringComparison.OrdinalIgnoreCase);
+            if (profileInstalls.Count == 1 || matchesPrevious)
+                section.Values["Default"] = targetRelativePath;
+        }
+        WriteIniSectionsIfChanged(
+            profilesPath,
+            profiles,
+            "browser-firefox-default");
+
+        string installsPath = Path.Combine(firefoxRoot, "installs.ini");
+        if (File.Exists(installsPath))
+        {
+            List<IniSection> installs = ReadIniSections(installsPath);
+            foreach (IniSection section in installs)
+            {
+                string current;
+                bool matchesPrevious =
+                    section.Values.TryGetValue("Default", out current) &&
+                    String.Equals(
+                        (current ?? "").Replace('\\', '/'),
+                        (previousDefault ?? "").Replace('\\', '/'),
+                        StringComparison.OrdinalIgnoreCase);
+                if (installs.Count == 1 || matchesPrevious)
+                    section.Values["Default"] = targetRelativePath;
+            }
+            WriteIniSectionsIfChanged(
+                installsPath,
+                installs,
+                "browser-firefox-default");
+        }
+    }
+
+    static void RestoreFirefoxDefaultProfile(
+        string firefoxRoot,
+        string previousDefault,
+        string wgdotRelativePath)
+    {
+        string currentDefault = GetFirefoxDefaultProfilePath(firefoxRoot);
+        if (!String.Equals(
+            (currentDefault ?? "").Replace('\\', '/'),
+            (wgdotRelativePath ?? "").Replace('\\', '/'),
+            StringComparison.OrdinalIgnoreCase))
+        {
+            Console.WriteLine(
+                "Firefox default profile changed outside WGDot; WGDot will not override the user's newer choice.");
+            return;
+        }
+
+        string profilesPath = Path.Combine(firefoxRoot, "profiles.ini");
+        List<IniSection> profiles = ReadIniSections(profilesPath);
+
+        foreach (IniSection section in profiles)
+        {
+            if (section.Name.StartsWith("Profile", StringComparison.OrdinalIgnoreCase))
+            {
+                string path;
+                bool isPrevious =
+                    !String.IsNullOrWhiteSpace(previousDefault) &&
+                    section.Values.TryGetValue("Path", out path) &&
+                    String.Equals(
+                        path.Replace('\\', '/'),
+                        previousDefault.Replace('\\', '/'),
+                        StringComparison.OrdinalIgnoreCase);
+                if (isPrevious)
+                    section.Values["Default"] = "1";
+                else
+                    section.Values.Remove("Default");
+            }
+            else if (section.Name.StartsWith("Install", StringComparison.OrdinalIgnoreCase))
+            {
+                string value;
+                if (section.Values.TryGetValue("Default", out value) &&
+                    String.Equals(
+                        (value ?? "").Replace('\\', '/'),
+                        wgdotRelativePath.Replace('\\', '/'),
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    if (String.IsNullOrWhiteSpace(previousDefault))
+                        section.Values.Remove("Default");
+                    else
+                        section.Values["Default"] = previousDefault;
+                }
+            }
+        }
+
+        WriteIniSectionsIfChanged(
+            profilesPath,
+            profiles,
+            "browser-firefox-default-rollback");
+
+        string installsPath = Path.Combine(firefoxRoot, "installs.ini");
+        if (File.Exists(installsPath))
+        {
+            List<IniSection> installs = ReadIniSections(installsPath);
+            foreach (IniSection section in installs)
+            {
+                string value;
+                if (!section.Values.TryGetValue("Default", out value) ||
+                    !String.Equals(
+                        (value ?? "").Replace('\\', '/'),
+                        wgdotRelativePath.Replace('\\', '/'),
+                        StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                if (String.IsNullOrWhiteSpace(previousDefault))
+                    section.Values.Remove("Default");
+                else
+                    section.Values["Default"] = previousDefault;
+            }
+            WriteIniSectionsIfChanged(
+                installsPath,
+                installs,
+                "browser-firefox-default-rollback");
+        }
+    }
+
+    static void ApplyBetterfox(
+        Dictionary<string, object> option,
+        bool enable,
+        string firefoxRoot)
+    {
+        const string wgdotRelativePath = "Profiles/wgdot.betterfox";
+        Dictionary<string, object> state =
+            ReadJson(BrowserStatePath) ??
+            new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+        Dictionary<string, object> betterfoxState = GetDictionary(state, "betterfox");
+
+        if (!enable)
+        {
+            if (GetBool(betterfoxState, "defaultChanged"))
+            {
+                if (IsProcessRunning("firefox"))
+                    throw new Exception(
+                        "Firefox is running. Close Firefox before WGDot restores the previous default profile.");
+
+                RestoreFirefoxDefaultProfile(
+                    firefoxRoot,
+                    GetString(betterfoxState, "previousDefaultProfile"),
+                    wgdotRelativePath);
+                betterfoxState["defaultChanged"] = false;
+            }
+
+            string managedProfile = Path.Combine(
+                firefoxRoot,
+                wgdotRelativePath.Replace('/', Path.DirectorySeparatorChar));
+            string userJs = Path.Combine(managedProfile, "user.js");
+            string expectedHash = GetString(betterfoxState, "lastUserJsSha256");
+            if (File.Exists(userJs) && !String.IsNullOrWhiteSpace(expectedHash))
+            {
+                string currentHash = Sha256OrNull(userJs);
+                if (String.Equals(currentHash, expectedHash, StringComparison.OrdinalIgnoreCase))
+                {
+                    CreateBackup(userJs, "browser-betterfox-rollback");
+                    SafeDeleteFile(userJs);
+                    Console.WriteLine("WGDot Betterfox user.js removed; the dedicated profile was preserved.");
+                }
+                else
+                {
+                    Console.WriteLine(
+                        "WGDot Betterfox user.js was modified after setup; leaving it unchanged.");
+                }
+            }
+
+            betterfoxState["lastUserJsSha256"] = "";
+            betterfoxState["defaultProfileReviewed"] = false;
+            state["betterfox"] = betterfoxState;
+            WriteJson(BrowserStatePath, state);
+            return;
+        }
+
+        if (option == null)
+            throw new Exception("Betterfox is selected but its manifest definition is missing.");
+
+        string sourceUrl = GetString(option, "sourceUrl");
+        Uri sourceUri;
+        if (!Uri.TryCreate(sourceUrl, UriKind.Absolute, out sourceUri) ||
+            !String.Equals(sourceUri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase) ||
+            !String.Equals(sourceUri.Host, "raw.githubusercontent.com", StringComparison.OrdinalIgnoreCase))
+            throw new Exception("Betterfox source must be the approved upstream GitHub HTTPS URL.");
+
+        if (!FirefoxProfileRegistered(firefoxRoot, wgdotRelativePath) &&
+            IsProcessRunning("firefox"))
+            throw new Exception(
+                "Firefox is running. Close Firefox before WGDot creates the dedicated Betterfox profile.");
+
+        string relativePath = EnsureWgdotFirefoxProfile(firefoxRoot);
+        string profilePath = Path.Combine(
+            firefoxRoot,
+            relativePath.Replace('/', Path.DirectorySeparatorChar));
+        string userJs = Path.Combine(profilePath, "user.js");
+        Directory.CreateDirectory(profilePath);
+
+        string temp = Path.Combine(
+            CacheRoot,
+            "betterfox-user-" + Guid.NewGuid().ToString("N") + ".js");
+        Directory.CreateDirectory(CacheRoot);
+        try
+        {
+            using (var client = new WebClient())
+            {
+                client.Headers[HttpRequestHeader.UserAgent] = "wgdot";
+                client.DownloadFile(sourceUrl, temp);
+            }
+
+            string downloadedHash = Sha256OrNull(temp);
+            if (String.IsNullOrWhiteSpace(downloadedHash))
+                throw new Exception("Downloaded Betterfox user.js is empty or unreadable.");
+
+            if (!String.Equals(
+                Sha256OrNull(userJs),
+                downloadedHash,
+                StringComparison.OrdinalIgnoreCase))
+            {
+                if (File.Exists(userJs))
+                    CreateBackup(userJs, "browser-betterfox-userjs");
+                File.Copy(temp, userJs, true);
+            }
+
+            betterfoxState["lastUserJsSha256"] = downloadedHash;
+            betterfoxState["profilePath"] = relativePath;
+        }
+        finally
+        {
+            SafeDeleteFile(temp);
+        }
+
+        bool alreadyManagedDefault = GetBool(betterfoxState, "defaultChanged");
+        bool defaultProfileReviewed = GetBool(betterfoxState, "defaultProfileReviewed");
+        string currentDefault = GetFirefoxDefaultProfilePath(firefoxRoot);
+        bool alreadyDefault = String.Equals(
+            (currentDefault ?? "").Replace('\\', '/'),
+            relativePath.Replace('\\', '/'),
+            StringComparison.OrdinalIgnoreCase);
+
+        if (!alreadyDefault && !alreadyManagedDefault && !defaultProfileReviewed)
+        {
+            WriteTitle("Firefox Betterfox default-profile review");
+            Console.WriteLine("Betterfox is installed only in a dedicated WGDot Firefox profile:");
+            Console.WriteLine("  " + relativePath);
+            Console.WriteLine();
+            Console.WriteLine("Existing Firefox profiles are preserved.");
+            Console.WriteLine("Current default: " +
+                (String.IsNullOrWhiteSpace(currentDefault) ? "(none detected)" : currentDefault));
+            Console.WriteLine();
+            if (ReadYesNo("Make the WGDot Betterfox profile the Firefox default? [y/N]", false))
+            {
+                if (IsProcessRunning("firefox"))
+                    throw new Exception(
+                        "Firefox is running. Close Firefox before WGDot changes the default Firefox profile.");
+
+                betterfoxState["previousDefaultProfile"] = currentDefault ?? "";
+                SetFirefoxDefaultProfile(firefoxRoot, relativePath, currentDefault);
+                betterfoxState["defaultChanged"] = true;
+                Console.WriteLine("WGDot Betterfox profile is now the Firefox default.");
+            }
+            else
+            {
+                Console.WriteLine("WGDot Betterfox profile created, but the Firefox default was not changed.");
+            }
+            betterfoxState["defaultProfileReviewed"] = true;
+        }
+
+        state["betterfox"] = betterfoxState;
+        WriteJson(BrowserStatePath, state);
+        Console.WriteLine("Betterfox user.js configured in the dedicated WGDot Firefox profile.");
     }
 
     static bool ReadYesNo(string prompt, bool defaultYes)

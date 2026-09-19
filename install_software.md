@@ -45,6 +45,16 @@ The default selection is intentionally conservative for public use. Only the WGD
 - **Brave** — `Brave.Brave`
 - **Mullvad Browser** — `MullvadVPN.MullvadBrowser`
 
+When the **Browsers** category is open, highlight Firefox, Brave, or Mullvad Browser and press **E** to review that browser's extensions/options. Browser-option choices are remembered separately from the package checkboxes.
+
+Firefox is the managed path. Fresh WGDot selections default to Betterfox plus CanvasBlocker, ClearURLs, Ctrl+Number to switch tabs, LocalCDN, Return YouTube Dislike, SponsorBlock, and full uBlock Origin. Dark Reader and ScrollAnywhere are optional and default OFF. Signed Firefox add-ons are requested through Mozilla's supported Windows policy mechanism.
+
+Betterfox is installed only into a dedicated `Profiles/wgdot.betterfox` Firefox profile. Existing profiles are preserved and relevant Firefox metadata is backed up. WGDot asks before changing the Firefox default profile.
+
+Brave uses its built-in Shields privacy/blocking features, so WGDot does not stack extra privacy blockers by default. Return YouTube Dislike and SponsorBlock default ON; Dark Reader and ScrollAnywhere default OFF and use their official Chrome Web Store pages with normal **Add to Brave** approval. Full uBlock Origin is still supported by Brave through `brave://settings/extensions/v2`; WGDot exposes that as an optional default-OFF Brave setting because Shields already covers the normal blocking role. ClearURLs is omitted because Brave disables the current Manifest V2 build, CanvasBlocker has no official Chromium build, LocalCDN's Chromium store publication is not the upstream-supported path, and Ctrl+1..9 tab switching is already native.
+
+Mullvad Browser is intentionally left untouched. WGDot does not install extensions, Betterfox, `user.js`, or preference tweaks into it. Use it as shipped to preserve its anti-fingerprinting profile, preferably with a VPN.
+
 ### Editors
 
 - **Notepad++** — `Notepad++.Notepad++`

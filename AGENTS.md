@@ -243,6 +243,17 @@ Software management is separate from managed-dot updates.
 - Removal/retirement of software requires explicit project behavior and ownership tracking.
 - Do not invent package IDs. Verify changed or questionable IDs against current WinGet data before committing them.
 
+## Browser configuration
+
+- Browser-specific option metadata lives in the top-level `browserOptions` section of `wgdot/manifest.json`, keyed by WinGet package ID.
+- Persist user browser selections in `installation.json` under `browserOptions`. Keep operational ownership/rollback metadata separate in `browser-management.json`.
+- Existing installation state that predates `browserOptions` must be preserved. Do not silently apply new browser defaults during a plain reconcile until the user has entered/reviewed browser options.
+- Firefox extension automation may use only Mozilla-supported signed add-on deployment. WGDot uses the current-user `Extensions.Install` Windows policy, preserves unrelated policy URLs, and removes only install requests that WGDot previously owned.
+- Firefox Betterfox uses a dedicated `Profiles/wgdot.betterfox` profile. Back up affected Firefox metadata and `user.js`, change the default profile only after explicit user approval, and restore the prior default only when WGDot still owns that default choice.
+- Deselecting Betterfox must preserve the dedicated Firefox profile. Removing `user.js` alone is not a full preference rollback after Firefox has applied it, so isolation is the rollback boundary.
+- Brave on unmanaged Windows uses guided official Chrome Web Store pages and normal browser approval. Full uBlock Origin is the exception: expose Brave's own supported `brave://settings/extensions/v2` Manifest V2 path, default OFF, instead of pretending the Chrome Web Store still provides full uBO. Do not introduce silent sideloading, developer-mode loading, fake enterprise enrollment, or unsigned extensions.
+- Mullvad Browser must remain upstream-as-shipped: no WGDot extensions, Betterfox/user.js, preference changes, or hardening overlays. Its anti-fingerprinting consistency takes precedence over sharing the Firefox configuration.
+
 ## Yazi migration safety
 
 The current Windows Yazi clipboard helper is:

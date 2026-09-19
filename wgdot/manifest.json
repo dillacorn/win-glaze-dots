@@ -894,5 +894,150 @@
       "defaultWork": false,
       "actionOnly": true
     }
+  ],
+  "browserOptions": [
+    {
+      "packageId": "Mozilla.Firefox",
+      "name": "Firefox",
+      "mode": "firefox-managed",
+      "notice": "WGDot installs selected signed Firefox Add-ons through Mozilla's supported Windows Extensions.Install policy. Deselecting an item stops WGDot from managing that install request; WGDot does not forcibly remove an extension that may also have been installed by the user.",
+      "options": [
+        {
+          "id": "betterfox",
+          "name": "Betterfox user.js (dedicated WGDot profile)",
+          "kind": "betterfox",
+          "defaultNormal": true,
+          "defaultWork": true,
+          "sourceUrl": "https://raw.githubusercontent.com/yokoffing/Betterfox/main/user.js"
+        },
+        {
+          "id": "canvasblocker",
+          "name": "CanvasBlocker",
+          "kind": "firefox-extension",
+          "defaultNormal": true,
+          "defaultWork": true,
+          "installUrl": "https://addons.mozilla.org/firefox/downloads/latest/canvasblocker/latest.xpi"
+        },
+        {
+          "id": "clearurls",
+          "name": "ClearURLs",
+          "kind": "firefox-extension",
+          "defaultNormal": true,
+          "defaultWork": true,
+          "installUrl": "https://addons.mozilla.org/firefox/downloads/latest/clearurls/latest.xpi"
+        },
+        {
+          "id": "ctrl-number",
+          "name": "Ctrl+Number to switch tabs",
+          "kind": "firefox-extension",
+          "defaultNormal": true,
+          "defaultWork": true,
+          "installUrl": "https://addons.mozilla.org/firefox/downloads/latest/ctrl-number-to-switch-tabs/latest.xpi"
+        },
+        {
+          "id": "localcdn",
+          "name": "LocalCDN",
+          "kind": "firefox-extension",
+          "defaultNormal": true,
+          "defaultWork": true,
+          "installUrl": "https://addons.mozilla.org/firefox/downloads/latest/localcdn-fork-of-decentraleyes/latest.xpi"
+        },
+        {
+          "id": "return-youtube-dislike",
+          "name": "Return YouTube Dislike",
+          "kind": "firefox-extension",
+          "defaultNormal": true,
+          "defaultWork": true,
+          "installUrl": "https://addons.mozilla.org/firefox/downloads/latest/return-youtube-dislikes/latest.xpi"
+        },
+        {
+          "id": "sponsorblock",
+          "name": "SponsorBlock for YouTube - Skip Sponsorships",
+          "kind": "firefox-extension",
+          "defaultNormal": true,
+          "defaultWork": true,
+          "installUrl": "https://addons.mozilla.org/firefox/downloads/latest/sponsorblock/latest.xpi"
+        },
+        {
+          "id": "ublock-origin",
+          "name": "uBlock Origin",
+          "kind": "firefox-extension",
+          "defaultNormal": true,
+          "defaultWork": true,
+          "installUrl": "https://addons.mozilla.org/firefox/downloads/latest/ublock-origin/latest.xpi"
+        },
+        {
+          "id": "dark-reader",
+          "name": "Dark Reader",
+          "kind": "firefox-extension",
+          "defaultNormal": false,
+          "defaultWork": false,
+          "installUrl": "https://addons.mozilla.org/firefox/downloads/latest/darkreader/latest.xpi"
+        },
+        {
+          "id": "scroll-anywhere",
+          "name": "ScrollAnywhere",
+          "kind": "firefox-extension",
+          "defaultNormal": false,
+          "defaultWork": false,
+          "installUrl": "https://addons.mozilla.org/firefox/downloads/latest/scroll_anywhere/latest.xpi"
+        }
+      ]
+    },
+    {
+      "packageId": "Brave.Brave",
+      "name": "Brave",
+      "mode": "guided-chrome-web-store",
+      "notice": "Brave uses Shields for built-in ad/tracker blocking and query-parameter protections. Full uBlock Origin is still supported through Brave's own Manifest V2 settings rather than the Chrome Web Store, so WGDot exposes it as an optional Brave-specific choice instead of enabling a redundant blocker by default. Current ClearURLs is blocked by Brave's Manifest V2 deprecation, LocalCDN's Chromium store publication is unofficial and upstream warns about Chromium incompatibilities, CanvasBlocker has no official Chrome build, and Ctrl+1..9 tab switching is native to Chromium/Brave. Normal Web Store extensions still require Add to Brave approval.",
+      "options": [
+        {
+          "id": "return-youtube-dislike",
+          "name": "Return YouTube Dislike",
+          "kind": "chrome-web-store",
+          "defaultNormal": true,
+          "defaultWork": true,
+          "storeUrl": "https://chromewebstore.google.com/detail/return-youtube-dislike/gebbhagfogifgggkldgodflihgfeippi"
+        },
+        {
+          "id": "sponsorblock",
+          "name": "SponsorBlock for YouTube - Skip Sponsorships",
+          "kind": "chrome-web-store",
+          "defaultNormal": true,
+          "defaultWork": true,
+          "storeUrl": "https://chromewebstore.google.com/detail/sponsorblock-for-youtube/mnjggcdmjocbbbhaepdhchncahnbgone"
+        },
+        {
+          "id": "ublock-origin",
+          "name": "uBlock Origin (Brave-supported Manifest V2)",
+          "kind": "brave-mv2-settings",
+          "defaultNormal": false,
+          "defaultWork": false,
+          "settingsUrl": "brave://settings/extensions/v2"
+        },
+        {
+          "id": "dark-reader",
+          "name": "Dark Reader",
+          "kind": "chrome-web-store",
+          "defaultNormal": false,
+          "defaultWork": false,
+          "storeUrl": "https://chromewebstore.google.com/detail/dark-reader/eimadpbcbfnmbkopoojfekhnkhdbieeh"
+        },
+        {
+          "id": "scroll-anywhere",
+          "name": "ScrollAnywhere",
+          "kind": "chrome-web-store",
+          "defaultNormal": false,
+          "defaultWork": false,
+          "storeUrl": "https://chromewebstore.google.com/detail/scrollanywhere/jehmdpemhgfgjblpkilmeoafmkhbckhi"
+        }
+      ]
+    },
+    {
+      "packageId": "MullvadVPN.MullvadBrowser",
+      "name": "Mullvad Browser",
+      "mode": "preserve-upstream",
+      "notice": "Mullvad Browser is recommended to be used exactly as shipped. WGDot does not install extensions, apply Betterfox/user.js, or change browser preferences because that would weaken its upstream anti-fingerprinting consistency. Use Mullvad Browser with a VPN for the intended network-privacy model.",
+      "options": []
+    }
   ]
 }
