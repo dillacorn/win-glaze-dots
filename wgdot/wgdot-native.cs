@@ -18,7 +18,7 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-30";
+    const string Version = "native-preview-31";
     const int WingetPreflightTimeoutMs = 30000;
     const string RepoFullName = "dillacorn/win-glaze-dots";
     const string RepoUrl = "https://github.com/dillacorn/win-glaze-dots.git";
@@ -4513,7 +4513,8 @@ public static class Program
         Console.ForegroundColor = ConsoleColor.Yellow;
         Console.WriteLine(
             "privacy.sexy does not currently expose a supported headless CLI/API for generating " +
-            "and executing that recommendation set. WGDot will not fake one or disable antivirus.");
+            "and executing that recommendation set. WGDot will not fake one, drive private UI internals, " +
+            "or disable antivirus.");
         Console.WriteLine(
             "The official app will open so you can select " + presetName +
             " and approve its generated script/run operation.");
@@ -4559,24 +4560,32 @@ public static class Program
             "privacy.sexy",
             "privacy.sexy.exe");
 
-        if (File.Exists(exe))
+        bool appRunning = WaitForProcessToAppear("privacy.sexy", 3000);
+        if (!appRunning)
         {
+            if (!File.Exists(exe))
+                throw new Exception("privacy.sexy installed successfully but its desktop executable was not found.");
+
             var psi = new ProcessStartInfo();
             psi.FileName = exe;
             psi.UseShellExecute = true;
             Process.Start(psi);
+
+            if (!WaitForProcessToAppear("privacy.sexy", 5000))
+                throw new Exception("privacy.sexy did not start after installation.");
         }
         else
         {
-            var psi = new ProcessStartInfo();
-            psi.FileName = "https://privacy.sexy/";
-            psi.UseShellExecute = true;
-            Process.Start(psi);
+            Console.WriteLine("privacy.sexy was already started by its installer; WGDot will not launch a second copy.");
         }
+
+        Console.WriteLine("WGDot will continue after privacy.sexy is closed.");
+        WaitForProcessToExit("privacy.sexy");
 
         var state = ReadJson(TweakStatePath) ?? new Dictionary<string, object>();
         state["privacySexyPreset"] = presetName;
         state["privacySexyLastOpenedAt"] = DateTime.UtcNow.ToString("o");
+        state["privacySexyLastClosedAt"] = DateTime.UtcNow.ToString("o");
         WriteJson(TweakStatePath, state);
     }
 
@@ -6509,6 +6518,34 @@ public static class Program
         {
             foreach (Process process in processes)
                 process.Dispose();
+        }
+    }
+
+    static bool WaitForProcessToAppear(string processName, int timeoutMs)
+    {
+        Stopwatch stopwatch = Stopwatch.StartNew();
+        do
+        {
+            if (IsProcessRunning(processName))
+                return true;
+            System.Threading.Thread.Sleep(200);
+        }
+        while (stopwatch.ElapsedMilliseconds < timeoutMs);
+
+        return IsProcessRunning(processName);
+    }
+
+    static void WaitForProcessToExit(string processName)
+    {
+        int emptyPasses = 0;
+        while (emptyPasses < 4)
+        {
+            if (IsProcessRunning(processName))
+                emptyPasses = 0;
+            else
+                emptyPasses++;
+
+            System.Threading.Thread.Sleep(500);
         }
     }
 
