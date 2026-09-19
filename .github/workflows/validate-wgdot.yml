@@ -48,7 +48,7 @@ jobs:
         shell: cmd
         run: |
           cd /d "%TEMP%"
-          call wgdot-bootstrap-test.cmd --revision ${{ github.event.pull_request.head.sha || github.sha }}
+          call wgdot-bootstrap-test.cmd --ref feature/wgdot-maintenance --revision ${{ github.event.pull_request.head.sha || github.sha }}
       - name: Verify installed native command
         shell: cmd
         run: |
