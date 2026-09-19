@@ -1,0 +1,932 @@
+{
+  "schemaVersion": 1,
+  "project": "win-glaze-dots",
+  "runtime": {
+    "stableTagPattern": "^v\\d+\\.\\d+\\.\\d+$",
+    "repository": "dillacorn/win-glaze-dots"
+  },
+  "profiles": {
+    "normal": {
+      "label": "Normal / personal PC",
+      "defaultGlazeWM": "normal"
+    },
+    "work": {
+      "label": "Work PC",
+      "defaultGlazeWM": "work"
+    }
+  },
+  "components": [
+    {
+      "id": "glazewm",
+      "name": "GlazeWM",
+      "defaultNormal": true,
+      "defaultWork": true,
+      "files": [
+        {
+          "id": "glazewm-config",
+          "sourceByGlazeProfile": {
+            "normal": "UserProfile/.glzr/glazewm/config.yaml",
+            "work": "UserProfile/.glzr/glazewm/custom_work_config.yaml"
+          },
+          "destination": "%USERPROFILE%\\.glzr\\glazewm\\config.yaml",
+          "merge": true
+        }
+      ]
+    },
+    {
+      "id": "yasb",
+      "name": "YASB",
+      "defaultNormal": true,
+      "defaultWork": true,
+      "files": [
+        {
+          "id": "yasb-config",
+          "source": "UserProfile/.config/yasb/config.yaml",
+          "destination": "%USERPROFILE%\\.config\\yasb\\config.yaml",
+          "merge": true
+        },
+        {
+          "id": "yasb-styles",
+          "source": "UserProfile/.config/yasb/styles.css",
+          "destination": "%USERPROFILE%\\.config\\yasb\\styles.css",
+          "merge": true
+        },
+        {
+          "id": "yasb-readme",
+          "source": "UserProfile/.config/yasb/README.md",
+          "destination": "%USERPROFILE%\\.config\\yasb\\README.md",
+          "merge": false
+        }
+      ]
+    },
+    {
+      "id": "yazi",
+      "name": "Yazi",
+      "defaultNormal": true,
+      "defaultWork": true,
+      "files": [
+        {
+          "id": "yazi-keymap",
+          "source": "UserProfile/AppData/Roaming/yazi/config/keymap.toml",
+          "destination": "%APPDATA%\\yazi\\config\\keymap.toml",
+          "merge": true
+        },
+        {
+          "id": "yazi-package",
+          "source": "UserProfile/AppData/Roaming/yazi/config/package.toml",
+          "destination": "%APPDATA%\\yazi\\config\\package.toml",
+          "merge": true
+        },
+        {
+          "id": "yazi-config",
+          "source": "UserProfile/AppData/Roaming/yazi/config/yazi.toml",
+          "destination": "%APPDATA%\\yazi\\config\\yazi.toml",
+          "merge": true
+        },
+        {
+          "id": "yazi-system-clipboard",
+          "source": "UserProfile/AppData/Roaming/yazi/config/plugins/system-clipboard.yazi/main.lua",
+          "destination": "%APPDATA%\\yazi\\config\\plugins\\system-clipboard.yazi\\main.lua",
+          "merge": true
+        }
+      ],
+      "postActions": [
+        {
+          "type": "set-yazi-file-one"
+        },
+        {
+          "type": "yazi-package-install"
+        }
+      ]
+    },
+    {
+      "id": "terminal",
+      "name": "Windows Terminal",
+      "defaultNormal": true,
+      "defaultWork": true,
+      "files": [
+        {
+          "id": "terminal-settings",
+          "source": "UserProfile/AppData/Local/Packages/Microsoft.WindowsTerminal_8wekyb3d8bbwe/LocalState/settings.json",
+          "destination": "%LOCALAPPDATA%\\Packages\\Microsoft.WindowsTerminal_8wekyb3d8bbwe\\LocalState\\settings.json",
+          "merge": true,
+          "validator": "json"
+        }
+      ]
+    },
+    {
+      "id": "altsnap",
+      "name": "AltSnap",
+      "defaultNormal": true,
+      "defaultWork": true,
+      "files": [
+        {
+          "id": "altsnap-config",
+          "source": "UserProfile/AppData/Roaming/AltSnap/AltSnap.ini",
+          "destination": "%APPDATA%\\AltSnap\\AltSnap.ini",
+          "merge": true
+        }
+      ]
+    },
+    {
+      "id": "flameshot",
+      "name": "Flameshot",
+      "defaultNormal": true,
+      "defaultWork": true,
+      "files": [
+        {
+          "id": "flameshot-config",
+          "source": "UserProfile/AppData/Roaming/flameshot/flameshot.ini",
+          "destination": "%APPDATA%\\flameshot\\flameshot.ini",
+          "merge": true
+        }
+      ]
+    },
+    {
+      "id": "btop",
+      "name": "btop",
+      "defaultNormal": true,
+      "defaultWork": false,
+      "files": [
+        {
+          "id": "btop-config",
+          "source": "UserProfile/.config/btop/btop.conf",
+          "destination": "%USERPROFILE%\\.config\\btop\\btop.conf",
+          "merge": true
+        }
+      ]
+    },
+    {
+      "id": "scripts",
+      "name": "User scripts",
+      "defaultNormal": true,
+      "defaultWork": false,
+      "files": [
+        {
+          "id": "script-1024x768",
+          "source": "UserProfile/scripts/1024x768_stretched_res.bat",
+          "destination": "%USERPROFILE%\\scripts\\1024x768_stretched_res.bat",
+          "merge": false
+        },
+        {
+          "id": "script-1280x960",
+          "source": "UserProfile/scripts/1280x960_stretched_res.bat",
+          "destination": "%USERPROFILE%\\scripts\\1280x960_stretched_res.bat",
+          "merge": false
+        },
+        {
+          "id": "script-16-10",
+          "source": "UserProfile/scripts/16.10_stretched_res.bat",
+          "destination": "%USERPROFILE%\\scripts\\16.10_stretched_res.bat",
+          "merge": false
+        },
+        {
+          "id": "script-16-9",
+          "source": "UserProfile/scripts/16.9_native_res.bat",
+          "destination": "%USERPROFILE%\\scripts\\16.9_native_res.bat",
+          "merge": false
+        },
+        {
+          "id": "script-1680x1050",
+          "source": "UserProfile/scripts/1680x1050_stretched_res.bat",
+          "destination": "%USERPROFILE%\\scripts\\1680x1050_stretched_res.bat",
+          "merge": false
+        },
+        {
+          "id": "script-4-3",
+          "source": "UserProfile/scripts/4.3_stretched_res.bat",
+          "destination": "%USERPROFILE%\\scripts\\4.3_stretched_res.bat",
+          "merge": false
+        },
+        {
+          "id": "script-menu",
+          "source": "UserProfile/scripts/menu.bat",
+          "destination": "%USERPROFILE%\\scripts\\menu.bat",
+          "merge": true
+        },
+        {
+          "id": "script-open-with-micro",
+          "source": "UserProfile/scripts/open_with_micro.bat",
+          "destination": "%USERPROFILE%\\scripts\\open_with_micro.bat",
+          "merge": true
+        }
+      ]
+    }
+  ],
+  "migrations": [
+    {
+      "id": "remove-legacy-yazi-clipboard",
+      "component": "yazi",
+      "path": "%APPDATA%\\yazi\\config\\plugins\\clipboard.yazi",
+      "type": "git-remote-directory",
+      "expectedRemoteFragment": "XYenon/clipboard.yazi"
+    }
+  ],
+  "packages": [
+    {
+      "name": "SpeedCrunch",
+      "id": "SpeedCrunch.SpeedCrunch",
+      "category": "essential",
+      "defaultNormal": true,
+      "defaultWork": true
+    },
+    {
+      "name": "Git",
+      "id": "Git.Git",
+      "category": "essential",
+      "defaultNormal": true,
+      "defaultWork": true
+    },
+    {
+      "name": "Windows Terminal",
+      "id": "Microsoft.WindowsTerminal",
+      "category": "essential",
+      "defaultNormal": true,
+      "defaultWork": true
+    },
+    {
+      "name": "AltSnap",
+      "id": "AltSnap.AltSnap",
+      "category": "essential",
+      "defaultNormal": true,
+      "defaultWork": true
+    },
+    {
+      "name": "Visual C++ Redistributable",
+      "id": "Microsoft.VCRedist.2015+.x64",
+      "category": "essential",
+      "defaultNormal": true,
+      "defaultWork": true
+    },
+    {
+      "name": "YASB",
+      "id": "AmN.yasb",
+      "category": "essential",
+      "defaultNormal": true,
+      "defaultWork": true
+    },
+    {
+      "name": "Flameshot",
+      "id": "Flameshot.Flameshot",
+      "category": "essential",
+      "defaultNormal": true,
+      "defaultWork": true
+    },
+    {
+      "name": "Flow Launcher",
+      "id": "Flow-Launcher.Flow-Launcher",
+      "category": "essential",
+      "defaultNormal": true,
+      "defaultWork": true
+    },
+    {
+      "name": "EarTrumpet",
+      "id": "File-New-Project.EarTrumpet",
+      "category": "essential",
+      "defaultNormal": true,
+      "defaultWork": true
+    },
+    {
+      "name": "Notepad++",
+      "id": "Notepad++.Notepad++",
+      "category": "essential",
+      "defaultNormal": true,
+      "defaultWork": true
+    },
+    {
+      "name": "Micro",
+      "id": "zyedidia.micro",
+      "category": "essential",
+      "defaultNormal": true,
+      "defaultWork": true
+    },
+    {
+      "name": "Yazi",
+      "id": "sxyazi.yazi",
+      "category": "essential",
+      "defaultNormal": true,
+      "defaultWork": true
+    },
+    {
+      "name": "qimgv",
+      "id": "easymodo.qimgv",
+      "category": "essential",
+      "defaultNormal": true,
+      "defaultWork": true
+    },
+    {
+      "name": "mpv.net",
+      "id": "mpv.net",
+      "category": "essential",
+      "defaultNormal": true,
+      "defaultWork": true
+    },
+    {
+      "name": "LocalSend",
+      "id": "LocalSend.LocalSend",
+      "category": "essential",
+      "defaultNormal": true,
+      "defaultWork": true
+    },
+    {
+      "name": "Display Driver Uninstaller",
+      "id": "Wagnardsoft.DisplayDriverUninstaller",
+      "category": "essential",
+      "defaultNormal": true,
+      "defaultWork": false
+    },
+    {
+      "name": "Firefox",
+      "id": "Mozilla.Firefox",
+      "category": "browser",
+      "defaultNormal": true,
+      "defaultWork": true
+    },
+    {
+      "name": "Brave",
+      "id": "Brave.Brave",
+      "category": "essential",
+      "defaultNormal": false,
+      "defaultWork": false
+    },
+    {
+      "name": "PowerToys",
+      "id": "Microsoft.PowerToys",
+      "category": "essential",
+      "defaultNormal": false,
+      "defaultWork": false
+    },
+    {
+      "name": "Fastfetch",
+      "id": "Fastfetch-cli.Fastfetch",
+      "category": "essential",
+      "defaultNormal": true,
+      "defaultWork": true
+    },
+    {
+      "name": "7-Zip",
+      "id": "7zip.7zip",
+      "category": "essential",
+      "defaultNormal": true,
+      "defaultWork": true
+    },
+    {
+      "name": "FFmpeg",
+      "id": "Gyan.FFmpeg",
+      "category": "essential",
+      "defaultNormal": true,
+      "defaultWork": true
+    },
+    {
+      "name": "jq",
+      "id": "jqlang.jq",
+      "category": "essential",
+      "defaultNormal": true,
+      "defaultWork": true
+    },
+    {
+      "name": "Poppler",
+      "id": "oschwartz10612.Poppler",
+      "category": "essential",
+      "defaultNormal": true,
+      "defaultWork": true
+    },
+    {
+      "name": "fd",
+      "id": "sharkdp.fd",
+      "category": "essential",
+      "defaultNormal": true,
+      "defaultWork": true
+    },
+    {
+      "name": "ripgrep",
+      "id": "BurntSushi.ripgrep.MSVC",
+      "category": "essential",
+      "defaultNormal": true,
+      "defaultWork": true
+    },
+    {
+      "name": "fzf",
+      "id": "junegunn.fzf",
+      "category": "essential",
+      "defaultNormal": true,
+      "defaultWork": true
+    },
+    {
+      "name": "zoxide",
+      "id": "ajeetdsouza.zoxide",
+      "category": "essential",
+      "defaultNormal": true,
+      "defaultWork": true
+    },
+    {
+      "name": "ImageMagick",
+      "id": "ImageMagick.ImageMagick",
+      "category": "essential",
+      "defaultNormal": true,
+      "defaultWork": true
+    },
+    {
+      "name": "FLAC",
+      "id": "Xiph.FLAC",
+      "category": "essential",
+      "defaultNormal": true,
+      "defaultWork": true
+    },
+    {
+      "name": "GlazeWM",
+      "id": "glzr-io.glazewm",
+      "category": "essential",
+      "defaultNormal": true,
+      "defaultWork": true
+    },
+    {
+      "name": "Cava",
+      "id": "karlstav.cava",
+      "category": "essential",
+      "defaultNormal": true,
+      "defaultWork": false
+    },
+    {
+      "name": "JetBrains Mono Nerd Font",
+      "id": "DEVCOM.JetBrainsMonoNerdFont",
+      "category": "essential",
+      "defaultNormal": true,
+      "defaultWork": true
+    },
+    {
+      "name": "System Informer",
+      "id": "WinsiderSS.SystemInformer",
+      "category": "essential",
+      "defaultNormal": true,
+      "defaultWork": true
+    },
+    {
+      "name": "Steam",
+      "id": "Valve.Steam",
+      "category": "gaming",
+      "defaultNormal": true,
+      "defaultWork": false
+    },
+    {
+      "name": "itch.io",
+      "id": "ItchIo.Itch",
+      "category": "gaming",
+      "defaultNormal": true,
+      "defaultWork": false
+    },
+    {
+      "name": "GOG Galaxy",
+      "id": "GOG.Galaxy",
+      "category": "gaming",
+      "defaultNormal": true,
+      "defaultWork": false
+    },
+    {
+      "name": "Prism Launcher",
+      "id": "PrismLauncher.PrismLauncher",
+      "category": "gaming",
+      "defaultNormal": true,
+      "defaultWork": false
+    },
+    {
+      "name": "r2modman",
+      "id": "ebkr.r2modman",
+      "category": "gaming",
+      "defaultNormal": true,
+      "defaultWork": false
+    },
+    {
+      "name": "Epic Games Launcher",
+      "id": "EpicGames.EpicGamesLauncher",
+      "category": "gaming",
+      "defaultNormal": true,
+      "defaultWork": false
+    },
+    {
+      "name": "Vesktop (Vencord)",
+      "id": "Vencord.Vesktop",
+      "category": "optional",
+      "defaultNormal": false,
+      "defaultWork": false
+    },
+    {
+      "name": "RustDesk",
+      "id": "RustDesk.RustDesk",
+      "category": "optional",
+      "defaultNormal": false,
+      "defaultWork": false,
+      "fallbackGitHubRepo": "rustdesk/rustdesk",
+      "fallbackAssetRegex": "^rustdesk-.*-x86_64\\.exe$"
+    },
+    {
+      "name": "HWMonitor",
+      "id": "CPUID.HWMonitor",
+      "category": "optional",
+      "defaultNormal": true,
+      "defaultWork": false
+    },
+    {
+      "name": "Feishin",
+      "id": "jeffvli.Feishin",
+      "category": "optional",
+      "defaultNormal": true,
+      "defaultWork": false
+    },
+    {
+      "name": "Discord",
+      "id": "Discord.Discord",
+      "category": "optional",
+      "defaultNormal": true,
+      "defaultWork": false
+    },
+    {
+      "name": "OBS Studio",
+      "id": "OBSProject.OBSStudio",
+      "category": "optional",
+      "defaultNormal": true,
+      "defaultWork": false
+    },
+    {
+      "name": "Mullvad Browser",
+      "id": "MullvadVPN.MullvadBrowser",
+      "category": "optional",
+      "defaultNormal": false,
+      "defaultWork": false
+    },
+    {
+      "name": "Everything",
+      "id": "voidtools.Everything",
+      "category": "optional",
+      "defaultNormal": true,
+      "defaultWork": true
+    },
+    {
+      "name": "Okular",
+      "id": "KDE.Okular",
+      "category": "optional",
+      "defaultNormal": true,
+      "defaultWork": true
+    },
+    {
+      "name": "OrcaSlicer",
+      "id": "SoftFever.OrcaSlicer",
+      "category": "optional",
+      "defaultNormal": false,
+      "defaultWork": false
+    },
+    {
+      "name": "Cura",
+      "id": "Ultimaker.Cura",
+      "category": "optional",
+      "defaultNormal": true,
+      "defaultWork": false
+    },
+    {
+      "name": "Signal",
+      "id": "OpenWhisperSystems.Signal",
+      "category": "optional",
+      "defaultNormal": true,
+      "defaultWork": false
+    },
+    {
+      "name": "KeePassXC",
+      "id": "KeePassXCTeam.KeePassXC",
+      "category": "optional",
+      "defaultNormal": true,
+      "defaultWork": true
+    },
+    {
+      "name": "Bitwarden",
+      "id": "Bitwarden.Bitwarden",
+      "category": "optional",
+      "defaultNormal": true,
+      "defaultWork": true
+    },
+    {
+      "name": "Krita",
+      "id": "KDE.Krita",
+      "category": "optional",
+      "defaultNormal": true,
+      "defaultWork": false
+    },
+    {
+      "name": "Shotcut",
+      "id": "Meltytech.Shotcut",
+      "category": "optional",
+      "defaultNormal": true,
+      "defaultWork": false
+    },
+    {
+      "name": "GIMP",
+      "id": "GIMP.GIMP",
+      "category": "optional",
+      "defaultNormal": true,
+      "defaultWork": false
+    },
+    {
+      "name": "qBittorrent",
+      "id": "qBittorrent.qBittorrent",
+      "category": "optional",
+      "defaultNormal": true,
+      "defaultWork": false
+    },
+    {
+      "name": "ScreenToGif",
+      "id": "NickeManarin.ScreenToGif",
+      "category": "optional",
+      "defaultNormal": true,
+      "defaultWork": false
+    },
+    {
+      "name": "Spotify",
+      "id": "Spotify.Spotify",
+      "category": "optional",
+      "defaultNormal": true,
+      "defaultWork": false
+    },
+    {
+      "name": "Betaflight Configurator",
+      "id": "Betaflight.Betaflight-Configurator",
+      "category": "optional",
+      "defaultNormal": true,
+      "defaultWork": false
+    },
+    {
+      "name": "Ventoy",
+      "id": "Ventoy.Ventoy",
+      "category": "optional",
+      "defaultNormal": true,
+      "defaultWork": false
+    },
+    {
+      "name": "CCleaner",
+      "id": "Piriform.CCleaner",
+      "category": "optional",
+      "defaultNormal": false,
+      "defaultWork": false
+    },
+    {
+      "name": "WizTree",
+      "id": "AntibodySoftware.WizTree",
+      "category": "optional",
+      "defaultNormal": true,
+      "defaultWork": true
+    },
+    {
+      "name": "CPU-Z",
+      "id": "CPUID.CPU-Z",
+      "category": "optional",
+      "defaultNormal": true,
+      "defaultWork": false
+    },
+    {
+      "name": "GPU-Z",
+      "id": "TechPowerUp.GPU-Z",
+      "category": "optional",
+      "defaultNormal": true,
+      "defaultWork": false
+    },
+    {
+      "name": "WinSCP",
+      "id": "WinSCP.WinSCP",
+      "category": "optional",
+      "defaultNormal": true,
+      "defaultWork": true
+    },
+    {
+      "name": "FileZilla",
+      "id": "TimKosse.FileZilla.Client",
+      "category": "optional",
+      "defaultNormal": false,
+      "defaultWork": false
+    },
+    {
+      "name": "Moonlight",
+      "id": "MoonlightGameStreamingProject.Moonlight",
+      "category": "optional",
+      "defaultNormal": false,
+      "defaultWork": false
+    },
+    {
+      "name": "Sunshine",
+      "id": "LizardByte.Sunshine",
+      "category": "optional",
+      "defaultNormal": false,
+      "defaultWork": false
+    },
+    {
+      "name": "PDF-XChange Editor",
+      "id": "TrackerSoftware.PDF-XChangeEditor",
+      "category": "optional",
+      "defaultNormal": true,
+      "defaultWork": true
+    },
+    {
+      "name": "Tailscale",
+      "id": "Tailscale.Tailscale",
+      "category": "optional",
+      "defaultNormal": false,
+      "defaultWork": false
+    },
+    {
+      "name": "Open-Shell",
+      "id": "Open-Shell.Open-Shell-Menu",
+      "category": "optional",
+      "defaultNormal": true,
+      "defaultWork": false
+    },
+    {
+      "name": "Windhawk",
+      "id": "RamenSoftware.Windhawk",
+      "category": "optional",
+      "defaultNormal": false,
+      "defaultWork": false
+    },
+    {
+      "name": "Process Explorer",
+      "id": "Microsoft.Sysinternals.ProcessExplorer",
+      "category": "optional",
+      "defaultNormal": true,
+      "defaultWork": true
+    },
+    {
+      "name": "yt-dlp",
+      "id": "yt-dlp.yt-dlp",
+      "category": "development",
+      "defaultNormal": true,
+      "defaultWork": false
+    },
+    {
+      "name": "Make",
+      "id": "GnuWin32.Make",
+      "category": "development",
+      "defaultNormal": false,
+      "defaultWork": false
+    },
+    {
+      "name": "MSYS2",
+      "id": "MSYS2.MSYS2",
+      "category": "development",
+      "defaultNormal": false,
+      "defaultWork": false
+    },
+    {
+      "name": "cURL",
+      "id": "cURL.cURL",
+      "category": "development",
+      "defaultNormal": false,
+      "defaultWork": false
+    },
+    {
+      "name": "btop4win",
+      "id": "aristocratos.btop4win",
+      "category": "development",
+      "defaultNormal": true,
+      "defaultWork": false
+    },
+    {
+      "name": "QEMU",
+      "id": "SoftwareFreedomConservancy.QEMU",
+      "category": "virtualization",
+      "defaultNormal": false,
+      "defaultWork": false
+    },
+    {
+      "name": "QEMU Guest Agent",
+      "id": "SoftwareFreedomConservancy.QEMUGuestAgent",
+      "category": "virtualization",
+      "defaultNormal": false,
+      "defaultWork": false
+    },
+    {
+      "name": "Microsoft Teams",
+      "id": "Microsoft.Teams",
+      "category": "work",
+      "defaultNormal": false,
+      "defaultWork": true
+    },
+    {
+      "name": "DistroAV",
+      "id": "DistroAV.DistroAV",
+      "category": "optional",
+      "defaultNormal": true,
+      "defaultWork": false
+    }
+  ],
+  "tweaks": [
+    {
+      "id": "micro-text-defaults",
+      "name": "Open text/code files in Windows Terminal + Micro",
+      "category": "file associations",
+      "type": "micro-text-defaults",
+      "defaultNormal": true,
+      "defaultWork": true
+    },
+    {
+      "id": "flow-launcher-alt-p",
+      "name": "Flow Launcher: open with Alt+P",
+      "category": "keybinds",
+      "type": "flow-launcher-alt-p",
+      "defaultNormal": true,
+      "defaultWork": true
+    },
+    {
+      "id": "eartrumpet-mixer-alt-v",
+      "name": "EarTrumpet: open mixer with Alt+V",
+      "category": "keybinds",
+      "type": "eartrumpet-mixer-alt-v",
+      "defaultNormal": true,
+      "defaultWork": true
+    },
+    {
+      "id": "clean-taskbar-items",
+      "name": "Hide Search, Task View, Widgets, Chat/Copilot taskbar buttons",
+      "category": "Windows settings",
+      "type": "clean-taskbar-items",
+      "defaultNormal": true,
+      "defaultWork": true
+    },
+    {
+      "id": "disable-printscreen-snipping",
+      "name": "Let Flameshot own Print Screen (disable Snipping Tool PrintScreen interception)",
+      "category": "Windows settings",
+      "type": "disable-printscreen-snipping",
+      "defaultNormal": true,
+      "defaultWork": true
+    },
+    {
+      "id": "disable-enhanced-pointer-precision",
+      "name": "Disable Enhance pointer precision",
+      "category": "Windows settings",
+      "type": "disable-enhanced-pointer-precision",
+      "defaultNormal": true,
+      "defaultWork": true
+    },
+    {
+      "id": "communications-do-nothing",
+      "name": "Windows communications activity: Do nothing",
+      "category": "Windows settings",
+      "type": "communications-do-nothing",
+      "defaultNormal": true,
+      "defaultWork": true
+    },
+    {
+      "id": "disable-snap-assist",
+      "name": "Disable Windows Snap Assist / snap layouts",
+      "category": "Windows settings",
+      "type": "disable-snap-assist",
+      "defaultNormal": true,
+      "defaultWork": true
+    },
+    {
+      "id": "disable-remote-assistance",
+      "name": "Disable Remote Assistance (requires elevation)",
+      "category": "Windows settings",
+      "type": "disable-remote-assistance",
+      "defaultNormal": false,
+      "defaultWork": false
+    },
+    {
+      "id": "enable-windows-sudo",
+      "name": "Enable Windows sudo (force-new-window; requires elevation)",
+      "category": "Windows settings",
+      "type": "enable-windows-sudo",
+      "defaultNormal": false,
+      "defaultWork": false
+    },
+    {
+      "id": "reduce-visual-effects",
+      "name": "Reduce Windows animation/transparency visual effects",
+      "category": "Windows settings",
+      "type": "reduce-visual-effects",
+      "defaultNormal": false,
+      "defaultWork": false
+    },
+    {
+      "id": "classic-context-menu",
+      "name": "Enable classic Windows 11 right-click context menu",
+      "category": "Windows shell",
+      "type": "classic-context-menu",
+      "defaultNormal": false,
+      "defaultWork": false
+    },
+    {
+      "id": "oops-all-links-cursor",
+      "name": "Install and apply Oops-all-links cursor theme",
+      "category": "appearance",
+      "type": "oops-all-links-cursor",
+      "defaultNormal": false,
+      "defaultWork": false
+    },
+    {
+      "id": "privacy-sexy",
+      "name": "Run/update privacy.sexy privacy hardening",
+      "category": "privacy",
+      "type": "privacy-sexy",
+      "defaultNormal": false,
+      "defaultWork": false,
+      "actionOnly": true
+    }
+  ]
+}

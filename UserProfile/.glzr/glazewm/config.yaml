@@ -195,6 +195,9 @@ binding_modes:
         bindings: ["alt+shift+p"]
 
 keybindings:
+  - commands: ["shell-exec flameshot gui"]
+    bindings: ["win+shift+f"]
+
   - commands:
       - shell-exec --hide-window powershell -NoProfile -Command "if (Get-Process yasb -ErrorAction SilentlyContinue) { Stop-Process -Name yasb -Force } else { Start-Process yasb }"
     bindings: ["alt+ctrl+b"]
@@ -246,7 +249,7 @@ keybindings:
 
   - commands:
       - "toggle-fullscreen"
-      - "shell-exec --hide-window powershell -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -Command \"Start-Sleep -Milliseconds 70; Start-Process -WindowStyle Hidden glazewm -ArgumentList 'command wm-redraw'\""
+      - "shell-exec --hide-window powershell -NoProfile -WindowStyle Hidden -Command \"Start-Sleep -Milliseconds 70; Start-Process -WindowStyle Hidden glazewm -ArgumentList 'command wm-redraw'\""
     bindings: ["alt+ctrl+f"]
 
   - commands: ["toggle-minimized"]

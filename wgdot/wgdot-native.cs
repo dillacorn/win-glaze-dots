@@ -1,0 +1,4016 @@
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Globalization;
+using System.IO;
+using System.IO.Compression;
+using System.Linq;
+using System.Net;
+using System.Runtime.InteropServices;
+using System.Security.Cryptography;
+using System.Security.Principal;
+using System.Text;
+using System.Text.RegularExpressions;
+using System.Web.Script.Serialization;
+using System.Xml;
+using Microsoft.Win32;
+
+internal static class WgdotNative
+{
+    const string Version = "native-preview-17";
+    const string RepoFullName = "dillacorn/win-glaze-dots";
+    const string RepoUrl = "https://github.com/dillacorn/win-glaze-dots.git";
+    const string ApiBase = "https://api.github.com/repos/dillacorn/win-glaze-dots";
+    const string StableTagPattern = "^v[0-9]+\\.[0-9]+\\.[0-9]+$";
+
+    static readonly string TestRootOverride = Environment.GetEnvironmentVariable("WGDOT_TEST_ROOT");
+    static readonly string InstallRoot = String.IsNullOrWhiteSpace(TestRootOverride)
+        ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "wgdot")
+        : Path.Combine(TestRootOverride, "wgdot");
+    static readonly string BinRoot = Path.Combine(InstallRoot, "bin");
+    static readonly string StateRoot = Path.Combine(InstallRoot, "state");
+    static readonly string CacheRoot = Path.Combine(InstallRoot, "cache");
+    static readonly string BaselineRoot = Path.Combine(StateRoot, "baseline");
+    static readonly string InstallStatePath = Path.Combine(StateRoot, "installation.json");
+    static readonly string BootstrapStatePath = Path.Combine(StateRoot, "native-bootstrap.json");
+    static readonly string BaselineIndexPath = Path.Combine(BaselineRoot, "index.json");
+    static readonly string BackupStatePath = Path.Combine(StateRoot, "backups.json");
+    static readonly string ConfigStatePath = Path.Combine(StateRoot, "config.json");
+    static readonly string GitStatePath = Path.Combine(StateRoot, "git-testing.json");
+    static readonly string TweakStatePath = Path.Combine(StateRoot, "tweaks.json");
+    static readonly JavaScriptSerializer Json = new JavaScriptSerializer { MaxJsonLength = int.MaxValue, RecursionLimit = 100 };
+
+    static readonly IntPtr HwndBroadcast = new IntPtr(0xffff);
+    const uint WmSettingChange = 0x001A;
+    const uint SmtoAbortIfHung = 0x0002;
+
+    [DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+    static extern IntPtr SendMessageTimeout(
+        IntPtr hWnd,
+        uint Msg,
+        UIntPtr wParam,
+        string lParam,
+        uint fuFlags,
+        uint uTimeout,
+        out UIntPtr lpdwResult);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    static extern bool SystemParametersInfo(uint uiAction, uint uiParam, IntPtr pvParam, uint fWinIni);
+
+    [DllImport("shell32.dll")]
+    static extern void SHChangeNotify(uint wEventId, uint uFlags, IntPtr dwItem1, IntPtr dwItem2);
+
+    sealed class ChoiceItem
+    {
+        public string Id;
+        public string Label;
+        public bool Selected;
+    }
+
+    sealed class InstallationSelection
+    {
+        public string Scope;
+        public string GlazeProfile;
+        public List<string> Components = new List<string>();
+        public List<string> Packages = new List<string>();
+        public List<string> Tweaks = new List<string>();
+        public bool TweaksConfigured;
+    }
+
+    sealed class PlanItem
+    {
+        public string FileId;
+        public string Component;
+        public string Destination;
+        public string Target;
+        public string Baseline;
+        public string Status;
+        public string Action;
+        public bool Merge;
+        public bool CommitTargetBaseline;
+        public string Validator;
+    }
+
+    sealed class ProcResult
+    {
+        public int ExitCode;
+        public string StdOut;
+        public string StdErr;
+    }
+
+    sealed class SourceContext
+    {
+        public string Mode;
+        public string Tag;
+        public string Revision;
+        public string Branch;
+        public string SourceRoot;
+        public Dictionary<string, object> Manifest;
+    }
+
+    static int Main(string[] args)
+    {
+        try
+        {
+            ServicePointManager.SecurityProtocol |= SecurityProtocolType.Tls12;
+            EnsureStateDirectories();
+            string command = args.Length == 0 ? "menu" : args[0].ToLowerInvariant();
+
+            if (command == "install") return Install();
+            if (command == "status") return Status();
+            if (command == "menu") return Menu();
+            if (command == "self-test") return SelfTest();
+            if (command == "git-review") return GitReviewFromArgs(args.Skip(1).ToArray());
+            if (command == "apply-tweak") return ApplyTweakFromArgs(args.Skip(1).ToArray());
+            if (command == "mark-runtime") return MarkRuntimeFromArgs(args.Skip(1).ToArray());
+            if (command == "maintenance-self-test") return MaintenanceSelfTest();
+            if (command == "software") return SoftwareReconcile();
+            if (command == "update") return ManagedOperation("update", ResolveDefaultSource());
+            if (command == "reset") return ManagedOperation("reset", ResolveDefaultSource());
+            if (command == "review") return ManagedOperation("review", ResolveDefaultSource());
+
+            Console.Error.WriteLine("Unknown WGDot native command: " + command);
+            Console.Error.WriteLine("Run wgdot with no arguments for the menu.");
+            return 2;
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine("WGDot native error: " + ex.Message);
+            return 1;
+        }
+    }
+
+    static void EnsureStateDirectories()
+    {
+        Directory.CreateDirectory(InstallRoot);
+        Directory.CreateDirectory(BinRoot);
+        Directory.CreateDirectory(StateRoot);
+        Directory.CreateDirectory(CacheRoot);
+        Directory.CreateDirectory(BaselineRoot);
+    }
+
+    static int Install()
+    {
+        EnsureStateDirectories();
+
+        string currentExe = Process.GetCurrentProcess().MainModule.FileName;
+        string targetExe = Path.Combine(BinRoot, "wgdot.exe");
+        string sourceRoot = Environment.GetEnvironmentVariable("WGDOT_SOURCE_ROOT");
+        if (String.IsNullOrWhiteSpace(sourceRoot)) sourceRoot = FindRepoRoot(AppDomain.CurrentDomain.BaseDirectory);
+        if (!String.IsNullOrWhiteSpace(sourceRoot)) sourceRoot = Path.GetFullPath(sourceRoot);
+        string sourceRef = Environment.GetEnvironmentVariable("WGDOT_SOURCE_REF") ?? "";
+        string sourceRevision = Environment.GetEnvironmentVariable("WGDOT_SOURCE_REVISION") ?? "";
+
+        if (!String.Equals(Path.GetFullPath(currentExe), Path.GetFullPath(targetExe), StringComparison.OrdinalIgnoreCase))
+            File.Copy(currentExe, targetExe, true);
+
+        string cmd = "@echo off\r\n\"%~dp0wgdot.exe\" %*\r\n";
+        File.WriteAllText(Path.Combine(BinRoot, "wgdot.cmd"), cmd, Encoding.ASCII);
+        AddUserPath(BinRoot);
+
+        var state = new Dictionary<string, object>();
+        state["version"] = Version;
+        state["installedAt"] = DateTime.UtcNow.ToString("o");
+        state["sourceRoot"] = sourceRoot;
+        state["sourceRef"] = sourceRef;
+        state["sourceRevision"] = sourceRevision;
+        state["executionPolicyIndependent"] = true;
+        WriteJson(BootstrapStatePath, state);
+
+        Console.WriteLine("WGDot native runtime installed to:");
+        Console.WriteLine("  " + BinRoot);
+        Console.WriteLine();
+        Console.WriteLine("It does not change or bypass PowerShell execution policy.");
+        Console.WriteLine("Run: wgdot");
+        return 0;
+    }
+
+    static int Status()
+    {
+        Console.WriteLine("WGDot native runtime");
+        Console.WriteLine("Version: " + Version);
+        Console.WriteLine("Install root: " + InstallRoot);
+        Console.WriteLine("Executable: " + Process.GetCurrentProcess().MainModule.FileName);
+        Console.WriteLine("PowerShell execution policy required: no");
+
+        var state = ReadJson(BootstrapStatePath);
+        if (state != null)
+        {
+            string sourceRoot = GetString(state, "sourceRoot");
+            string sourceRef = GetString(state, "sourceRef");
+            string sourceRevision = GetString(state, "sourceRevision");
+            if (!String.IsNullOrWhiteSpace(sourceRoot)) Console.WriteLine("Runtime source root: " + sourceRoot);
+            if (!String.IsNullOrWhiteSpace(sourceRef)) Console.WriteLine("Runtime source ref: " + sourceRef);
+            if (!String.IsNullOrWhiteSpace(sourceRevision)) Console.WriteLine("Runtime source revision: " + sourceRevision);
+            Console.WriteLine("Installed: " + GetString(state, "installedAt"));
+        }
+
+        var config = ReadJson(ConfigStatePath);
+        if (config != null)
+            Console.WriteLine("Stable config: " + GetString(config, "tag") + " @ " + GetString(config, "revision"));
+
+        var git = ReadJson(GitStatePath);
+        if (git != null)
+            Console.WriteLine("Git test: " + GetString(git, "branch") + " @ " + GetString(git, "revision"));
+
+        Console.WriteLine("Managed selection: " + (File.Exists(InstallStatePath) ? "configured" : "not configured"));
+        Console.WriteLine("Baseline: " + (File.Exists(BaselineIndexPath) ? "present" : "not initialized"));
+        Console.WriteLine("Recorded backups: " + CountRecordedBackups().ToString(CultureInfo.InvariantCulture));
+        return 0;
+    }
+
+    static int Menu()
+    {
+        try
+        {
+            if (!String.Equals(Environment.GetEnvironmentVariable("WGDOT_SKIP_RUNTIME_REFRESH"), "1", StringComparison.Ordinal) &&
+                TryRefreshRuntimeAndRun())
+                return 0;
+        }
+        catch (Exception ex)
+        {
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine("WGDot runtime refresh check failed; continuing installed runtime.");
+            Console.WriteLine(ex.Message);
+            Console.ResetColor();
+            Console.WriteLine();
+        }
+
+        var items = new List<string>
+        {
+            "Update managed dots",
+            "Install / reconcile software",
+            "Windows tweaks / integrations",
+            "Reset / reconfigure managed dots",
+            "Review changes without applying",
+            "Backup manager",
+            "Manual PowerShell fallback",
+            "Version / status",
+            "Advanced / Git testing",
+            "Exit"
+        };
+
+        while (true)
+        {
+            int choice = ReadSingleChoice("Maintenance", items, 0);
+            if (choice < 0 || choice == 9) return 0;
+
+            try
+            {
+                if (choice == 0)
+                {
+                    ManagedOperation("update", ResolveDefaultSource());
+                    Pause();
+                }
+                else if (choice == 1)
+                {
+                    SoftwareReconcile();
+                    Pause();
+                }
+                else if (choice == 2)
+                {
+                    TweakManager();
+                }
+                else if (choice == 3)
+                {
+                    ManagedOperation("reset", ResolveDefaultSource());
+                    Pause();
+                }
+                else if (choice == 4)
+                {
+                    ManagedOperation("review", ResolveDefaultSource());
+                    Pause();
+                }
+                else if (choice == 5)
+                {
+                    BackupManager();
+                }
+                else if (choice == 6)
+                {
+                    ShowManualFallback();
+                    Pause();
+                }
+                else if (choice == 7)
+                {
+                    WriteTitle("Version / status");
+                    Status();
+                    Pause();
+                }
+                else if (choice == 8)
+                {
+                    ShowGitMenu();
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine();
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine("ERROR: " + ex.Message);
+                Console.ResetColor();
+                Pause();
+            }
+        }
+    }
+
+    static bool TryRefreshRuntimeAndRun()
+    {
+        var state = ReadJson(BootstrapStatePath);
+        if (state == null) return false;
+
+        string sourceRef = GetString(state, "sourceRef");
+        if (String.IsNullOrWhiteSpace(sourceRef)) sourceRef = "main";
+        ValidateBranchName(sourceRef);
+
+        string installedRevision = GetString(state, "sourceRevision");
+        string remoteRevision = ResolveBranchHeadViaApi(sourceRef);
+
+        if (String.Equals(installedRevision, remoteRevision, StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        WriteTitle("Runtime refresh");
+        Console.WriteLine("New WGDot runtime available from " + sourceRef + ".");
+        Console.WriteLine("Installed: " + (String.IsNullOrWhiteSpace(installedRevision) ? "(unknown)" : installedRevision));
+        Console.WriteLine("Remote:    " + remoteRevision);
+        Console.WriteLine();
+
+        string sourcePath = Path.Combine(CacheRoot, "runtime-" + remoteRevision + ".cs");
+        string nextExe = Path.Combine(CacheRoot, "wgdot-next-" + remoteRevision + ".exe");
+        SafeDeleteFile(sourcePath);
+        SafeDeleteFile(nextExe);
+
+        string rawUrl = "https://raw.githubusercontent.com/" + RepoFullName + "/" + remoteRevision + "/wgdot/wgdot-native.cs";
+        using (var client = new WebClient())
+        {
+            client.Headers[HttpRequestHeader.UserAgent] = "wgdot";
+            client.DownloadFile(rawUrl, sourcePath);
+        }
+
+        CompileNativeSource(sourcePath, nextExe);
+        ProcResult test = Run(nextExe, "self-test", null);
+        if (test.ExitCode != 0)
+            throw new Exception("Refreshed runtime self-test failed: " + LastUsefulLine(test.StdErr));
+
+        string installedExe = Path.Combine(BinRoot, "wgdot.exe");
+        string helper = CreateRuntimeSwapHelper(nextExe, installedExe, sourceRef, remoteRevision);
+
+        var helperInfo = new ProcessStartInfo();
+        helperInfo.FileName = "cmd.exe";
+        helperInfo.Arguments = "/d /c " + Q(helper);
+        helperInfo.UseShellExecute = false;
+        helperInfo.CreateNoWindow = true;
+        Process.Start(helperInfo);
+
+        Console.ForegroundColor = ConsoleColor.Green;
+        Console.WriteLine("Runtime refreshed. Starting the new WGDot runtime...");
+        Console.ResetColor();
+        Console.WriteLine();
+
+        RunInteractiveStagedRuntime(nextExe, "menu");
+        return true;
+    }
+
+    static int MarkRuntimeFromArgs(string[] args)
+    {
+        string sourceRef = GetOption(args, "--ref");
+        string revision = GetOption(args, "--revision");
+
+        if (String.IsNullOrWhiteSpace(sourceRef))
+            sourceRef = "main";
+        ValidateBranchName(sourceRef);
+
+        if (!Regex.IsMatch(revision ?? "", "^[0-9a-fA-F]{40}$"))
+            throw new Exception("mark-runtime requires a full 40-character revision.");
+
+        var state = ReadJson(BootstrapStatePath) ?? new Dictionary<string, object>();
+        state["sourceRef"] = sourceRef;
+        state["sourceRevision"] = revision.ToLowerInvariant();
+        state["refreshedAt"] = DateTime.UtcNow.ToString("o");
+        WriteJson(BootstrapStatePath, state);
+        return 0;
+    }
+
+    static void CompileNativeSource(string sourcePath, string outputPath)
+    {
+        string csc = GetCscPath();
+        if (String.IsNullOrWhiteSpace(csc))
+            throw new Exception("Windows .NET Framework C# compiler was not found.");
+
+        string args =
+            "/nologo /optimize+ /target:exe /out:" + Q(outputPath) +
+            " /r:System.Web.Extensions.dll" +
+            " /r:System.IO.Compression.dll" +
+            " /r:System.IO.Compression.FileSystem.dll" +
+            " /r:System.Xml.dll " +
+            Q(sourcePath);
+
+        ProcResult compile = Run(csc, args, null);
+        if (compile.ExitCode != 0)
+            throw new Exception("Runtime compilation failed: " + LastUsefulLine(compile.StdErr + "\n" + compile.StdOut));
+    }
+
+    static string GetCscPath()
+    {
+        string windows = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
+        string x64 = Path.Combine(windows, "Microsoft.NET", "Framework64", "v4.0.30319", "csc.exe");
+        if (File.Exists(x64)) return x64;
+
+        string x86 = Path.Combine(windows, "Microsoft.NET", "Framework", "v4.0.30319", "csc.exe");
+        return File.Exists(x86) ? x86 : "";
+    }
+
+    static string CreateRuntimeSwapHelper(string sourceExe, string destinationExe, string sourceRef, string revision)
+    {
+        string helper = Path.Combine(Path.GetTempPath(), "wgdot-swap-" + Guid.NewGuid().ToString("N") + ".cmd");
+        var lines = new List<string>();
+        lines.Add("@echo off");
+        lines.Add("setlocal EnableExtensions");
+        lines.Add("set \"SRC=" + sourceExe + "\"");
+        lines.Add("set \"DST=" + destinationExe + "\"");
+        lines.Add("set /a TRIES=0");
+        lines.Add(":retry");
+        lines.Add("set /a TRIES+=1");
+        lines.Add("copy /Y \"%SRC%\" \"%DST%\" >nul 2>&1");
+        lines.Add("if not errorlevel 1 goto done");
+        lines.Add("if %TRIES% GEQ 30 goto failed");
+        lines.Add("ping 127.0.0.1 -n 2 >nul");
+        lines.Add("goto retry");
+        lines.Add(":done");
+        lines.Add("\"%DST%\" mark-runtime --ref " + Q(sourceRef) + " --revision " + Q(revision) + " >nul 2>&1");
+        lines.Add("if errorlevel 1 goto failed");
+        lines.Add("del /q \"%SRC%\" >nul 2>&1");
+        lines.Add("del /q \"%~f0\" >nul 2>&1");
+        lines.Add("exit /b 0");
+        lines.Add(":failed");
+        lines.Add("exit /b 1");
+        File.WriteAllLines(helper, lines.ToArray(), Encoding.ASCII);
+        return helper;
+    }
+
+    static void ShowManualFallback()
+    {
+        WriteTitle("Manual PowerShell fallback");
+        Console.WriteLine("WGDot never changes or bypasses execution policy.");
+        Console.WriteLine();
+        Console.WriteLine("Paste-only fallback documentation:");
+        Console.WriteLine("https://github.com/dillacorn/win-glaze-dots/blob/main/MANUAL_POWERSHELL.md");
+        Console.WriteLine();
+        Console.WriteLine("Use this path on managed/work machines where native WGDot is unavailable or disallowed.");
+    }
+
+    static void ShowGitMenu()
+    {
+        var operations = new List<string>
+        {
+            "Review branch / commit without applying",
+            "Update from branch / commit",
+            "Reset from branch / commit",
+            "Back"
+        };
+
+        while (true)
+        {
+            int operation = ReadSingleChoice("Advanced / Git testing", operations, 0);
+            if (operation < 0 || operation == 3) return;
+
+            try
+            {
+                List<string> branches = GetRemoteBranches();
+                if (branches.Count == 0) throw new Exception("No remote branches were found.");
+
+                string preferred = GetPreferredGitBranch();
+                int initialBranch = branches.FindIndex(x => String.Equals(x, preferred, StringComparison.OrdinalIgnoreCase));
+                if (initialBranch < 0) initialBranch = 0;
+
+                int branchIndex = ReadSingleChoice("Select remote branch", branches, initialBranch);
+                if (branchIndex < 0) continue;
+                string branch = branches[branchIndex];
+
+                int revisionMode = ReadSingleChoice(
+                    "Select revision",
+                    new List<string>
+                    {
+                        "Use selected branch head",
+                        "Enter exact 40-character commit manually"
+                    },
+                    0);
+                if (revisionMode < 0) continue;
+
+                string requestedRevision = "";
+                if (revisionMode == 1)
+                {
+                    WriteTitle("Exact Git-testing revision");
+                    Console.Write("Exact 40-character commit: ");
+                    requestedRevision = (Console.ReadLine() ?? "").Trim();
+                    if (String.IsNullOrWhiteSpace(requestedRevision)) continue;
+                }
+
+                string revision = ResolveGitRevision(branch, requestedRevision);
+                string sourceRoot = PrepareGitSource(revision);
+                var context = new SourceContext
+                {
+                    Mode = "git",
+                    Branch = branch,
+                    Revision = revision,
+                    SourceRoot = sourceRoot,
+                    Manifest = ReadManifest(sourceRoot)
+                };
+
+                if (operation == 0) ManagedOperation("review", context);
+                else if (operation == 1) ManagedOperation("update", context);
+                else ManagedOperation("reset", context);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine();
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine("ERROR: " + ex.Message);
+                Console.ResetColor();
+            }
+
+            Pause();
+        }
+    }
+
+    static int GitReviewFromArgs(string[] args)
+    {
+        string branch = GetOption(args, "--branch");
+        string revision = GetOption(args, "--revision");
+
+        if (String.IsNullOrWhiteSpace(branch))
+            throw new Exception("git-review requires --branch <remote-branch>.");
+
+        string resolved = ResolveGitRevision(branch, revision);
+        string sourceRoot = PrepareGitSource(resolved);
+        var context = new SourceContext
+        {
+            Mode = "git",
+            Branch = branch,
+            Revision = resolved,
+            SourceRoot = sourceRoot,
+            Manifest = ReadManifest(sourceRoot)
+        };
+        return ManagedOperation("review", context);
+    }
+
+    static SourceContext ResolveDefaultSource()
+    {
+        var bootstrap = ReadJson(BootstrapStatePath);
+        if (bootstrap != null)
+        {
+            string sourceRef = GetString(bootstrap, "sourceRef");
+            if (!String.IsNullOrWhiteSpace(sourceRef) &&
+                !String.Equals(sourceRef, "main", StringComparison.OrdinalIgnoreCase))
+            {
+                string revision = ResolveBranchHeadViaApi(sourceRef);
+                string sourceRoot = PrepareRevisionArchive(revision);
+                return new SourceContext
+                {
+                    Mode = "git",
+                    Branch = sourceRef,
+                    Revision = revision,
+                    SourceRoot = sourceRoot,
+                    Manifest = ReadManifest(sourceRoot)
+                };
+            }
+        }
+
+        return ResolveStableSource();
+    }
+
+    static SourceContext ResolveStableSource()
+    {
+        var release = GetStableRelease();
+        string revision = GetString(release, "revision");
+        string sourceRoot = PrepareRevisionArchive(revision);
+        var manifest = ReadManifest(sourceRoot);
+
+        return new SourceContext
+        {
+            Mode = "stable",
+            Tag = GetString(release, "tag"),
+            Revision = revision,
+            SourceRoot = sourceRoot,
+            Manifest = manifest
+        };
+    }
+
+    static Dictionary<string, object> GetStableRelease()
+    {
+        var release = GetJsonUrl(ApiBase + "/releases/latest");
+        if (GetBool(release, "draft") || GetBool(release, "prerelease"))
+            throw new Exception("Latest release is not a normal published stable release.");
+
+        string tag = GetString(release, "tag_name");
+        if (!Regex.IsMatch(tag, StableTagPattern))
+            throw new Exception("Latest published release '" + tag + "' is not a WGDot semantic stable tag.");
+
+        var tagRef = GetJsonUrl(ApiBase + "/git/ref/tags/" + tag);
+        var gitObject = GetDictionary(tagRef, "object");
+        string revision = ResolveGitObjectToCommit(gitObject);
+
+        var result = new Dictionary<string, object>();
+        result["tag"] = tag;
+        result["revision"] = revision;
+        result["publishedAt"] = GetString(release, "published_at");
+        return result;
+    }
+
+    static string ResolveGitObjectToCommit(Dictionary<string, object> gitObject)
+    {
+        Dictionary<string, object> current = gitObject;
+        int guard = 0;
+
+        while (String.Equals(GetString(current, "type"), "tag", StringComparison.OrdinalIgnoreCase))
+        {
+            guard++;
+            if (guard > 8) throw new Exception("Tag resolution exceeded safety limit.");
+
+            string sha = GetString(current, "sha");
+            var tag = GetJsonUrl(ApiBase + "/git/tags/" + sha);
+            current = GetDictionary(tag, "object");
+        }
+
+        if (!String.Equals(GetString(current, "type"), "commit", StringComparison.OrdinalIgnoreCase))
+            throw new Exception("Git tag did not resolve to a commit.");
+
+        string commit = GetString(current, "sha");
+        if (!Regex.IsMatch(commit, "^[0-9a-fA-F]{40}$"))
+            throw new Exception("Resolved release commit is not a full SHA.");
+
+        return commit.ToLowerInvariant();
+    }
+
+    static string ResolveBranchHeadViaApi(string branch)
+    {
+        ValidateBranchName(branch);
+        var reference = GetJsonUrl(ApiBase + "/git/ref/heads/" + branch);
+        var obj = GetDictionary(reference, "object");
+        string sha = GetString(obj, "sha");
+        if (!Regex.IsMatch(sha, "^[0-9a-fA-F]{40}$"))
+            throw new Exception("Could not resolve branch '" + branch + "' to a full commit SHA.");
+        return sha.ToLowerInvariant();
+    }
+
+    static Dictionary<string, object> GetJsonUrl(string url)
+    {
+        using (var client = new WebClient())
+        {
+            client.Headers[HttpRequestHeader.UserAgent] = "wgdot";
+            client.Headers[HttpRequestHeader.Accept] = "application/vnd.github+json";
+            string raw = client.DownloadString(url);
+            return AsDictionary(Json.DeserializeObject(raw));
+        }
+    }
+
+    static string PrepareRevisionArchive(string revision)
+    {
+        if (!Regex.IsMatch(revision ?? "", "^[0-9a-fA-F]{40}$"))
+            throw new Exception("Source revision must be a full 40-character SHA.");
+
+        revision = revision.ToLowerInvariant();
+        string revisionRoot = Path.Combine(CacheRoot, "revision-" + revision);
+        string marker = Path.Combine(revisionRoot, ".wgdot-source");
+
+        if (File.Exists(marker))
+        {
+            string cached = File.ReadAllText(marker).Trim();
+            if (Directory.Exists(cached) && File.Exists(Path.Combine(cached, "wgdot", "manifest.json")))
+                return cached;
+        }
+
+        string zipPath = Path.Combine(CacheRoot, revision + ".zip");
+        string extractRoot = Path.Combine(CacheRoot, "extract-" + revision);
+
+        SafeDeleteFile(zipPath);
+        SafeDeleteDirectory(extractRoot);
+        SafeDeleteDirectory(revisionRoot);
+        Directory.CreateDirectory(extractRoot);
+
+        string url = "https://github.com/" + RepoFullName + "/archive/" + revision + ".zip";
+        using (var client = new WebClient())
+        {
+            client.Headers[HttpRequestHeader.UserAgent] = "wgdot";
+            client.DownloadFile(url, zipPath);
+        }
+
+        ZipFile.ExtractToDirectory(zipPath, extractRoot);
+        string[] children = Directory.GetDirectories(extractRoot);
+        if (children.Length != 1)
+            throw new Exception("Unexpected GitHub archive layout.");
+
+        string source = children[0];
+        if (!File.Exists(Path.Combine(source, "wgdot", "manifest.json")))
+            throw new Exception("Revision " + revision + " is not WGDot-compatible.");
+
+        Directory.CreateDirectory(revisionRoot);
+        File.WriteAllText(marker, source, Encoding.ASCII);
+        SafeDeleteFile(zipPath);
+        return source;
+    }
+
+    static Dictionary<string, object> ReadManifest(string sourceRoot)
+    {
+        string path = Path.Combine(sourceRoot, "wgdot", "manifest.json");
+        if (!File.Exists(path))
+            throw new Exception("WGDot manifest not found in source: " + path);
+
+        var manifest = ReadJson(path);
+        if (manifest == null || GetInt(manifest, "schemaVersion") != 1)
+            throw new Exception("Unsupported or invalid WGDot manifest.");
+
+        return manifest;
+    }
+
+    static int MaintenanceSelfTest()
+    {
+        if (String.IsNullOrWhiteSpace(TestRootOverride))
+            throw new Exception("maintenance-self-test requires WGDOT_TEST_ROOT.");
+
+        string root = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "wgdot-native-maintenance-selftest-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+
+        try
+        {
+            string sourceRoot = Path.Combine(root, "source");
+            string liveRoot = Path.Combine(root, "live");
+            Directory.CreateDirectory(sourceRoot);
+            Directory.CreateDirectory(liveRoot);
+
+            string target = Path.Combine(sourceRoot, "target.txt");
+            string live = Path.Combine(liveRoot, "target.txt");
+            File.WriteAllText(target, "release-two", new UTF8Encoding(false));
+            File.WriteAllText(live, "release-one", new UTF8Encoding(false));
+
+            var file = new Dictionary<string, object>();
+            file["id"] = "selftest-file";
+            file["source"] = "target.txt";
+            file["destination"] = live;
+            file["merge"] = true;
+
+            var component = new Dictionary<string, object>();
+            component["id"] = "selftest";
+            component["name"] = "Self Test";
+            component["files"] = new object[] { file };
+
+            var manifest = new Dictionary<string, object>();
+            manifest["schemaVersion"] = 1;
+            manifest["components"] = new object[] { component };
+            manifest["migrations"] = new object[0];
+            manifest["packages"] = new object[0];
+
+            var selection = new InstallationSelection();
+            selection.Scope = "normal";
+            selection.GlazeProfile = "normal";
+            selection.Components.Add("selftest");
+
+            List<PlanItem> resetPlan = GetPlan(manifest, sourceRoot, selection, "reset");
+            if (resetPlan.Count != 1 || resetPlan[0].Status != "RESET" || resetPlan[0].Action != "REPLACE")
+                throw new Exception("Reset planner self-test failed.");
+
+            var context = new SourceContext
+            {
+                Mode = "git",
+                Branch = "selftest",
+                Revision = new string('a', 40),
+                SourceRoot = sourceRoot,
+                Manifest = manifest
+            };
+
+            ApplyPlan(resetPlan, manifest, selection, context);
+
+            if (File.ReadAllText(live) != "release-two")
+                throw new Exception("Apply self-test did not replace the live file.");
+
+            string adjacentBackup = live + ".wgdot.backup";
+            if (!File.Exists(adjacentBackup) || File.ReadAllText(adjacentBackup) != "release-one")
+                throw new Exception("Adjacent backup self-test failed.");
+
+            string baseline = GetBaselinePath("selftest-file");
+            if (!File.Exists(baseline) || File.ReadAllText(baseline) != "release-two")
+                throw new Exception("Baseline self-test failed.");
+
+            string mergeTarget = Path.Combine(sourceRoot, "merge.txt");
+            string mergeLive = Path.Combine(liveRoot, "merge.txt");
+            File.WriteAllText(mergeTarget, "upstream-one\r\ntwo\r\nthree\r\nfour\r\nfive\r\n", new UTF8Encoding(false));
+            File.WriteAllText(mergeLive, "one\r\ntwo\r\nthree\r\nfour\r\nlocal-five\r\n", new UTF8Encoding(false));
+            string mergeBaseline = GetBaselinePath("selftest-merge");
+            File.WriteAllText(mergeBaseline, "one\r\ntwo\r\nthree\r\nfour\r\nfive\r\n", new UTF8Encoding(false));
+
+            var mergeFile = new Dictionary<string, object>();
+            mergeFile["id"] = "selftest-merge";
+            mergeFile["source"] = "merge.txt";
+            mergeFile["destination"] = mergeLive;
+            mergeFile["merge"] = true;
+
+            component["files"] = new object[] { mergeFile };
+            List<PlanItem> mergePlan = GetPlan(manifest, sourceRoot, selection, "update");
+            PlanItem mergeItem = mergePlan.FirstOrDefault(x => x.FileId == "selftest-merge");
+            PlanItem removedItem = mergePlan.FirstOrDefault(x => x.FileId == "selftest-file");
+            if (mergeItem == null || mergeItem.Status != "BOTH" || mergeItem.Action != "MERGE")
+                throw new Exception("Three-way merge planner self-test failed.");
+            if (removedItem == null || removedItem.Status != "REMOVED-UPSTREAM" || removedItem.Action != "PRESERVE")
+                throw new Exception("Removed-upstream preservation self-test failed.");
+
+            ApplyPlan(mergePlan, manifest, selection, context);
+            string merged = File.ReadAllText(mergeLive);
+            if (merged.IndexOf("upstream-one", StringComparison.Ordinal) < 0 ||
+                merged.IndexOf("local-five", StringComparison.Ordinal) < 0)
+                throw new Exception("Three-way merge application self-test failed.");
+
+            string legacy = Path.Combine(root, "clipboard.yazi");
+            Directory.CreateDirectory(Path.Combine(legacy, ".git"));
+            File.WriteAllText(
+                Path.Combine(legacy, ".git", "config"),
+                "[remote \"origin\"]\r\nurl = https://github.com/XYenon/clipboard.yazi.git\r\n",
+                new UTF8Encoding(false));
+
+            var migration = new Dictionary<string, object>();
+            migration["id"] = "selftest-yazi-legacy";
+            migration["component"] = "selftest";
+            migration["path"] = legacy;
+            migration["type"] = "git-remote-directory";
+            migration["expectedRemoteFragment"] = "XYenon/clipboard.yazi";
+            manifest["migrations"] = new object[] { migration };
+            component["files"] = new object[0];
+
+            ShowMigrations(manifest, selection, false);
+
+            if (Directory.Exists(legacy))
+                throw new Exception("Guarded migration self-test did not remove the known legacy directory.");
+
+            string migrationBackup = legacy + ".wgdot.backup";
+            if (!Directory.Exists(migrationBackup))
+                throw new Exception("Guarded migration self-test did not create an adjacent directory backup.");
+
+            var backupState = ReadJson(BackupStatePath);
+            if (backupState == null || GetList(backupState, "records").Count < 3)
+                throw new Exception("Backup record self-test failed.");
+
+            string registrySelfTestPath =
+                @"Software\WGDot\SelfTest\" + Guid.NewGuid().ToString("N");
+            try
+            {
+                using (RegistryKey key = Registry.CurrentUser.CreateSubKey(registrySelfTestPath))
+                {
+                    if (key == null) throw new Exception("Registry self-test key could not be created.");
+                    key.SetValue("Text", "before", RegistryValueKind.String);
+                    key.SetValue("Blob", new byte[] { 1, 2, 3 }, RegistryValueKind.Binary);
+                }
+
+                SetRegistryValueWithSnapshot(
+                    "selftest-registry", "HKCU", registrySelfTestPath,
+                    "Text", "after", RegistryValueKind.String);
+                SetRegistryValueWithSnapshot(
+                    "selftest-registry", "HKCU", registrySelfTestPath,
+                    "Blob", new byte[] { 9 }, RegistryValueKind.Binary);
+                SetRegistryValueWithSnapshot(
+                    "selftest-registry", "HKCU", registrySelfTestPath,
+                    "Transient", new byte[0], RegistryValueKind.None);
+
+                RestoreRegistryOriginals("selftest-registry");
+
+                using (RegistryKey key = Registry.CurrentUser.OpenSubKey(registrySelfTestPath, false))
+                {
+                    if (key == null ||
+                        !String.Equals(Convert.ToString(key.GetValue("Text")), "before", StringComparison.Ordinal))
+                        throw new Exception("Registry string rollback self-test failed.");
+
+                    byte[] blob = key.GetValue("Blob") as byte[];
+                    if (blob == null || !blob.SequenceEqual(new byte[] { 1, 2, 3 }))
+                        throw new Exception("Registry binary rollback self-test failed.");
+
+                    if (key.GetValue("Transient", null) != null)
+                        throw new Exception("Registry missing-value rollback self-test failed.");
+                }
+
+                string transientKey = registrySelfTestPath + @"\TransientKey";
+                SetRegistryValueWithSnapshot(
+                    "selftest-registry-key", "HKCU", transientKey,
+                    "", "owned", RegistryValueKind.String);
+                RestoreRegistryOriginals("selftest-registry-key");
+                DeleteRegistryKeyIfOriginallyAbsentAndEmpty(
+                    "selftest-registry-key", "HKCU", transientKey, "");
+
+                using (RegistryKey key = Registry.CurrentUser.OpenSubKey(transientKey, false))
+                {
+                    if (key != null)
+                        throw new Exception("Registry created-key cleanup self-test failed.");
+                }
+            }
+            finally
+            {
+                try { Registry.CurrentUser.DeleteSubKeyTree(registrySelfTestPath, false); } catch { }
+            }
+
+            Console.WriteLine("WGDot native maintenance self-test passed.");
+            return 0;
+        }
+        finally
+        {
+            SafeDeleteDirectory(root);
+            SafeDeleteDirectory(InstallRoot);
+        }
+    }
+
+    static bool InstallGitHubReleasePackage(Dictionary<string, object> package)
+    {
+        string repo = GetString(package, "fallbackGitHubRepo");
+        string assetPattern = GetString(package, "fallbackAssetRegex");
+        string name = GetString(package, "name");
+
+        if (!Regex.IsMatch(repo ?? "", "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"))
+            throw new Exception("Invalid fallback GitHub repository for " + name + ".");
+
+        var release = GetJsonUrl("https://api.github.com/repos/" + repo + "/releases/latest");
+        string assetUrl = "";
+        string assetName = "";
+
+        foreach (object rawAsset in GetList(release, "assets"))
+        {
+            var asset = AsDictionary(rawAsset);
+            string candidate = GetString(asset, "name");
+            if (Regex.IsMatch(candidate, assetPattern, RegexOptions.IgnoreCase))
+            {
+                assetName = candidate;
+                assetUrl = GetString(asset, "browser_download_url");
+                break;
+            }
+        }
+
+        if (String.IsNullOrWhiteSpace(assetUrl))
+        {
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine("No matching upstream release installer found for " + name + ".");
+            Console.ResetColor();
+            return false;
+        }
+
+        string packageCache = Path.Combine(CacheRoot, "package-fallback");
+        Directory.CreateDirectory(packageCache);
+        string installer = Path.Combine(packageCache, assetName);
+        SafeDeleteFile(installer);
+
+        using (var client = new WebClient())
+        {
+            client.Headers[HttpRequestHeader.UserAgent] = "wgdot";
+            client.DownloadFile(assetUrl, installer);
+        }
+
+        Console.WriteLine("Launching official upstream installer: " + assetName);
+        ProcResult result = RunInteractive(installer, "");
+        if (result.ExitCode != 0)
+        {
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine(name + " installer failed with exit " + result.ExitCode.ToString(CultureInfo.InvariantCulture) + ".");
+            Console.ResetColor();
+            return false;
+        }
+
+        return true;
+    }
+
+    static int SoftwareReconcile()
+    {
+        SourceContext source = ResolveDefaultSource();
+        Dictionary<string, object> manifest = source.Manifest;
+        InstallationSelection existing = ReadInstallationSelection();
+        InstallationSelection selection = existing;
+
+        if (selection == null)
+        {
+            selection = ConfigureInstallationSelection(manifest, null, true);
+            if (selection == null) return 0;
+        }
+        else
+        {
+            int action = ReadSingleChoice(
+                "Software selection",
+                new List<string>
+                {
+                    "Reconcile current software selection",
+                    "Edit software selection",
+                    "Back"
+                },
+                0);
+            if (action < 0 || action == 2) return 0;
+            if (action == 1)
+            {
+                selection = ConfigureSoftwareSelection(manifest, existing);
+                if (selection == null) return 0;
+            }
+        }
+
+        int selectedCount = selection.Packages.Count;
+        WriteTitle("Software reconciliation review");
+        Console.WriteLine("Profile: " + selection.Scope);
+        Console.WriteLine("Selected packages: " + selectedCount.ToString(CultureInfo.InvariantCulture));
+        Console.WriteLine("Selected setup tweaks: " + selection.Tweaks.Count.ToString(CultureInfo.InvariantCulture));
+        Console.WriteLine();
+        Console.WriteLine("Only missing packages will be installed.");
+        Console.WriteLine("Exact WinGet IDs are validated before install.");
+        Console.WriteLine("No global upgrade command is used.");
+        Console.WriteLine();
+
+        if (!ReadYesNo("Install/reconcile this software selection? [y/N]", false))
+        {
+            Console.WriteLine("No software changes were made.");
+            return 0;
+        }
+
+        RequireExecutable("winget.exe", "WinGet was not found.");
+
+        var wanted = new HashSet<string>(selection.Packages, StringComparer.OrdinalIgnoreCase);
+        int installed = 0;
+        int already = 0;
+        int unavailable = 0;
+        int failed = 0;
+
+        foreach (object rawPackage in GetList(manifest, "packages"))
+        {
+            var package = AsDictionary(rawPackage);
+            string id = GetString(package, "id");
+            if (!wanted.Contains(id)) continue;
+
+            Console.WriteLine();
+            Console.WriteLine("Checking " + id + "...");
+
+            ProcResult show = Run(
+                "winget.exe",
+                "show --id " + Q(id) + " --exact --source winget --accept-source-agreements",
+                null);
+            if (show.ExitCode != 0)
+            {
+                string fallbackRepo = GetString(package, "fallbackGitHubRepo");
+                string fallbackAssetRegex = GetString(package, "fallbackAssetRegex");
+                if (!String.IsNullOrWhiteSpace(fallbackRepo) && !String.IsNullOrWhiteSpace(fallbackAssetRegex))
+                {
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.WriteLine("Exact WinGet ID unavailable; using approved upstream GitHub fallback for " + id + ".");
+                    Console.ResetColor();
+
+                    if (InstallGitHubReleasePackage(package))
+                        installed++;
+                    else
+                        failed++;
+                    continue;
+                }
+
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine("Unavailable by exact WinGet ID; skipped: " + id);
+                Console.ResetColor();
+                unavailable++;
+                continue;
+            }
+
+            ProcResult list = Run(
+                "winget.exe",
+                "list --id " + Q(id) + " --exact --source winget --accept-source-agreements",
+                null);
+
+            bool isInstalled = (list.StdOut ?? "").IndexOf(id, StringComparison.OrdinalIgnoreCase) >= 0;
+            if (isInstalled)
+            {
+                Console.WriteLine("Already installed.");
+                already++;
+                continue;
+            }
+
+            Console.WriteLine("Installing " + id + "...");
+            ProcResult install = RunInteractive(
+                "winget.exe",
+                "install --id " + Q(id) + " --exact --source winget --accept-source-agreements --accept-package-agreements");
+
+            if (install.ExitCode == 0)
+            {
+                installed++;
+            }
+            else
+            {
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine("Install failed: " + id + " (exit " + install.ExitCode.ToString(CultureInfo.InvariantCulture) + ")");
+                Console.ResetColor();
+                failed++;
+            }
+        }
+
+        Console.WriteLine();
+        Console.WriteLine("Software reconciliation complete.");
+        Console.WriteLine("Installed: " + installed.ToString(CultureInfo.InvariantCulture));
+        Console.WriteLine("Already installed: " + already.ToString(CultureInfo.InvariantCulture));
+        Console.WriteLine("Unavailable exact IDs: " + unavailable.ToString(CultureInfo.InvariantCulture));
+        Console.WriteLine("Install failures: " + failed.ToString(CultureInfo.InvariantCulture));
+
+        ApplySelectedInstallTweaks(manifest, selection);
+        selection.Tweaks = selection.Tweaks
+            .Where(id => !IsActionOnlyTweak(manifest, id))
+            .ToList();
+        selection.TweaksConfigured = true;
+        WriteInstallationSelection(selection);
+
+        if (ReadYesNo("Check selected packages for upgrades now? [y/N]", false))
+        {
+            foreach (object rawPackage in GetList(manifest, "packages"))
+            {
+                var package = AsDictionary(rawPackage);
+                string id = GetString(package, "id");
+                if (!wanted.Contains(id)) continue;
+
+                ProcResult upgradeCheck = Run(
+                    "winget.exe",
+                    "list --id " + Q(id) + " --exact --upgrade-available --source winget --accept-source-agreements",
+                    null);
+
+                bool upgradeAvailable = (upgradeCheck.StdOut ?? "").IndexOf(id, StringComparison.OrdinalIgnoreCase) >= 0;
+                if (!upgradeAvailable) continue;
+
+                if (!ReadYesNo("Upgrade " + id + "? [y/N]", false)) continue;
+
+                ProcResult upgrade = RunInteractive(
+                    "winget.exe",
+                    "upgrade --id " + Q(id) + " --exact --source winget --accept-source-agreements --accept-package-agreements");
+
+                if (upgrade.ExitCode != 0)
+                {
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.WriteLine("Upgrade failed: " + id + " (exit " + upgrade.ExitCode.ToString(CultureInfo.InvariantCulture) + ")");
+                    Console.ResetColor();
+                }
+            }
+        }
+
+        return failed == 0 ? 0 : 1;
+    }
+
+    static InstallationSelection ConfigureInstallationSelection(
+        Dictionary<string, object> manifest,
+        InstallationSelection existing,
+        bool includePackages)
+    {
+        int initialScope = existing != null && String.Equals(existing.Scope, "work", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
+        int scopeIndex = ReadSingleChoice(
+            "Choose installation profile",
+            new List<string> { "Normal / personal PC", "Work PC" },
+            initialScope);
+        if (scopeIndex < 0) return null;
+
+        string scope = scopeIndex == 1 ? "work" : "normal";
+
+        int initialGlaze = existing != null
+            ? (String.Equals(existing.GlazeProfile, "work", StringComparison.OrdinalIgnoreCase) ? 1 : 0)
+            : (scope == "work" ? 1 : 0);
+
+        int glazeIndex = ReadSingleChoice(
+            "Which GlazeWM config created by dillacorn do you want to use?",
+            new List<string> { "Normal", "Work" },
+            initialGlaze);
+        if (glazeIndex < 0) return null;
+
+        string glazeProfile = glazeIndex == 1 ? "work" : "normal";
+
+        var componentChoices = BuildComponentChoices(manifest, scope, existing);
+        componentChoices = ReadMultiChoice("Managed components", componentChoices);
+        if (componentChoices == null) return null;
+
+        var result = new InstallationSelection();
+        result.Scope = scope;
+        result.GlazeProfile = glazeProfile;
+        result.Components = componentChoices.Where(x => x.Selected).Select(x => x.Id).ToList();
+
+        if (includePackages)
+        {
+            var packageChoices = BuildPackageChoices(manifest, scope, existing);
+            packageChoices = ReadMultiChoice("Software to install / reconcile", packageChoices);
+            if (packageChoices == null) return null;
+            result.Packages = packageChoices.Where(x => x.Selected).Select(x => x.Id).ToList();
+
+            var tweakChoices = BuildTweakChoices(manifest, scope, existing, true);
+            tweakChoices = ReadMultiChoice("Windows tweaks / integrations", tweakChoices);
+            if (tweakChoices == null) return null;
+            result.Tweaks = tweakChoices.Where(x => x.Selected).Select(x => x.Id).ToList();
+            result.TweaksConfigured = true;
+        }
+        else if (existing != null)
+        {
+            result.Packages = new List<string>(existing.Packages);
+            result.Tweaks = existing.TweaksConfigured
+                ? new List<string>(existing.Tweaks)
+                : GetDefaultTweakIds(manifest, scope);
+            result.TweaksConfigured = true;
+        }
+        else
+        {
+            foreach (ChoiceItem item in BuildPackageChoices(manifest, scope, null))
+                if (item.Selected) result.Packages.Add(item.Id);
+            result.Tweaks = GetDefaultTweakIds(manifest, scope);
+            result.TweaksConfigured = true;
+        }
+
+        return result;
+    }
+
+    static InstallationSelection ConfigureSoftwareSelection(
+        Dictionary<string, object> manifest,
+        InstallationSelection existing)
+    {
+        var result = new InstallationSelection();
+        result.Scope = existing.Scope;
+        result.GlazeProfile = existing.GlazeProfile;
+        result.Components = new List<string>(existing.Components);
+        result.Tweaks = existing.TweaksConfigured
+            ? new List<string>(existing.Tweaks)
+            : GetDefaultTweakIds(manifest, existing.Scope);
+        result.TweaksConfigured = true;
+
+        var choices = BuildPackageChoices(manifest, existing.Scope, existing);
+        choices = ReadMultiChoice("Software to install / reconcile", choices);
+        if (choices == null) return null;
+
+        result.Packages = choices.Where(x => x.Selected).Select(x => x.Id).ToList();
+        return result;
+    }
+
+    static List<ChoiceItem> BuildComponentChoices(
+        Dictionary<string, object> manifest,
+        string scope,
+        InstallationSelection existing)
+    {
+        var existingSet = existing == null
+            ? null
+            : new HashSet<string>(existing.Components, StringComparer.OrdinalIgnoreCase);
+
+        var choices = new List<ChoiceItem>();
+        foreach (object raw in GetList(manifest, "components"))
+        {
+            var component = AsDictionary(raw);
+            string id = GetString(component, "id");
+            bool selected = existingSet != null
+                ? existingSet.Contains(id)
+                : (scope == "work" ? GetBool(component, "defaultWork") : GetBool(component, "defaultNormal"));
+
+            choices.Add(new ChoiceItem
+            {
+                Id = id,
+                Label = GetString(component, "name"),
+                Selected = selected
+            });
+        }
+        return choices;
+    }
+
+    static List<ChoiceItem> BuildPackageChoices(
+        Dictionary<string, object> manifest,
+        string scope,
+        InstallationSelection existing)
+    {
+        var existingSet = existing == null
+            ? null
+            : new HashSet<string>(existing.Packages, StringComparer.OrdinalIgnoreCase);
+
+        var choices = new List<ChoiceItem>();
+        foreach (object raw in GetList(manifest, "packages"))
+        {
+            var package = AsDictionary(raw);
+            string id = GetString(package, "id");
+            bool selected = existingSet != null
+                ? existingSet.Contains(id)
+                : (scope == "work" ? GetBool(package, "defaultWork") : GetBool(package, "defaultNormal"));
+
+            string category = GetString(package, "category");
+            string name = GetString(package, "name");
+            choices.Add(new ChoiceItem
+            {
+                Id = id,
+                Label = name + " [" + category + "]",
+                Selected = selected
+            });
+        }
+        return choices;
+    }
+
+    static InstallationSelection ReadInstallationSelection()
+    {
+        var state = ReadJson(InstallStatePath);
+        if (state == null) return null;
+
+        var result = new InstallationSelection();
+        result.Scope = GetString(state, "scope");
+        result.GlazeProfile = GetString(state, "glazewmProfile");
+        result.Components = GetStringList(state, "components");
+        result.Packages = GetStringList(state, "packages");
+        result.Tweaks = GetStringList(state, "tweaks");
+        result.TweaksConfigured = state.ContainsKey("tweaks");
+
+        if (String.IsNullOrWhiteSpace(result.Scope) ||
+            String.IsNullOrWhiteSpace(result.GlazeProfile) ||
+            result.Components.Count == 0)
+            return null;
+
+        return result;
+    }
+
+    static void WriteInstallationSelection(InstallationSelection selection)
+    {
+        var state = new Dictionary<string, object>();
+        state["scope"] = selection.Scope;
+        state["glazewmProfile"] = selection.GlazeProfile;
+        state["components"] = selection.Components.ToArray();
+        state["packages"] = selection.Packages.ToArray();
+        state["tweaks"] = selection.Tweaks.ToArray();
+        state["configuredAt"] = DateTime.UtcNow.ToString("o");
+        WriteJson(InstallStatePath, state);
+    }
+
+    static List<ChoiceItem> BuildTweakChoices(
+        Dictionary<string, object> manifest,
+        string scope,
+        InstallationSelection existing,
+        bool includeActionOnly)
+    {
+        var existingSet = existing != null && existing.TweaksConfigured
+            ? new HashSet<string>(existing.Tweaks, StringComparer.OrdinalIgnoreCase)
+            : null;
+
+        var choices = new List<ChoiceItem>();
+        foreach (object raw in GetList(manifest, "tweaks"))
+        {
+            var tweak = AsDictionary(raw);
+            string id = GetString(tweak, "id");
+            bool actionOnly = GetBool(tweak, "actionOnly");
+            if (actionOnly && !includeActionOnly) continue;
+
+            bool selected = actionOnly
+                ? false
+                : (existingSet != null
+                    ? existingSet.Contains(id)
+                    : (scope == "work" ? GetBool(tweak, "defaultWork") : GetBool(tweak, "defaultNormal")));
+
+            choices.Add(new ChoiceItem
+            {
+                Id = id,
+                Label = GetString(tweak, "name") + " [" + GetString(tweak, "category") + "]",
+                Selected = selected
+            });
+        }
+        return choices;
+    }
+
+    static List<string> GetDefaultTweakIds(Dictionary<string, object> manifest, string scope)
+    {
+        var result = new List<string>();
+        foreach (object raw in GetList(manifest, "tweaks"))
+        {
+            var tweak = AsDictionary(raw);
+            if (GetBool(tweak, "actionOnly")) continue;
+            bool selected = scope == "work" ? GetBool(tweak, "defaultWork") : GetBool(tweak, "defaultNormal");
+            if (selected) result.Add(GetString(tweak, "id"));
+        }
+        return result;
+    }
+
+    static bool IsActionOnlyTweak(Dictionary<string, object> manifest, string id)
+    {
+        foreach (object raw in GetList(manifest, "tweaks"))
+        {
+            var tweak = AsDictionary(raw);
+            if (String.Equals(GetString(tweak, "id"), id, StringComparison.OrdinalIgnoreCase))
+                return GetBool(tweak, "actionOnly");
+        }
+        return false;
+    }
+
+    static void TweakManager()
+    {
+        SourceContext source = ResolveDefaultSource();
+        Dictionary<string, object> manifest = source.Manifest;
+        InstallationSelection existing = ReadInstallationSelection();
+
+        if (existing == null)
+        {
+            WriteTitle("Windows tweaks / integrations");
+            Console.WriteLine("No WGDot install profile exists yet.");
+            Console.WriteLine("Run Install / reconcile software first so WGDot can remember Normal/Work defaults.");
+            Pause();
+            return;
+        }
+
+        var oldPersistent = existing.TweaksConfigured
+            ? new HashSet<string>(existing.Tweaks.Where(id => !IsActionOnlyTweak(manifest, id)), StringComparer.OrdinalIgnoreCase)
+            : new HashSet<string>(GetDefaultTweakIds(manifest, existing.Scope), StringComparer.OrdinalIgnoreCase);
+
+        List<ChoiceItem> choices = BuildTweakChoices(manifest, existing.Scope, existing, true);
+        choices = ReadMultiChoice("Windows tweaks / integrations", choices);
+        if (choices == null) return;
+
+        var requested = new HashSet<string>(
+            choices.Where(x => x.Selected).Select(x => x.Id),
+            StringComparer.OrdinalIgnoreCase);
+        var newPersistent = new HashSet<string>(
+            requested.Where(id => !IsActionOnlyTweak(manifest, id)),
+            StringComparer.OrdinalIgnoreCase);
+        var actions = requested.Where(id => IsActionOnlyTweak(manifest, id)).ToList();
+
+        WriteTitle("Windows tweak review");
+        foreach (object raw in GetList(manifest, "tweaks"))
+        {
+            var tweak = AsDictionary(raw);
+            string id = GetString(tweak, "id");
+            string name = GetString(tweak, "name");
+
+            if (IsActionOnlyTweak(manifest, id))
+            {
+                if (actions.Contains(id, StringComparer.OrdinalIgnoreCase))
+                    Console.WriteLine("RUN      " + name);
+            }
+            else if (!oldPersistent.Contains(id) && newPersistent.Contains(id))
+            {
+                Console.WriteLine("ENABLE   " + name);
+            }
+            else if (oldPersistent.Contains(id) && !newPersistent.Contains(id))
+            {
+                Console.WriteLine("DISABLE  " + name);
+            }
+        }
+
+        if (oldPersistent.SetEquals(newPersistent) && actions.Count == 0)
+        {
+            Console.WriteLine("No tweak changes selected.");
+            Pause();
+            return;
+        }
+
+        Console.WriteLine();
+        if (!ReadYesNo("Apply exactly these tweak changes? [y/N]", false))
+            return;
+
+        foreach (string id in oldPersistent.Where(x => !newPersistent.Contains(x)).ToList())
+            ApplyTweak(id, false, true);
+
+        foreach (string id in newPersistent.Where(x => !oldPersistent.Contains(x)).ToList())
+            ApplyTweak(id, true, true);
+
+        foreach (string id in actions)
+            RunActionTweak(id);
+
+        existing.Tweaks = newPersistent.ToList();
+        existing.TweaksConfigured = true;
+        WriteInstallationSelection(existing);
+
+        Console.ForegroundColor = ConsoleColor.Green;
+        Console.WriteLine("WGDot tweak selection applied.");
+        Console.ResetColor();
+        Pause();
+    }
+
+    static void ApplySelectedInstallTweaks(Dictionary<string, object> manifest, InstallationSelection selection)
+    {
+        if (selection == null || selection.Tweaks == null || selection.Tweaks.Count == 0) return;
+
+        Console.WriteLine();
+        Console.WriteLine("Applying selected Windows tweaks / integrations...");
+
+        foreach (string id in selection.Tweaks.ToList())
+        {
+            if (IsActionOnlyTweak(manifest, id))
+                RunActionTweak(id);
+            else
+                ApplyTweak(id, true, true);
+        }
+    }
+
+    static int ApplyTweakFromArgs(string[] args)
+    {
+        string id = GetOption(args, "--id");
+        string enabled = GetOption(args, "--enable");
+        if (String.IsNullOrWhiteSpace(id) || (enabled != "0" && enabled != "1"))
+            throw new Exception("apply-tweak requires --id <id> --enable <0|1>.");
+
+        ApplyTweak(id, enabled == "1", false);
+        return 0;
+    }
+
+    static void ApplyTweak(string id, bool enable, bool allowElevation)
+    {
+        bool needsAdmin =
+            String.Equals(id, "disable-remote-assistance", StringComparison.OrdinalIgnoreCase) ||
+            String.Equals(id, "enable-windows-sudo", StringComparison.OrdinalIgnoreCase);
+
+        if (needsAdmin && !IsAdministrator())
+        {
+            if (!allowElevation)
+                throw new Exception("Tweak '" + id + "' requires administrator rights.");
+
+            RunElevatedSelf(
+                "apply-tweak --id " + Q(id) + " --enable " + (enable ? "1" : "0"));
+            return;
+        }
+
+        if (String.Equals(id, "micro-text-defaults", StringComparison.OrdinalIgnoreCase))
+            ApplyMicroTextDefaults(enable);
+        else if (String.Equals(id, "flow-launcher-alt-p", StringComparison.OrdinalIgnoreCase))
+            ApplyFlowLauncherAltP(enable);
+        else if (String.Equals(id, "eartrumpet-mixer-alt-v", StringComparison.OrdinalIgnoreCase))
+            ApplyEarTrumpetMixerAltV(enable);
+        else if (String.Equals(id, "clean-taskbar-items", StringComparison.OrdinalIgnoreCase))
+            ApplyCleanTaskbar(enable);
+        else if (String.Equals(id, "disable-printscreen-snipping", StringComparison.OrdinalIgnoreCase))
+            ApplyPrintScreenSnipping(enable);
+        else if (String.Equals(id, "disable-enhanced-pointer-precision", StringComparison.OrdinalIgnoreCase))
+            ApplyPointerPrecision(enable);
+        else if (String.Equals(id, "communications-do-nothing", StringComparison.OrdinalIgnoreCase))
+            ApplyCommunicationsDucking(enable);
+        else if (String.Equals(id, "disable-snap-assist", StringComparison.OrdinalIgnoreCase))
+            ApplySnapAssist(enable);
+        else if (String.Equals(id, "disable-remote-assistance", StringComparison.OrdinalIgnoreCase))
+            ApplyRemoteAssistance(enable);
+        else if (String.Equals(id, "enable-windows-sudo", StringComparison.OrdinalIgnoreCase))
+            ApplyWindowsSudo(enable);
+        else if (String.Equals(id, "reduce-visual-effects", StringComparison.OrdinalIgnoreCase))
+            ApplyReducedVisualEffects(enable);
+        else if (String.Equals(id, "classic-context-menu", StringComparison.OrdinalIgnoreCase))
+            ApplyClassicContextMenu(enable);
+        else if (String.Equals(id, "oops-all-links-cursor", StringComparison.OrdinalIgnoreCase))
+            ApplyOopsCursor(enable);
+        else
+            throw new Exception("Unknown WGDot tweak: " + id);
+
+        RefreshShellSettings();
+    }
+
+    static void RunActionTweak(string id)
+    {
+        if (String.Equals(id, "privacy-sexy", StringComparison.OrdinalIgnoreCase))
+        {
+            RunPrivacySexy();
+            return;
+        }
+        throw new Exception("Unknown WGDot action tweak: " + id);
+    }
+
+    static bool IsAdministrator()
+    {
+        try
+        {
+            WindowsIdentity identity = WindowsIdentity.GetCurrent();
+            WindowsPrincipal principal = new WindowsPrincipal(identity);
+            return principal.IsInRole(WindowsBuiltInRole.Administrator);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    static void RunElevatedSelf(string arguments)
+    {
+        var psi = new ProcessStartInfo();
+        psi.FileName = Process.GetCurrentProcess().MainModule.FileName;
+        psi.Arguments = arguments;
+        psi.UseShellExecute = true;
+        psi.Verb = "runas";
+
+        using (Process p = Process.Start(psi))
+        {
+            p.WaitForExit();
+            if (p.ExitCode != 0)
+                throw new Exception("Elevated WGDot tweak failed with exit code " + p.ExitCode.ToString(CultureInfo.InvariantCulture) + ".");
+        }
+    }
+
+    static RegistryKey GetRegistryRoot(string hive, bool writable)
+    {
+        if (String.Equals(hive, "HKCU", StringComparison.OrdinalIgnoreCase))
+            return Registry.CurrentUser;
+        if (String.Equals(hive, "HKLM", StringComparison.OrdinalIgnoreCase))
+            return Registry.LocalMachine;
+        throw new Exception("Unknown registry hive: " + hive);
+    }
+
+    static string RegistrySnapshotKey(string tweakId, string hive, string path, string name)
+    {
+        return tweakId + "|" + hive + "|" + path + "|" + name;
+    }
+
+    static void SetRegistryValueWithSnapshot(
+        string tweakId,
+        string hive,
+        string path,
+        string name,
+        object value,
+        RegistryValueKind kind)
+    {
+        CaptureRegistryOriginal(tweakId, hive, path, name);
+
+        RegistryKey root = GetRegistryRoot(hive, true);
+        using (RegistryKey key = root.CreateSubKey(path))
+        {
+            if (key == null) throw new Exception("Could not open registry key: " + hive + "\\" + path);
+            key.SetValue(name, value, kind);
+        }
+    }
+
+    static Dictionary<string, object> GetRegistryOriginal(
+        string tweakId,
+        string hive,
+        string path,
+        string name)
+    {
+        var state = ReadJson(TweakStatePath);
+        if (state == null) return null;
+
+        string snapshotKey = RegistrySnapshotKey(tweakId, hive, path, name);
+        foreach (object raw in GetList(state, "registryOriginals"))
+        {
+            var record = AsDictionary(raw);
+            if (String.Equals(GetString(record, "key"), snapshotKey, StringComparison.Ordinal))
+                return record;
+        }
+        return null;
+    }
+
+    static void CaptureRegistryOriginal(string tweakId, string hive, string path, string name)
+    {
+        var state = ReadJson(TweakStatePath) ?? new Dictionary<string, object>();
+        var records = new List<object>(GetList(state, "registryOriginals"));
+        string snapshotKey = RegistrySnapshotKey(tweakId, hive, path, name);
+
+        foreach (object raw in records)
+        {
+            var record = AsDictionary(raw);
+            if (String.Equals(GetString(record, "key"), snapshotKey, StringComparison.Ordinal))
+                return;
+        }
+
+        bool keyExists = false;
+        bool exists = false;
+        object value = null;
+        RegistryValueKind kind = RegistryValueKind.String;
+
+        RegistryKey root = GetRegistryRoot(hive, false);
+        using (RegistryKey key = root.OpenSubKey(path, false))
+        {
+            if (key != null)
+            {
+                keyExists = true;
+                string[] names = key.GetValueNames();
+                exists = names.Any(x => String.Equals(x, name, StringComparison.OrdinalIgnoreCase));
+                if (exists)
+                {
+                    value = key.GetValue(name, null, RegistryValueOptions.DoNotExpandEnvironmentNames);
+                    kind = key.GetValueKind(name);
+                }
+            }
+        }
+
+        string valueEncoding = "text";
+        string serializedValue = "";
+        if (value != null)
+        {
+            if ((kind == RegistryValueKind.Binary || kind == RegistryValueKind.None) && value is byte[])
+            {
+                valueEncoding = "base64-bytes";
+                serializedValue = Convert.ToBase64String((byte[])value);
+            }
+            else if (kind == RegistryValueKind.MultiString && value is string[])
+            {
+                valueEncoding = "base64-multisz";
+                serializedValue = Convert.ToBase64String(
+                    Encoding.UTF8.GetBytes(String.Join("\0", (string[])value)));
+            }
+            else
+            {
+                serializedValue = Convert.ToString(value, CultureInfo.InvariantCulture);
+            }
+        }
+
+        var next = new Dictionary<string, object>();
+        next["key"] = snapshotKey;
+        next["tweakId"] = tweakId;
+        next["hive"] = hive;
+        next["path"] = path;
+        next["name"] = name;
+        next["keyExists"] = keyExists;
+        next["exists"] = exists;
+        next["kind"] = kind.ToString();
+        next["valueEncoding"] = valueEncoding;
+        next["value"] = serializedValue;
+        records.Add(next);
+
+        state["registryOriginals"] = records.ToArray();
+        WriteJson(TweakStatePath, state);
+    }
+
+    static void RestoreRegistryOriginals(string tweakId)
+    {
+        var state = ReadJson(TweakStatePath);
+        if (state == null) return;
+
+        foreach (object raw in GetList(state, "registryOriginals"))
+        {
+            var record = AsDictionary(raw);
+            if (!String.Equals(GetString(record, "tweakId"), tweakId, StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            string hive = GetString(record, "hive");
+            string path = GetString(record, "path");
+            string name = GetString(record, "name");
+            bool exists = GetBool(record, "exists");
+
+            RegistryKey root = GetRegistryRoot(hive, true);
+            using (RegistryKey key = root.CreateSubKey(path))
+            {
+                if (key == null) continue;
+
+                if (!exists)
+                {
+                    try { key.DeleteValue(name, false); } catch { }
+                    continue;
+                }
+
+                RegistryValueKind kind;
+                if (!Enum.TryParse(GetString(record, "kind"), out kind))
+                    kind = RegistryValueKind.String;
+
+                string text = GetString(record, "value");
+                string valueEncoding = record.ContainsKey("valueEncoding")
+                    ? GetString(record, "valueEncoding")
+                    : "text";
+                object value = text;
+
+                if (kind == RegistryValueKind.DWord)
+                {
+                    int number;
+                    if (Int32.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out number))
+                        value = number;
+                }
+                else if (kind == RegistryValueKind.QWord)
+                {
+                    long number;
+                    if (Int64.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out number))
+                        value = number;
+                }
+                else if (kind == RegistryValueKind.Binary || kind == RegistryValueKind.None)
+                {
+                    if (!String.Equals(valueEncoding, "base64-bytes", StringComparison.Ordinal))
+                    {
+                        Console.WriteLine("Skipping unsupported legacy binary registry snapshot: " + path + "\\" + name);
+                        continue;
+                    }
+                    value = Convert.FromBase64String(text);
+                }
+                else if (kind == RegistryValueKind.MultiString)
+                {
+                    if (!String.Equals(valueEncoding, "base64-multisz", StringComparison.Ordinal))
+                    {
+                        Console.WriteLine("Skipping unsupported legacy multi-string registry snapshot: " + path + "\\" + name);
+                        continue;
+                    }
+
+                    string decoded = Encoding.UTF8.GetString(Convert.FromBase64String(text));
+                    value = decoded.Length == 0
+                        ? new string[0]
+                        : decoded.Split(new[] { '\0' }, StringSplitOptions.None);
+                }
+
+                key.SetValue(name, value, kind);
+            }
+        }
+
+        var cleanupPaths = new List<string[]>();
+        foreach (object raw in GetList(state, "registryOriginals"))
+        {
+            var record = AsDictionary(raw);
+            if (!String.Equals(GetString(record, "tweakId"), tweakId, StringComparison.OrdinalIgnoreCase) ||
+                !record.ContainsKey("keyExists") ||
+                GetBool(record, "keyExists"))
+                continue;
+
+            string hive = GetString(record, "hive");
+            string path = GetString(record, "path");
+            if (!cleanupPaths.Any(x =>
+                String.Equals(x[0], hive, StringComparison.OrdinalIgnoreCase) &&
+                String.Equals(x[1], path, StringComparison.OrdinalIgnoreCase)))
+            {
+                cleanupPaths.Add(new[] { hive, path });
+            }
+        }
+
+        foreach (string[] item in cleanupPaths.OrderByDescending(x => x[1].Length))
+            DeleteRegistryKeyIfEmpty(item[0], item[1]);
+    }
+
+    static bool RegistryKeyWasAbsentInSnapshot(
+        string tweakId,
+        string hive,
+        string path,
+        string name)
+    {
+        var original = GetRegistryOriginal(tweakId, hive, path, name);
+        return original != null &&
+            original.ContainsKey("keyExists") &&
+            !GetBool(original, "keyExists");
+    }
+
+    static void DeleteRegistryKeyIfEmpty(string hive, string path)
+    {
+        int separator = path.LastIndexOf('\\');
+        if (separator <= 0 || separator >= path.Length - 1)
+            return;
+
+        RegistryKey root = GetRegistryRoot(hive, true);
+        using (RegistryKey key = root.OpenSubKey(path, false))
+        {
+            if (key == null) return;
+            if (key.GetValueNames().Length != 0 || key.GetSubKeyNames().Length != 0)
+                return;
+        }
+
+        string parentPath = path.Substring(0, separator);
+        string leaf = path.Substring(separator + 1);
+        using (RegistryKey parent = root.OpenSubKey(parentPath, true))
+        {
+            if (parent == null) return;
+            try { parent.DeleteSubKey(leaf, false); } catch { }
+        }
+    }
+
+    static void DeleteRegistryKeyIfOriginallyAbsentAndEmpty(
+        string tweakId,
+        string hive,
+        string path,
+        string name)
+    {
+        if (RegistryKeyWasAbsentInSnapshot(tweakId, hive, path, name))
+            DeleteRegistryKeyIfEmpty(hive, path);
+    }
+
+    static void CaptureExternalSettingOriginal(string key, bool exists, string value)
+    {
+        var state = ReadJson(TweakStatePath) ?? new Dictionary<string, object>();
+        var records = new List<object>(GetList(state, "externalOriginals"));
+
+        foreach (object raw in records)
+        {
+            var record = AsDictionary(raw);
+            if (String.Equals(GetString(record, "key"), key, StringComparison.OrdinalIgnoreCase))
+                return;
+        }
+
+        var next = new Dictionary<string, object>();
+        next["key"] = key;
+        next["exists"] = exists;
+        next["value"] = value ?? "";
+        records.Add(next);
+        state["externalOriginals"] = records.ToArray();
+        WriteJson(TweakStatePath, state);
+    }
+
+    static Dictionary<string, object> GetExternalSettingOriginal(string key)
+    {
+        var state = ReadJson(TweakStatePath);
+        if (state == null) return null;
+
+        foreach (object raw in GetList(state, "externalOriginals"))
+        {
+            var record = AsDictionary(raw);
+            if (String.Equals(GetString(record, "key"), key, StringComparison.OrdinalIgnoreCase))
+                return record;
+        }
+        return null;
+    }
+
+    static string GetFlowLauncherSettingsPath()
+    {
+        return Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            "FlowLauncher",
+            "Settings",
+            "Settings.json");
+    }
+
+    static string FindFlowLauncherExe()
+    {
+        string root = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "FlowLauncher");
+
+        string direct = Path.Combine(root, "Flow.Launcher.exe");
+        if (File.Exists(direct)) return direct;
+
+        if (Directory.Exists(root))
+        {
+            foreach (string dir in Directory.GetDirectories(root, "app-*").OrderByDescending(x => x))
+            {
+                string candidate = Path.Combine(dir, "Flow.Launcher.exe");
+                if (File.Exists(candidate)) return candidate;
+            }
+        }
+
+        return "";
+    }
+
+    static bool StopProcessesByName(string processName)
+    {
+        bool found = false;
+        foreach (Process process in Process.GetProcessesByName(processName))
+        {
+            found = true;
+            try
+            {
+                process.Kill();
+                process.WaitForExit(5000);
+            }
+            catch
+            {
+            }
+            finally
+            {
+                process.Dispose();
+            }
+        }
+        return found;
+    }
+
+    static void StartFlowLauncher(string exe)
+    {
+        if (String.IsNullOrWhiteSpace(exe) || !File.Exists(exe)) return;
+        var psi = new ProcessStartInfo();
+        psi.FileName = exe;
+        psi.UseShellExecute = true;
+        Process.Start(psi);
+    }
+
+    static void ApplyFlowLauncherAltP(bool enable)
+    {
+        const string originalKey = "flow-launcher-alt-p|Hotkey";
+        string settingsPath = GetFlowLauncherSettingsPath();
+        string exe = FindFlowLauncherExe();
+        bool wasRunning = Process.GetProcessesByName("Flow.Launcher").Length > 0;
+        bool initializedHere = false;
+
+        if (enable && !File.Exists(settingsPath))
+        {
+            if (String.IsNullOrWhiteSpace(exe))
+                throw new Exception("Flow Launcher is installed/selected but its executable could not be found.");
+
+            StartFlowLauncher(exe);
+            initializedHere = true;
+
+            for (int i = 0; i < 40 && !File.Exists(settingsPath); i++)
+                System.Threading.Thread.Sleep(250);
+
+            if (!File.Exists(settingsPath))
+                throw new Exception("Flow Launcher did not create its settings file after launch.");
+        }
+
+        if (!File.Exists(settingsPath))
+        {
+            Console.WriteLine("Flow Launcher settings are not present; nothing to restore.");
+            return;
+        }
+
+        StopProcessesByName("Flow.Launcher");
+
+        var settings = ReadJson(settingsPath);
+        if (settings == null)
+            throw new Exception("Flow Launcher settings JSON could not be read.");
+
+        if (enable)
+        {
+            bool existed = settings.ContainsKey("Hotkey");
+            CaptureExternalSettingOriginal(
+                originalKey,
+                existed,
+                existed ? GetString(settings, "Hotkey") : "");
+
+            CreateBackup(settingsPath, "tweak-flow-launcher");
+            settings["Hotkey"] = "Alt + P";
+            WriteJson(settingsPath, settings);
+            Console.WriteLine("Flow Launcher hotkey set to Alt+P.");
+        }
+        else
+        {
+            var original = GetExternalSettingOriginal(originalKey);
+            if (original == null)
+            {
+                Console.WriteLine("No pre-WGDot Flow Launcher hotkey snapshot exists; leaving current setting unchanged.");
+            }
+            else
+            {
+                CreateBackup(settingsPath, "tweak-flow-launcher");
+                if (GetBool(original, "exists"))
+                    settings["Hotkey"] = GetString(original, "value");
+                else
+                    settings.Remove("Hotkey");
+                WriteJson(settingsPath, settings);
+                Console.WriteLine("Flow Launcher hotkey restored to its pre-WGDot value.");
+            }
+        }
+
+        if (wasRunning || initializedHere || enable)
+            StartFlowLauncher(exe);
+    }
+
+    static string EnsureEarTrumpetStorageHelper()
+    {
+        string helperDir = Path.Combine(CacheRoot, "eartrumpet-storage-helper-v1");
+        string helperExe = Path.Combine(helperDir, "EarTrumpetStorageHelper.exe");
+        if (File.Exists(helperExe)) return helperExe;
+
+        Directory.CreateDirectory(helperDir);
+        string sourcePath = Path.Combine(helperDir, "EarTrumpetStorageHelper.cs");
+
+        string source = @"
+using System;
+using System.IO;
+using System.Text;
+using System.Windows.Forms;
+using System.Xml.Serialization;
+using Windows.Management.Core;
+
+public class HotkeyData
+{
+    public Keys Modifiers { get; set; }
+    public Keys Key { get; set; }
+}
+
+public static class Program
+{
+    const string Family = ""40459File-New-Project.EarTrumpet_725pr5jq8wr8a"";
+    const string Setting = ""MixerHotkey"";
+
+    public static int Main(string[] args)
+    {
+        if (args.Length == 0) return 2;
+        if (args[0] == ""self-test"") return 0;
+
+        var data = ApplicationDataManager.CreateForPackageFamily(Family);
+        var values = data.LocalSettings.Values;
+
+        if (args[0] == ""get-b64"")
+        {
+            if (!values.ContainsKey(Setting))
+            {
+                Console.Write(""__MISSING__"");
+                return 0;
+            }
+
+            string value = Convert.ToString(values[Setting]) ?? """";
+            Console.Write(Convert.ToBase64String(Encoding.UTF8.GetBytes(value)));
+            return 0;
+        }
+
+        if (args[0] == ""delete"")
+        {
+            if (values.ContainsKey(Setting)) values.Remove(Setting);
+            return 0;
+        }
+
+        if (args[0] == ""set-b64"" && args.Length >= 2)
+        {
+            values[Setting] = Encoding.UTF8.GetString(Convert.FromBase64String(args[1]));
+            return 0;
+        }
+
+        if (args[0] == ""set-alt-v"")
+        {
+            var hotkey = new HotkeyData { Modifiers = Keys.Alt, Key = Keys.V };
+            var serializer = new XmlSerializer(typeof(HotkeyData));
+            using (var writer = new StringWriter())
+            {
+                serializer.Serialize(writer, hotkey);
+                values[Setting] = writer.ToString();
+            }
+            return 0;
+        }
+
+        return 2;
+    }
+}
+";
+        File.WriteAllText(sourcePath, source, new UTF8Encoding(false));
+
+        string csc = GetCscPath();
+        if (String.IsNullOrWhiteSpace(csc))
+            throw new Exception("Windows .NET Framework C# compiler was not found.");
+
+        var refs = new List<string>();
+        string windows = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
+        string metadata = Path.Combine(windows, "System32", "WinMetadata");
+
+        foreach (string file in new[]
+        {
+            "Windows.Foundation.winmd",
+            "Windows.Storage.winmd",
+            "Windows.Management.winmd"
+        })
+        {
+            string path = Path.Combine(metadata, file);
+            if (File.Exists(path)) refs.Add(path);
+        }
+
+        if (refs.Count == 0)
+        {
+            string pf86 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
+            string unionRoot = Path.Combine(pf86, "Windows Kits", "10", "UnionMetadata");
+            if (Directory.Exists(unionRoot))
+            {
+                string combined = Directory.GetFiles(unionRoot, "Windows.winmd", SearchOption.AllDirectories)
+                    .OrderByDescending(x => x)
+                    .FirstOrDefault();
+                if (!String.IsNullOrWhiteSpace(combined)) refs.Add(combined);
+            }
+        }
+
+        if (refs.Count == 0)
+            throw new Exception("Windows Runtime metadata required for EarTrumpet settings was not found.");
+
+        string runtimeDir = Path.GetDirectoryName(csc);
+        string windowsRuntime = Path.Combine(runtimeDir, "System.Runtime.WindowsRuntime.dll");
+
+        string pf86Refs = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),
+            "Reference Assemblies",
+            "Microsoft",
+            "Framework",
+            ".NETFramework");
+
+        string systemRuntime = "";
+        string facadeWindowsRuntime = "";
+        if (Directory.Exists(pf86Refs))
+        {
+            systemRuntime = Directory.GetFiles(pf86Refs, "System.Runtime.dll", SearchOption.AllDirectories)
+                .Where(x => x.IndexOf("Facades", StringComparison.OrdinalIgnoreCase) >= 0)
+                .OrderByDescending(x => x)
+                .FirstOrDefault() ?? "";
+
+            facadeWindowsRuntime = Directory.GetFiles(
+                    pf86Refs,
+                    "System.Runtime.WindowsRuntime.dll",
+                    SearchOption.AllDirectories)
+                .OrderByDescending(x => x)
+                .FirstOrDefault() ?? "";
+        }
+
+        var args = new StringBuilder();
+        args.Append("/nologo /optimize+ /target:exe /out:").Append(Q(helperExe));
+        args.Append(" /r:System.Windows.Forms.dll /r:System.Xml.dll");
+        if (!String.IsNullOrWhiteSpace(systemRuntime))
+            args.Append(" /r:").Append(Q(systemRuntime));
+        if (File.Exists(windowsRuntime))
+            args.Append(" /r:").Append(Q(windowsRuntime));
+        else if (!String.IsNullOrWhiteSpace(facadeWindowsRuntime))
+            args.Append(" /r:").Append(Q(facadeWindowsRuntime));
+        foreach (string reference in refs)
+            args.Append(" /r:").Append(Q(reference));
+        args.Append(" ").Append(Q(sourcePath));
+
+        ProcResult compile = Run(csc, args.ToString(), null);
+        if (compile.ExitCode != 0)
+            throw new Exception("EarTrumpet settings helper compilation failed: " +
+                LastUsefulLine(compile.StdErr + "\n" + compile.StdOut));
+
+        return helperExe;
+    }
+
+    static void RestartEarTrumpet()
+    {
+        var psi = new ProcessStartInfo();
+        psi.FileName = "explorer.exe";
+        psi.Arguments = "shell:AppsFolder\\40459File-New-Project.EarTrumpet_725pr5jq8wr8a!EarTrumpet";
+        psi.UseShellExecute = true;
+        Process.Start(psi);
+    }
+
+    static void ApplyEarTrumpetMixerAltV(bool enable)
+    {
+        const string originalKey = "eartrumpet-mixer-alt-v|MixerHotkey";
+        string helper = EnsureEarTrumpetStorageHelper();
+        bool wasRunning = StopProcessesByName("EarTrumpet");
+
+        if (enable)
+        {
+            ProcResult current = Run(helper, "get-b64", null);
+            if (current.ExitCode != 0)
+                throw new Exception("Could not read EarTrumpet packaged mixer-hotkey setting.");
+
+            string original = (current.StdOut ?? "").Trim();
+            bool existed = !String.Equals(original, "__MISSING__", StringComparison.Ordinal);
+            CaptureExternalSettingOriginal(originalKey, existed, existed ? original : "");
+
+            ProcResult set = Run(helper, "set-alt-v", null);
+            if (set.ExitCode != 0)
+                throw new Exception("Could not set EarTrumpet mixer hotkey.");
+
+            Console.WriteLine("EarTrumpet Open Mixer hotkey set to Alt+V.");
+            RestartEarTrumpet();
+            return;
+        }
+
+        var snapshot = GetExternalSettingOriginal(originalKey);
+        if (snapshot == null)
+        {
+            Console.WriteLine("No pre-WGDot EarTrumpet mixer-hotkey snapshot exists; leaving current setting unchanged.");
+            if (wasRunning) RestartEarTrumpet();
+            return;
+        }
+
+        string arguments = GetBool(snapshot, "exists")
+            ? "set-b64 " + Q(GetString(snapshot, "value"))
+            : "delete";
+
+        ProcResult restore = Run(helper, arguments, null);
+        if (restore.ExitCode != 0)
+            throw new Exception("Could not restore EarTrumpet mixer hotkey.");
+
+        Console.WriteLine("EarTrumpet mixer hotkey restored to its pre-WGDot value.");
+        if (wasRunning) RestartEarTrumpet();
+    }
+
+    static void ApplyCleanTaskbar(bool enable)
+    {
+        const string id = "clean-taskbar-items";
+        if (!enable)
+        {
+            RestoreRegistryOriginals(id);
+            return;
+        }
+
+        SetRegistryValueWithSnapshot(id, "HKCU",
+            @"Software\Microsoft\Windows\CurrentVersion\Search",
+            "SearchboxTaskbarMode", 0, RegistryValueKind.DWord);
+        SetRegistryValueWithSnapshot(id, "HKCU",
+            @"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced",
+            "ShowTaskViewButton", 0, RegistryValueKind.DWord);
+        SetRegistryValueWithSnapshot(id, "HKCU",
+            @"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced",
+            "TaskbarDa", 0, RegistryValueKind.DWord);
+        SetRegistryValueWithSnapshot(id, "HKCU",
+            @"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced",
+            "TaskbarMn", 0, RegistryValueKind.DWord);
+        SetRegistryValueWithSnapshot(id, "HKCU",
+            @"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced",
+            "ShowCopilotButton", 0, RegistryValueKind.DWord);
+    }
+
+    static void ApplyPrintScreenSnipping(bool enable)
+    {
+        const string id = "disable-printscreen-snipping";
+        if (!enable)
+        {
+            RestoreRegistryOriginals(id);
+            return;
+        }
+
+        SetRegistryValueWithSnapshot(id, "HKCU",
+            @"Control Panel\Keyboard",
+            "PrintScreenKeyForSnippingEnabled", 0, RegistryValueKind.DWord);
+    }
+
+    static void ApplyPointerPrecision(bool enable)
+    {
+        const string id = "disable-enhanced-pointer-precision";
+        if (!enable)
+        {
+            RestoreRegistryOriginals(id);
+            return;
+        }
+
+        SetRegistryValueWithSnapshot(id, "HKCU", @"Control Panel\Mouse", "MouseSpeed", "0", RegistryValueKind.String);
+        SetRegistryValueWithSnapshot(id, "HKCU", @"Control Panel\Mouse", "MouseThreshold1", "0", RegistryValueKind.String);
+        SetRegistryValueWithSnapshot(id, "HKCU", @"Control Panel\Mouse", "MouseThreshold2", "0", RegistryValueKind.String);
+    }
+
+    static void ApplyCommunicationsDucking(bool enable)
+    {
+        const string id = "communications-do-nothing";
+        if (!enable)
+        {
+            RestoreRegistryOriginals(id);
+            return;
+        }
+
+        SetRegistryValueWithSnapshot(id, "HKCU",
+            @"Software\Microsoft\Multimedia\Audio",
+            "UserDuckingPreference", 3, RegistryValueKind.DWord);
+    }
+
+    static void ApplySnapAssist(bool enable)
+    {
+        const string id = "disable-snap-assist";
+        if (!enable)
+        {
+            RestoreRegistryOriginals(id);
+            return;
+        }
+
+        SetRegistryValueWithSnapshot(id, "HKCU",
+            @"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced",
+            "SnapAssist", 0, RegistryValueKind.DWord);
+        SetRegistryValueWithSnapshot(id, "HKCU",
+            @"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced",
+            "EnableSnapAssistFlyout", 0, RegistryValueKind.DWord);
+        SetRegistryValueWithSnapshot(id, "HKCU",
+            @"Control Panel\Desktop",
+            "WindowArrangementActive", "0", RegistryValueKind.String);
+    }
+
+    static void ApplyRemoteAssistance(bool enable)
+    {
+        const string id = "disable-remote-assistance";
+        if (!enable)
+        {
+            RestoreRegistryOriginals(id);
+            return;
+        }
+
+        SetRegistryValueWithSnapshot(id, "HKLM",
+            @"Software\Policies\Microsoft\Windows NT\Terminal Services",
+            "fAllowToGetHelp", 0, RegistryValueKind.DWord);
+    }
+
+    static void ApplyWindowsSudo(bool enable)
+    {
+        const string id = "enable-windows-sudo";
+        const string path = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Sudo";
+
+        if (!enable)
+        {
+            RestoreRegistryOriginals(id);
+            Console.WriteLine("Windows sudo setting restored to its pre-WGDot value.");
+            return;
+        }
+
+        string sudo = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "System32", "sudo.exe");
+        if (!File.Exists(sudo))
+            throw new Exception("Windows sudo is unavailable. It requires Windows 11 24H2 or newer.");
+
+        SetRegistryValueWithSnapshot(
+            id,
+            "HKLM",
+            path,
+            "Enabled",
+            1,
+            RegistryValueKind.DWord);
+
+        Console.WriteLine("Windows sudo enabled in force-new-window mode.");
+    }
+
+    static void ApplyReducedVisualEffects(bool enable)
+    {
+        const string id = "reduce-visual-effects";
+        if (!enable)
+        {
+            RestoreRegistryOriginals(id);
+            return;
+        }
+
+        SetRegistryValueWithSnapshot(id, "HKCU",
+            @"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize",
+            "EnableTransparency", 0, RegistryValueKind.DWord);
+        SetRegistryValueWithSnapshot(id, "HKCU",
+            @"Control Panel\Desktop\WindowMetrics",
+            "MinAnimate", "0", RegistryValueKind.String);
+    }
+
+    static void ApplyClassicContextMenu(bool enable)
+    {
+        const string id = "classic-context-menu";
+        string clsid = @"Software\Classes\CLSID\{86ca1aa0-34aa-4e8b-a509-50c905bae2a2}";
+        string path = clsid + @"\InprocServer32";
+
+        if (!enable)
+        {
+            RestoreRegistryOriginals(id);
+            DeleteRegistryKeyIfOriginallyAbsentAndEmpty(id, "HKCU", path, "");
+            DeleteRegistryKeyIfOriginallyAbsentAndEmpty(id, "HKCU", clsid, "");
+            Console.WriteLine("Context-menu registry state restored to its pre-WGDot values. Explorer restart/sign-out may be required.");
+            return;
+        }
+
+        CaptureRegistryOriginal(id, "HKCU", clsid, "");
+        SetRegistryValueWithSnapshot(id, "HKCU", path, "", "", RegistryValueKind.String);
+        Console.WriteLine("Classic Windows 11 context menu enabled. Explorer restart/sign-out may be required.");
+    }
+
+    static readonly string[] MicroTextExtensions = new[]
+    {
+        ".txt", ".md", ".markdown", ".log", ".ini", ".cfg", ".conf",
+        ".json", ".jsonc", ".yaml", ".yml", ".toml", ".xml", ".csv", ".tsv",
+        ".css", ".scss", ".less", ".html", ".htm",
+        ".js", ".mjs", ".cjs", ".ts", ".tsx", ".jsx",
+        ".py", ".lua", ".rs", ".go", ".c", ".h", ".cpp", ".hpp",
+        ".java", ".kt", ".kts", ".cs", ".sql", ".properties", ".env"
+    };
+
+    static void ApplyMicroTextDefaults(bool enable)
+    {
+        const string id = "micro-text-defaults";
+        const string progId = "WGDot.MicroText";
+        string launcher = Path.Combine(BinRoot, "open-micro.cmd");
+        string handlerPath = @"Software\Classes\" + progId;
+        string commandPath = handlerPath + @"\shell\open\command";
+
+        if (!enable)
+        {
+            bool commandKeyWasAbsent = RegistryKeyWasAbsentInSnapshot(id, "HKCU", commandPath, "");
+            RestoreRegistryOriginals(id);
+
+            if (commandKeyWasAbsent)
+            {
+                DeleteRegistryKeyIfEmpty("HKCU", commandPath);
+                DeleteRegistryKeyIfEmpty("HKCU", handlerPath + @"\shell\open");
+                DeleteRegistryKeyIfEmpty("HKCU", handlerPath + @"\shell");
+            }
+            DeleteRegistryKeyIfOriginallyAbsentAndEmpty(id, "HKCU", handlerPath, "");
+
+            SHChangeNotify(0x08000000, 0, IntPtr.Zero, IntPtr.Zero);
+            return;
+        }
+
+        string command =
+            "@echo off\r\n" +
+            "start \"\" wt.exe -w new new-tab --title \"Micro\" --suppressApplicationTitle -d \"%~dp1\" micro \"%~1\"\r\n";
+        File.WriteAllText(launcher, command, Encoding.ASCII);
+
+        CaptureRegistryOriginal(id, "HKCU", handlerPath, "");
+        SetRegistryValueWithSnapshot(
+            id,
+            "HKCU",
+            commandPath,
+            "",
+            Q(launcher) + " \"%1\"",
+            RegistryValueKind.String);
+
+        int protectedDefaults = 0;
+        foreach (string extension in MicroTextExtensions)
+        {
+            SetRegistryValueWithSnapshot(
+                id,
+                "HKCU",
+                @"Software\Classes\" + extension,
+                "",
+                progId,
+                RegistryValueKind.String);
+
+            SetRegistryValueWithSnapshot(
+                id,
+                "HKCU",
+                @"Software\Classes\" + extension + @"\OpenWithProgids",
+                progId,
+                new byte[0],
+                RegistryValueKind.None);
+
+            using (RegistryKey userChoice = Registry.CurrentUser.OpenSubKey(
+                @"Software\Microsoft\Windows\CurrentVersion\Explorer\FileExts\" + extension + @"\UserChoice",
+                false))
+            {
+                if (userChoice != null) protectedDefaults++;
+            }
+        }
+
+        SHChangeNotify(0x08000000, 0, IntPtr.Zero, IntPtr.Zero);
+
+        Console.WriteLine("Registered Windows Terminal + Micro for " + MicroTextExtensions.Length +
+            " text/code extensions.");
+        if (protectedDefaults > 0)
+        {
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine(
+                protectedDefaults + " extensions already have Windows-protected UserChoice defaults. " +
+                "WGDot registered Micro as the handler but did not bypass Windows' default-app protection.");
+            Console.ResetColor();
+        }
+    }
+
+    static void ApplyOopsCursor(bool enable)
+    {
+        const string id = "oops-all-links-cursor";
+        if (!enable)
+        {
+            RestoreRegistryOriginals(id);
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine("Cursor registry values were restored to their pre-WGDot values.");
+            Console.ResetColor();
+            SystemParametersInfo(0x0057, 0, IntPtr.Zero, 0x01 | 0x02);
+            return;
+        }
+
+        string tempDir = Path.Combine(CacheRoot, "oops-all-links");
+        string zipPath = Path.Combine(tempDir, "OopsAllLinkSelects.zip");
+        string cursorDir = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+            "Cursors",
+            "OopsAllLinkSelects");
+
+        Directory.CreateDirectory(tempDir);
+        SafeDeleteFile(zipPath);
+
+        using (var client = new WebClient())
+        {
+            client.Headers[HttpRequestHeader.UserAgent] = "wgdot";
+            client.DownloadFile(
+                "https://www.rw-designer.com/cursor-downloadset.php?id=oops-all-link-selects",
+                zipPath);
+        }
+
+        using (FileStream stream = File.OpenRead(zipPath))
+        {
+            if (stream.ReadByte() != 0x50 || stream.ReadByte() != 0x4B)
+                throw new Exception("Oops-all-links download was not a valid ZIP archive.");
+        }
+
+        if (Directory.Exists(cursorDir))
+        {
+            CreateBackup(cursorDir, "cursor");
+            Directory.Delete(cursorDir, true);
+        }
+        Directory.CreateDirectory(cursorDir);
+        ZipFile.ExtractToDirectory(zipPath, cursorDir);
+
+        string[,] mappings = new string[,]
+        {
+            { "Arrow", "default.cur" },
+            { "Help", "help.cur" },
+            { "AppStarting", "busy.ani" },
+            { "Wait", "busy.ani" },
+            { "Crosshair", "precision select.cur" },
+            { "IBeam", "handwrite.cur" },
+            { "NWPen", "handwrite.cur" },
+            { "No", "unavailable.ani" },
+            { "SizeNS", "resize vertical.cur" },
+            { "SizeWE", "resize horizontal.cur" },
+            { "SizeNWSE", "resize backslash.cur" },
+            { "SizeNESW", "resize slash.cur" },
+            { "SizeAll", "move.cur" },
+            { "UpArrow", "alt select.cur" },
+            { "Hand", "link select.cur" }
+        };
+
+        var values = new List<string>();
+        for (int i = 0; i < mappings.GetLength(0); i++)
+        {
+            string name = mappings[i, 0];
+            string path = Path.Combine(cursorDir, mappings[i, 1]);
+            if (!File.Exists(path))
+                throw new Exception("Cursor archive is missing expected file: " + mappings[i, 1]);
+
+            SetRegistryValueWithSnapshot(
+                id, "HKCU", @"Control Panel\Cursors", name, path, RegistryValueKind.String);
+            values.Add(path);
+        }
+
+        SetRegistryValueWithSnapshot(
+            id, "HKCU", @"Control Panel\Cursors", "CursorBaseSize", 48, RegistryValueKind.DWord);
+        SetRegistryValueWithSnapshot(
+            id, "HKCU", @"Control Panel\Cursors", "", "OopsAllLinkSelects", RegistryValueKind.String);
+
+        SetRegistryValueWithSnapshot(
+            id,
+            "HKCU",
+            @"Control Panel\Cursors\Schemes",
+            "OopsAllLinkSelects",
+            String.Join(",", values.ToArray()),
+            RegistryValueKind.String);
+
+        SystemParametersInfo(0x0057, 0, IntPtr.Zero, 0x01 | 0x02);
+        Console.WriteLine("Oops-all-links cursor theme installed and applied.");
+    }
+
+    static void RunPrivacySexy()
+    {
+        WriteTitle("privacy.sexy");
+
+        int preset = ReadSingleChoice(
+            "Preferred privacy.sexy recommendation level",
+            new List<string> { "Standard (repo guide default)", "Strict", "Cancel" },
+            0);
+        if (preset < 0 || preset == 2) return;
+
+        string presetName = preset == 1 ? "Strict" : "Standard";
+        Console.WriteLine();
+        Console.WriteLine("WGDot will install/update the official privacy.sexy desktop app.");
+        Console.WriteLine("Selected recommendation level: " + presetName);
+        Console.WriteLine();
+        Console.ForegroundColor = ConsoleColor.Yellow;
+        Console.WriteLine(
+            "privacy.sexy does not currently expose a supported headless CLI/API for generating " +
+            "and executing that recommendation set. WGDot will not fake one or disable antivirus.");
+        Console.WriteLine(
+            "The official app will open so you can select " + presetName +
+            " and approve its generated script/run operation.");
+        Console.ResetColor();
+        Console.WriteLine();
+
+        if (!ReadYesNo("Install/update and open official privacy.sexy now? [y/N]", false))
+            return;
+
+        var release = GetJsonUrl("https://api.github.com/repos/undergroundwires/privacy.sexy/releases/latest");
+        string installerUrl = "";
+        string installerName = "";
+
+        foreach (object rawAsset in GetList(release, "assets"))
+        {
+            var asset = AsDictionary(rawAsset);
+            string name = GetString(asset, "name");
+            if (Regex.IsMatch(name, "^privacy\\.sexy-Setup-.*\\.exe$", RegexOptions.IgnoreCase))
+            {
+                installerName = name;
+                installerUrl = GetString(asset, "browser_download_url");
+                break;
+            }
+        }
+
+        if (String.IsNullOrWhiteSpace(installerUrl))
+            throw new Exception("Could not locate the official privacy.sexy Windows installer in the latest upstream release.");
+
+        string installerPath = Path.Combine(CacheRoot, installerName);
+        using (var client = new WebClient())
+        {
+            client.Headers[HttpRequestHeader.UserAgent] = "wgdot";
+            client.DownloadFile(installerUrl, installerPath);
+        }
+
+        ProcResult installed = RunInteractive(installerPath, "");
+        if (installed.ExitCode != 0)
+            throw new Exception("privacy.sexy installer exited with code " + installed.ExitCode.ToString(CultureInfo.InvariantCulture) + ".");
+
+        string exe = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "Programs",
+            "privacy.sexy",
+            "privacy.sexy.exe");
+
+        if (File.Exists(exe))
+        {
+            var psi = new ProcessStartInfo();
+            psi.FileName = exe;
+            psi.UseShellExecute = true;
+            Process.Start(psi);
+        }
+        else
+        {
+            var psi = new ProcessStartInfo();
+            psi.FileName = "https://privacy.sexy/";
+            psi.UseShellExecute = true;
+            Process.Start(psi);
+        }
+
+        var state = ReadJson(TweakStatePath) ?? new Dictionary<string, object>();
+        state["privacySexyPreset"] = presetName;
+        state["privacySexyLastOpenedAt"] = DateTime.UtcNow.ToString("o");
+        WriteJson(TweakStatePath, state);
+    }
+
+    static void RefreshShellSettings()
+    {
+        UIntPtr ignored;
+        try
+        {
+            SendMessageTimeout(
+                HwndBroadcast,
+                WmSettingChange,
+                UIntPtr.Zero,
+                null,
+                SmtoAbortIfHung,
+                2000,
+                out ignored);
+        }
+        catch
+        {
+        }
+
+        try { SHChangeNotify(0x08000000, 0, IntPtr.Zero, IntPtr.Zero); } catch { }
+    }
+
+    static int ManagedOperation(string mode, SourceContext source)
+    {
+        if (source == null) throw new Exception("No source was resolved.");
+        if (mode != "update" && mode != "reset" && mode != "review")
+            throw new Exception("Unknown managed operation mode.");
+
+        InstallationSelection existing = ReadInstallationSelection();
+        InstallationSelection selection = existing;
+        bool selectionChanged = false;
+
+        if (selection == null || mode == "reset")
+        {
+            bool includePackages = mode != "review";
+            selection = ConfigureInstallationSelection(source.Manifest, existing, includePackages);
+            if (selection == null)
+            {
+                Console.WriteLine("Operation cancelled.");
+                return 0;
+            }
+            selectionChanged = true;
+        }
+
+        bool hasBaseline = File.Exists(BaselineIndexPath);
+        string effectiveMode = (mode == "reset" || !hasBaseline) ? "reset" : "update";
+        List<PlanItem> plan = GetPlan(source.Manifest, source.SourceRoot, selection, effectiveMode);
+
+        ShowPlan(plan);
+        ShowMigrations(source.Manifest, selection, true);
+
+        bool reviewOnly = mode == "review";
+        if (reviewOnly)
+        {
+            Console.WriteLine();
+            Console.ForegroundColor = ConsoleColor.DarkGray;
+            Console.WriteLine("Review only. No files, backups, baselines, or selection state were changed.");
+            if (!hasBaseline)
+                Console.WriteLine("No baseline exists yet, so this first-install review uses reset semantics.");
+            Console.ResetColor();
+            return 0;
+        }
+
+        Console.WriteLine();
+        if (!ReadYesNo("Apply exactly this plan? [y/N]", false))
+        {
+            Console.WriteLine("No changes were applied.");
+            return 0;
+        }
+
+        ApplyPlan(plan, source.Manifest, selection, source);
+
+        if (selectionChanged)
+            WriteInstallationSelection(selection);
+
+        UpdateSourceStateAfterApply(source);
+        Console.ForegroundColor = ConsoleColor.Green;
+        Console.WriteLine("WGDot managed configuration applied.");
+        Console.ResetColor();
+        return 0;
+    }
+
+    static List<PlanItem> GetPlan(
+        Dictionary<string, object> manifest,
+        string sourceRoot,
+        InstallationSelection installation,
+        string mode)
+    {
+        var plan = new List<PlanItem>();
+        var selectedIds = new HashSet<string>(installation.Components, StringComparer.OrdinalIgnoreCase);
+
+        foreach (object rawComponent in GetList(manifest, "components"))
+        {
+            var component = AsDictionary(rawComponent);
+            string componentId = GetString(component, "id");
+            if (!selectedIds.Contains(componentId)) continue;
+
+            foreach (object rawFile in GetList(component, "files"))
+            {
+                var file = AsDictionary(rawFile);
+                string fileId = GetString(file, "id");
+                string relativeSource = GetRelativeSourcePath(file, installation.GlazeProfile);
+                string target = Path.Combine(sourceRoot, relativeSource.Replace('/', Path.DirectorySeparatorChar));
+
+                if (!File.Exists(target))
+                    throw new Exception("Managed source missing: " + relativeSource);
+
+                string destination = Environment.ExpandEnvironmentVariables(GetString(file, "destination"));
+                if (!IsSafeManagedDestination(destination))
+                    throw new Exception("Unsafe managed destination: " + destination);
+
+                string baseline = GetBaselinePath(fileId);
+                string targetHash = Sha256OrNull(target);
+                string liveHash = Sha256OrNull(destination);
+                string baselineHash = Sha256OrNull(baseline);
+
+                string status;
+                string action;
+
+                if (liveHash == null)
+                {
+                    status = "NEW";
+                    action = "APPLY";
+                }
+                else if (String.Equals(liveHash, targetHash, StringComparison.OrdinalIgnoreCase))
+                {
+                    status = "CURRENT";
+                    action = "NONE";
+                }
+                else if (String.Equals(mode, "reset", StringComparison.OrdinalIgnoreCase))
+                {
+                    status = "RESET";
+                    action = "REPLACE";
+                }
+                else if (baselineHash == null)
+                {
+                    status = "LEGACY";
+                    action = "PRESERVE";
+                }
+                else if (String.Equals(liveHash, baselineHash, StringComparison.OrdinalIgnoreCase) &&
+                         !String.Equals(targetHash, baselineHash, StringComparison.OrdinalIgnoreCase))
+                {
+                    status = "UPSTREAM";
+                    action = "REPLACE";
+                }
+                else if (!String.Equals(liveHash, baselineHash, StringComparison.OrdinalIgnoreCase) &&
+                         String.Equals(targetHash, baselineHash, StringComparison.OrdinalIgnoreCase))
+                {
+                    status = "USER";
+                    action = "PRESERVE";
+                }
+                else
+                {
+                    status = "BOTH";
+                    action = GetBool(file, "merge") ? "MERGE" : "PRESERVE";
+                }
+
+                plan.Add(new PlanItem
+                {
+                    FileId = fileId,
+                    Component = componentId,
+                    Destination = destination,
+                    Target = target,
+                    Baseline = baseline,
+                    Status = status,
+                    Action = action,
+                    Merge = GetBool(file, "merge"),
+                    CommitTargetBaseline = new[] { "NEW", "CURRENT", "RESET", "UPSTREAM", "USER" }.Contains(status),
+                    Validator = GetString(file, "validator")
+                });
+            }
+        }
+
+        AddRemovedUpstreamItems(plan, selectedIds);
+        return plan;
+    }
+
+    static void AddRemovedUpstreamItems(List<PlanItem> plan, HashSet<string> selectedComponentIds)
+    {
+        var oldIndex = ReadJson(BaselineIndexPath);
+        if (oldIndex == null) return;
+
+        var currentIds = new HashSet<string>(plan.Select(x => x.FileId), StringComparer.OrdinalIgnoreCase);
+
+        foreach (object raw in GetList(oldIndex, "files"))
+        {
+            var old = AsDictionary(raw);
+            string component = GetString(old, "component");
+            string fileId = GetString(old, "fileId");
+            string destination = GetString(old, "destination");
+
+            if (!selectedComponentIds.Contains(component) || currentIds.Contains(fileId) || !File.Exists(destination))
+                continue;
+
+            plan.Add(new PlanItem
+            {
+                FileId = fileId,
+                Component = component,
+                Destination = destination,
+                Target = null,
+                Baseline = GetBaselinePath(fileId),
+                Status = "REMOVED-UPSTREAM",
+                Action = "PRESERVE",
+                Merge = false,
+                CommitTargetBaseline = false,
+                Validator = ""
+            });
+        }
+    }
+
+    static void ShowPlan(List<PlanItem> plan)
+    {
+        Console.WriteLine();
+        Console.ForegroundColor = ConsoleColor.Cyan;
+        Console.WriteLine("Plan");
+        Console.ResetColor();
+
+        foreach (PlanItem item in plan)
+        {
+            string display = String.Format("{0,-17} {1,-9} {2}", item.Status, item.Action, item.Destination);
+
+            if (item.Action == "PRESERVE" || item.Status == "REMOVED-UPSTREAM")
+                Console.ForegroundColor = ConsoleColor.Yellow;
+            else if (item.Action == "NONE")
+                Console.ForegroundColor = ConsoleColor.DarkGray;
+
+            Console.WriteLine(display);
+            Console.ResetColor();
+        }
+
+        if (plan.Count == 0) Console.WriteLine("(no managed files selected)");
+    }
+
+    static void ApplyPlan(
+        List<PlanItem> plan,
+        Dictionary<string, object> manifest,
+        InstallationSelection selection,
+        SourceContext source)
+    {
+        foreach (PlanItem item in plan)
+        {
+            if (item.Action == "NONE" || item.Action == "PRESERVE") continue;
+
+            if (item.Action == "MERGE")
+            {
+                if (MergeManagedFile(item))
+                    item.CommitTargetBaseline = true;
+                continue;
+            }
+
+            if (item.Action == "REPLACE")
+                CreateBackup(item.Destination, "replace");
+
+            AtomicCopy(item.Target, item.Destination, item.Validator);
+        }
+
+        ShowMigrations(manifest, selection, false);
+        RunPostActions(manifest, selection);
+        CommitBaseline(plan, source, selection);
+    }
+
+    static bool MergeManagedFile(PlanItem item)
+    {
+        if (!ExecutableExists("git.exe"))
+        {
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine("Git unavailable; preserving user-modified file: " + item.Destination);
+            Console.ResetColor();
+            return false;
+        }
+
+        if (!File.Exists(item.Baseline))
+        {
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine("Merge baseline missing; preserving user-modified file: " + item.Destination);
+            Console.ResetColor();
+            return false;
+        }
+
+        string tempRoot = Path.Combine(CacheRoot, "merge-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempRoot);
+
+        string local = Path.Combine(tempRoot, "local");
+        string baseline = Path.Combine(tempRoot, "base");
+        string remote = Path.Combine(tempRoot, "remote");
+
+        try
+        {
+            File.Copy(item.Destination, local, true);
+            File.Copy(item.Baseline, baseline, true);
+            File.Copy(item.Target, remote, true);
+
+            ProcResult merge = Run(
+                "git.exe",
+                "merge-file -- " + Q(local) + " " + Q(baseline) + " " + Q(remote),
+                null);
+
+            if (merge.ExitCode != 0)
+            {
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine("Merge conflict; preserving local file: " + item.Destination);
+                Console.ResetColor();
+                return false;
+            }
+
+            ValidateFile(local, item.Validator);
+            CreateBackup(item.Destination, "merge");
+            AtomicCopy(local, item.Destination, item.Validator);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine("Merge validation failed; preserving local file: " + item.Destination);
+            Console.WriteLine(ex.Message);
+            Console.ResetColor();
+            return false;
+        }
+        finally
+        {
+            SafeDeleteDirectory(tempRoot);
+        }
+    }
+
+    static void AtomicCopy(string source, string destination, string validator)
+    {
+        if (String.IsNullOrWhiteSpace(source) || !File.Exists(source))
+            throw new Exception("Managed source file is missing: " + source);
+
+        string parent = Path.GetDirectoryName(destination);
+        if (String.IsNullOrWhiteSpace(parent)) throw new Exception("Destination has no parent: " + destination);
+        Directory.CreateDirectory(parent);
+
+        string temp = Path.Combine(parent, ".wgdot-" + Guid.NewGuid().ToString("N") + ".tmp");
+        try
+        {
+            File.Copy(source, temp, true);
+            ValidateFile(temp, validator);
+
+            if (File.Exists(destination))
+            {
+                try
+                {
+                    File.Replace(temp, destination, null);
+                }
+                catch
+                {
+                    File.Copy(temp, destination, true);
+                    SafeDeleteFile(temp);
+                }
+            }
+            else
+            {
+                File.Move(temp, destination);
+            }
+        }
+        finally
+        {
+            SafeDeleteFile(temp);
+        }
+    }
+
+    static void ValidateFile(string path, string validator)
+    {
+        if (String.IsNullOrWhiteSpace(validator)) return;
+
+        if (String.Equals(validator, "json", StringComparison.OrdinalIgnoreCase))
+        {
+            Json.DeserializeObject(File.ReadAllText(path));
+            return;
+        }
+
+        if (String.Equals(validator, "xml", StringComparison.OrdinalIgnoreCase))
+        {
+            var xml = new XmlDocument();
+            xml.Load(path);
+            return;
+        }
+
+        throw new Exception("Unknown validator '" + validator + "'.");
+    }
+
+    static string CreateBackup(string path, string operation)
+    {
+        if (!File.Exists(path) && !Directory.Exists(path)) return null;
+
+        string backup = path + ".wgdot.backup";
+        if (File.Exists(backup) || Directory.Exists(backup))
+        {
+            string stamp = DateTime.Now.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture);
+            backup = path + ".wgdot.backup." + stamp;
+            int n = 1;
+            while (File.Exists(backup) || Directory.Exists(backup))
+            {
+                backup = path + ".wgdot.backup." + stamp + "-" + n.ToString(CultureInfo.InvariantCulture);
+                n++;
+            }
+        }
+
+        if (Directory.Exists(path))
+            CopyDirectory(path, backup);
+        else
+            File.Copy(path, backup);
+
+        AddBackupRecord(path, backup, operation);
+        return backup;
+    }
+
+    static void CopyDirectory(string source, string destination)
+    {
+        Directory.CreateDirectory(destination);
+
+        foreach (string file in Directory.GetFiles(source))
+            File.Copy(file, Path.Combine(destination, Path.GetFileName(file)), true);
+
+        foreach (string directory in Directory.GetDirectories(source))
+            CopyDirectory(directory, Path.Combine(destination, Path.GetFileName(directory)));
+    }
+
+    static void AddBackupRecord(string original, string backup, string operation)
+    {
+        var state = ReadJson(BackupStatePath);
+        var records = new List<object>();
+        if (state != null) records.AddRange(GetList(state, "records"));
+
+        var record = new Dictionary<string, object>();
+        record["original"] = original;
+        record["backup"] = backup;
+        record["operation"] = operation;
+        record["createdAt"] = DateTime.UtcNow.ToString("o");
+        records.Add(record);
+
+        var next = new Dictionary<string, object>();
+        next["records"] = records.ToArray();
+        WriteJson(BackupStatePath, next);
+    }
+
+    static int CountRecordedBackups()
+    {
+        var state = ReadJson(BackupStatePath);
+        if (state == null) return 0;
+        return GetList(state, "records").Count;
+    }
+
+    static void ShowMigrations(
+        Dictionary<string, object> manifest,
+        InstallationSelection selection,
+        bool whatIfOnly)
+    {
+        var selected = new HashSet<string>(selection.Components, StringComparer.OrdinalIgnoreCase);
+
+        foreach (object rawMigration in GetList(manifest, "migrations"))
+        {
+            var migration = AsDictionary(rawMigration);
+            if (!selected.Contains(GetString(migration, "component"))) continue;
+
+            string path = Environment.ExpandEnvironmentVariables(GetString(migration, "path"));
+            if (!File.Exists(path) && !Directory.Exists(path)) continue;
+
+            if (LegacyMigrationMatches(migration))
+            {
+                Console.WriteLine("MIGRATION matched: " + GetString(migration, "id") + " -> " + path);
+                if (!whatIfOnly)
+                {
+                    string backup = CreateBackup(path, "migration");
+                    if (Directory.Exists(path)) Directory.Delete(path, true);
+                    else SafeDeleteFile(path);
+                    Console.WriteLine("Migration backup: " + backup);
+                }
+            }
+            else
+            {
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine("Migration target exists but was not positively identified as WGDot-managed; preserving: " + path);
+                Console.ResetColor();
+            }
+        }
+    }
+
+    static bool LegacyMigrationMatches(Dictionary<string, object> migration)
+    {
+        string path = Environment.ExpandEnvironmentVariables(GetString(migration, "path"));
+        if (!Directory.Exists(path)) return false;
+        if (!String.Equals(GetString(migration, "type"), "git-remote-directory", StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        string config = Path.Combine(path, ".git", "config");
+        if (!File.Exists(config)) return false;
+
+        string raw = File.ReadAllText(config);
+        string fragment = GetString(migration, "expectedRemoteFragment");
+        return raw.IndexOf(fragment, StringComparison.OrdinalIgnoreCase) >= 0;
+    }
+
+    static void RunPostActions(Dictionary<string, object> manifest, InstallationSelection selection)
+    {
+        var selected = new HashSet<string>(selection.Components, StringComparer.OrdinalIgnoreCase);
+
+        foreach (object rawComponent in GetList(manifest, "components"))
+        {
+            var component = AsDictionary(rawComponent);
+            if (!selected.Contains(GetString(component, "id"))) continue;
+
+            foreach (object rawPost in GetList(component, "postActions"))
+            {
+                var post = AsDictionary(rawPost);
+                string type = GetString(post, "type");
+
+                if (String.Equals(type, "set-yazi-file-one", StringComparison.OrdinalIgnoreCase))
+                {
+                    string programFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
+                    string userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+                    string[] candidates =
+                    {
+                        Path.Combine(programFiles, "Git", "usr", "bin", "file.exe"),
+                        Path.Combine(userProfile, "scoop", "apps", "git", "current", "usr", "bin", "file.exe")
+                    };
+
+                    string fileExe = candidates.FirstOrDefault(File.Exists);
+                    if (!String.IsNullOrWhiteSpace(fileExe))
+                    {
+                        Environment.SetEnvironmentVariable("YAZI_FILE_ONE", fileExe, EnvironmentVariableTarget.User);
+                        BroadcastEnvironmentChange();
+                        Console.WriteLine("Set YAZI_FILE_ONE=" + fileExe);
+                    }
+                    else
+                    {
+                        Console.ForegroundColor = ConsoleColor.Yellow;
+                        Console.WriteLine("Git file.exe not found; Yazi MIME detection may be incomplete.");
+                        Console.ResetColor();
+                    }
+                }
+                else if (String.Equals(type, "yazi-package-install", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (ExecutableExists("ya.exe"))
+                    {
+                        ProcResult ya = RunInteractive("ya.exe", "pkg install");
+                        if (ya.ExitCode != 0)
+                        {
+                            Console.ForegroundColor = ConsoleColor.Yellow;
+                            Console.WriteLine("ya pkg install failed.");
+                            Console.ResetColor();
+                        }
+                    }
+                    else
+                    {
+                        Console.ForegroundColor = ConsoleColor.Yellow;
+                        Console.WriteLine("Yazi package helper 'ya' not found; run 'ya pkg install' manually after Yazi is installed.");
+                        Console.ResetColor();
+                    }
+                }
+            }
+        }
+    }
+
+    static void CommitBaseline(
+        List<PlanItem> plan,
+        SourceContext source,
+        InstallationSelection selection)
+    {
+        Directory.CreateDirectory(BaselineRoot);
+        var index = new List<object>();
+
+        foreach (PlanItem item in plan)
+        {
+            string baseline = GetBaselinePath(item.FileId);
+
+            if (item.Target != null && item.CommitTargetBaseline)
+                File.Copy(item.Target, baseline, true);
+
+            if (File.Exists(baseline))
+            {
+                var record = new Dictionary<string, object>();
+                record["fileId"] = item.FileId;
+                record["component"] = item.Component;
+                record["destination"] = item.Destination;
+                record["sha256"] = Sha256OrNull(baseline);
+                index.Add(record);
+            }
+        }
+
+        var baselineState = new Dictionary<string, object>();
+        baselineState["files"] = index.ToArray();
+        baselineState["generatedAt"] = DateTime.UtcNow.ToString("o");
+        WriteJson(BaselineIndexPath, baselineState);
+
+        if (String.Equals(source.Mode, "stable", StringComparison.OrdinalIgnoreCase))
+        {
+            var config = new Dictionary<string, object>();
+            config["mode"] = "stable";
+            config["tag"] = source.Tag;
+            config["revision"] = source.Revision;
+            config["appliedAt"] = DateTime.UtcNow.ToString("o");
+            config["glazewmProfile"] = selection.GlazeProfile;
+            WriteJson(ConfigStatePath, config);
+        }
+    }
+
+    static void UpdateSourceStateAfterApply(SourceContext source)
+    {
+        if (String.Equals(source.Mode, "git", StringComparison.OrdinalIgnoreCase))
+        {
+            string previousStable = "";
+            var config = ReadJson(ConfigStatePath);
+            if (config != null && String.Equals(GetString(config, "mode"), "stable", StringComparison.OrdinalIgnoreCase))
+                previousStable = GetString(config, "tag");
+            else
+            {
+                var oldGit = ReadJson(GitStatePath);
+                if (oldGit != null) previousStable = GetString(oldGit, "stableRelease");
+            }
+
+            var state = new Dictionary<string, object>();
+            state["branch"] = source.Branch;
+            state["revision"] = source.Revision;
+            state["stableRelease"] = previousStable;
+            state["testedAt"] = DateTime.UtcNow.ToString("o");
+            WriteJson(GitStatePath, state);
+        }
+        else
+        {
+            SafeDeleteFile(GitStatePath);
+        }
+    }
+
+    static void BackupManager()
+    {
+        var state = ReadJson(BackupStatePath);
+        var allRecords = state == null ? new List<object>() : GetList(state, "records");
+        var records = allRecords
+            .Select(AsDictionary)
+            .Where(r =>
+            {
+                string path = GetString(r, "backup");
+                return File.Exists(path) || Directory.Exists(path);
+            })
+            .ToList();
+
+        WriteTitle("Backup manager");
+
+        if (records.Count == 0)
+        {
+            Console.WriteLine("No recorded WGDot backups exist.");
+            Pause();
+            return;
+        }
+
+        Console.Write("Only show backups older than N days (blank = all): ");
+        string ageText = (Console.ReadLine() ?? "").Trim();
+        if (!String.IsNullOrWhiteSpace(ageText))
+        {
+            int days;
+            if (Int32.TryParse(ageText, out days) && days >= 0)
+            {
+                DateTime cutoff = DateTime.UtcNow.AddDays(-days);
+                records = records.Where(r =>
+                {
+                    DateTime created;
+                    return DateTime.TryParse(
+                        GetString(r, "createdAt"),
+                        CultureInfo.InvariantCulture,
+                        DateTimeStyles.RoundtripKind,
+                        out created) && created.ToUniversalTime() < cutoff;
+                }).ToList();
+            }
+            else
+            {
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine("Invalid age filter; showing all backups.");
+                Console.ResetColor();
+            }
+        }
+
+        if (records.Count == 0)
+        {
+            Console.WriteLine("No WGDot backups match that filter.");
+            Pause();
+            return;
+        }
+
+        var choices = new List<ChoiceItem>();
+        for (int i = 0; i < records.Count; i++)
+        {
+            choices.Add(new ChoiceItem
+            {
+                Id = i.ToString(CultureInfo.InvariantCulture),
+                Label = GetString(records[i], "createdAt") + "  " + GetString(records[i], "backup"),
+                Selected = false
+            });
+        }
+
+        choices = ReadMultiChoice("Select WGDot backups to delete", choices);
+        if (choices == null) return;
+
+        var selected = choices.Where(x => x.Selected).ToList();
+        if (selected.Count == 0) return;
+
+        WriteTitle("Backup cleanup review");
+        foreach (ChoiceItem choice in selected)
+        {
+            int index = Int32.Parse(choice.Id, CultureInfo.InvariantCulture);
+            Console.WriteLine("DELETE  " + GetString(records[index], "backup"));
+        }
+
+        Console.WriteLine();
+        Console.ForegroundColor = ConsoleColor.Yellow;
+        Console.WriteLine("Dry-run complete. Nothing has been deleted yet.");
+        Console.ResetColor();
+
+        if (!ReadYesNo("Delete exactly these recorded WGDot backups? [y/N]", false))
+            return;
+
+        var deleteSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (ChoiceItem choice in selected)
+        {
+            int index = Int32.Parse(choice.Id, CultureInfo.InvariantCulture);
+            string backup = GetString(records[index], "backup");
+            deleteSet.Add(backup);
+
+            if (Directory.Exists(backup)) Directory.Delete(backup, true);
+            else SafeDeleteFile(backup);
+        }
+
+        var remaining = new List<object>();
+        foreach (object raw in allRecords)
+        {
+            var record = AsDictionary(raw);
+            if (!deleteSet.Contains(GetString(record, "backup")))
+                remaining.Add(record);
+        }
+
+        var next = new Dictionary<string, object>();
+        next["records"] = remaining.ToArray();
+        WriteJson(BackupStatePath, next);
+
+        Console.ForegroundColor = ConsoleColor.Green;
+        Console.WriteLine("Selected WGDot backups deleted.");
+        Console.ResetColor();
+        Pause();
+    }
+
+    static List<string> GetRemoteBranches()
+    {
+        RequireExecutable("git.exe", "Git is required for WGDot Git-testing mode.");
+
+        Directory.CreateDirectory(CacheRoot);
+        string verifyRoot = Path.Combine(CacheRoot, "git-verify");
+
+        if (!Directory.Exists(Path.Combine(verifyRoot, ".git")))
+        {
+            if (Directory.Exists(verifyRoot)) Directory.Delete(verifyRoot, true);
+            ProcResult clone = Run("git.exe", "clone --filter=blob:none --no-checkout " + Q(RepoUrl) + " " + Q(verifyRoot), null);
+            if (clone.ExitCode != 0)
+                throw new Exception("Could not initialize Git-testing verification clone: " + LastUsefulLine(clone.StdErr));
+        }
+
+        ProcResult fetch = Run("git.exe", "-C " + Q(verifyRoot) + " fetch --prune origin \"+refs/heads/*:refs/remotes/origin/*\"", null);
+        if (fetch.ExitCode != 0)
+            throw new Exception("Could not fetch remote branches: " + LastUsefulLine(fetch.StdErr));
+
+        ProcResult refs = Run(
+            "git.exe",
+            "-C " + Q(verifyRoot) + " for-each-ref --format=%(refname:strip=3) refs/remotes/origin",
+            null);
+        if (refs.ExitCode != 0)
+            throw new Exception("Could not list remote branches: " + LastUsefulLine(refs.StdErr));
+
+        return (refs.StdOut ?? "")
+            .Replace("\r", "")
+            .Split('\n')
+            .Select(x => x.Trim())
+            .Where(x => !String.IsNullOrWhiteSpace(x) && !String.Equals(x, "HEAD", StringComparison.OrdinalIgnoreCase))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(x => String.Equals(x, GetPreferredGitBranch(), StringComparison.OrdinalIgnoreCase) ? 0 : 1)
+            .ThenBy(x => x, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    static string GetPreferredGitBranch()
+    {
+        var state = ReadJson(BootstrapStatePath);
+        if (state != null)
+        {
+            string sourceRef = GetString(state, "sourceRef");
+            if (!String.IsNullOrWhiteSpace(sourceRef) &&
+                !String.Equals(sourceRef, "main", StringComparison.OrdinalIgnoreCase))
+                return sourceRef;
+        }
+
+        return "feature/wgdot-maintenance";
+    }
+
+    static string ResolveGitRevision(string branch, string requestedRevision)
+    {
+        ValidateBranchName(branch);
+        RequireExecutable("git.exe", "Git is required for WGDot Git-testing mode.");
+
+        Directory.CreateDirectory(CacheRoot);
+        string verifyRoot = Path.Combine(CacheRoot, "git-verify");
+
+        if (!Directory.Exists(Path.Combine(verifyRoot, ".git")))
+        {
+            if (Directory.Exists(verifyRoot)) Directory.Delete(verifyRoot, true);
+            ProcResult clone = Run("git.exe", "clone --filter=blob:none --no-checkout " + Q(RepoUrl) + " " + Q(verifyRoot), null);
+            if (clone.ExitCode != 0)
+                throw new Exception("Could not initialize Git-testing verification clone: " + LastUsefulLine(clone.StdErr));
+        }
+
+        ProcResult fetch = Run("git.exe", "-C " + Q(verifyRoot) + " fetch --prune origin \"+refs/heads/*:refs/remotes/origin/*\"", null);
+        if (fetch.ExitCode != 0)
+            throw new Exception("Could not fetch remote branches: " + LastUsefulLine(fetch.StdErr));
+
+        string branchRef = "refs/remotes/origin/" + branch;
+        ProcResult head = Run("git.exe", "-C " + Q(verifyRoot) + " rev-parse --verify " + Q(branchRef + "^{commit}"), null);
+        string headSha = (head.StdOut ?? "").Trim();
+
+        if (head.ExitCode != 0 || !Regex.IsMatch(headSha, "^[0-9a-fA-F]{40}$"))
+            throw new Exception("Remote branch '" + branch + "' was not found.");
+
+        if (String.IsNullOrWhiteSpace(requestedRevision))
+            return headSha.ToLowerInvariant();
+
+        if (!Regex.IsMatch(requestedRevision, "^[0-9a-fA-F]{40}$"))
+            throw new Exception("Exact Git-testing revision must be a full 40-character SHA.");
+
+        ProcResult exists = Run("git.exe", "-C " + Q(verifyRoot) + " cat-file -e " + Q(requestedRevision + "^{commit}"), null);
+        if (exists.ExitCode != 0)
+            throw new Exception("Commit '" + requestedRevision + "' is unavailable after fetching the repository.");
+
+        ProcResult ancestor = Run("git.exe", "-C " + Q(verifyRoot) + " merge-base --is-ancestor " + Q(requestedRevision) + " " + Q(branchRef), null);
+        if (ancestor.ExitCode != 0)
+            throw new Exception("Commit '" + requestedRevision + "' does not belong to branch '" + branch + "'.");
+
+        return requestedRevision.ToLowerInvariant();
+    }
+
+    static string PrepareGitSource(string revision)
+    {
+        string verifyRoot = Path.Combine(CacheRoot, "git-verify");
+
+        ProcResult checkout = Run("git.exe", "-C " + Q(verifyRoot) + " checkout --force --detach " + Q(revision), null);
+        if (checkout.ExitCode != 0)
+            throw new Exception("Could not check out Git-testing revision: " + LastUsefulLine(checkout.StdErr));
+
+        ProcResult clean = Run("git.exe", "-C " + Q(verifyRoot) + " clean -fdx", null);
+        if (clean.ExitCode != 0)
+            throw new Exception("Could not clean Git-testing source cache.");
+
+        string manifest = Path.Combine(verifyRoot, "wgdot", "manifest.json");
+        if (!File.Exists(manifest))
+            throw new Exception("Revision " + revision + " is not WGDot-compatible.");
+
+        return verifyRoot;
+    }
+
+    static string GetRelativeSourcePath(Dictionary<string, object> file, string glazeProfile)
+    {
+        object byProfileRaw;
+        if (file.TryGetValue("sourceByGlazeProfile", out byProfileRaw) && byProfileRaw != null)
+        {
+            var byProfile = AsDictionary(byProfileRaw);
+            return glazeProfile == "work" ? GetString(byProfile, "work") : GetString(byProfile, "normal");
+        }
+
+        return GetString(file, "source");
+    }
+
+    static string GetBaselinePath(string fileId)
+    {
+        string safe = Regex.Replace(fileId ?? "", "[^A-Za-z0-9._-]", "_");
+        return Path.Combine(BaselineRoot, safe);
+    }
+
+    static bool IsSafeManagedDestination(string destination)
+    {
+        string full = Path.GetFullPath(Environment.ExpandEnvironmentVariables(destination));
+        var roots = new[]
+        {
+            Environment.GetEnvironmentVariable("USERPROFILE"),
+            Environment.GetEnvironmentVariable("APPDATA"),
+            Environment.GetEnvironmentVariable("LOCALAPPDATA")
+        }
+        .Where(x => !String.IsNullOrWhiteSpace(x))
+        .Select(Path.GetFullPath)
+        .Distinct(StringComparer.OrdinalIgnoreCase);
+
+        foreach (string root in roots)
+        {
+            string prefix = root.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
+            if (full.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+
+        return false;
+    }
+
+    static int ReadSingleChoice(string title, List<string> items, int initialIndex)
+    {
+        if (items == null || items.Count == 0) return -1;
+        int index = initialIndex >= 0 && initialIndex < items.Count ? initialIndex : 0;
+        const int pageSize = 18;
+
+        while (true)
+        {
+            WriteTitle(title);
+
+            int start = 0;
+            if (items.Count > pageSize)
+            {
+                start = index - pageSize / 2;
+                if (start < 0) start = 0;
+                int maxStart = items.Count - pageSize;
+                if (start > maxStart) start = maxStart;
+            }
+            int end = Math.Min(items.Count, start + pageSize);
+
+            for (int i = start; i < end; i++)
+            {
+                if (i == index) Console.ForegroundColor = ConsoleColor.Cyan;
+                Console.WriteLine((i == index ? "> " : "  ") + items[i]);
+                Console.ResetColor();
+            }
+
+            if (items.Count > pageSize)
+            {
+                Console.WriteLine();
+                Console.ForegroundColor = ConsoleColor.DarkGray;
+                Console.WriteLine("Showing " + (start + 1) + "-" + end + " of " + items.Count);
+                Console.ResetColor();
+            }
+
+            Console.WriteLine();
+            Console.ForegroundColor = ConsoleColor.DarkGray;
+            Console.WriteLine("Up/Down: move   PgUp/PgDn: page   Enter: select   Esc: cancel");
+            Console.ResetColor();
+
+            ConsoleKey key = Console.ReadKey(true).Key;
+            if (key == ConsoleKey.UpArrow) index = (index - 1 + items.Count) % items.Count;
+            else if (key == ConsoleKey.DownArrow) index = (index + 1) % items.Count;
+            else if (key == ConsoleKey.PageUp) index = Math.Max(0, index - pageSize);
+            else if (key == ConsoleKey.PageDown) index = Math.Min(items.Count - 1, index + pageSize);
+            else if (key == ConsoleKey.Home) index = 0;
+            else if (key == ConsoleKey.End) index = items.Count - 1;
+            else if (key == ConsoleKey.Enter) return index;
+            else if (key == ConsoleKey.Escape) return -1;
+        }
+    }
+
+    static List<ChoiceItem> ReadMultiChoice(string title, List<ChoiceItem> items)
+    {
+        if (items == null || items.Count == 0) return items;
+        int index = 0;
+        const int pageSize = 18;
+
+        while (true)
+        {
+            WriteTitle(title);
+
+            int start = 0;
+            if (items.Count > pageSize)
+            {
+                start = index - pageSize / 2;
+                if (start < 0) start = 0;
+                int maxStart = items.Count - pageSize;
+                if (start > maxStart) start = maxStart;
+            }
+            int end = Math.Min(items.Count, start + pageSize);
+
+            for (int i = start; i < end; i++)
+            {
+                string mark = items[i].Selected ? "[x]" : "[ ]";
+                if (i == index) Console.ForegroundColor = ConsoleColor.Cyan;
+                Console.WriteLine((i == index ? "> " : "  ") + mark + " " + items[i].Label);
+                Console.ResetColor();
+            }
+
+            int selectedCount = items.Count(x => x.Selected);
+            Console.WriteLine();
+            Console.ForegroundColor = ConsoleColor.DarkGray;
+            if (items.Count > pageSize)
+                Console.WriteLine("Showing " + (start + 1) + "-" + end + " of " + items.Count + "   Selected: " + selectedCount);
+            else
+                Console.WriteLine("Selected: " + selectedCount);
+            Console.WriteLine("Up/Down: move   PgUp/PgDn: page   Space: toggle   A: all   N: none");
+            Console.WriteLine("Enter: accept   Esc: cancel");
+            Console.ResetColor();
+
+            ConsoleKey key = Console.ReadKey(true).Key;
+            if (key == ConsoleKey.UpArrow) index = (index - 1 + items.Count) % items.Count;
+            else if (key == ConsoleKey.DownArrow) index = (index + 1) % items.Count;
+            else if (key == ConsoleKey.PageUp) index = Math.Max(0, index - pageSize);
+            else if (key == ConsoleKey.PageDown) index = Math.Min(items.Count - 1, index + pageSize);
+            else if (key == ConsoleKey.Home) index = 0;
+            else if (key == ConsoleKey.End) index = items.Count - 1;
+            else if (key == ConsoleKey.Spacebar) items[index].Selected = !items[index].Selected;
+            else if (key == ConsoleKey.A) foreach (ChoiceItem item in items) item.Selected = true;
+            else if (key == ConsoleKey.N) foreach (ChoiceItem item in items) item.Selected = false;
+            else if (key == ConsoleKey.Enter) return items;
+            else if (key == ConsoleKey.Escape) return null;
+        }
+    }
+
+    static bool ReadYesNo(string prompt, bool defaultYes)
+    {
+        Console.Write(prompt + " ");
+        string value = (Console.ReadLine() ?? "").Trim();
+        if (String.IsNullOrWhiteSpace(value)) return defaultYes;
+        return Regex.IsMatch(value, "^[Yy]$");
+    }
+
+    static void WriteTitle(string subtitle)
+    {
+        try
+        {
+            if (!Console.IsOutputRedirected) Console.Clear();
+        }
+        catch
+        {
+        }
+
+        Console.ForegroundColor = ConsoleColor.Cyan;
+        Console.WriteLine("WGDot");
+        Console.ResetColor();
+
+        if (!String.IsNullOrWhiteSpace(subtitle))
+        {
+            Console.ForegroundColor = ConsoleColor.DarkGray;
+            Console.WriteLine(subtitle);
+            Console.ResetColor();
+        }
+
+        Console.WriteLine();
+    }
+
+    static void Pause()
+    {
+        Console.WriteLine();
+        Console.Write("Press any key to continue.");
+        try
+        {
+            if (!Console.IsInputRedirected) Console.ReadKey(true);
+        }
+        catch
+        {
+        }
+    }
+
+    static void ValidateBranchName(string branch)
+    {
+        if (String.IsNullOrWhiteSpace(branch) ||
+            !Regex.IsMatch(branch, "^[A-Za-z0-9._/-]+$") ||
+            branch.Contains("..") ||
+            branch.Contains("@{") ||
+            branch.StartsWith("/") ||
+            branch.EndsWith("/"))
+            throw new Exception("Invalid remote branch name.");
+    }
+
+    static string GetOption(string[] args, string name)
+    {
+        for (int i = 0; i < args.Length; i++)
+        {
+            if (String.Equals(args[i], name, StringComparison.OrdinalIgnoreCase))
+            {
+                if (i + 1 >= args.Length) throw new Exception("Missing value for " + name + ".");
+                return args[i + 1];
+            }
+        }
+        return "";
+    }
+
+    static bool ExecutableExists(string name)
+    {
+        ProcResult where = Run("where.exe", Q(name), null);
+        return where.ExitCode == 0;
+    }
+
+    static void RequireExecutable(string name, string error)
+    {
+        if (!ExecutableExists(name)) throw new Exception(error);
+    }
+
+    static ProcResult Run(string fileName, string arguments, string workingDirectory)
+    {
+        var psi = new ProcessStartInfo();
+        psi.FileName = fileName;
+        psi.Arguments = arguments;
+        psi.UseShellExecute = false;
+        psi.RedirectStandardOutput = true;
+        psi.RedirectStandardError = true;
+        psi.CreateNoWindow = true;
+        if (!String.IsNullOrWhiteSpace(workingDirectory)) psi.WorkingDirectory = workingDirectory;
+
+        using (Process p = Process.Start(psi))
+        {
+            string stdout = p.StandardOutput.ReadToEnd();
+            string stderr = p.StandardError.ReadToEnd();
+            p.WaitForExit();
+            return new ProcResult { ExitCode = p.ExitCode, StdOut = stdout, StdErr = stderr };
+        }
+    }
+
+    static ProcResult RunInteractiveStagedRuntime(string fileName, string arguments)
+    {
+        var psi = new ProcessStartInfo();
+        psi.FileName = fileName;
+        psi.Arguments = arguments;
+        psi.UseShellExecute = false;
+        psi.RedirectStandardOutput = false;
+        psi.RedirectStandardError = false;
+        psi.CreateNoWindow = false;
+        psi.EnvironmentVariables["WGDOT_SKIP_RUNTIME_REFRESH"] = "1";
+
+        using (Process p = Process.Start(psi))
+        {
+            p.WaitForExit();
+            return new ProcResult { ExitCode = p.ExitCode, StdOut = "", StdErr = "" };
+        }
+    }
+
+    static ProcResult RunInteractive(string fileName, string arguments)
+    {
+        var psi = new ProcessStartInfo();
+        psi.FileName = fileName;
+        psi.Arguments = arguments;
+        psi.UseShellExecute = false;
+        psi.RedirectStandardOutput = false;
+        psi.RedirectStandardError = false;
+        psi.CreateNoWindow = false;
+
+        using (Process p = Process.Start(psi))
+        {
+            p.WaitForExit();
+            return new ProcResult { ExitCode = p.ExitCode, StdOut = "", StdErr = "" };
+        }
+    }
+
+    static string LastUsefulLine(string value)
+    {
+        if (String.IsNullOrWhiteSpace(value)) return "unknown error";
+        string[] lines = value.Replace("\r", "").Split('\n');
+        for (int i = lines.Length - 1; i >= 0; i--)
+            if (!String.IsNullOrWhiteSpace(lines[i])) return lines[i].Trim();
+        return "unknown error";
+    }
+
+    static string Q(string value)
+    {
+        return "\"" + (value ?? "").Replace("\"", "\\\"") + "\"";
+    }
+
+    static int SelfTest()
+    {
+        string temp = Path.Combine(Path.GetTempPath(), "wgdot-native-test-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(temp);
+
+        try
+        {
+            string file = Path.Combine(temp, "x.txt");
+            File.WriteAllText(file, "wgdot", Encoding.UTF8);
+            string hash = Sha256OrNull(file);
+            if (String.IsNullOrWhiteSpace(hash) || hash.Length != 64)
+                throw new Exception("SHA-256 self-test failed.");
+
+            string expanded = Environment.ExpandEnvironmentVariables("%LOCALAPPDATA%\\wgdot");
+            if (String.IsNullOrWhiteSpace(expanded) || expanded.IndexOf("wgdot", StringComparison.OrdinalIgnoreCase) < 0)
+                throw new Exception("Environment expansion self-test failed.");
+
+            string earHelper = EnsureEarTrumpetStorageHelper();
+            ProcResult earTest = Run(earHelper, "self-test", null);
+            if (earTest.ExitCode != 0)
+                throw new Exception("EarTrumpet packaged-settings helper self-test failed.");
+
+            Console.WriteLine("WGDot native runtime self-test passed.");
+            return 0;
+        }
+        finally
+        {
+            SafeDeleteDirectory(temp);
+        }
+    }
+
+    static void AddUserPath(string path)
+    {
+        using (RegistryKey key = Registry.CurrentUser.CreateSubKey("Environment"))
+        {
+            if (key == null) throw new Exception("Could not open HKCU\\Environment.");
+
+            string current = Convert.ToString(key.GetValue("Path", "", RegistryValueOptions.DoNotExpandEnvironmentNames));
+            string[] parts = (current ?? "").Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries);
+            bool present = parts.Any(p => String.Equals(p.Trim().TrimEnd('\\'), path.TrimEnd('\\'), StringComparison.OrdinalIgnoreCase));
+
+            if (!present)
+            {
+                string next = String.IsNullOrWhiteSpace(current) ? path : current.TrimEnd(';') + ";" + path;
+                key.SetValue("Path", next, RegistryValueKind.ExpandString);
+            }
+        }
+
+        BroadcastEnvironmentChange();
+    }
+
+    static void BroadcastEnvironmentChange()
+    {
+        UIntPtr result;
+        SendMessageTimeout(
+            HwndBroadcast,
+            WmSettingChange,
+            UIntPtr.Zero,
+            "Environment",
+            SmtoAbortIfHung,
+            5000,
+            out result);
+    }
+
+    static string FindRepoRoot(string start)
+    {
+        DirectoryInfo d = new DirectoryInfo(start);
+        for (int i = 0; i < 5 && d != null; i++, d = d.Parent)
+        {
+            if (File.Exists(Path.Combine(d.FullName, "wgdot", "manifest.json"))) return d.FullName;
+        }
+        return "";
+    }
+
+    static Dictionary<string, object> ReadJson(string path)
+    {
+        if (!File.Exists(path)) return null;
+        string raw = File.ReadAllText(path);
+        if (String.IsNullOrWhiteSpace(raw)) return null;
+        return AsDictionary(Json.DeserializeObject(raw));
+    }
+
+    static void WriteJson(string path, object value)
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(path));
+        string tmp = path + ".tmp";
+        File.WriteAllText(tmp, Json.Serialize(value), new UTF8Encoding(false));
+
+        if (File.Exists(path))
+        {
+            try
+            {
+                File.Replace(tmp, path, null);
+                return;
+            }
+            catch
+            {
+                SafeDeleteFile(path);
+            }
+        }
+
+        File.Move(tmp, path);
+    }
+
+    static Dictionary<string, object> AsDictionary(object value)
+    {
+        var d = value as Dictionary<string, object>;
+        return d ?? new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+    }
+
+    static Dictionary<string, object> GetDictionary(Dictionary<string, object> dictionary, string key)
+    {
+        object value;
+        if (!dictionary.TryGetValue(key, out value) || value == null)
+            return new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+        return AsDictionary(value);
+    }
+
+    static List<object> GetList(Dictionary<string, object> dictionary, string key)
+    {
+        object value;
+        if (!dictionary.TryGetValue(key, out value) || value == null)
+            return new List<object>();
+
+        var enumerable = value as IEnumerable;
+        if (enumerable == null || value is string)
+            return new List<object>();
+
+        var result = new List<object>();
+        foreach (object item in enumerable) result.Add(item);
+        return result;
+    }
+
+    static List<string> GetStringList(Dictionary<string, object> dictionary, string key)
+    {
+        return GetList(dictionary, key)
+            .Where(x => x != null)
+            .Select(Convert.ToString)
+            .Where(x => !String.IsNullOrWhiteSpace(x))
+            .ToList();
+    }
+
+    static string GetString(Dictionary<string, object> dictionary, string key)
+    {
+        object value;
+        return dictionary.TryGetValue(key, out value) && value != null ? Convert.ToString(value) : "";
+    }
+
+    static int GetInt(Dictionary<string, object> dictionary, string key)
+    {
+        object value;
+        if (!dictionary.TryGetValue(key, out value) || value == null) return 0;
+        return Convert.ToInt32(value);
+    }
+
+    static bool GetBool(Dictionary<string, object> dictionary, string key)
+    {
+        object value;
+        if (!dictionary.TryGetValue(key, out value) || value == null) return false;
+        return Convert.ToBoolean(value);
+    }
+
+    static string Sha256OrNull(string path)
+    {
+        if (!File.Exists(path)) return null;
+
+        using (var sha = SHA256.Create())
+        using (var stream = File.OpenRead(path))
+        {
+            byte[] bytes = sha.ComputeHash(stream);
+            var sb = new StringBuilder(bytes.Length * 2);
+            foreach (byte b in bytes) sb.Append(b.ToString("x2"));
+            return sb.ToString();
+        }
+    }
+
+    static void SafeDeleteFile(string path)
+    {
+        try
+        {
+            if (!String.IsNullOrWhiteSpace(path) && File.Exists(path))
+                File.Delete(path);
+        }
+        catch
+        {
+        }
+    }
+
+    static void SafeDeleteDirectory(string path)
+    {
+        try
+        {
+            if (!String.IsNullOrWhiteSpace(path) && Directory.Exists(path))
+                Directory.Delete(path, true);
+        }
+        catch
+        {
+        }
+    }
+}

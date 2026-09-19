@@ -1,0 +1,73 @@
+name: Validate WGDot
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "wgdot/**"
+      - "tests/test-wgdot.ps1"
+      - "MANUAL_POWERSHELL.md"
+      - "AGENTS.md"
+      - ".github/workflows/validate-wgdot.yml"
+  pull_request:
+    paths:
+      - "wgdot/**"
+      - "tests/test-wgdot.ps1"
+      - "MANUAL_POWERSHELL.md"
+      - "AGENTS.md"
+      - ".github/workflows/validate-wgdot.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  windows-powershell-51:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate with Windows PowerShell 5.1
+        shell: powershell
+        run: powershell.exe -NoLogo -NoProfile -File tests\test-wgdot.ps1
+
+  powershell-7:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate with PowerShell 7
+        shell: pwsh
+        run: pwsh -NoLogo -NoProfile -File tests/test-wgdot.ps1
+
+  native-bootstrap:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Copy only bootstrap outside repository
+        shell: cmd
+        run: copy /Y wgdot\bootstrap.cmd "%TEMP%\wgdot-bootstrap-test.cmd"
+      - name: Install from arbitrary directory using exact revision
+        shell: cmd
+        run: |
+          cd /d "%TEMP%"
+          call wgdot-bootstrap-test.cmd --ref feature/wgdot-maintenance --revision ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Verify installed native command
+        shell: cmd
+        run: |
+          "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" status
+      - name: Verify persistent user PATH
+        shell: cmd
+        run: |
+          reg query HKCU\Environment /v Path | findstr /I /C:"wgdot\bin"
+      - name: Seed non-mutating Git review selection
+        shell: cmd
+        run: |
+          if not exist "%LOCALAPPDATA%\wgdot\state" mkdir "%LOCALAPPDATA%\wgdot\state"
+          >"%LOCALAPPDATA%\wgdot\state\installation.json" echo {"scope":"normal","glazewmProfile":"normal","components":["glazewm","yazi"],"packages":[]}
+      - name: Validate native Git review planner
+        shell: cmd
+        run: |
+          "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" git-review --branch feature/wgdot-maintenance --revision ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Validate native maintenance mutations in isolated state
+        shell: cmd
+        run: |
+          set "WGDOT_TEST_ROOT=%TEMP%\wgdot-native-maintenance-state"
+          "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" maintenance-self-test
