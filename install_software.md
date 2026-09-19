@@ -22,6 +22,8 @@ Browser setup, browser launches, post-install application launches, and ordinary
 - **YASB** — `AmN.yasb`
 - **Flameshot** — `Flameshot.Flameshot`
 - **Flow Launcher** — `Flow-Launcher.Flow-Launcher`
+
+  WGDot tries the exact WinGet package first. If that WinGet install stalls for 180 seconds or fails, WGDot terminates the stuck WinGet attempt and may fall back only to the official `Flow-Launcher/Flow.Launcher` latest release asset `Flow-Launcher-Setup.exe`.
 - **EarTrumpet** — `File-New-Project.EarTrumpet`
 - **Micro** — `zyedidia.micro`
 - **Yazi** — `sxyazi.yazi`

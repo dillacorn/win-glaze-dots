@@ -18,7 +18,7 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-27";
+    const string Version = "native-preview-28";
     const int WingetPreflightTimeoutMs = 30000;
     const string RepoFullName = "dillacorn/win-glaze-dots";
     const string RepoUrl = "https://github.com/dillacorn/win-glaze-dots.git";
@@ -1383,6 +1383,21 @@ internal static class WgdotNative
         return RunSoftwareElevatedPlan(planPath);
     }
 
+    static int GetWingetInstallTimeoutMs(Dictionary<string, object> package)
+    {
+        int seconds = GetInt(package, "wingetInstallTimeoutSeconds");
+        if (seconds <= 0) seconds = 900;
+        seconds = Math.Max(30, Math.Min(seconds, 3600));
+        return seconds * 1000;
+    }
+
+    static bool HasOfficialGitHubFallback(Dictionary<string, object> package)
+    {
+        return
+            !String.IsNullOrWhiteSpace(GetString(package, "fallbackGitHubRepo")) &&
+            !String.IsNullOrWhiteSpace(GetString(package, "fallbackAssetRegex"));
+    }
+
     static int RunSoftwareElevatedPlan(string rawPlanPath)
     {
         string planPath = NormalizeSoftwarePlanPath(rawPlanPath);
@@ -1471,18 +1486,40 @@ internal static class WgdotNative
                     continue;
                 }
 
-                ProcResult install = RunInteractive(
+                int installTimeoutMs = GetWingetInstallTimeoutMs(package);
+                ProcResult install = RunInteractiveWithTimeout(
                     "winget.exe",
-                    "install --id " + Q(id) + " --exact --source winget --accept-source-agreements --accept-package-agreements --disable-interactivity");
+                    "install --id " + Q(id) + " --exact --source winget --accept-source-agreements --accept-package-agreements --disable-interactivity",
+                    installTimeoutMs);
 
                 if (install.ExitCode == 0)
                 {
                     installedIds.Add(id);
                 }
+                else if (HasOfficialGitHubFallback(package))
+                {
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    if (install.TimedOut)
+                        Console.WriteLine("WinGet install timed out for " + id + "; trying the approved official GitHub fallback.");
+                    else
+                        Console.WriteLine("WinGet install failed for " + id + "; trying the approved official GitHub fallback.");
+                    Console.ResetColor();
+
+                    if (InstallGitHubReleasePackage(package))
+                        installedIds.Add(id);
+                    else
+                    {
+                        failedIds.Add(id);
+                        failures++;
+                    }
+                }
                 else
                 {
                     Console.ForegroundColor = ConsoleColor.Yellow;
-                    Console.WriteLine("Install failed: " + id + " (exit " + install.ExitCode.ToString(CultureInfo.InvariantCulture) + ")");
+                    if (install.TimedOut)
+                        Console.WriteLine("Install timed out: " + id + ".");
+                    else
+                        Console.WriteLine("Install failed: " + id + " (exit " + install.ExitCode.ToString(CultureInfo.InvariantCulture) + ")");
                     Console.ResetColor();
                     failedIds.Add(id);
                     failures++;
@@ -6720,6 +6757,60 @@ public static class Program
         }
     }
 
+    static ProcResult RunInteractiveWithTimeout(
+        string fileName,
+        string arguments,
+        int timeoutMs)
+    {
+        if (timeoutMs <= 0) throw new ArgumentOutOfRangeException("timeoutMs");
+
+        var psi = new ProcessStartInfo();
+        psi.FileName = fileName;
+        psi.Arguments = arguments;
+        psi.UseShellExecute = false;
+        psi.RedirectStandardOutput = false;
+        psi.RedirectStandardError = false;
+        psi.CreateNoWindow = false;
+
+        using (Process p = Process.Start(psi))
+        {
+            if (p.WaitForExit(timeoutMs))
+            {
+                return new ProcResult
+                {
+                    ExitCode = p.ExitCode,
+                    StdOut = "",
+                    StdErr = "",
+                    TimedOut = false
+                };
+            }
+
+            try
+            {
+                ProcResult taskkill = Run(
+                    "taskkill.exe",
+                    "/PID " + p.Id.ToString(CultureInfo.InvariantCulture) + " /T /F",
+                    null);
+                if (taskkill.ExitCode != 0 && !p.HasExited)
+                    p.Kill();
+            }
+            catch
+            {
+                try { if (!p.HasExited) p.Kill(); } catch { }
+            }
+
+            try { p.WaitForExit(5000); } catch { }
+
+            return new ProcResult
+            {
+                ExitCode = -1,
+                StdOut = "",
+                StdErr = "",
+                TimedOut = true
+            };
+        }
+    }
+
     static ProcResult RunInteractive(string fileName, string arguments)
     {
         var psi = new ProcessStartInfo();
@@ -6790,6 +6881,11 @@ public static class Program
                 100);
             if (!timeoutProbe.TimedOut)
                 throw new Exception("Process timeout self-test failed.");
+
+            var timeoutPackage = new Dictionary<string, object>();
+            timeoutPackage["wingetInstallTimeoutSeconds"] = 45;
+            if (GetWingetInstallTimeoutMs(timeoutPackage) != 45000)
+                throw new Exception("WinGet install timeout manifest self-test failed.");
 
             Console.WriteLine("WGDot native runtime self-test passed.");
             return 0;
