@@ -18,7 +18,7 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-15";
+    const string Version = "native-preview-16";
     const string RepoFullName = "dillacorn/win-glaze-dots";
     const string RepoUrl = "https://github.com/dillacorn/win-glaze-dots.git";
     const string ApiBase = "https://api.github.com/repos/dillacorn/win-glaze-dots";
@@ -1937,11 +1937,39 @@ public static class Program
         string runtimeDir = Path.GetDirectoryName(csc);
         string windowsRuntime = Path.Combine(runtimeDir, "System.Runtime.WindowsRuntime.dll");
 
+        string pf86Refs = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),
+            "Reference Assemblies",
+            "Microsoft",
+            "Framework",
+            ".NETFramework");
+
+        string systemRuntime = "";
+        string facadeWindowsRuntime = "";
+        if (Directory.Exists(pf86Refs))
+        {
+            systemRuntime = Directory.GetFiles(pf86Refs, "System.Runtime.dll", SearchOption.AllDirectories)
+                .Where(x => x.IndexOf("Facades", StringComparison.OrdinalIgnoreCase) >= 0)
+                .OrderByDescending(x => x)
+                .FirstOrDefault() ?? "";
+
+            facadeWindowsRuntime = Directory.GetFiles(
+                    pf86Refs,
+                    "System.Runtime.WindowsRuntime.dll",
+                    SearchOption.AllDirectories)
+                .OrderByDescending(x => x)
+                .FirstOrDefault() ?? "";
+        }
+
         var args = new StringBuilder();
         args.Append("/nologo /optimize+ /target:exe /out:").Append(Q(helperExe));
         args.Append(" /r:System.Windows.Forms.dll /r:System.Xml.dll");
+        if (!String.IsNullOrWhiteSpace(systemRuntime))
+            args.Append(" /r:").Append(Q(systemRuntime));
         if (File.Exists(windowsRuntime))
             args.Append(" /r:").Append(Q(windowsRuntime));
+        else if (!String.IsNullOrWhiteSpace(facadeWindowsRuntime))
+            args.Append(" /r:").Append(Q(facadeWindowsRuntime));
         foreach (string reference in refs)
             args.Append(" /r:").Append(Q(reference));
         args.Append(" ").Append(Q(sourcePath));
