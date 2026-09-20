@@ -515,9 +515,9 @@ widgets:
         run_once: true
         return_format: "string"
       callbacks:
-        on_left: "exec wt.exe -w new wgdot theme"
+        on_left: 'exec wt.exe -w new --size 72,22 nt --title "WGDot Themes" --suppressApplicationTitle wgdot theme'
         on_middle: "do_nothing"
-        on_right: "exec wt.exe -w new wgdot theme"
+        on_right: 'exec wt.exe -w new --size 72,22 nt --title "WGDot Themes" --suppressApplicationTitle wgdot theme'
 
   power_menu:
     type: "yasb.power_menu.PowerMenuWidget"
