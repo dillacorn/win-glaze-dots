@@ -548,7 +548,7 @@ QToolTip {
 .audio-container .device,
 .microphone-menu .microphone-container .device,
 .wifi-menu .wifi-item,
-.bluetooth-menu .device {
+.bluetooth-menu .bluetooth-item {
     color: var(--foreground);
     background-color: transparent;
     border: none;
@@ -558,7 +558,7 @@ QToolTip {
 .audio-container .device:hover,
 .microphone-menu .microphone-container .device:hover,
 .wifi-menu .wifi-item:hover,
-.bluetooth-menu .device:hover {
+.bluetooth-menu .bluetooth-item:hover {
     background-color: var(--subtle-hover);
 }
 
