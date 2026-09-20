@@ -395,6 +395,7 @@ internal static class WgdotNative
             String.Equals(command, "git-review", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "git-update", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "git-reset", StringComparison.OrdinalIgnoreCase) ||
+            String.Equals(command, "apply-tweak", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "software", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "software-audit", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "acceptance-audit", StringComparison.OrdinalIgnoreCase) ||
