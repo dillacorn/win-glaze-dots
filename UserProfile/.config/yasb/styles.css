@@ -235,6 +235,8 @@ QToolTip {
 .wifi-widget,
 .bluetooth-widget,
 .notification-widget,
+.dnd-widget,
+.quick-launch-widget,
 .power-menu-widget,
 .systray {
     background-color: transparent;
@@ -254,6 +256,8 @@ QToolTip {
 .wifi-widget .label,
 .bluetooth-widget .label,
 .notification-widget .label,
+.dnd-widget .label,
+.quick-launch-widget .label,
 .power-menu-widget .label {
     color: var(--foreground);
     background-color: transparent;
@@ -287,6 +291,110 @@ QToolTip {
 .notification-widget .icon.new-notification,
 .notification-widget .label.new-notification {
     color: var(--urgent);
+}
+
+/* Windows Do Not Disturb is the native YASB approximation of Awtarchy's
+   notification-popup mute state. Keep the normal bell neutral and make
+   restricted modes visibly critical. */
+.dnd-widget .icon.status-disabled,
+.dnd-widget .label.status-disabled {
+    color: var(--foreground);
+}
+
+.dnd-widget .icon.status-priority,
+.dnd-widget .label.status-priority,
+.dnd-widget .icon.status-alarms,
+.dnd-widget .label.status-alarms {
+    color: var(--critical);
+}
+
+/* Dedicated Windows Clipboard History surface using YASB Quick Launch.
+   This instance has only the clipboard provider enabled. */
+.quick-launch-widget {
+    background-color: transparent;
+    padding: 0 5px;
+}
+
+.quick-launch-widget .icon,
+.quick-launch-widget .label {
+    color: var(--foreground);
+    background-color: transparent;
+}
+
+.quick-launch-popup .container {
+    background-color: var(--background);
+    border: 1px solid var(--focus);
+    border-radius: 0;
+}
+
+.quick-launch-popup .search {
+    background-color: var(--active);
+    border-bottom: 1px solid var(--focus);
+    padding: 8px 10px;
+}
+
+.quick-launch-popup .search .search-input {
+    color: var(--foreground);
+    background-color: transparent;
+    border: none;
+    border-radius: 0;
+    font-family: "JetBrainsMono NFP";
+    font-size: 14px;
+    font-weight: 400;
+    padding: 2px 0;
+}
+
+.quick-launch-popup .search .search-icon,
+.quick-launch-popup .search .search-submit-icon {
+    color: var(--foreground);
+}
+
+.quick-launch-popup .search .prefix {
+    color: var(--foreground);
+    background-color: var(--focus);
+    border-radius: 0;
+}
+
+.quick-launch-popup .results,
+.quick-launch-popup .preview {
+    color: var(--foreground);
+    background-color: var(--background);
+}
+
+.quick-launch-popup .results-list-view {
+    color: var(--foreground);
+    background-color: transparent;
+    font-family: "JetBrainsMono NFP";
+    font-size: 14px;
+    font-weight: 400;
+}
+
+.quick-launch-popup .results-list-view .description,
+.quick-launch-popup .results-list-view .separator {
+    color: var(--foreground);
+    font-family: "JetBrainsMono NFP";
+}
+
+.quick-launch-popup .results-list-view::item {
+    border-radius: 0;
+    padding: 8px;
+}
+
+.quick-launch-popup .results-list-view::item:hover,
+.quick-launch-popup .results-list-view::item:selected {
+    background-color: var(--subtle-hover);
+}
+
+.quick-launch-popup .preview {
+    border-left: 1px solid var(--focus);
+}
+
+.quick-launch-popup .preview .preview-text,
+.quick-launch-popup .preview .preview-image,
+.quick-launch-popup .preview .preview-meta {
+    color: var(--foreground);
+    background-color: var(--active);
+    border-radius: 0;
 }
 
 /* Inline tray. use_hook is deliberately false in config so YASB does not
