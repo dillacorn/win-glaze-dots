@@ -67,7 +67,7 @@ bars:
           "clipboard_history",
           "notifications",
           "dnd",
-          "theme_picker",
+          "theme_group",
           "power_menu",
         ]
 
@@ -281,9 +281,12 @@ widgets:
         blink_charging_icon: false
         blink_interval: 500
       callbacks:
-        on_left: "toggle_label"
-        on_middle: "do_nothing"
-        on_right: "toggle_label"
+        # YASB has no native battery details popup. Open Windows' own
+        # Power & battery surface on either primary mouse button; keep
+        # middle-click for the compact alternate label.
+        on_left: "exec cmd.exe /c start ms-settings:powersleep"
+        on_middle: "toggle_label"
+        on_right: "exec cmd.exe /c start ms-settings:powersleep"
 
   microphone:
     type: "yasb.microphone.MicrophoneWidget"
@@ -501,20 +504,53 @@ widgets:
         on_middle: "do_nothing"
         on_right: "toggle_status"
 
-  theme_picker:
-    type: "yasb.custom.CustomWidget"
+  theme_choices:
+    type: "yasb.applications.ApplicationsWidget"
     options:
-      label: "<span></span>"
-      class_name: "awtarchy-theme-picker"
+      label: "{data}"
+      class_name: "theme-choice-buttons"
       tooltip: true
-      tooltip_label: "Themes (Win+T)"
-      exec_options:
-        run_once: true
-        return_format: "string"
-      callbacks:
-        on_left: "exec wt.exe -w new wgdot theme"
-        on_middle: "do_nothing"
-        on_right: "exec wt.exe -w new wgdot theme"
+      app_list:
+        - icon: "CN"
+          launch: "wgdot theme carbon-night"
+          name: "Carbon Night"
+        - icon: "CF"
+          launch: "wgdot theme catppuccin-frappe"
+          name: "Catppuccin Frappe"
+        - icon: "CR"
+          launch: "wgdot theme crimson-red"
+          name: "Crimson Red"
+        - icon: "EB"
+          launch: "wgdot theme electric-blue"
+          name: "Electric Blue"
+        - icon: "GR"
+          launch: "wgdot theme gruvbox"
+          name: "Gruvbox"
+        - icon: "IF"
+          launch: "wgdot theme iron-forge"
+          name: "Iron Forge"
+        - icon: "ON"
+          launch: "wgdot theme obsidian-night"
+          name: "Obsidian Night"
+        - icon: "PK"
+          launch: "wgdot theme pink"
+          name: "Pink"
+        - icon: "PB"
+          launch: "wgdot theme pipboy"
+          name: "Pip-Boy"
+
+  theme_group:
+    type: "yasb.grouper.GrouperWidget"
+    options:
+      class_name: "theme-grouper"
+      widgets: ["theme_choices"]
+      hide_empty: false
+      collapse_options:
+        enabled: true
+        exclude_widgets: []
+        expanded_label: ""
+        collapsed_label: ""
+        label_position: "left"
 
   power_menu:
     type: "yasb.power_menu.PowerMenuWidget"
