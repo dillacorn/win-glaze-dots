@@ -19,7 +19,7 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-41";
+    const string Version = "native-preview-42";
     const int WingetPreflightTimeoutMs = 30000;
     const string RepoFullName = "dillacorn/win-glaze-dots";
     const string RepoUrl = "https://github.com/dillacorn/win-glaze-dots.git";
@@ -43,6 +43,7 @@ internal static class WgdotNative
     static readonly string TweakStatePath = Path.Combine(StateRoot, "tweaks.json");
     static readonly string GpuStatePath = Path.Combine(StateRoot, "gpu-maintenance.json");
     static readonly string BrowserStatePath = Path.Combine(StateRoot, "browser-management.json");
+    static readonly string ThemeStatePath = Path.Combine(StateRoot, "theme.json");
     static readonly JavaScriptSerializer Json = new JavaScriptSerializer { MaxJsonLength = int.MaxValue, RecursionLimit = 100 };
 
     static readonly IntPtr HwndBroadcast = new IntPtr(0xffff);
@@ -187,6 +188,65 @@ internal static class WgdotNative
         public string DriverKey;
     }
 
+    sealed class YasbTheme
+    {
+        public string Id;
+        public string Label;
+        public string Background;
+        public string Foreground;
+        public string Hover;
+        public string Focus;
+        public string Active;
+        public string Urgent;
+        public string Dark;
+        public string Charging;
+        public string Critical;
+        public string Muted;
+
+        public YasbTheme(
+            string id,
+            string label,
+            string background,
+            string foreground,
+            string hover,
+            string focus,
+            string active,
+            string urgent,
+            string dark,
+            string charging,
+            string critical,
+            string muted)
+        {
+            Id = id;
+            Label = label;
+            Background = background;
+            Foreground = foreground;
+            Hover = hover;
+            Focus = focus;
+            Active = active;
+            Urgent = urgent;
+            Dark = dark;
+            Charging = charging;
+            Critical = critical;
+            Muted = muted;
+        }
+    }
+
+    // Windows/YASB equivalents of the current Awtarchy theme palettes.
+    // GlazeWM is intentionally excluded so applying a theme never reloads the WM.
+    static readonly List<YasbTheme> YasbThemes = new List<YasbTheme>
+    {
+        new YasbTheme("carbon-night", "Carbon Night", "#353535", "#d0d0d0", "#404040", "#4a4a4a", "#2b2b2b", "#ff5555", "#1a1a1a", "#6a9955", "#ff5555", "#5c5c5c"),
+        new YasbTheme("catppuccin-frappe", "Catppuccin Frappe", "#303446", "#c6d0f5", "#414559", "#535970", "#383c4d", "#e78284", "#232634", "#a6d189", "#ef9f76", "#a5adce"),
+        new YasbTheme("crimson-red", "Crimson Red", "#1e1e2e", "#f38ba8", "#352630", "#5a3442", "#292330", "#f38ba8", "#1e1e2e", "#fab387", "#f38ba8", "#9f8994"),
+        new YasbTheme("electric-blue", "Electric Blue", "#1e1e2e", "#89b4fa", "#293448", "#34445e", "#252938", "#f38ba8", "#1e1e2e", "#a6e3a1", "#fab387", "#8993a8"),
+        new YasbTheme("gruvbox", "Gruvbox", "#282828", "#ebdbb2", "#4a423c", "#665c4e", "#3c3836", "#b16286", "#fbf1c7", "#98971a", "#cc241d", "#a89984"),
+        new YasbTheme("iron-forge", "Iron Forge", "#0f1113", "#bcd2d2", "#1f2328", "#242a32", "#0d0f12", "#a31717", "#ffffff", "#1f6f6f", "#a31717", "#6a7b86"),
+        new YasbTheme("obsidian-night", "Obsidian Night", "#0f0f0f", "#cdd6f4", "#1e1e2e", "#313244", "#1a1a1a", "#ff5555", "#1e1e2e", "#6a9955", "#ff5555", "#4b4b4b"),
+        new YasbTheme("pink", "Pink", "#D297A1", "#2E2E2E", "#B77F91", "#C0AFC0", "#C0AFC0", "#B04155", "#FFFFFF", "#D3D3D3", "#B04155", "#7A7A7A"),
+        new YasbTheme("pipboy", "Pip-Boy", "#050805", "#a4ff47", "#1f301f", "#1b281b", "#101810", "#263826", "#050805", "#a4ff47", "#3c1b1b", "#2a3d2a")
+    };
+
     static int Main(string[] args)
     {
         bool stagedRuntime = false;
@@ -234,6 +294,7 @@ internal static class WgdotNative
             if (command == "software-elevated") return SoftwareElevatedFromArgs(args.Skip(1).ToArray());
             if (command == "flow-open") return OpenFlowLauncher();
             if (command == "eartrumpet-mixer") return OpenEarTrumpetMixer();
+            if (command == "theme") return ThemeManagerFromArgs(args.Skip(1).ToArray());
             if (command == "gpu-driver") return GpuDriverMaintenance();
             if (command == "gpu-stage-safe") return GpuStageSafeFromArgs(args.Skip(1).ToArray());
             if (command == "gpu-safe-resume") return GpuSafeResume();
@@ -278,6 +339,7 @@ internal static class WgdotNative
             String.Equals(command, "software", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "software-audit", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "acceptance-audit", StringComparison.OrdinalIgnoreCase) ||
+            String.Equals(command, "theme", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "gpu-driver", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "update", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "reset", StringComparison.OrdinalIgnoreCase) ||
@@ -379,6 +441,7 @@ internal static class WgdotNative
         Console.WriteLine("Managed selection: " + (File.Exists(InstallStatePath) ? "configured" : "not configured"));
         Console.WriteLine("Baseline: " + (File.Exists(BaselineIndexPath) ? "present" : "not initialized"));
         Console.WriteLine("Recorded backups: " + CountRecordedBackups().ToString(CultureInfo.InvariantCulture));
+        Console.WriteLine("YASB theme: " + CurrentYasbThemeId());
 
         var gpuState = ReadJson(GpuStatePath);
         if (gpuState != null)
@@ -402,6 +465,7 @@ internal static class WgdotNative
             "Audit all software (no install)",
             "Automated acceptance audit (safe)",
             "GPU driver maintenance",
+            "YASB theme switcher",
             "Windows tweaks / integrations",
             "Reset / reconfigure managed dots",
             "Review changes without applying",
@@ -415,7 +479,7 @@ internal static class WgdotNative
         while (true)
         {
             int choice = ReadSingleChoice("Maintenance", items, 0);
-            if (choice < 0 || choice == 12) return 0;
+            if (choice < 0 || choice == 13) return 0;
 
             try
             {
@@ -445,34 +509,38 @@ internal static class WgdotNative
                 }
                 else if (choice == 5)
                 {
-                    TweakManager();
+                    ThemeManager();
                 }
                 else if (choice == 6)
+                {
+                    TweakManager();
+                }
+                else if (choice == 7)
                 {
                     ManagedOperation("reset", ResolveDefaultSource());
                     Pause();
                 }
-                else if (choice == 7)
+                else if (choice == 8)
                 {
                     ManagedOperation("review", ResolveDefaultSource());
                     Pause();
                 }
-                else if (choice == 8)
+                else if (choice == 9)
                 {
                     BackupManager();
                 }
-                else if (choice == 9)
+                else if (choice == 10)
                 {
                     ShowManualFallback();
                     Pause();
                 }
-                else if (choice == 10)
+                else if (choice == 11)
                 {
                     WriteTitle("Version / status");
                     Status();
                     Pause();
                 }
-                else if (choice == 11)
+                else if (choice == 12)
                 {
                     ShowGitMenu();
                 }
@@ -5005,6 +5073,135 @@ internal static class WgdotNative
         Process.Start(psi);
     }
 
+    static YasbTheme FindYasbTheme(string id)
+    {
+        string normalized = (id ?? "").Trim().Replace("_", "-");
+        return YasbThemes.FirstOrDefault(
+            x => String.Equals(x.Id, normalized, StringComparison.OrdinalIgnoreCase) ||
+                 String.Equals(x.Label, id, StringComparison.OrdinalIgnoreCase));
+    }
+
+    static string CurrentYasbThemeId()
+    {
+        var state = ReadJson(ThemeStatePath);
+        string id = state == null ? "" : GetString(state, "id");
+        return FindYasbTheme(id) != null ? FindYasbTheme(id).Id : "carbon-night";
+    }
+
+    static string YasbThemeCssPath()
+    {
+        string profileRoot;
+        if (!String.IsNullOrWhiteSpace(TestRootOverride))
+            profileRoot = Path.Combine(TestRootOverride, "user-profile");
+        else
+            profileRoot = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+
+        return Path.Combine(profileRoot, ".config", "yasb", "theme.css");
+    }
+
+    static int ThemeManagerFromArgs(string[] args)
+    {
+        if (args == null || args.Length == 0)
+            return ThemeManager();
+
+        if (args.Length != 1)
+        {
+            Console.Error.WriteLine("Usage: wgdot theme [theme-id]");
+            return 2;
+        }
+
+        return ApplyYasbTheme(args[0]);
+    }
+
+    static int ThemeManager()
+    {
+        while (true)
+        {
+            string current = CurrentYasbThemeId();
+            var items = new List<string>();
+            foreach (YasbTheme theme in YasbThemes)
+            {
+                bool active = String.Equals(theme.Id, current, StringComparison.OrdinalIgnoreCase);
+                items.Add((active ? "* " : "  ") + theme.Label);
+            }
+            items.Add("Back");
+
+            int currentIndex = YasbThemes.FindIndex(
+                x => String.Equals(x.Id, current, StringComparison.OrdinalIgnoreCase));
+            if (currentIndex < 0) currentIndex = 0;
+
+            int choice = ReadSingleChoice(
+                "YASB Themes - live palette only; GlazeWM is not reloaded",
+                items,
+                currentIndex);
+
+            if (choice < 0 || choice >= YasbThemes.Count)
+                return 0;
+
+            ApplyYasbTheme(YasbThemes[choice].Id);
+        }
+    }
+
+    static int ApplyYasbTheme(string id)
+    {
+        YasbTheme theme = FindYasbTheme(id);
+        if (theme == null)
+        {
+            Console.Error.WriteLine("Unknown YASB theme: " + (id ?? ""));
+            Console.Error.WriteLine(
+                "Available: " + String.Join(", ", YasbThemes.Select(x => x.Id).ToArray()));
+            return 2;
+        }
+
+        string cssPath = YasbThemeCssPath();
+        WriteTextAtomic(cssPath, BuildYasbThemeCss(theme));
+
+        var state = new Dictionary<string, object>();
+        state["id"] = theme.Id;
+        state["label"] = theme.Label;
+        state["appliedAt"] = DateTime.UtcNow.ToString("o");
+        state["cssPath"] = cssPath;
+        state["glazewmReloaded"] = false;
+        WriteJson(ThemeStatePath, state);
+
+        Console.WriteLine("YASB theme applied: " + theme.Label);
+        Console.WriteLine("GlazeWM was not reloaded; window tiling/layout state is untouched.");
+        return 0;
+    }
+
+    static string BuildYasbThemeCss(YasbTheme theme)
+    {
+        int red = Int32.Parse(theme.Foreground.Substring(1, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture);
+        int green = Int32.Parse(theme.Foreground.Substring(3, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture);
+        int blue = Int32.Parse(theme.Foreground.Substring(5, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture);
+
+        var lines = new List<string>();
+        lines.Add("/* Generated by WGDot. Active YASB theme: " + theme.Label + " */");
+        lines.Add(":root {");
+        lines.Add("    --background: " + theme.Background + ";");
+        lines.Add("    --foreground: " + theme.Foreground + ";");
+        lines.Add("    --hover: " + theme.Hover + ";");
+        lines.Add("    --focus: " + theme.Focus + ";");
+        lines.Add("    --active: " + theme.Active + ";");
+        lines.Add("    --urgent: " + theme.Urgent + ";");
+        lines.Add("    --dark: " + theme.Dark + ";");
+        lines.Add("    --charging: " + theme.Charging + ";");
+        lines.Add("    --critical: " + theme.Critical + ";");
+        lines.Add("    --muted: " + theme.Muted + ";");
+        lines.Add(String.Format(
+            CultureInfo.InvariantCulture,
+            "    --subtle-hover: rgba({0}, {1}, {2}, 20);",
+            red, green, blue));
+        lines.Add(String.Format(
+            CultureInfo.InvariantCulture,
+            "    --subtle-active: rgba({0}, {1}, {2}, 26);",
+            red, green, blue));
+        lines.Add("    --strong-hover: rgba(115, 121, 148, 64);");
+        lines.Add("}");
+        lines.Add("");
+        return String.Join("\r\n", lines.ToArray());
+    }
+
     static int OpenFlowLauncher()
     {
         string exe = FindFlowLauncherExe();
@@ -8687,6 +8884,40 @@ public static class Program
         string raw = File.ReadAllText(path);
         if (String.IsNullOrWhiteSpace(raw)) return null;
         return AsDictionary(Json.DeserializeObject(raw));
+    }
+
+    static void WriteTextAtomic(string path, string value)
+    {
+        string parent = Path.GetDirectoryName(path);
+        if (String.IsNullOrWhiteSpace(parent))
+            throw new Exception("Text destination has no parent: " + path);
+
+        Directory.CreateDirectory(parent);
+        string tmp = path + ".tmp-" + Guid.NewGuid().ToString("N");
+        try
+        {
+            File.WriteAllText(tmp, value, new UTF8Encoding(false));
+            if (File.Exists(path))
+            {
+                try
+                {
+                    File.Replace(tmp, path, null);
+                    return;
+                }
+                catch
+                {
+                    File.Copy(tmp, path, true);
+                    SafeDeleteFile(tmp);
+                    return;
+                }
+            }
+
+            File.Move(tmp, path);
+        }
+        finally
+        {
+            SafeDeleteFile(tmp);
+        }
     }
 
     static void WriteJson(string path, object value)
