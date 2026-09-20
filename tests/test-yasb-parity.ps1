@@ -44,10 +44,13 @@ Assert-Contains $config 'align: "center"' "current YASB BarAlignment field is us
 Assert-NotContains $config 'center: false' "obsolete bar alignment field is absent"
 Assert-NotContains $config 'acrylic:' "removed YASB blur field is absent"
 Assert-Contains $config 'enabled: false' "bar/task decorative animation has an explicit disabled state"
-Assert-Contains $config 'yasb.applications.ApplicationsWidget' "native YASB Applications widget is used"
-Assert-Contains $config 'yasb.custom.CustomWidget' "launcher uses native callback-capable YASB Custom widget"
-Assert-Contains $config 'wgdot flow-open' "launcher reuses WGDot Flow Launcher integration"
-Assert-Contains $config 'tooltip_label: "Flow Launcher"' "launcher retains an explicit Flow Launcher tooltip"
+Assert-Contains $config 'yasb.applications.ApplicationsWidget' "native YASB Applications widget is used for workspace mouse controls"
+Assert-Contains $config 'yasb.quick_launch.QuickLaunchWidget' "launcher uses native YASB Quick Launch"
+Assert-Contains $config 'search_placeholder: "Search applications..."' "Quick Launch defaults to installed-application search"
+Assert-Contains $config 'keys: "alt+p"' "YASB Quick Launch owns Awtarchy Alt+P"
+Assert-Contains $config 'keys: "win+d"' "YASB Quick Launch owns Awtarchy Super+D"
+Assert-Contains $config 'keys: "win+alt+d"' "YASB Quick Launch remains reachable from VM mode"
+Assert-NotContains $config 'wgdot flow-open' "bar no longer depends on Flow Launcher"
 Assert-Contains $config 'glazewm.workspaces.GlazewmWorkspacesWidget' "native GlazeWM workspace widget is used"
 Assert-Contains $config 'monitor_exclusive: true' "monitor-local workspace/task behavior is retained"
 Assert-Contains $config 'enable_scroll_switching: true' "workspace wheel switching is enabled"
@@ -64,6 +67,12 @@ Assert-Contains $config 'GlazeWM pause (Alt+Super+P)' "pause tooltip documents t
 Assert-Contains $config 'glazewm_pause:' "real GlazeWM pause has a dedicated bar state"
 Assert-Contains $config 'run_cmd: "wgdot glazewm-pause-status"' "pause state queries the real GlazeWM paused flag"
 Assert-Contains $config 'run_interval: 1000' "pause state refreshes without a persistent helper daemon"
+Assert-Contains $config 'yasb.control_center.ControlCenterWidget' "native YASB Control Center provides Awtarchy-style quick settings"
+Assert-Contains $config 'keys: "win+alt+backspace"' "quick settings matches Awtarchy Super+Alt+Backspace"
+Assert-Contains $config 'command: "wgdot yasb-running-apps-toggle"' "quick settings can show/hide running applications"
+Assert-Contains $config 'command: "wgdot yasb-running-apps-shade-toggle"' "quick settings can toggle themed running-app shading"
+Assert-Contains $config 'command: "wgdot theme-toggle"' "quick settings exposes WGDot themes"
+Assert-Contains $config 'command: "wgdot bar-autohide-toggle"' "quick settings exposes coordinated bar auto-hide"
 Assert-Contains $config 'on_right: "toggle_window"' "taskbar right click uses YASB minimize/restore behavior"
 Assert-Contains $config 'label: "{info[percent][total]} <span></span>"' "CPU label matches Awtarchy's unitless integer plus glyph"
 Assert-Contains $config 'label: "{virtual_mem_percent} <span></span>"' "memory label matches Awtarchy's unitless integer plus glyph"
@@ -192,7 +201,7 @@ foreach ($glaze in @($glazeNormal, $glazeWork)) {
     Assert-Contains $glaze 'bindings: ["lwin", "rwin"]' "standalone Super consume binding is present outside VM mode"
     Assert-Contains $glaze 'bindings: ["lwin+1", "rwin+1"]' "Super+number workspace focus survives noalt"
     Assert-Contains $glaze 'bindings: ["lwin+shift+1", "rwin+shift+1"]' "Super+Shift+number workspace move survives noalt"
-    Assert-Contains $glaze 'bindings: ["lwin+alt+d", "rwin+alt+d"]' "VM host Flow Launcher moved away from the pause chord"
+    Assert-NotContains $glaze 'bindings: ["lwin+alt+d", "rwin+alt+d"]' "YASB Quick Launch owns VM host launcher hotkey"
 }
 Assert-NotContains $config 'komorebi' "abandoned Komorebi integration is absent"
 Assert-NotContains $config 'whkd' "whkd is not introduced"
@@ -200,6 +209,8 @@ Assert-NotContains $config 'whkd' "whkd is not introduced"
 foreach ($widgetType in @(
     'yasb.cpu.CpuWidget',
     'yasb.memory.MemoryWidget',
+    'yasb.control_center.ControlCenterWidget',
+    'yasb.quick_launch.QuickLaunchWidget',
     'yasb.brightness.BrightnessWidget',
     'yasb.battery.BatteryWidget',
     'yasb.microphone.MicrophoneWidget',
@@ -233,8 +244,12 @@ Assert-Contains $moverHoverBlock 'max-width: 156px;' "workspace mover expands it
 Assert-Contains $moverButtonBlock 'font-size: 14px;' "workspace mover icons retain Awtarchy's compact symbol size"
 Assert-Contains $moverButtonBlock 'padding: 0 7px;' "workspace mover keeps compact horizontal slots"
 Assert-NotContains $style '.workspace-move-grouper' "obsolete click-only Grouper styling is removed"
-Assert-Contains $style '.awtarchy-launcher .icon' "launcher span is styled through YASB's native icon class"
-Assert-Contains $style '.awtarchy-launcher:hover' "launcher uses Awtarchy's strong hover treatment"
+Assert-Contains $style '.quick-launch-widget .icon' "native Quick Launch icon is styled like Awtarchy's launcher"
+Assert-Contains $style '.quick-launch-widget:hover' "Quick Launch uses Awtarchy's strong hover treatment"
+Assert-Contains $style '.quick-launch-popup .container' "Quick Launch popup has WGDot theme styling"
+Assert-Contains $style '.awtarchy-control-center:hover' "quick settings button uses Awtarchy's strong hover treatment"
+Assert-Contains $style '.control-center-menu' "Control Center popup has WGDot theme styling"
+Assert-Contains $style '@import "appearance.css";' "styles import WGDot live appearance overrides"
 Assert-Contains $style '.dnd-widget:hover' "notification/DND action uses Awtarchy's strong hover treatment"
 Assert-Contains $style 'font-size: 19px;' "notification/DND icon keeps Awtarchy's tuned icon scale"
 Assert-Contains $style 'padding: 0 8px;' "fixed 8 px horizontal action padding is retained"
