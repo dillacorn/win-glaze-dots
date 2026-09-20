@@ -4997,9 +4997,18 @@ internal static class WgdotNative
             try
             {
                 string html = DownloadVendorPageText(page);
+                // AMD/NVIDIA periodically emit download URLs through JSON/script
+                // blobs with escaped slashes rather than literal href values.
+                // Normalize both forms before matching the vendor-owned host.
+                html = WebUtility.HtmlDecode(html ?? "");
+                html = html
+                    .Replace(@"\/", "/")
+                    .Replace(@"\u002F", "/")
+                    .Replace(@"\u002f", "/");
+
                 Match match = Regex.Match(html, pattern, RegexOptions.IgnoreCase);
                 if (match.Success)
-                    return WebUtility.HtmlDecode(match.Value);
+                    return match.Value;
             }
             catch
             {
