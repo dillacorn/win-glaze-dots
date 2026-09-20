@@ -349,6 +349,7 @@ Assert-True ($nativeSourceText -match 'firefoxPolicyConfigured') "Firefox extens
 Assert-True ($nativeSourceText -match 'ApplyBrowserConfiguration\(manifest, selection, false\)') "user-level browser pass does not rewrite protected Firefox policy"
 Assert-True ($nativeSourceText -match 'Firefox extension policy failed in elevated setup') "elevated Firefox policy failures are labeled instead of surfacing as an anonymous browser error"
 Assert-True ($nativeSourceText -match 'Windows denied normal-user access for tweak') "later tweak operations retry access-denied registry work through explicit elevation"
+Assert-True ($nativeSourceText -match 'ApplyTweak\(id, enabled == "1", true\);') "direct apply-tweak commands permit UAC fallback on access denied"
 Assert-True ($nativeSourceText -match 'Elevated tweak batching self-test failed') "native self-test covers elevated tweak classification"
 Assert-True ($nativeSourceText -match 'ConfirmQuitInstallationSelection') "installation selection has an explicit quit guard"
 Assert-True ($nativeSourceText -match 'Quit the installer and discard the current selection changes\?') "quit guard clearly asks before discarding installation choices"
