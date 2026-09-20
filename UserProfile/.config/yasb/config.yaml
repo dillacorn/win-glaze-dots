@@ -246,7 +246,6 @@ widgets:
       tooltip: true
       scroll_step: 5
       invert_wheel: false
-      hide_unsupported: true
       ddc_poll_interval: 60
       brightness_menu:
         blur: false
