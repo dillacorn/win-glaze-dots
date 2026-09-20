@@ -11,6 +11,10 @@ The default selection is intentionally conservative for public use. Only the WGD
 
 privacy.sexy remains optional. WGDot installs/updates only from the official upstream release, detects when the installer already started the desktop app so it does not launch a duplicate window, and waits for that app instance to close before continuing. WGDot does not disable antivirus or add antivirus exclusions around privacy.sexy execution. Upstream 0.13.8 does not expose a supported unattended CLI/API for selecting a recommendation level, generating the resulting script, and executing it.
 
+## Taskbar Widgets compatibility
+
+WGDot normally hides the Windows 11 Widgets button through the current-user `TaskbarDa` setting. Some Windows builds protect that specific value even when other taskbar values remain writable. If Windows rejects only `TaskbarDa`, WGDot discards the untouched value's rollback snapshot and uses Microsoft's machine-level Widgets policy `SOFTWARE\Policies\Microsoft\Dsh\AllowNewsAndInterests=0` inside the existing elevated setup batch. The pre-WGDot policy state is snapshotted for rollback.
+
 ## Elevation behavior
 
 WGDot keeps the interactive software selector unelevated. After the user reviews and approves the software selection, WGDot preflights the selected WinGet packages, collects any explicitly approved upgrades, and groups missing installs plus administrator-only setup into one internal elevated worker. On a normal unelevated run, this means one UAC approval for the software batch instead of one elevation prompt per installer.

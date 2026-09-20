@@ -19,7 +19,7 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-33";
+    const string Version = "native-preview-34";
     const int WingetPreflightTimeoutMs = 30000;
     const string RepoFullName = "dillacorn/win-glaze-dots";
     const string RepoUrl = "https://github.com/dillacorn/win-glaze-dots.git";
@@ -3604,6 +3604,32 @@ internal static class WgdotNative
         WriteJson(TweakStatePath, state);
     }
 
+    static void DiscardRegistryOriginalSnapshot(
+        string tweakId,
+        string hive,
+        string path,
+        string name)
+    {
+        var state = ReadJson(TweakStatePath);
+        if (state == null) return;
+
+        string snapshotKey = RegistrySnapshotKey(tweakId, hive, path, name);
+        List<object> records = GetList(state, "registryOriginals")
+            .Where(raw =>
+            {
+                var record = AsDictionary(raw);
+                return !String.Equals(
+                    GetString(record, "key"),
+                    snapshotKey,
+                    StringComparison.Ordinal);
+            })
+            .Cast<object>()
+            .ToList();
+
+        state["registryOriginals"] = records.ToArray();
+        WriteJson(TweakStatePath, state);
+    }
+
     static void RestoreRegistryOriginals(string tweakId)
     {
         var state = ReadJson(TweakStatePath);
@@ -4215,9 +4241,41 @@ public static class Program
         SetRegistryValueWithSnapshot(id, "HKCU",
             @"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced",
             "ShowTaskViewButton", 0, RegistryValueKind.DWord);
-        SetRegistryValueWithSnapshot(id, "HKCU",
-            @"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced",
-            "TaskbarDa", 0, RegistryValueKind.DWord);
+        const string advancedPath =
+            @"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced";
+        try
+        {
+            SetRegistryValueWithSnapshot(
+                id,
+                "HKCU",
+                advancedPath,
+                "TaskbarDa",
+                0,
+                RegistryValueKind.DWord);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            // Some current Windows builds protect TaskbarDa even though the
+            // surrounding Explorer\Advanced values remain writable. The
+            // failed write made no mutation, so do not retain a rollback
+            // snapshot for that value. Use Microsoft's machine policy for
+            // Widgets as the bounded elevated fallback instead.
+            DiscardRegistryOriginalSnapshot(id, "HKCU", advancedPath, "TaskbarDa");
+
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine(
+                "Windows protected the TaskbarDa Widgets value; " +
+                "using the supported Widgets policy fallback.");
+            Console.ResetColor();
+
+            SetRegistryValueWithSnapshot(
+                id,
+                "HKLM",
+                @"SOFTWARE\Policies\Microsoft\Dsh",
+                "AllowNewsAndInterests",
+                0,
+                RegistryValueKind.DWord);
+        }
         SetRegistryValueWithSnapshot(id, "HKCU",
             @"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced",
             "TaskbarMn", 0, RegistryValueKind.DWord);
@@ -7312,6 +7370,27 @@ public static class Program
                 !IsContinueInstallationConfirmationKey(ConsoleKey.N) ||
                 IsContinueInstallationConfirmationKey(ConsoleKey.Y))
                 throw new Exception("Installation quit confirmation self-test failed.");
+
+            var snapshotState = new Dictionary<string, object>();
+            snapshotState["registryOriginals"] = new object[0];
+            WriteJson(TweakStatePath, snapshotState);
+            CaptureRegistryOriginal(
+                "selftest-discard",
+                "HKCU",
+                registrySelfTestPath,
+                "DiscardMe");
+            DiscardRegistryOriginalSnapshot(
+                "selftest-discard",
+                "HKCU",
+                registrySelfTestPath,
+                "DiscardMe");
+            Dictionary<string, object> discardState = ReadJson(TweakStatePath);
+            if (GetList(discardState, "registryOriginals").Any(raw =>
+                String.Equals(
+                    GetString(AsDictionary(raw), "tweakId"),
+                    "selftest-discard",
+                    StringComparison.OrdinalIgnoreCase)))
+                throw new Exception("Registry snapshot discard self-test failed.");
 
             Console.WriteLine("WGDot native runtime self-test passed.");
             return 0;
