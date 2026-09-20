@@ -25,6 +25,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 CONFIG_PATH = REPO_ROOT / "UserProfile" / ".config" / "yasb" / "config.yaml"
 STYLE_PATH = REPO_ROOT / "UserProfile" / ".config" / "yasb" / "styles.css"
 THEME_PATH = REPO_ROOT / "UserProfile" / ".config" / "yasb" / "theme.css"
+APPEARANCE_PATH = REPO_ROOT / "UserProfile" / ".config" / "yasb" / "appearance.css"
 
 
 def fail(message: str) -> None:
@@ -52,6 +53,7 @@ from core.validation.widgets.yasb.battery import BatteryConfig
 from core.validation.widgets.yasb.bluetooth import BluetoothConfig
 from core.validation.widgets.yasb.brightness import BrightnessConfig
 from core.validation.widgets.yasb.clock import ClockConfig
+from core.validation.widgets.yasb.control_center import ControlCenterConfig
 from core.validation.widgets.yasb.cpu import CpuConfig
 from core.validation.widgets.yasb.custom import CustomConfig
 from core.validation.widgets.yasb.dnd import DndConfig
@@ -77,6 +79,7 @@ SCHEMAS = {
     "yasb.bluetooth.BluetoothWidget": BluetoothConfig,
     "yasb.brightness.BrightnessWidget": BrightnessConfig,
     "yasb.clock.ClockWidget": ClockConfig,
+    "yasb.control_center.ControlCenterWidget": ControlCenterConfig,
     "yasb.cpu.CpuWidget": CpuConfig,
     "yasb.custom.CustomWidget": CustomConfig,
     "yasb.dnd.DndWidget": DndConfig,
@@ -99,6 +102,7 @@ WIDGET_SOURCE = {
     "yasb.bluetooth.BluetoothWidget": "core/widgets/yasb/bluetooth.py",
     "yasb.brightness.BrightnessWidget": "core/widgets/yasb/brightness.py",
     "yasb.clock.ClockWidget": "core/widgets/yasb/clock.py",
+    "yasb.control_center.ControlCenterWidget": "core/widgets/yasb/control_center.py",
     "yasb.cpu.CpuWidget": "core/widgets/yasb/cpu.py",
     "yasb.custom.CustomWidget": "core/widgets/yasb/custom.py",
     "yasb.dnd.DndWidget": "core/widgets/yasb/dnd.py",
@@ -231,6 +235,7 @@ for name, widget in widgets.items():
 # override. This proves the managed @import ordering resolves WGDot's live
 # palette variables instead of merely checking that the text exists.
 original_theme = THEME_PATH.read_bytes() if THEME_PATH.exists() else None
+original_appearance = APPEARANCE_PATH.read_bytes() if APPEARANCE_PATH.exists() else None
 try:
     THEME_PATH.write_text(
         ":root {\n"
@@ -239,14 +244,23 @@ try:
         "}\n",
         encoding="utf-8",
     )
+    APPEARANCE_PATH.write_text(
+        "/* test WGDot appearance override */\n"
+        ".taskbar-widget .app-container.running { background-color: var(--foreground); }\n",
+        encoding="utf-8",
+    )
     processor = CSSProcessor(str(STYLE_PATH))
     processed_css = processor.process()
     normalized_imports = {Path(path).resolve() for path in processor.imported_files}
 
     if THEME_PATH.resolve() not in normalized_imports:
         fail("upstream CSS processor did not register theme.css as an imported stylesheet")
+    if APPEARANCE_PATH.resolve() not in normalized_imports:
+        fail("upstream CSS processor did not register appearance.css as an imported stylesheet")
     if "#112233" not in processed_css or "#abcdef" not in processed_css:
         fail("generated theme.css variables did not override the fallback YASB palette")
+    if ".taskbar-widget .app-container.running" not in processed_css:
+        fail("generated appearance.css rules were not included by upstream CSS processing")
     if "var(--" in processed_css:
         fail("managed YASB stylesheet leaves unresolved CSS variables after upstream processing")
 finally:
@@ -254,6 +268,10 @@ finally:
         THEME_PATH.unlink(missing_ok=True)
     else:
         THEME_PATH.write_bytes(original_theme)
+    if original_appearance is None:
+        APPEARANCE_PATH.unlink(missing_ok=True)
+    else:
+        APPEARANCE_PATH.write_bytes(original_appearance)
 
 print(
     "YASB config/CSS validated against upstream schemas, deprecations, callbacks, "
