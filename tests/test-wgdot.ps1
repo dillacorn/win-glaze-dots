@@ -363,7 +363,7 @@ Assert-True ($nativeSourceText -match 'TweakNeedsAdministrator') "software batch
 Assert-True ($nativeSourceText -match 'WingetPreflightTimeoutMs = 30000') "WinGet preflight has a finite timeout"
 Assert-True ($nativeSourceText -match 'EnsureWingetAvailable') "native runtime can bootstrap required WinGet automatically"
 Assert-True ($nativeSourceText -match 'Microsoft\.WinGet\.Client') "WinGet bootstrap uses Microsoft's supported PowerShell module"
-Assert-True ($nativeSourceText -match 'Repair-WinGetPackageManager -AllUsers') "WinGet bootstrap uses Microsoft's repair/bootstrap cmdlet"
+Assert-True ($nativeSourceText -match 'Repair-WinGetPackageManager -Force -Latest') "WinGet bootstrap uses Microsoft's current repair/bootstrap command"
 Assert-True ($nativeSourceText -match 'Add-AppxPackage -RegisterByFamilyName') "WinGet bootstrap requests current-user App Installer registration"
 Assert-True ($nativeBootstrapText -match '"%OUT%" ensure-winget') "native bootstrap enforces WinGet as a WGDot prerequisite"
 Assert-True ($nativeSourceText -match 'Reading installed WinGet package state') "software reconciliation snapshots installed packages once before per-package network validation"
