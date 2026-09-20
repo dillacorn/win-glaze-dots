@@ -257,6 +257,8 @@ Software management is separate from managed-dot updates.
 - Flow Launcher is WinGet-first but has an approved fallback to `Flow-Launcher/Flow.Launcher` asset `Flow-Launcher-Setup.exe` because real-VM testing reproduced a WinGet download stall while the same official asset completed normally outside WinGet.
 - The native software catalog audit is strictly non-mutating: no installer downloads, installs, upgrades, app launches, registry writes, or elevation. It checks every manifest package with exact-ID `winget show`, validates known post-install action names, and resolves declared official GitHub fallback assets using the same resolver as real fallback installs.
 - Treat catalog audit success as metadata/source coverage only. It does not prove an installer can execute successfully or that application-specific runtime configuration works after installation.
+- Packages intentionally unavailable from WinGet may declare `installMode: official-page` with an HTTPS publisher download page and installed display name. The audit validates the official page without downloading an installer. Reconcile may offer to open that publisher page, but must not invent a third-party mirror or silently scrape/execute an unverified changing binary.
+- FileZilla Client is an `official-page` package because Microsoft's WinGet repository flags FileZilla Client/Server as blocked from the community repository for redistribution/licensing reasons. Keep its historical ID only as WGDot selection identity; do not attempt `winget install` for it.
 - Do not invent package IDs. Verify changed or questionable IDs against current WinGet data before committing them.
 
 ## Browser configuration

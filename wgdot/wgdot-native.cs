@@ -19,7 +19,7 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-35";
+    const string Version = "native-preview-36";
     const int WingetPreflightTimeoutMs = 30000;
     const string RepoFullName = "dillacorn/win-glaze-dots";
     const string RepoUrl = "https://github.com/dillacorn/win-glaze-dots.git";
@@ -1676,6 +1676,56 @@ internal static class WgdotNative
         return failures == 0 ? 0 : 1;
     }
 
+    static bool IsOfficialPagePackage(Dictionary<string, object> package)
+    {
+        return String.Equals(
+            GetString(package, "installMode"),
+            "official-page",
+            StringComparison.OrdinalIgnoreCase);
+    }
+
+    static bool ProbeOfficialHttpsPage(string url, out string error)
+    {
+        error = "";
+        if (String.IsNullOrWhiteSpace(url) ||
+            !url.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+        {
+            error = "Official page URL must use HTTPS.";
+            return false;
+        }
+
+        try
+        {
+            HttpWebRequest request = (HttpWebRequest)WebRequest.Create(url);
+            request.Method = "GET";
+            request.UserAgent = "Mozilla/5.0 WGDot";
+            request.AllowAutoRedirect = true;
+            request.Timeout = WingetPreflightTimeoutMs;
+            request.ReadWriteTimeout = WingetPreflightTimeoutMs;
+
+            using (HttpWebResponse response = (HttpWebResponse)request.GetResponse())
+            using (Stream stream = response.GetResponseStream())
+            {
+                int status = (int)response.StatusCode;
+                if (status < 200 || status >= 400)
+                {
+                    error = "HTTP " + status.ToString(CultureInfo.InvariantCulture);
+                    return false;
+                }
+
+                if (stream != null)
+                    stream.ReadByte();
+            }
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+            return false;
+        }
+    }
+
     static bool IsKnownPackagePostInstallAction(string action)
     {
         return
@@ -1707,6 +1757,8 @@ internal static class WgdotNative
 
         int wingetOk = 0;
         int fallbackOk = 0;
+        int officialPageOk = 0;
+        int alternateSourceCount = 0;
         int warningCount = 0;
         int failureCount = 0;
         var failureDetails = new List<string>();
@@ -1719,6 +1771,7 @@ internal static class WgdotNative
             string name = GetString(package, "name");
             string postInstallAction = GetString(package, "postInstallAction");
             bool hasFallback = HasOfficialGitHubFallback(package);
+            bool officialPage = IsOfficialPagePackage(package);
 
             Console.Write(
                 "[" + (index + 1).ToString(CultureInfo.InvariantCulture) +
@@ -1743,6 +1796,31 @@ internal static class WgdotNative
                 failureCount++;
                 failureDetails.Add(
                     "Unknown post-install action '" + postInstallAction + "' for " + id);
+                continue;
+            }
+
+            if (officialPage)
+            {
+                string pageUrl = GetString(package, "officialPageUrl");
+                string pageError;
+                bool pageOk = ProbeOfficialHttpsPage(pageUrl, out pageError);
+                if (pageOk)
+                {
+                    officialPageOk++;
+                    alternateSourceCount++;
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.WriteLine("official page OK");
+                    Console.ResetColor();
+                }
+                else
+                {
+                    failureCount++;
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine("official page FAIL");
+                    Console.ResetColor();
+                    failureDetails.Add(
+                        "Official download page check failed for " + id + ": " + pageError);
+                }
                 continue;
             }
 
@@ -1817,9 +1895,8 @@ internal static class WgdotNative
 
             if (!exactOk && hasFallback)
             {
-                warningCount++;
-                warningDetails.Add(
-                    "WinGet exact ID unavailable/timed out but official fallback is declared: " + id);
+                alternateSourceCount++;
+                Console.Write(" | using verified fallback path");
             }
 
             Console.WriteLine();
@@ -1830,6 +1907,8 @@ internal static class WgdotNative
         Console.WriteLine("Packages checked: " + packages.Count.ToString(CultureInfo.InvariantCulture));
         Console.WriteLine("Exact WinGet IDs available: " + wingetOk.ToString(CultureInfo.InvariantCulture));
         Console.WriteLine("Official GitHub fallbacks verified: " + fallbackOk.ToString(CultureInfo.InvariantCulture));
+        Console.WriteLine("Official download pages verified: " + officialPageOk.ToString(CultureInfo.InvariantCulture));
+        Console.WriteLine("Packages using alternate official source: " + alternateSourceCount.ToString(CultureInfo.InvariantCulture));
         Console.WriteLine("Warnings: " + warningCount.ToString(CultureInfo.InvariantCulture));
         Console.WriteLine("Failures: " + failureCount.ToString(CultureInfo.InvariantCulture));
 
@@ -1917,6 +1996,7 @@ internal static class WgdotNative
         var installIds = new List<string>();
         var installedExistingIds = new List<string>();
         var upgradeIds = new List<string>();
+        var officialPagePending = new List<Dictionary<string, object>>();
         int installed = 0;
         int already = 0;
         int unavailable = 0;
@@ -1956,6 +2036,34 @@ internal static class WgdotNative
 
             Console.WriteLine();
             Console.WriteLine("Checking " + id + "...");
+
+            if (IsOfficialPagePackage(package))
+            {
+                string installedName = GetString(package, "installedName");
+                ProcResult manualList = RunWithTimeout(
+                    "winget.exe",
+                    "list --name " + Q(installedName) + " --exact --disable-interactivity",
+                    null,
+                    WingetPreflightTimeoutMs);
+
+                bool manualInstalled =
+                    !manualList.TimedOut &&
+                    (manualList.StdOut ?? "").IndexOf(installedName, StringComparison.OrdinalIgnoreCase) >= 0;
+
+                if (manualInstalled)
+                {
+                    Console.WriteLine("Already installed.");
+                    already++;
+                }
+                else
+                {
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.WriteLine("WinGet cannot install this package; official download page will be offered after reconciliation.");
+                    Console.ResetColor();
+                    officialPagePending.Add(package);
+                }
+                continue;
+            }
 
             bool isInstalled =
                 (installedSnapshot.StdOut ?? "").IndexOf(id, StringComparison.OrdinalIgnoreCase) >= 0;
@@ -2143,6 +2251,29 @@ internal static class WgdotNative
         selection.TweaksConfigured = true;
         WriteInstallationSelection(selection);
 
+        if (officialPagePending.Count > 0)
+        {
+            Console.WriteLine();
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine("Manual official-source applications:");
+            Console.ResetColor();
+
+            foreach (Dictionary<string, object> package in officialPagePending)
+            {
+                string name = GetString(package, "name");
+                string url = GetString(package, "officialPageUrl");
+                Console.WriteLine("  - " + name + ": WinGet installation is unavailable.");
+
+                if (ReadYesNo("Open the official " + name + " download page now? [y/N]", false))
+                {
+                    var psi = new ProcessStartInfo();
+                    psi.FileName = url;
+                    psi.UseShellExecute = true;
+                    Process.Start(psi);
+                }
+            }
+        }
+
         Console.WriteLine();
         Console.WriteLine("Software reconciliation complete.");
         Console.WriteLine("Installed: " + installed.ToString(CultureInfo.InvariantCulture));
@@ -2150,6 +2281,7 @@ internal static class WgdotNative
         Console.WriteLine("Upgraded: " + upgraded.ToString(CultureInfo.InvariantCulture));
         Console.WriteLine("Unavailable exact IDs: " + unavailable.ToString(CultureInfo.InvariantCulture));
         Console.WriteLine("Install/setup failures: " + failed.ToString(CultureInfo.InvariantCulture));
+        Console.WriteLine("Manual official installs pending: " + officialPagePending.Count.ToString(CultureInfo.InvariantCulture));
 
         if (failureDetails.Count > 0)
         {

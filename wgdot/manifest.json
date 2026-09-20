@@ -674,7 +674,10 @@
       "id": "TimKosse.FileZilla.Client",
       "category": "networking",
       "defaultNormal": false,
-      "defaultWork": false
+      "defaultWork": false,
+      "installMode": "official-page",
+      "officialPageUrl": "https://filezilla-project.org/download.php?type=client",
+      "installedName": "FileZilla Client"
     },
     {
       "name": "Moonlight",

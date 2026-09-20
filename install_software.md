@@ -19,7 +19,7 @@ WGDot normally hides the Windows 11 Widgets button through the current-user `Tas
 
 The native maintenance menu includes **Audit all software (no install)**. This checks every package in the WGDot manifest, including optional applications, without installing or downloading installer payloads. The audit performs exact-ID WinGet metadata lookups, validates any known post-install action names, and checks declared official GitHub fallback repositories for a matching latest-release asset.
 
-The audit does not request UAC, modify the registry, launch applications, install/upgrade packages, or consume meaningful VM disk space. It is intended for broad catalog validation on a small test VM. A passing audit does not prove that a third-party installer itself will execute correctly or that app-specific runtime integration works after installation.
+The audit does not request UAC, modify the registry, launch applications, install/upgrade packages, or consume meaningful VM disk space. It is intended for broad catalog validation on a small test VM. Packages with a verified official fallback are counted as alternate-source coverage rather than a failure. FileZilla is intentionally treated as an official-page package because it is not available from the WinGet community source; WGDot validates its publisher download page without downloading the installer. A passing audit does not prove that a third-party installer itself will execute correctly or that app-specific runtime integration works after installation.
 
 Direct command:
 
