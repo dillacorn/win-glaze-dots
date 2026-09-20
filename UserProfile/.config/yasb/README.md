@@ -71,6 +71,7 @@ The following Awtarchy features are not translated because a direct supported eq
 - Awtarchy's workspace mover expands on hover and includes a mouse submap toggle. YASB's native Grouper expands by click, and WGDot has no equivalent mouse binding mode.
 - Awtarchy only shows its microphone indicator while muted. YASB's native microphone widget remains visible and applies a muted CSS state instead.
 - task-icon left click is not identical: YASB's native `toggle_window` minimizes an already-active window; Awtarchy's left click simply activates it.
+- task-icon right click intentionally uses YASB's native Windows context menu instead of duplicating Awtarchy's activate action; this is the more useful Windows-native behavior.
 
 ## Anti-cheat-sensitive choices
 
