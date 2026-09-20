@@ -21,11 +21,12 @@ bars:
 
     window_flags:
       always_on_top: true
-      windows_app_bar: true
+      # Keep WGDot's existing GlazeWM-reserved top gap instead of migrating
+      # live sessions to a Windows AppBar. Switching reservation models would
+      # require a GlazeWM config reload to avoid a double gap, and WGDot does
+      # not force that layout-disrupting reload for a bar/theme update.
+      windows_app_bar: false
       hide_on_fullscreen: true
-      # YASB auto-hide correctly releases AppBar work area, but v2.0.7
-      # exposes no runtime CLI toggle for this setting. Keep normal mode
-      # explicit instead of pretending toggle-bar is Awtarchy auto-hide.
       auto_hide: false
 
     dimensions:
