@@ -121,7 +121,6 @@ Assert-Equal $true ([bool]$micLockTrayPackage.launchAfterInstall) "MicLockTray l
 
 $startupExpectations = @{
     "glzr-io.glazewm" = "glazewm"
-    "AmN.yasb" = "yasb"
     "AltSnap.AltSnap" = "altsnap"
     "File-New-Project.EarTrumpet" = "eartrumpet"
     "dillacorn.MicLockTray" = "miclocktray"
@@ -343,8 +342,8 @@ Assert-True ($nativeSourceText -match 'SoftwareReconcile') "native runtime inclu
 Assert-True ($nativeSourceText -match 'SoftwareManager') "native runtime exposes a software/startup management surface"
 Assert-True ($nativeSourceText -match 'StartupManager') "native runtime exposes individual startup management"
 Assert-True ($nativeSourceText -match '(?s)SpecialFolder\.ApplicationData.*?AltSnap.*?AltSnap\.exe') "AltSnap startup resolver covers its normal per-user AppData install path"
-Assert-True ($nativeSourceText -match 'FindYasbExe') "YASB startup resolver is implemented"
-Assert-True ($nativeSourceText -match 'handler, "yasb"') "YASB has a dedicated WGDot startup command path"
+Assert-True ($nativeSourceText -match 'GlazeWM \+ YASB') "startup manager presents the GlazeWM/YASB session as one login unit"
+Assert-True ($nativeSourceText -notmatch 'startupHandler.*yasb') "YASB is not registered as a duplicate Windows startup application"
 Assert-True ($nativeSourceText -match 'SoftwareUninstallManager') "native runtime exposes explicit individual uninstall management"
 foreach ($command in @("software-reconcile", "software-uninstall", "startup", "startup-disable-all")) {
     Assert-True ($nativeSourceText -match ('String\.Equals\(command, "' + [regex]::Escape($command) + '"')) "direct $command command participates in runtime auto-refresh"
