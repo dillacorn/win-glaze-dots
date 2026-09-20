@@ -168,61 +168,6 @@ QToolTip {
     background-color: var(--subtle-hover);
 }
 
-/* Native YASB theme drawer. The bar stays compact until the palette glyph is
-   clicked; each short token applies one of Awtarchy's current palettes
-   directly through WGDot without reloading GlazeWM. */
-.theme-grouper {
-    margin: 0;
-    padding: 0;
-}
-
-.theme-grouper .container {
-    background-color: transparent;
-    border: none;
-    border-radius: 0;
-    margin: 0;
-    padding: 0;
-}
-
-.theme-grouper .grouper-button {
-    color: var(--foreground);
-    background-color: transparent;
-    border: none;
-    border-radius: 0;
-    min-width: 28px;
-    margin: 0;
-    padding: 0 5px;
-}
-
-.theme-grouper .grouper-button:hover {
-    background-color: var(--strong-hover);
-}
-
-.theme-choice-buttons,
-.theme-choice-buttons .widget-container {
-    background-color: transparent;
-    border: none;
-    border-radius: 0;
-    margin: 0;
-    padding: 0;
-}
-
-.theme-choice-buttons .label {
-    color: var(--foreground);
-    background-color: transparent;
-    border: none;
-    border-radius: 0;
-    min-width: 26px;
-    margin: 0;
-    padding: 0 4px;
-    font-size: 11px;
-    font-weight: 600;
-}
-
-.theme-choice-buttons .label:hover {
-    background-color: var(--subtle-hover);
-}
-
 /* Running window strip. */
 .taskbar-widget {
     background-color: transparent;
