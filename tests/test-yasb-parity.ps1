@@ -49,6 +49,7 @@ Assert-Contains $config 'glazewm.exe command move-workspace --direction left' "w
 Assert-Contains $config 'glazewm.binding_mode.GlazewmBindingModeWidget' "binding mode is used as the Windows submap equivalent"
 Assert-Contains $config 'on_right: "toggle_window"' "taskbar right click uses YASB minimize/restore behavior"
 Assert-Contains $config 'label_icon: false' "active window title remains text-only"
+Assert-Contains $config 'monitor_exclusive: false' "active window title follows the globally focused window like Awtarchy"
 Assert-Contains $config 'ddc_poll_interval: 60' "brightness uses native YASB DDC polling"
 Assert-Contains $config 'use_hook: false' "systray avoids explorer DLL injection"
 Assert-NotContains $config 'use_hook: true' "systray DLL injection is never enabled"
