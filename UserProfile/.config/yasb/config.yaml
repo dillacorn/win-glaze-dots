@@ -108,15 +108,15 @@ widgets:
       class_name: "workspace-move-buttons"
       tooltip: true
       app_list:
-        - icon: "←"
-          launch: "glazewm.exe command move-workspace --direction left"
-          name: "Move workspace left"
         - icon: "↑"
           launch: "glazewm.exe command move-workspace --direction up"
           name: "Move workspace up"
         - icon: "↓"
           launch: "glazewm.exe command move-workspace --direction down"
           name: "Move workspace down"
+        - icon: "←"
+          launch: "glazewm.exe command move-workspace --direction left"
+          name: "Move workspace left"
         - icon: "→"
           launch: "glazewm.exe command move-workspace --direction right"
           name: "Move workspace right"
