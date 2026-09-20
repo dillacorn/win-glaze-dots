@@ -364,9 +364,10 @@ QToolTip {
     color: var(--critical);
 }
 
-.battery-widget .label.charging,
-.battery-widget .icon.charging {
-    /* Awtarchy indicates charging with the bolt, not a separate color. */
+.battery-widget .label.status-charging,
+.battery-widget .icon.status-charging {
+    /* YASB emits status-charging on active battery label parts.
+       Awtarchy indicates charging with the bolt, not a separate color. */
     color: var(--foreground);
 }
 

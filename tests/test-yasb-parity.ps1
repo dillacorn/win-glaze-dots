@@ -182,6 +182,8 @@ Assert-Contains $readme 'Evidence-backed mappings' "feature mappings document th
 Assert-Contains $readme 'Deliberate differences and omissions' "unsupported translations are documented"
 Assert-Contains $style '.battery-widget .label.status-critical' "battery critical state has dedicated styling"
 Assert-NotContains $style '.battery-widget .label.status-low' "battery low range is not incorrectly colored critical"
+Assert-Contains $style '.battery-widget .label.status-charging' "battery charging selector matches YASB's native status-charging class"
+Assert-NotContains $style '.battery-widget .label.charging' "dead non-native battery charging selector is not reintroduced"
 Assert-Contains $style 'Awtarchy indicates charging with the bolt, not a separate color.' "charging battery keeps Awtarchy's normal foreground"
 Assert-Contains $style '.bluetooth-widget .icon.bt-off' "Bluetooth disabled state has explicit native-state styling"
 Assert-Contains $style 'color: var(--muted);' "disabled Bluetooth uses Awtarchy's muted foreground"
