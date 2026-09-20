@@ -208,7 +208,7 @@ widgets:
   cpu:
     type: "yasb.cpu.CpuWidget"
     options:
-      label: "{info[percent][total]}% <span></span>"
+      label: "{info[percent][total]} <span></span>"
       label_alt: "{info[freq][current]} MHz"
       update_interval: 2000
       hide_decimal: true
@@ -230,7 +230,7 @@ widgets:
   memory:
     type: "yasb.memory.MemoryWidget"
     options:
-      label: "{virtual_mem_percent}% <span></span>"
+      label: "{virtual_mem_percent} <span></span>"
       label_alt: "{virtual_mem_used} / {virtual_mem_total}"
       update_interval: 5000
       hide_decimal: true
@@ -252,7 +252,7 @@ widgets:
   brightness:
     type: "yasb.brightness.BrightnessWidget"
     options:
-      label: "<span>{icon}</span> {percent}%"
+      label: "<span>{icon}</span> {percent}"
       label_alt: "Brightness {percent}%"
       tooltip: true
       scroll_step: 5
@@ -273,11 +273,11 @@ widgets:
     type: "yasb.battery.BatteryWidget"
     options:
       label: "<span>{icon}</span> {percent}%"
-      label_alt: "<span>{icon}</span> {percent}% {time_remaining}"
+      label_alt: "<span>{icon}</span> {percent} {time_remaining}"
       update_interval: 5000
       hide_unsupported: true
       charging_options:
-        icon_format: "{charging_icon}"
+        icon_format: "{icon} {charging_icon}"
         blink_charging_icon: false
         blink_interval: 500
       callbacks:
@@ -322,7 +322,7 @@ widgets:
       scroll_step: 2
       slider_beep: false
       icons:
-        muted: ""
+        muted: ""
         "10": ""
         "30": ""
         "60": ""

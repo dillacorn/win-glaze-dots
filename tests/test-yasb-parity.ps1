@@ -50,8 +50,10 @@ Assert-Contains $config 'yasb.grouper.GrouperWidget' "workspace mover uses nativ
 Assert-Contains $config 'glazewm.exe command move-workspace --direction left' "workspace mover uses native GlazeWM commands"
 Assert-Contains $config 'glazewm.binding_mode.GlazewmBindingModeWidget' "binding mode is used as the Windows submap equivalent"
 Assert-Contains $config 'on_right: "toggle_window"' "taskbar right click uses YASB minimize/restore behavior"
-Assert-Contains $config 'label: "{info[percent][total]}% <span></span>"' "CPU glyph can use Awtarchy-matched icon sizing"
-Assert-Contains $config 'label: "{virtual_mem_percent}% <span></span>"' "memory glyph can use Awtarchy-matched icon sizing"
+Assert-Contains $config 'label: "{info[percent][total]} <span></span>"' "CPU label matches Awtarchy's unitless integer plus glyph"
+Assert-Contains $config 'label: "{virtual_mem_percent} <span></span>"' "memory label matches Awtarchy's unitless integer plus glyph"
+Assert-NotContains $config 'label: "{info[percent][total]}% <span></span>"' "CPU bar label does not reintroduce a percent suffix"
+Assert-NotContains $config 'label: "{virtual_mem_percent}% <span></span>"' "memory bar label does not reintroduce a percent suffix"
 if (([regex]::Matches($config, 'icon_size:\s*14')).Count -lt 2) {
     throw "ASSERTION FAILED: taskbar and systray retain Awtarchy's current 14 px default icon size"
 }
@@ -59,7 +61,10 @@ Assert-Contains $config 'label_icon: false' "active window title remains text-on
 Assert-Contains $config 'monitor_exclusive: false' "active window title follows the globally focused window like Awtarchy"
 Assert-Contains $config 'ddc_poll_interval: 60' "brightness uses native YASB DDC polling"
 Assert-Contains $config 'exec cmd.exe /c start ms-settings:powersleep' "battery clicks use Windows Power and battery settings"
+Assert-Contains $config 'label: "<span>{icon}</span> {percent}"' "battery bar label matches Awtarchy's unitless integer"
+Assert-Contains $config 'icon_format: "{icon} {charging_icon}"' "plugged-in battery retains the battery glyph and adds the charging bolt"
 Assert-Contains $config 'on_middle: "toggle_label"' "battery middle click retains YASB alternate battery label"
+Assert-Contains $config 'muted: ""' "volume muted glyph matches current Awtarchy"
 Assert-Contains $config 'use_hook: false' "systray avoids explorer DLL injection"
 Assert-NotContains $config 'use_hook: true' "systray DLL injection is never enabled"
 Assert-Contains $config 'yasb.quick_launch.QuickLaunchWidget' "clipboard history uses native YASB Quick Launch"
@@ -128,6 +133,10 @@ Assert-Contains $style 'padding: 0 8px;' "fixed 8 px horizontal action padding i
 
 Assert-Contains $readme 'Evidence-backed mappings' "feature mappings document their evidence boundary"
 Assert-Contains $readme 'Deliberate differences and omissions' "unsupported translations are documented"
+Assert-Contains $style '.systray {' "systray styling is explicitly controlled"
+Assert-Contains $style 'padding: 0;' "Awtarchy-style tray outer padding is removed"
+Assert-Contains $style 'margin: 0 5px;' "tray buttons preserve 10 px inter-icon spacing"
+
 Assert-Contains $readme 'CPU temperature' "CPU temperature is not silently substituted with another metric"
 Assert-Contains $readme 'Clipboard History' "native clipboard-history mapping is documented"
 Assert-Contains $readme 'Do Not Disturb' "notification-mute approximation is documented"

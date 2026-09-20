@@ -482,6 +482,9 @@ QToolTip {
    inject its systray hook DLL into explorer.exe. */
 .systray {
     background-color: transparent;
+    /* Awtarchy's TrayStrip has no outer BarButton padding. The 5 px
+       per-button margins below preserve its 10 px inter-icon spacing. */
+    padding: 0;
 }
 
 .systray .pinned-container,
