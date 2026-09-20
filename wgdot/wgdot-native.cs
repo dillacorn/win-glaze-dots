@@ -19,7 +19,7 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-42";
+    const string Version = "native-preview-43";
     const int WingetPreflightTimeoutMs = 30000;
     const string RepoFullName = "dillacorn/win-glaze-dots";
     const string RepoUrl = "https://github.com/dillacorn/win-glaze-dots.git";
@@ -66,6 +66,42 @@ internal static class WgdotNative
     [DllImport("user32.dll")]
     static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, UIntPtr dwExtraInfo);
 
+    [DllImport("user32.dll")]
+    static extern short GetAsyncKeyState(int vKey);
+
+    [StructLayout(LayoutKind.Sequential)]
+    struct RECT
+    {
+        public int Left;
+        public int Top;
+        public int Right;
+        public int Bottom;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    struct MONITORINFO
+    {
+        public uint cbSize;
+        public RECT rcMonitor;
+        public RECT rcWork;
+        public uint dwFlags;
+    }
+
+    [DllImport("user32.dll", CharSet = CharSet.Auto)]
+    static extern bool GetMonitorInfo(IntPtr hMonitor, ref MONITORINFO lpmi);
+
+    [DllImport("user32.dll")]
+    static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
+
+    [DllImport("user32.dll")]
+    static extern bool MoveWindow(
+        IntPtr hWnd,
+        int x,
+        int y,
+        int width,
+        int height,
+        bool repaint);
+
     delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
 
     [DllImport("user32.dll")]
@@ -104,6 +140,7 @@ internal static class WgdotNative
 
     const byte VkMenu = 0x12;
     const byte VkLwin = 0x5B;
+    const byte VkRwin = 0x5C;
     const byte VkV = 0x56;
     const uint KeyeventfKeyup = 0x0002;
 
@@ -349,6 +386,9 @@ internal static class WgdotNative
             if (command == "flow-open") return OpenFlowLauncher();
             if (command == "eartrumpet-mixer") return OpenEarTrumpetMixer();
             if (command == "clipboard-history") return OpenWindowsClipboardHistory();
+            if (command == "flameshot-gui") return OpenFlameshotGui();
+            if (command == "rawaccel-open") return OpenRawAccel();
+            if (command == "display-settings") return OpenDisplaySettings();
             if (command == "glazewm-pause-status") return GlazeWmPauseStatus();
             if (command == "glazewm-pause-toggle") return GlazeWmPauseToggle();
             if (command == "theme-toggle") return ThemeToggle();
@@ -5311,15 +5351,141 @@ internal static class WgdotNative
         return 0;
     }
 
+    static void WaitForWindowsModifierRelease()
+    {
+        // GlazeWM launches Super aliases before the physical Windows key has
+        // necessarily been released. Injecting another shell shortcut while
+        // that modifier is still down can turn Super+C into another Windows
+        // shell action. Wait for the real key-up before synthesizing a shortcut.
+        for (int i = 0; i < 200; i++)
+        {
+            bool leftDown = (GetAsyncKeyState(VkLwin) & 0x8000) != 0;
+            bool rightDown = (GetAsyncKeyState(VkRwin) & 0x8000) != 0;
+            if (!leftDown && !rightDown)
+                return;
+            System.Threading.Thread.Sleep(10);
+        }
+
+        throw new Exception("Windows key is still held; release it and retry the shortcut.");
+    }
+
     static int OpenWindowsClipboardHistory()
     {
-        // WGDot leaves the real Win+V shortcut untouched and only synthesizes
-        // it for the bar button / Super+C alias.
-        System.Threading.Thread.Sleep(80);
+        // Awtarchy parity: Super+C invokes the native Windows Clipboard History
+        // flyout by synthesizing its real Win+V shortcut after Super is released.
+        WaitForWindowsModifierRelease();
         keybd_event(VkLwin, 0, 0, UIntPtr.Zero);
         keybd_event(VkV, 0, 0, UIntPtr.Zero);
         keybd_event(VkV, 0, KeyeventfKeyup, UIntPtr.Zero);
         keybd_event(VkLwin, 0, KeyeventfKeyup, UIntPtr.Zero);
+        return 0;
+    }
+
+    static string FindRegisteredAppPath(string fileName)
+    {
+        string subKey = @"Software\Microsoft\Windows\CurrentVersion\App Paths\" + fileName;
+        foreach (RegistryKey root in new[] { Registry.CurrentUser, Registry.LocalMachine })
+        {
+            try
+            {
+                using (RegistryKey key = root.OpenSubKey(subKey, false))
+                {
+                    if (key == null) continue;
+                    string registered = Convert.ToString(key.GetValue(null, ""));
+                    if (!String.IsNullOrWhiteSpace(registered) && File.Exists(registered))
+                        return registered;
+                }
+            }
+            catch
+            {
+            }
+        }
+        return "";
+    }
+
+    static string FindFlameshotExe()
+    {
+        string registered = FindRegisteredAppPath("flameshot.exe");
+        if (!String.IsNullOrWhiteSpace(registered))
+            return registered;
+
+        ProcResult where = Run("where.exe", "flameshot.exe", null);
+        if (where.ExitCode == 0)
+        {
+            foreach (string line in (where.StdOut ?? "").Replace("\r", "").Split('\n'))
+            {
+                string candidate = line.Trim();
+                if (!String.IsNullOrWhiteSpace(candidate) && File.Exists(candidate))
+                    return candidate;
+            }
+        }
+
+        var roots = new[]
+        {
+            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
+            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),
+            Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "Programs")
+        }
+        .Where(x => !String.IsNullOrWhiteSpace(x))
+        .Distinct(StringComparer.OrdinalIgnoreCase);
+
+        foreach (string root in roots)
+        {
+            string[] candidates =
+            {
+                Path.Combine(root, "Flameshot", "bin", "flameshot.exe"),
+                Path.Combine(root, "Flameshot", "flameshot.exe"),
+                Path.Combine(root, "flameshot", "bin", "flameshot.exe"),
+                Path.Combine(root, "flameshot", "flameshot.exe")
+            };
+            string found = candidates.FirstOrDefault(File.Exists);
+            if (!String.IsNullOrWhiteSpace(found))
+                return found;
+        }
+
+        return "";
+    }
+
+    static int OpenFlameshotGui()
+    {
+        string exe = FindFlameshotExe();
+        if (String.IsNullOrWhiteSpace(exe))
+            throw new Exception("Flameshot executable could not be found.");
+
+        var psi = new ProcessStartInfo();
+        psi.FileName = exe;
+        psi.Arguments = "gui";
+        psi.UseShellExecute = true;
+        Process.Start(psi);
+        return 0;
+    }
+
+    static int OpenRawAccel()
+    {
+        string exe = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "Programs",
+            "RawAccel",
+            "rawaccel.exe");
+
+        if (!File.Exists(exe))
+            throw new Exception("Raw Accel is not installed in WGDot's managed RawAccel location.");
+
+        var psi = new ProcessStartInfo();
+        psi.FileName = exe;
+        psi.UseShellExecute = true;
+        Process.Start(psi);
+        return 0;
+    }
+
+    static int OpenDisplaySettings()
+    {
+        var psi = new ProcessStartInfo();
+        psi.FileName = "ms-settings:display";
+        psi.UseShellExecute = true;
+        Process.Start(psi);
         return 0;
     }
 
@@ -5382,26 +5548,62 @@ internal static class WgdotNative
             cloaked != 0;
     }
 
-    static int LaunchThemeTerminal()
+    static void CenterWindowOnMonitor(IntPtr window, IntPtr monitor)
+    {
+        if (window == IntPtr.Zero || monitor == IntPtr.Zero)
+            return;
+
+        var info = new MONITORINFO();
+        info.cbSize = (uint)Marshal.SizeOf(typeof(MONITORINFO));
+        RECT rect;
+        if (!GetMonitorInfo(monitor, ref info) || !GetWindowRect(window, out rect))
+            return;
+
+        int width = Math.Max(1, rect.Right - rect.Left);
+        int height = Math.Max(1, rect.Bottom - rect.Top);
+        int workWidth = Math.Max(1, info.rcWork.Right - info.rcWork.Left);
+        int workHeight = Math.Max(1, info.rcWork.Bottom - info.rcWork.Top);
+        int x = info.rcWork.Left + Math.Max(0, (workWidth - width) / 2);
+        int y = info.rcWork.Top + Math.Max(0, (workHeight - height) / 2);
+        MoveWindow(window, x, y, width, height, true);
+    }
+
+    static int LaunchThemeTerminal(IntPtr targetMonitor)
     {
         var psi = new ProcessStartInfo();
         psi.FileName = "wt.exe";
         psi.Arguments = "-w new --size 72,22 nt --title \"WGDot Themes\" --suppressApplicationTitle wgdot theme";
         psi.UseShellExecute = true;
         Process.Start(psi);
+
+        if (targetMonitor != IntPtr.Zero)
+        {
+            for (int i = 0; i < 80; i++)
+            {
+                IntPtr window = FindTopLevelWindowByExactTitle("WGDot Themes");
+                if (window != IntPtr.Zero)
+                {
+                    CenterWindowOnMonitor(window, targetMonitor);
+                    break;
+                }
+                System.Threading.Thread.Sleep(25);
+            }
+        }
+
         return 0;
     }
 
     static int ThemeToggle()
     {
-        IntPtr existing = FindTopLevelWindowByExactTitle("WGDot Themes");
-        if (existing == IntPtr.Zero)
-            return LaunchThemeTerminal();
-
         IntPtr foreground = GetForegroundWindow();
         IntPtr focusedMonitor = foreground == IntPtr.Zero
             ? IntPtr.Zero
             : MonitorFromWindow(foreground, MonitorDefaultToNearest);
+
+        IntPtr existing = FindTopLevelWindowByExactTitle("WGDot Themes");
+        if (existing == IntPtr.Zero)
+            return LaunchThemeTerminal(focusedMonitor);
+
         IntPtr existingMonitor = MonitorFromWindow(existing, MonitorDefaultToNearest);
 
         // A visible, uncloaked selector on the focused monitor is the same
@@ -5422,7 +5624,7 @@ internal static class WgdotNative
         for (int i = 0; i < 20 && IsWindow(existing); i++)
             System.Threading.Thread.Sleep(25);
 
-        return LaunchThemeTerminal();
+        return LaunchThemeTerminal(focusedMonitor);
     }
 
     static System.Drawing.Color WgdotDrawingColor(string hex, System.Drawing.Color fallback)
@@ -5649,8 +5851,9 @@ internal static class WgdotNative
             System.Threading.Thread.Sleep(500);
         }
 
-        // EarTrumpet supports one native mixer hotkey. WGDot keeps Alt+V
-        // internal to this helper; Win+V remains Windows Clipboard History.
+        // Match Awtarchy's Super+V alias without mixing the still-held Super
+        // modifier into EarTrumpet's native Alt+V hotkey.
+        WaitForWindowsModifierRelease();
         keybd_event(VkMenu, 0, 0, UIntPtr.Zero);
         keybd_event(VkV, 0, 0, UIntPtr.Zero);
         keybd_event(VkV, 0, KeyeventfKeyup, UIntPtr.Zero);
