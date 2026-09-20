@@ -7,6 +7,7 @@ on:
       - "wgdot/**"
       - "tests/test-wgdot.ps1"
       - "tests/test-yasb-config.py"
+      - "tests/test-yasb-parity.ps1"
       - "UserProfile/.config/yasb/**"
       - "MANUAL_POWERSHELL.md"
       - "AGENTS.md"
@@ -16,6 +17,7 @@ on:
       - "wgdot/**"
       - "tests/test-wgdot.ps1"
       - "tests/test-yasb-config.py"
+      - "tests/test-yasb-parity.ps1"
       - "UserProfile/.config/yasb/**"
       - "MANUAL_POWERSHELL.md"
       - "AGENTS.md"
@@ -57,6 +59,9 @@ jobs:
       - name: Validate with Windows PowerShell 5.1
         shell: powershell
         run: powershell.exe -NoLogo -NoProfile -File tests\test-wgdot.ps1
+      - name: Validate YASB parity with Windows PowerShell 5.1
+        shell: powershell
+        run: powershell.exe -NoLogo -NoProfile -File tests\test-yasb-parity.ps1
 
   powershell-7:
     runs-on: windows-latest
@@ -65,6 +70,9 @@ jobs:
       - name: Validate with PowerShell 7
         shell: pwsh
         run: pwsh -NoLogo -NoProfile -File tests/test-wgdot.ps1
+      - name: Validate YASB parity with PowerShell 7
+        shell: pwsh
+        run: pwsh -NoLogo -NoProfile -File tests/test-yasb-parity.ps1
 
   native-bootstrap:
     runs-on: windows-latest
