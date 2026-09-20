@@ -11,6 +11,12 @@ The default selection is intentionally conservative for public use. Only the WGD
 
 privacy.sexy remains optional. WGDot installs/updates only from the official upstream release, detects when the installer already started the desktop app so it does not launch a duplicate window, and waits for that app instance to close before continuing. WGDot does not disable antivirus or add antivirus exclusions around privacy.sexy execution. Upstream 0.13.8 does not expose a supported unattended CLI/API for selecting a recommendation level, generating the resulting script, and executing it.
 
+## Automatic time and time zone
+
+WGDot defaults **Sync Windows time + detect time zone automatically** ON. This is an administrator-level Windows setting because automatic time-zone detection is system-wide. WGDot enables the normal Windows Time service path, enables the Auto Time Zone Updater, and enables Windows Location services using Microsoft's documented registry settings. It then starts the built-in services when possible, requests an immediate `w32tm /resync /rediscover`, and reports the current Windows time zone.
+
+No third-party geolocation or IP-location service is used. Windows itself determines the time zone from Location services. A domain/MDM policy, disabled location provider, unavailable network, or VPN/location mismatch can still prevent or delay correct detection. Deselecting the tweak restores the pre-WGDot registry settings; it does not intentionally roll the current clock or selected time zone backward.
+
 ## Taskbar Widgets compatibility
 
 WGDot normally hides the Windows 11 Widgets button through the current-user `TaskbarDa` setting. Some Windows builds protect that specific value even when other taskbar values remain writable. If Windows rejects only `TaskbarDa`, WGDot discards the untouched value's rollback snapshot and uses Microsoft's machine-level Widgets policy `SOFTWARE\Policies\Microsoft\Dsh\AllowNewsAndInterests=0` inside the existing elevated setup batch. The pre-WGDot policy state is snapshotted for rollback.
