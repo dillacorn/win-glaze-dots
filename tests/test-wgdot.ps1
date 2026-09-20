@@ -576,8 +576,22 @@ Assert-True ($runtimeText -notmatch '(?i)winget\s+upgrade\s+--all') "runtime nev
 Assert-True ($manualText -notmatch '(?i)winget\s+upgrade\s+--all') "manual path never upgrades all WinGet packages"
 Assert-True ($runtimeText -notmatch '(?i)rmdir\s+/s') "runtime does not use destructive CMD directory removal"
 
+$yasbConfigText = Get-Content -LiteralPath (Join-Path $repoRoot "UserProfile\.config\yasb\config.yaml") -Raw
+Assert-True ($yasbConfigText -match 'context_menu:\s*true') "YASB blank-bar context menu is enabled for safe auto-hide/recovery"
+Assert-True ($yasbConfigText -match 'glazewm_tiling_direction') "YASB exposes GlazeWM tiling direction"
+Assert-True ($yasbConfigText -match 'GlazewmTilingDirectionWidget') "YASB uses its native GlazeWM tiling-direction widget"
+
+Assert-True ($nativeSourceText -match 'WaitForWindowsModifierRelease') "synthetic clipboard/mixer hotkeys wait for physical Super release"
+Assert-True ($nativeSourceText -match 'command == "flameshot-gui"') "native runtime exposes a robust Flameshot launcher"
+Assert-True ($nativeSourceText -match 'FindFlameshotExe') "Flameshot launcher resolves the installed executable"
+Assert-True ($nativeSourceText -match 'command == "display-settings"') "native runtime exposes Windows display settings"
+Assert-True ($nativeSourceText -match 'command == "rawaccel-open"') "native runtime exposes the managed Raw Accel GUI"
+Assert-True ($nativeSourceText -match 'CenterWindowOnMonitor') "theme picker can move to the focused monitor"
+
 $glazeNormalText = Get-Content -LiteralPath (Join-Path $repoRoot "UserProfile\.glzr\glazewm\config.yaml") -Raw
 $glazeWorkText = Get-Content -LiteralPath (Join-Path $repoRoot "UserProfile\.glzr\glazewm\custom_work_config.yaml") -Raw
+Assert-True ($glazeNormalText -match 'bindings:\s*\["alt\+shift\+m",\s*"lwin\+shift\+m",\s*"rwin\+shift\+m"\]') "Normal profile matches Awtarchy Raw Accel launch keys"
+Assert-True ($glazeNormalText -match 'window_process:\s*\{ regex: "\^rawaccel') "Raw Accel launches floating and centered in Normal profile"
 Assert-True ($glazeNormalText -notmatch '(?ms)- name: "1"\r?\n\s+display_name: "1: Flame"\r?\n\s+keep_alive:\s*true') "normal GlazeWM workspace 1 is not pinned alive"
 foreach ($text in @($glazeNormalText, $glazeWorkText)) {
     $globalMarker = [Environment]::NewLine + "keybindings:" + [Environment]::NewLine
@@ -589,8 +603,15 @@ foreach ($text in @($glazeNormalText, $glazeWorkText)) {
     Assert-True (-not (($bindingModesIndex -ge 0) -and ($flameshotIndex -gt $bindingModesIndex) -and ($flameshotIndex -lt $globalIndex))) "Flameshot bind is not trapped inside a binding mode"
     Assert-True ($text -notmatch 'win\+shift\+f') "old Win+Shift+F Flameshot bind is removed"
     Assert-True ($text -match 'bindings:\s*\["lwin\+d",\s*"rwin\+d"\]') "GlazeWM owns Super+D for Flow Launcher during NoWinKeys testing"
-    Assert-True ($text -notmatch 'bindings:\s*\["lwin\+v",\s*"rwin\+v"\]') "GlazeWM leaves Win+V to Windows Clipboard History"
+    Assert-True ($text -match 'bindings:\s*\["lwin\+v",\s*"rwin\+v"\]') "GlazeWM owns Super+V for the EarTrumpet mixer"
     Assert-True ($text -match 'bindings:\s*\["lwin\+c",\s*"rwin\+c"\]') "GlazeWM adds Super+C for Windows Clipboard History"
+    Assert-True ($text -match 'bindings:\s*\["lwin\+p",\s*"rwin\+p"\]') "Super+P opens the WGDot power menu"
+    Assert-True ($text -match 'bindings:\s*\["lwin\+ctrl\+m",\s*"rwin\+ctrl\+m"\]') "Super+Ctrl+M opens Windows display settings"
+    Assert-True ($text -match 'flameshot-gui') "Flameshot bindings route through the WGDot executable resolver"
+    Assert-True ($text -match 'bindings:\s*\["alt\+ctrl\+shift\+r"\]') "Alt+Ctrl+Shift+R reloads GlazeWM"
+    Assert-True ($text -notmatch 'bindings:\s*\["alt\+ctrl\+b"\]') "unsafe hard-hide bar shortcut is removed"
+    Assert-True ($text -match 'inner_gap:\s*"5px"') "GlazeWM uses the requested 5px inner gap"
+    Assert-True ($text -match 'top:\s*"35px"') "GlazeWM reserves the requested 35px top gap"
     Assert-True ($text -match 'clipboard-history') "Super+C routes through the WGDot Clipboard History helper"
     Assert-True ($text -match 'color:\s*"#a1a1a1"') "GlazeWM focused border is theme-neutral"
     Assert-True (($text -split 'bindings:\s*\["lwin\+t",\s*"rwin\+t"\]').Count - 1 -ge 1) "Win+T theme picker exists globally"
@@ -831,7 +852,7 @@ foreach ($text in @($glazeNormalText, $glazeWorkText)) {
     Assert-True (-not (($bindingModesIndex -ge 0) -and ($flameshotIndex -gt $bindingModesIndex) -and ($flameshotIndex -lt $globalIndex))) "Flameshot bind is not trapped inside a binding mode"
     Assert-True ($text -notmatch 'win\+shift\+f') "old Win+Shift+F Flameshot bind is removed"
     Assert-True ($text -match 'bindings:\s*\["lwin\+d",\s*"rwin\+d"\]') "GlazeWM owns Super+D during NoWinKeys testing"
-    Assert-True ($text -notmatch 'bindings:\s*\["lwin\+v",\s*"rwin\+v"\]') "GlazeWM leaves Win+V native"
+    Assert-True ($text -match 'bindings:\s*\["lwin\+v",\s*"rwin\+v"\]') "GlazeWM owns Super+V for the EarTrumpet mixer"
     Assert-True ($text -match 'bindings:\s*\["lwin\+c",\s*"rwin\+c"\]') "Super+C opens Windows Clipboard History"
     Assert-True ($text -match 'shell-exec --hide-window %LOCALAPPDATA%\\wgdot\\bin\\wgdot\.exe flow-open') "WGDot GlazeWM helper paths do not need executable quotes"
     Assert-True ($text -notmatch 'shell-exec --hide-window "%LOCALAPPDATA%\\wgdot\\bin\\wgdot\.exe"') "WGDot GlazeWM helper paths avoid parser-breaking executable quotes"
