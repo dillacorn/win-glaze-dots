@@ -299,6 +299,8 @@ Assert-True ($launcherText -match '(?i)AllSigned') "launcher handles AllSigned p
 Assert-True ($manualText -notmatch '(?i)-ExecutionPolicy\s+Bypass') "manual path does not bypass execution policy"
 Assert-True ($manualText -match 'theme\.css') "paste-only manual workflow generates YASB theme.css"
 Assert-True ($manualText -match 'theme\.json') "paste-only manual workflow preserves YASB theme state"
+Assert-True ($manualText -match 'appearance\.css') "paste-only manual workflow generates YASB appearance.css"
+Assert-True ($manualText -match 'yasb-appearance\.json') "paste-only manual workflow preserves YASB appearance state"
 foreach ($themeId in @("carbon-night", "catppuccin-frappe", "crimson-red", "electric-blue", "gruvbox", "iron-forge", "obsidian-night", "pink", "pipboy")) {
     Assert-True ($manualText.Contains($themeId)) "paste-only manual workflow includes YASB theme palette: $themeId"
 }
