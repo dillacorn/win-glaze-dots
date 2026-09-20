@@ -34,7 +34,11 @@ Assert-Equal "dillacorn/win-glaze-dots" ([string]$manifest.runtime.repository) "
 
 $componentIds = @($manifest.components | ForEach-Object { [string]$_.id })
 Assert-True ($componentIds -contains "glazewm") "GlazeWM component exists"
+Assert-True ($componentIds -contains "yasb") "YASB component exists"
 Assert-True ($componentIds -contains "yazi") "Yazi component exists"
+
+$yasb = $manifest.components | Where-Object { $_.id -eq "yasb" } | Select-Object -First 1
+Assert-True (@($yasb.postActions | Where-Object { $_.type -eq "ensure-yasb-theme" }).Count -eq 1) "YASB component has exactly one theme-generation post-action"
 
 $glaze = $manifest.components | Where-Object { $_.id -eq "glazewm" } | Select-Object -First 1
 Assert-Equal "UserProfile/.glzr/glazewm/config.yaml" ([string]$glaze.files[0].sourceByGlazeProfile.normal) "normal GlazeWM source"
@@ -415,7 +419,30 @@ Assert-True ($nativeSourceText -match 'CreateRuntimeSwapHelper') "native runtime
 Assert-True ($nativeSourceText -match '"mark-runtime"') "runtime revision is recorded by the successfully swapped executable"
 Assert-True ($nativeSourceText -match 'WGDOT_SKIP_RUNTIME_REFRESH') "staged runtime avoids recursive refresh while running the requested operation"
 Assert-True ($nativeSourceText -match '"maintenance-self-test"') "native runtime exposes isolated maintenance self-test"
+Assert-True ($nativeSourceText -match 'ensure-yasb-theme') "native runtime supports generated YASB theme post-action"
+Assert-True ((Get-Command Get-WgdotYasbThemeCss -ErrorAction SilentlyContinue) -ne $null) "PowerShell fallback exposes YASB theme CSS generator"
+Assert-True ((Get-Command Set-WgdotYasbTheme -ErrorAction SilentlyContinue) -ne $null) "PowerShell fallback exposes YASB theme writer"
 Assert-True ($nativeSourceText -match 'WGDOT_TEST_ROOT') "native maintenance self-test redirects state away from normal WGDot state"
+
+$themeTestRoot = Join-Path $env:TEMP ("wgdot-ps-theme-test-" + [guid]::NewGuid().ToString("N"))
+try {
+    New-Item -ItemType Directory -Path $themeTestRoot -Force | Out-Null
+    $themeCssPath = Join-Path $themeTestRoot "theme.css"
+    $themeStatePath = Join-Path $themeTestRoot "theme.json"
+    Set-WgdotYasbTheme -Id "electric-blue" -CssPath $themeCssPath -StatePath $themeStatePath
+
+    Assert-True (Test-Path -LiteralPath $themeCssPath -PathType Leaf) "PowerShell fallback writes YASB theme.css"
+    Assert-True (Test-Path -LiteralPath $themeStatePath -PathType Leaf) "PowerShell fallback writes YASB theme state"
+    $themeCss = Get-Content -LiteralPath $themeCssPath -Raw
+    $themeState = Get-Content -LiteralPath $themeStatePath -Raw | ConvertFrom-Json
+    Assert-True ($themeCss -match '--background: #1e1e2e;') "PowerShell fallback theme has Electric Blue background"
+    Assert-True ($themeCss -match '--foreground: #89b4fa;') "PowerShell fallback theme has Electric Blue foreground"
+    Assert-True ($themeCss -match '--subtle-hover: rgba\(137, 180, 250, 20\);') "PowerShell fallback derives Awtarchy subtle-hover alpha"
+    Assert-Equal "electric-blue" ([string]$themeState.id) "PowerShell fallback preserves theme id in state"
+    Assert-Equal $false ([bool]$themeState.glazewmReloaded) "PowerShell fallback records that GlazeWM was not reloaded"
+} finally {
+    if (Test-Path -LiteralPath $themeTestRoot) { Remove-Item -LiteralPath $themeTestRoot -Recurse -Force }
+}
 Assert-True ($nativeSourceText -match 'TweakManager') "native runtime includes Windows tweak manager"
 Assert-True ($nativeSourceText -match 'ApplyMicroTextDefaults') "native runtime manages Micro text associations"
 Assert-True ($nativeSourceText -match 'ReadPackageChoicesByCategory') "software selector is grouped by category"
