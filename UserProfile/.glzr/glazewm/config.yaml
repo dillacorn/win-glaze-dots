@@ -219,6 +219,9 @@ binding_modes:
       - commands: ["shell-exec explorer.exe http:"]
         bindings: ["lwin+b", "rwin+b"]
 
+      - commands: ["shell-exec --hide-window yasbc toggle-bar"]
+        bindings: ["lwin+alt+ctrl+b", "rwin+alt+ctrl+b"]
+
       - commands: ["wm-enable-binding-mode --name vm"]
         bindings: ["lwin+alt+v", "rwin+alt+v"]
 
@@ -253,6 +256,9 @@ binding_modes:
 
       - commands: ["shell-exec wt.exe -w new"]
         bindings: ["lwin+alt+enter", "rwin+alt+enter"]
+
+      - commands: ["shell-exec --hide-window yasbc toggle-bar"]
+        bindings: ["lwin+alt+ctrl+b", "rwin+alt+ctrl+b"]
 
       - commands: ["focus --workspace 1"]
         bindings: ["lwin+alt+1", "rwin+alt+1"]
@@ -309,9 +315,10 @@ keybindings:
   - commands: ['shell-exec --hide-window "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" eartrumpet-mixer']
     bindings: ["lwin+v", "rwin+v"]
 
-  - commands:
-      - shell-exec --hide-window powershell -NoProfile -Command "if (Get-Process yasb -ErrorAction SilentlyContinue) { Stop-Process -Name yasb -Force } else { Start-Process yasb }"
-    bindings: ["alt+ctrl+b"]
+  # YASB-native visibility toggle. Keep the old Alt+Ctrl+B convenience and
+  # add Awtarchy's Win+Alt+Ctrl+B chord without killing the YASB process.
+  - commands: ["shell-exec --hide-window yasbc toggle-bar"]
+    bindings: ["alt+ctrl+b", "lwin+alt+ctrl+b", "rwin+alt+ctrl+b"]
 
   - commands: ['shell-exec C:\Program Files (x86)\SpeedCrunch\speedcrunch.exe']
     bindings: ["alt+shift+c"]
