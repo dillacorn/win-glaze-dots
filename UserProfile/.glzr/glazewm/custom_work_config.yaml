@@ -179,6 +179,10 @@ window_rules:
       - window_title: { regex: "Volume Mixer" }
       - window_process: { equals: "EarTrumpet" }
       - window_title: { regex: "(Find|Replace)" }
+      # Keep the WGDot theme selector out of the tiling tree. Its terminal
+      # title is fixed with Windows Terminal --suppressApplicationTitle.
+      - window_process: { regex: "^WindowsTerminal(\\.exe)?$" }
+        window_title: { equals: "WGDot Themes" }
 
 binding_modes:
   - name: "resize"
@@ -210,7 +214,7 @@ binding_modes:
       - commands: ['shell-exec --hide-window "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" flow-open']
         bindings: ["lwin+d", "rwin+d"]
 
-      - commands: ["shell-exec wt.exe -w new wgdot theme"]
+      - commands: ['shell-exec wt.exe -w new --size 72,22 nt --title "WGDot Themes" --suppressApplicationTitle wgdot theme']
         bindings: ["lwin+t", "rwin+t"]
 
       - commands: ['shell-exec --hide-window "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" eartrumpet-mixer']
@@ -320,7 +324,7 @@ keybindings:
 
   # Awtarchy-style theme entrypoint. WGDot changes only YASB's live palette;
   # GlazeWM is intentionally not reloaded.
-  - commands: ["shell-exec wt.exe -w new wgdot theme"]
+  - commands: ['shell-exec wt.exe -w new --size 72,22 nt --title "WGDot Themes" --suppressApplicationTitle wgdot theme']
     bindings: ["lwin+t", "rwin+t"]
 
   # Keep the legacy WGDot Alt+Ctrl+B hard visibility toggle, but do not
