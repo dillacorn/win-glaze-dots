@@ -19,7 +19,7 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-36";
+    const string Version = "native-preview-37";
     const int WingetPreflightTimeoutMs = 30000;
     const string RepoFullName = "dillacorn/win-glaze-dots";
     const string RepoUrl = "https://github.com/dillacorn/win-glaze-dots.git";
@@ -271,6 +271,7 @@ internal static class WgdotNative
             String.Equals(command, "status", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "git-review", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "software", StringComparison.OrdinalIgnoreCase) ||
+            String.Equals(command, "software-audit", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "gpu-driver", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "update", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "reset", StringComparison.OrdinalIgnoreCase) ||
@@ -1484,6 +1485,20 @@ internal static class WgdotNative
                 Console.WriteLine();
                 Console.WriteLine("Installing " + id + "...");
 
+                if (IsOfficialGitHubPackage(package))
+                {
+                    Console.WriteLine("Using approved official GitHub source for " + id + ".");
+                    if (InstallGitHubReleasePackage(package))
+                        installedIds.Add(id);
+                    else
+                    {
+                        failedIds.Add(id);
+                        failureDetails.Add("Official GitHub install failed: " + id);
+                        failures++;
+                    }
+                    continue;
+                }
+
                 ProcResult show = RunWithTimeout(
                     "winget.exe",
                     "show --id " + Q(id) + " --exact --source winget --accept-source-agreements --disable-interactivity",
@@ -1676,6 +1691,14 @@ internal static class WgdotNative
         return failures == 0 ? 0 : 1;
     }
 
+    static bool IsOfficialGitHubPackage(Dictionary<string, object> package)
+    {
+        return String.Equals(
+            GetString(package, "installMode"),
+            "official-github",
+            StringComparison.OrdinalIgnoreCase);
+    }
+
     static bool IsOfficialPagePackage(Dictionary<string, object> package)
     {
         return String.Equals(
@@ -1744,7 +1767,7 @@ internal static class WgdotNative
         Console.WriteLine();
         Console.WriteLine("This audit does not install, upgrade, download installers, launch apps,");
         Console.WriteLine("change registry settings, or request administrator access.");
-        Console.WriteLine("It validates every exact WinGet ID and every declared official GitHub fallback.");
+        Console.WriteLine("It validates each package's declared source: WinGet, official GitHub, or official publisher page.");
         Console.WriteLine();
 
         if (!ReadYesNo("Audit all software now? [y/N]", false))
@@ -1771,6 +1794,7 @@ internal static class WgdotNative
             string name = GetString(package, "name");
             string postInstallAction = GetString(package, "postInstallAction");
             bool hasFallback = HasOfficialGitHubFallback(package);
+            bool officialGitHub = IsOfficialGitHubPackage(package);
             bool officialPage = IsOfficialPagePackage(package);
 
             Console.Write(
@@ -1796,6 +1820,43 @@ internal static class WgdotNative
                 failureCount++;
                 failureDetails.Add(
                     "Unknown post-install action '" + postInstallAction + "' for " + id);
+                continue;
+            }
+
+            if (officialGitHub)
+            {
+                try
+                {
+                    string assetName;
+                    string assetUrl;
+                    if (ResolveGitHubReleasePackageAsset(package, out assetName, out assetUrl))
+                    {
+                        fallbackOk++;
+                        alternateSourceCount++;
+                        Console.ForegroundColor = ConsoleColor.Green;
+                        Console.Write("official GitHub OK");
+                        Console.ResetColor();
+                        Console.WriteLine(" (" + assetName + ")");
+                    }
+                    else
+                    {
+                        failureCount++;
+                        Console.ForegroundColor = ConsoleColor.Red;
+                        Console.WriteLine("official GitHub FAIL");
+                        Console.ResetColor();
+                        failureDetails.Add(
+                            "Official GitHub source has no matching latest-release asset: " + id);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    failureCount++;
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine("official GitHub FAIL");
+                    Console.ResetColor();
+                    failureDetails.Add(
+                        "Official GitHub source check failed for " + id + ": " + ex.Message);
+                }
                 continue;
             }
 
@@ -2036,6 +2097,32 @@ internal static class WgdotNative
 
             Console.WriteLine();
             Console.WriteLine("Checking " + id + "...");
+
+            if (IsOfficialGitHubPackage(package))
+            {
+                string installedName = GetString(package, "installedName");
+                ProcResult githubList = RunWithTimeout(
+                    "winget.exe",
+                    "list --name " + Q(installedName) + " --exact --disable-interactivity",
+                    null,
+                    WingetPreflightTimeoutMs);
+
+                bool githubInstalled =
+                    !githubList.TimedOut &&
+                    (githubList.StdOut ?? "").IndexOf(installedName, StringComparison.OrdinalIgnoreCase) >= 0;
+
+                if (githubInstalled)
+                {
+                    Console.WriteLine("Already installed.");
+                    already++;
+                }
+                else
+                {
+                    Console.WriteLine("Official GitHub source selected.");
+                    installIds.Add(id);
+                }
+                continue;
+            }
 
             if (IsOfficialPagePackage(package))
             {

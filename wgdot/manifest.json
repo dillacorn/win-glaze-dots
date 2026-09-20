@@ -520,7 +520,9 @@
       "defaultNormal": false,
       "defaultWork": false,
       "fallbackGitHubRepo": "rustdesk/rustdesk",
-      "fallbackAssetRegex": "^rustdesk-.*-x86_64\\.exe$"
+      "fallbackAssetRegex": "^rustdesk-.*-x86_64\\.exe$",
+      "installMode": "official-github",
+      "installedName": "RustDesk"
     },
     {
       "name": "HWMonitor",

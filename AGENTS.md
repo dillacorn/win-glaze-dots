@@ -86,6 +86,7 @@ WGDot runtime and managed configuration intentionally have different lifecycles.
 
 - The installed WGDot runtime may refresh from `main`.
 - Normal user-facing WGDot invocations compare the recorded runtime revision with the configured runtime branch head before dispatch and run the refreshed runtime immediately when they differ.
+- Every newly added direct user-facing maintenance command must be added to the runtime auto-refresh policy before dispatch. Direct subcommands must not require the user to run plain `wgdot` first to receive current runtime behavior.
 - Because Windows cannot reliably overwrite the currently running executable, a refreshed staged runtime schedules its own post-exit replacement of the installed `wgdot.exe` and records the exact revision only after that swap succeeds.
 - Normal managed-config update/reset/review operations must use an exact published stable release, never the current `main` config tree.
 - A runtime refresh from `main` must not silently change the release manifest used for a stable config operation.
@@ -259,6 +260,7 @@ Software management is separate from managed-dot updates.
 - Treat catalog audit success as metadata/source coverage only. It does not prove an installer can execute successfully or that application-specific runtime configuration works after installation.
 - Packages intentionally unavailable from WinGet may declare `installMode: official-page` with an HTTPS publisher download page and installed display name. The audit validates the official page without downloading an installer. Reconcile may offer to open that publisher page, but must not invent a third-party mirror or silently scrape/execute an unverified changing binary.
 - FileZilla Client is an `official-page` package because Microsoft's WinGet repository flags FileZilla Client/Server as blocked from the community repository for redistribution/licensing reasons. Keep its historical ID only as WGDot selection identity; do not attempt `winget install` for it.
+- RustDesk is an `official-github` package backed by `rustdesk/rustdesk`. Current WinGet community data does not expose the historical `RustDesk.RustDesk` package, so audit/reconcile must not report or probe that dead WinGet path as its primary source. Use the verified publisher GitHub release asset resolver directly.
 - Do not invent package IDs. Verify changed or questionable IDs against current WinGet data before committing them.
 
 ## Browser configuration
