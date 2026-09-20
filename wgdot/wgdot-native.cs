@@ -19,7 +19,7 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-44";
+    const string Version = "native-preview-45";
     const int WingetPreflightTimeoutMs = 30000;
     const string RepoFullName = "dillacorn/win-glaze-dots";
     const string RepoUrl = "https://github.com/dillacorn/win-glaze-dots.git";
@@ -70,6 +70,13 @@ internal static class WgdotNative
     static extern short GetAsyncKeyState(int vKey);
 
     [StructLayout(LayoutKind.Sequential)]
+    struct POINT
+    {
+        public int X;
+        public int Y;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
     struct RECT
     {
         public int Left;
@@ -77,6 +84,18 @@ internal static class WgdotNative
         public int Right;
         public int Bottom;
     }
+
+    [StructLayout(LayoutKind.Sequential)]
+    struct MSLLHOOKSTRUCT
+    {
+        public POINT pt;
+        public uint mouseData;
+        public uint flags;
+        public uint time;
+        public UIntPtr dwExtraInfo;
+    }
+
+    delegate IntPtr LowLevelMouseProc(int nCode, IntPtr wParam, IntPtr lParam);
 
     [StructLayout(LayoutKind.Sequential)]
     struct MONITORINFO
@@ -119,6 +138,38 @@ internal static class WgdotNative
     [DllImport("user32.dll")]
     static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
 
+    [DllImport("user32.dll", SetLastError = true)]
+    static extern IntPtr SetWindowsHookEx(
+        int idHook,
+        LowLevelMouseProc lpfn,
+        IntPtr hMod,
+        uint dwThreadId);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    static extern bool UnhookWindowsHookEx(IntPtr hhk);
+
+    [DllImport("user32.dll")]
+    static extern IntPtr CallNextHookEx(
+        IntPtr hhk,
+        int nCode,
+        IntPtr wParam,
+        IntPtr lParam);
+
+    [DllImport("kernel32.dll", CharSet = CharSet.Auto)]
+    static extern IntPtr GetModuleHandle(string lpModuleName);
+
+    [DllImport("user32.dll")]
+    static extern IntPtr WindowFromPoint(POINT point);
+
+    [DllImport("user32.dll")]
+    static extern IntPtr GetAncestor(IntPtr hWnd, uint gaFlags);
+
+    [DllImport("user32.dll")]
+    static extern bool SetForegroundWindow(IntPtr hWnd);
+
+    [DllImport("user32.dll", CharSet = CharSet.Auto)]
+    static extern int GetClassName(IntPtr hWnd, StringBuilder className, int maxCount);
+
     [DllImport("user32.dll")]
     static extern IntPtr GetForegroundWindow();
 
@@ -141,8 +192,29 @@ internal static class WgdotNative
     static extern bool SetSuspendState(bool hibernate, bool forceCritical, bool disableWakeEvent);
 
     const uint WmClose = 0x0010;
+    const uint WmNcLButtonDown = 0x00A1;
+    const uint WmLButtonUp = 0x0202;
+    const int WmLButtonDown = 0x0201;
+    const int WmRButtonDown = 0x0204;
+    const int WmRButtonUp = 0x0205;
+    const int WmMButtonDown = 0x0207;
+    const int WhMouseLl = 14;
+    const uint GaRoot = 2;
+    const uint LlMhfInjected = 0x00000001;
+    const int HtCaption = 2;
+    const int HtTopLeft = 13;
+    const int HtTopRight = 14;
+    const int HtBottomLeft = 16;
+    const int HtBottomRight = 17;
     const uint MonitorDefaultToNearest = 0x00000002;
     const int DwmwaCloaked = 14;
+
+    const string MouseModeMutexName = @"Local\WGDot.MouseModeHook";
+    const string MouseModeStopEventName = @"Local\WGDot.MouseModeStop";
+
+    static LowLevelMouseProc MouseModeHookProc;
+    static IntPtr MouseModeHookHandle = IntPtr.Zero;
+    static IntPtr MouseModeResizeTarget = IntPtr.Zero;
 
     const byte VkMenu = 0x12;
     const byte VkLwin = 0x5B;
@@ -397,6 +469,9 @@ internal static class WgdotNative
             if (command == "display-settings") return OpenDisplaySettings();
             if (command == "bar-autohide-toggle") return BarAutoHideToggle();
             if (command == "window-audit") return WindowAudit();
+            if (command == "mouse-mode-toggle") return MouseModeToggle();
+            if (command == "mouse-mode-switch") return MouseModeSwitchFromArgs(args.Skip(1).ToArray());
+            if (command == "mouse-mode-hook") return MouseModeHook();
             if (command == "glazewm-pause-status") return GlazeWmPauseStatus();
             if (command == "glazewm-pause-toggle") return GlazeWmPauseToggle();
             if (command == "theme-toggle") return ThemeToggle();
@@ -5677,6 +5752,321 @@ internal static class WgdotNative
             if (!String.IsNullOrWhiteSpace(row.Executable))
                 Console.WriteLine("EXE:     " + row.Executable);
             Console.WriteLine();
+        }
+
+        return 0;
+    }
+
+    static bool GlazeWmBindingModeActive(string name)
+    {
+        ProcResult result = Run("glazewm.exe", "query binding-modes", null);
+        if (result.ExitCode != 0 || String.IsNullOrWhiteSpace(result.StdOut))
+            return false;
+
+        try
+        {
+            Dictionary<string, object> response = AsDictionary(Json.DeserializeObject(result.StdOut.Trim()));
+            object dataObject;
+            if (!response.TryGetValue("data", out dataObject) || dataObject == null)
+                return false;
+
+            Dictionary<string, object> data = AsDictionary(dataObject);
+            object modesObject;
+            if (!data.TryGetValue("bindingModes", out modesObject) || modesObject == null)
+                return false;
+
+            IEnumerable modes = modesObject as IEnumerable;
+            if (modes == null)
+                return false;
+
+            foreach (object modeObject in modes)
+            {
+                Dictionary<string, object> mode = AsDictionary(modeObject);
+                object modeName;
+                if (mode.TryGetValue("name", out modeName) &&
+                    String.Equals(Convert.ToString(modeName), name, StringComparison.OrdinalIgnoreCase))
+                    return true;
+            }
+        }
+        catch
+        {
+        }
+
+        return false;
+    }
+
+    static void SetGlazeWmBindingMode(string name, bool enabled)
+    {
+        string verb = enabled ? "wm-enable-binding-mode" : "wm-disable-binding-mode";
+        ProcResult result = Run(
+            "glazewm.exe",
+            "command " + verb + " --name " + QuoteArgument(name),
+            null);
+        if (result.ExitCode != 0)
+            throw new Exception(
+                "GlazeWM binding mode " + (enabled ? "enable" : "disable") +
+                " failed: " + LastUsefulLine(result.StdErr + "\n" + result.StdOut));
+    }
+
+    static void SignalMouseModeHookStop()
+    {
+        try
+        {
+            using (var stop = System.Threading.EventWaitHandle.OpenExisting(MouseModeStopEventName))
+                stop.Set();
+        }
+        catch (System.Threading.WaitHandleCannotBeOpenedException)
+        {
+        }
+    }
+
+    static void StartMouseModeHook()
+    {
+        string exe = Process.GetCurrentProcess().MainModule.FileName;
+        var psi = new ProcessStartInfo();
+        psi.FileName = exe;
+        psi.Arguments = "mouse-mode-hook";
+        psi.UseShellExecute = false;
+        psi.CreateNoWindow = true;
+        psi.WindowStyle = ProcessWindowStyle.Hidden;
+        psi.EnvironmentVariables["WGDOT_SKIP_RUNTIME_REFRESH"] = "1";
+
+        Process process = Process.Start(psi);
+        if (process == null)
+            throw new Exception("Failed to start the WGDot mouse-mode hook.");
+    }
+
+    static int MouseModeToggle()
+    {
+        if (GlazeWmBindingModeActive("mouse"))
+        {
+            SetGlazeWmBindingMode("mouse", false);
+            SignalMouseModeHookStop();
+            return 0;
+        }
+
+        SetGlazeWmBindingMode("mouse", true);
+        try
+        {
+            StartMouseModeHook();
+        }
+        catch
+        {
+            try { SetGlazeWmBindingMode("mouse", false); } catch { }
+            throw;
+        }
+
+        return 0;
+    }
+
+    static int MouseModeSwitchFromArgs(string[] args)
+    {
+        if (args.Length != 1 ||
+            !(String.Equals(args[0], "noalt", StringComparison.OrdinalIgnoreCase) ||
+              String.Equals(args[0], "vm", StringComparison.OrdinalIgnoreCase)))
+            throw new Exception("mouse-mode-switch requires exactly one target: noalt or vm.");
+
+        if (GlazeWmBindingModeActive("mouse"))
+            SetGlazeWmBindingMode("mouse", false);
+
+        SignalMouseModeHookStop();
+        SetGlazeWmBindingMode(args[0], true);
+        return 0;
+    }
+
+    static IntPtr MouseModeTargetWindow(POINT point)
+    {
+        IntPtr window = WindowFromPoint(point);
+        if (window == IntPtr.Zero)
+            return IntPtr.Zero;
+
+        IntPtr root = GetAncestor(window, GaRoot);
+        if (root != IntPtr.Zero)
+            window = root;
+
+        if (!IsWindow(window) || !IsWindowVisible(window))
+            return IntPtr.Zero;
+
+        var className = new StringBuilder(256);
+        GetClassName(window, className, className.Capacity);
+        string cls = className.ToString();
+        if (String.Equals(cls, "Shell_TrayWnd", StringComparison.OrdinalIgnoreCase) ||
+            String.Equals(cls, "Shell_SecondaryTrayWnd", StringComparison.OrdinalIgnoreCase) ||
+            String.Equals(cls, "Progman", StringComparison.OrdinalIgnoreCase) ||
+            String.Equals(cls, "WorkerW", StringComparison.OrdinalIgnoreCase))
+            return IntPtr.Zero;
+
+        uint pid;
+        GetWindowThreadProcessId(window, out pid);
+        if (pid == 0)
+            return IntPtr.Zero;
+
+        try
+        {
+            using (Process process = Process.GetProcessById((int)pid))
+            {
+                if (String.Equals(process.ProcessName, "yasb", StringComparison.OrdinalIgnoreCase))
+                    return IntPtr.Zero;
+            }
+        }
+        catch
+        {
+            return IntPtr.Zero;
+        }
+
+        return window;
+    }
+
+    static IntPtr MousePointLParam(POINT point)
+    {
+        int packed = unchecked(
+            (point.X & 0xffff) |
+            ((point.Y & 0xffff) << 16));
+        return new IntPtr(packed);
+    }
+
+    static int MouseResizeHitTest(IntPtr window, POINT point)
+    {
+        RECT rect;
+        if (!GetWindowRect(window, out rect))
+            return HtBottomRight;
+
+        int centerX = rect.Left + Math.Max(1, rect.Right - rect.Left) / 2;
+        int centerY = rect.Top + Math.Max(1, rect.Bottom - rect.Top) / 2;
+        bool left = point.X < centerX;
+        bool top = point.Y < centerY;
+
+        if (left && top) return HtTopLeft;
+        if (!left && top) return HtTopRight;
+        if (left) return HtBottomLeft;
+        return HtBottomRight;
+    }
+
+    static void ToggleFloatingWindowUnderMouse(IntPtr window)
+    {
+        SetForegroundWindow(window);
+        System.Threading.Thread.Sleep(35);
+
+        ProcResult result = Run("glazewm.exe", "command toggle-floating", null);
+        if (result.ExitCode != 0)
+            Console.Error.WriteLine(
+                "WGDot mouse mode floating toggle failed: " +
+                LastUsefulLine(result.StdErr + "\n" + result.StdOut));
+    }
+
+    static IntPtr MouseModeHookCallback(int nCode, IntPtr wParam, IntPtr lParam)
+    {
+        if (nCode < 0)
+            return CallNextHookEx(MouseModeHookHandle, nCode, wParam, lParam);
+
+        MSLLHOOKSTRUCT data =
+            (MSLLHOOKSTRUCT)Marshal.PtrToStructure(lParam, typeof(MSLLHOOKSTRUCT));
+
+        if ((data.flags & LlMhfInjected) != 0)
+            return CallNextHookEx(MouseModeHookHandle, nCode, wParam, lParam);
+
+        int message = unchecked((int)wParam.ToInt64());
+
+        if (message == WmRButtonUp && MouseModeResizeTarget != IntPtr.Zero)
+        {
+            IntPtr target = MouseModeResizeTarget;
+            MouseModeResizeTarget = IntPtr.Zero;
+            PostMessage(target, WmLButtonUp, IntPtr.Zero, MousePointLParam(data.pt));
+            return new IntPtr(1);
+        }
+
+        if (message != WmLButtonDown &&
+            message != WmRButtonDown &&
+            message != WmMButtonDown)
+            return CallNextHookEx(MouseModeHookHandle, nCode, wParam, lParam);
+
+        IntPtr window = MouseModeTargetWindow(data.pt);
+        if (window == IntPtr.Zero)
+            return CallNextHookEx(MouseModeHookHandle, nCode, wParam, lParam);
+
+        SetForegroundWindow(window);
+
+        if (message == WmLButtonDown)
+        {
+            PostMessage(
+                window,
+                WmNcLButtonDown,
+                new IntPtr(HtCaption),
+                MousePointLParam(data.pt));
+            return new IntPtr(1);
+        }
+
+        if (message == WmRButtonDown)
+        {
+            MouseModeResizeTarget = window;
+            PostMessage(
+                window,
+                WmNcLButtonDown,
+                new IntPtr(MouseResizeHitTest(window, data.pt)),
+                MousePointLParam(data.pt));
+            return new IntPtr(1);
+        }
+
+        System.Threading.ThreadPool.QueueUserWorkItem(
+            delegate { ToggleFloatingWindowUnderMouse(window); });
+        return new IntPtr(1);
+    }
+
+    static int MouseModeHook()
+    {
+        bool createdNew;
+        using (var mutex = new System.Threading.Mutex(true, MouseModeMutexName, out createdNew))
+        {
+            if (!createdNew)
+                return 0;
+
+            using (var stop = new System.Threading.EventWaitHandle(
+                false,
+                System.Threading.EventResetMode.ManualReset,
+                MouseModeStopEventName))
+            {
+                stop.Reset();
+
+                MouseModeHookProc = MouseModeHookCallback;
+                MouseModeHookHandle = SetWindowsHookEx(
+                    WhMouseLl,
+                    MouseModeHookProc,
+                    GetModuleHandle(null),
+                    0);
+
+                if (MouseModeHookHandle == IntPtr.Zero)
+                    throw new System.ComponentModel.Win32Exception(
+                        Marshal.GetLastWin32Error(),
+                        "Failed to install WGDot mouse-mode hook.");
+
+                var timer = new System.Windows.Forms.Timer();
+                timer.Interval = 750;
+                timer.Tick += delegate
+                {
+                    if (stop.WaitOne(0) || !GlazeWmBindingModeActive("mouse"))
+                        System.Windows.Forms.Application.ExitThread();
+                };
+
+                try
+                {
+                    timer.Start();
+                    System.Windows.Forms.Application.Run();
+                }
+                finally
+                {
+                    timer.Stop();
+                    timer.Dispose();
+
+                    if (MouseModeHookHandle != IntPtr.Zero)
+                    {
+                        UnhookWindowsHookEx(MouseModeHookHandle);
+                        MouseModeHookHandle = IntPtr.Zero;
+                    }
+
+                    MouseModeResizeTarget = IntPtr.Zero;
+                    MouseModeHookProc = null;
+                }
+            }
         }
 
         return 0;
