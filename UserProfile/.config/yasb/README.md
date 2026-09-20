@@ -14,7 +14,7 @@ Left:
 
 Center:
 
-- active window title
+- globally focused active-window title, matching Awtarchy across monitor bars
 
 Right:
 
@@ -45,6 +45,7 @@ These translations use documented upstream YASB or GlazeWM behavior rather than 
 | --- | --- | --- |
 | monitor-local workspaces + wheel switching | `GlazewmWorkspacesWidget` | YASB `docs/widgets/(Widget)-GlazeWM-Workspaces.md` |
 | visible Hyprland submap | `GlazewmBindingModeWidget` for WGDot's `noalt` / `vm` modes | YASB `docs/widgets/(Widget)-GlazeWM-Binding-Mode.md` |
+| centered active title | `ActiveWindowWidget` with `monitor_exclusive: false`, so every bar follows the globally focused window like Awtarchy | YASB Active Window source filters per monitor only when `monitor_exclusive` is true |
 | task icons | `TaskbarWidget`; middle-click closes and right-click uses YASB's native minimize/restore toggle | YASB taskbar supports monitor filtering plus registered `toggle_window` / `close_app` callbacks |
 | workspace move drawer | collapsed `GrouperWidget` containing `ApplicationsWidget` buttons that call GlazeWM's native directional workspace move command | YASB Grouper/Applications docs + existing WGDot GlazeWM `move-workspace --direction` bindings |
 | CPU / memory | native CPU and Memory widgets | YASB CPU/Memory docs |
