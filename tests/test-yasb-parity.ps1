@@ -182,7 +182,7 @@ foreach ($glaze in @($glazeNormal, $glazeWork)) {
     Assert-Contains $glaze 'color: "#a1a1a1"' "focused GlazeWM border stays theme-neutral"
     Assert-Contains $glaze 'bindings: ["lwin+t", "rwin+t"]' "Win+T opens themes"
     Assert-Contains $glaze 'bindings: ["lwin+c", "rwin+c"]' "Super+C opens Windows Clipboard History"
-    Assert-Contains $glaze 'bindings: ["lwin+d", "rwin+d"]' "GlazeWM owns Super+D during NoWinKeys testing"
+    Assert-NotContains $glaze 'bindings: ["lwin+d", "rwin+d"]' "GlazeWM leaves Super+D to YASB Quick Launch"
     Assert-Contains $glaze 'bindings: ["lwin+v", "rwin+v"]' "GlazeWM owns Super+V for the EarTrumpet mixer"
     Assert-Contains $glaze 'name: "noalt"' "noalt mode is restored"
     Assert-Contains $glaze 'commands: ["wm-toggle-pause"]' "real GlazeWM pause replaces pause/noalt emulation"
