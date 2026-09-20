@@ -270,7 +270,9 @@
       "id": "AmN.yasb",
       "category": "desktop",
       "defaultNormal": true,
-      "defaultWork": true
+      "defaultWork": true,
+      "startupHandler": "yasb",
+      "startupDefault": true
     },
     {
       "name": "Flameshot",
