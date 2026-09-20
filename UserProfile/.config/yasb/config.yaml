@@ -8,9 +8,10 @@ bars:
     enabled: true
     screens: ["*"]
     class_name: "yasb-bar"
-    # Keep the native blank-bar menu available for safe auto-hide/reveal,
-    # widget visibility, bar reload, and recovery actions.
-    context_menu: true
+    # Blank-bar right-click menu is intentionally disabled. WGDot keeps
+    # coordinated auto-hide on Alt+Ctrl+B instead of exposing YASB's separate
+    # context-menu auto-hide state.
+    context_menu: false
 
     alignment:
       position: "top"
