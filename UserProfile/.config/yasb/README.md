@@ -50,7 +50,7 @@ These translations use documented upstream YASB or GlazeWM behavior rather than 
 | CPU / memory | native CPU and Memory widgets | YASB CPU/Memory docs |
 | DDC brightness | native Brightness widget | YASB brightness docs explicitly support external DDC/CI monitors and background DDC polling |
 | battery | native Battery widget with `hide_unsupported` | YASB Battery docs |
-| microphone | native Microphone widget | YASB Microphone docs |
+| microphone | native Microphone widget with an empty normal glyph and YASB's native `muted` class styling, so the bar indicator collapses while unmuted and appears red while muted | YASB Microphone source applies `muted` / `no-device` classes dynamically |
 | output audio | native Volume widget for mute/scroll volume; right-click opens the existing WGDot EarTrumpet mixer helper, paralleling Awtarchy's Wiremix action | YASB Volume callbacks + existing WGDot `eartrumpet-mixer` integration |
 | clock/date | Clock widget primary/alternate labels | YASB Clock docs |
 | network / Bluetooth | native WiFi and Bluetooth menus; both left and right click open the native menu, matching Awtarchy's bar behavior | YASB WiFi/Bluetooth docs and registered `toggle_menu` callbacks |
@@ -74,7 +74,6 @@ The following Awtarchy features are not translated because a direct supported eq
 - vertical left/right bar layouts: current YASB bar positioning supports top/bottom, not Awtarchy's vertical edge layouts.
 - workspace urgent-state coloring and Awtarchy's static number+glyph workspace labels: the YASB GlazeWM workspace widget does not expose those exact Hyprland states/mappings.
 - Awtarchy's workspace mover expands on hover and includes a mouse submap toggle. YASB's native Grouper expands by click, and WGDot has no equivalent mouse binding mode.
-- Awtarchy only shows its microphone indicator while muted. YASB's native microphone widget remains visible and applies a muted CSS state instead.
 - task-icon left click is still not identical: YASB's native `toggle_window` minimizes an already-active window; Awtarchy's left click simply activates it. Right-click now uses the same native YASB minimize/restore action because that is a closer match to Awtarchy.
 - Awtarchy's notification icon owns both open and popup-mute behavior. YASB does not expose a cross-widget callback for that composition, so Windows Action Center and Windows Do Not Disturb are adjacent controls instead. YASB's DND implementation uses the Windows QuietHoursSettings COM API documented by YASB as an undocumented Windows API, so Windows updates can change that behavior.
 - Awtarchy toggles auto-hide for the focused monitor. YASB exposes a supported CLI visibility toggle, but a monitor-specific toggle requires a concrete screen name; the managed GlazeWM hotkey therefore toggles all YASB bars rather than guessing a monitor name.
