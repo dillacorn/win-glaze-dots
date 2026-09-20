@@ -84,6 +84,8 @@ Assert-True ($packageIds.ContainsKey("wireguard.wireguard")) "WireGuard is catal
 Assert-True ($packageIds.ContainsKey("wagnardsoft.displaydriveruninstaller")) "DDU is cataloged for GPU maintenance"
 Assert-True (-not $packageIds.ContainsKey("spotify.spotify")) "Spotify is not offered by WGDot"
 Assert-True ($packageIds.ContainsKey("rustdesk.rustdesk")) "RustDesk is cataloged"
+Assert-True ($packageIds.ContainsKey("rawaccelofficial.rawaccel")) "Raw Accel is cataloged"
+Assert-True ($packageIds.ContainsKey("dillacorn.miclocktray")) "MicLockTray is cataloged"
 Assert-True (-not $packageIds.ContainsKey("discord.discord")) "Discord is not offered; Vesktop is the Discord-family option"
 Assert-True (-not $packageIds.ContainsKey("openwhispersystems.signal")) "Signal is not offered by WGDot"
 Assert-True (-not $packageIds.ContainsKey("bitwarden.bitwarden")) "Bitwarden is not offered by WGDot"
@@ -94,6 +96,19 @@ function Get-ManifestPackage {
     param([string]$Id)
     return $manifest.packages | Where-Object { [string]$_.id -eq $Id } | Select-Object -First 1
 }
+
+$rawAccelPackage = Get-ManifestPackage -Id "RawAccelOfficial.RawAccel"
+Assert-True ($null -ne $rawAccelPackage) "Raw Accel package exists"
+Assert-Equal "official-github-archive-driver" ([string]$rawAccelPackage.installMode) "Raw Accel uses the official GitHub archive-driver path"
+Assert-Equal "RawAccelOfficial/rawaccel" ([string]$rawAccelPackage.fallbackGitHubRepo) "Raw Accel source is the official upstream repository"
+Assert-Equal "installer.exe" ([string]$rawAccelPackage.archiveInstaller) "Raw Accel uses the upstream driver installer"
+Assert-Equal "rawaccel" ([string]$rawAccelPackage.installedService) "Raw Accel installation verifies the kernel-driver service"
+
+$micLockTrayPackage = Get-ManifestPackage -Id "dillacorn.MicLockTray"
+Assert-True ($null -ne $micLockTrayPackage) "MicLockTray package exists"
+Assert-Equal "official-github-portable" ([string]$micLockTrayPackage.installMode) "MicLockTray uses the unelevated official GitHub portable path"
+Assert-Equal "dillacorn/MicLockTray" ([string]$micLockTrayPackage.fallbackGitHubRepo) "MicLockTray source is the official repository"
+Assert-Equal "MicLockTray.exe" ([string]$micLockTrayPackage.installedFile) "MicLockTray installs the published standalone executable"
 
 $expectedDefaultOnPackages = @(
     "Git.Git",
@@ -342,13 +357,18 @@ Assert-Equal ([string]$fileZillaPackage.installMode) 'official-page' "FileZilla 
 Assert-Equal ([string]$fileZillaPackage.officialPageUrl) 'https://filezilla-project.org/download.php?type=client' "FileZilla points only to its official download page"
 Assert-True ($nativeSourceText -match 'String\.Equals\(command, "software-audit"') "software-audit refreshes the runtime before dispatch"
 Assert-True ($nativeSourceText -match 'IsOfficialGitHubPackage') "catalog supports packages whose primary source is official GitHub"
+Assert-True ($nativeSourceText -match 'official-github-portable') "catalog supports standalone user-level GitHub executables"
+Assert-True ($nativeSourceText -match 'official-github-archive-driver') "catalog supports official GitHub driver archives"
+Assert-True ($nativeSourceText -match 'ExtractZipToDirectorySafe') "archive installs reject unsafe extraction paths"
+Assert-True ($nativeSourceText -match 'RunInteractiveInDirectory') "driver archive installers run from their release directory"
+Assert-True ($nativeSourceText -match 'Refusing to install a user-level portable package inside the elevated worker') "portable applications are kept out of the elevated worker"
 Assert-True ($nativeSourceText -match 'official GitHub OK') "audit reports official GitHub packages without a false WinGet-missing warning"
 Assert-True ($nativeSourceText -match 'Official GitHub source selected') "reconcile skips dead WinGet lookup for official GitHub packages"
 $rustDeskPackage = @($manifest.packages | Where-Object { $_.id -eq 'RustDesk.RustDesk' })[0]
 Assert-True ($null -ne $rustDeskPackage) "RustDesk catalog entry exists"
 Assert-Equal ([string]$rustDeskPackage.installMode) 'official-github' "RustDesk uses its verified official GitHub source instead of a missing WinGet ID"
 Assert-Equal ([string]$rustDeskPackage.fallbackGitHubRepo) 'rustdesk/rustdesk' "RustDesk official GitHub source remains publisher-owned"
-Assert-True ($nativeSourceText -match 'const string Version = "native-preview-38"') "native runtime version tracks umbrella acceptance audit"
+Assert-True ($nativeSourceText -match 'const string Version = "native-preview-39"') "native runtime version tracks umbrella acceptance audit"
 Assert-True ($nativeSourceText -match 'if \(command == "acceptance-audit"\) return AcceptanceAudit') "native runtime exposes automated acceptance audit"
 Assert-True ($nativeSourceText -match 'String\.Equals\(command, "acceptance-audit"') "acceptance audit refreshes runtime before dispatch"
 Assert-True ($nativeSourceText -match 'Automated acceptance audit \(safe\)') "maintenance menu exposes safe acceptance audit"
@@ -411,6 +431,7 @@ Assert-True ($nativeSourceText -match 'base64-bytes') "registry rollback preserv
 Assert-True ($nativeSourceText -match 'RegistryKeyWasAbsentInSnapshot') "registry rollback tracks pre-WGDot key existence"
 Assert-True ($nativeSourceText -match 'ApplyOopsCursor') "native runtime manages optional cursor install"
 Assert-True ($nativeSourceText -match 'undergroundwires/privacy\.sexy/releases/latest') "privacy.sexy uses official latest GitHub release"
+Assert-True ($nativeSourceText -match 'privacy\.sexy download did not return a valid Windows executable') "privacy.sexy installer payload is validated before execution"
 Assert-True ($nativeSourceText -match 'GAC_MSIL') "EarTrumpet helper can find framework facades on normal Windows without developer reference assemblies"
 Assert-True ($nativeSourceText -match 'System\.Runtime\.WindowsRuntime') "EarTrumpet helper includes Windows Runtime interop fallback"
 Assert-True ($nativeSourceText -match 'SetupDiGetClassDevs') "native runtime detects present display adapters through SetupAPI"
@@ -422,6 +443,8 @@ Assert-True ($nativeSourceText -match '\*WGDotGpuSafeModeResume') "DDU workflow 
 Assert-True ($nativeSourceText -match '/set \{current\} safeboot minimal') "DDU workflow explicitly stages Safe Mode"
 Assert-True ($nativeSourceText -match '/deletevalue \{current\} safeboot') "DDU workflow removes forced Safe Mode before launching DDU"
 Assert-True ($nativeSourceText -match 'drivers\.amd\.com') "AMD installer resolver is restricted to the official AMD driver host"
+Assert-True ($nativeSourceText -match 'HttpRequestHeader\.Referer') "AMD installer download sends AMD's required support-page referrer"
+Assert-True ($nativeSourceText -match 'AMD did not return a valid installer') "AMD payload is validated before Process.Start and falls back safely"
 Assert-True ($nativeSourceText -match 'us\.download\.nvidia\.com') "NVIDIA installer resolver is restricted to NVIDIA's official download host"
 Assert-True ($nativeSourceText -match 'dsadata\.intel\.com') "Intel installer uses Intel's official Driver & Support Assistant endpoint"
 Assert-True ($nativeSourceText -match 'GPU DRIVER ACTION REQUIRED') "pending GPU cleanup is surfaced on the next WGDot run"
@@ -441,6 +464,7 @@ Assert-True ($runtimeText -notmatch '(?i)rmdir\s+/s') "runtime does not use dest
 
 $glazeNormalText = Get-Content -LiteralPath (Join-Path $repoRoot "UserProfile\.glzr\glazewm\config.yaml") -Raw
 $glazeWorkText = Get-Content -LiteralPath (Join-Path $repoRoot "UserProfile\.glzr\glazewm\custom_work_config.yaml") -Raw
+Assert-True ($glazeNormalText -notmatch '(?ms)- name: "1"\r?\n\s+display_name: "1: Flame"\r?\n\s+keep_alive:\s*true') "normal GlazeWM workspace 1 is not pinned alive"
 foreach ($text in @($glazeNormalText, $glazeWorkText)) {
     $globalMarker = [Environment]::NewLine + "keybindings:" + [Environment]::NewLine
     $globalIndex = $text.LastIndexOf($globalMarker)
