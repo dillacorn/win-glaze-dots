@@ -958,7 +958,7 @@
       "packageId": "Mozilla.Firefox",
       "name": "Firefox",
       "mode": "firefox-managed",
-      "notice": "WGDot installs selected signed Firefox Add-ons through Mozilla's supported Windows Extensions.Install policy. Deselecting an item stops WGDot from managing that install request; WGDot does not forcibly remove an extension that may also have been installed by the user.",
+      "notice": "WGDot installs selected signed Firefox Add-ons through Mozilla's supported Windows Extensions.Install policy. DuckDuckGo No-AI Search is default-on and sets Firefox search to DuckDuckGo's AI-free experience. Deselecting an item stops WGDot from managing that install request; WGDot does not forcibly remove an extension that may also have been installed by the user.",
       "options": [
         {
           "id": "betterfox",
@@ -967,6 +967,14 @@
           "defaultNormal": true,
           "defaultWork": true,
           "sourceUrl": "https://raw.githubusercontent.com/yokoffing/Betterfox/main/user.js"
+        },
+        {
+          "id": "duckduckgo-no-ai",
+          "name": "DuckDuckGo No-AI Search (default search)",
+          "kind": "firefox-extension",
+          "defaultNormal": true,
+          "defaultWork": true,
+          "installUrl": "https://addons.mozilla.org/firefox/downloads/latest/duckduckgo-no-ai-search/latest.xpi"
         },
         {
           "id": "canvasblocker",
