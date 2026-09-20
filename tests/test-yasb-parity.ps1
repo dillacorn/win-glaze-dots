@@ -131,7 +131,20 @@ Assert-Contains $manifest '"type": "ensure-yasb-theme"' "YASB managed component 
 Assert-Contains $native 'String.Equals(type, "ensure-yasb-theme", StringComparison.OrdinalIgnoreCase)' "native runtime handles the YASB theme post-action"
 Assert-Contains $native 'string themeId = CurrentYasbThemeId();' "theme post-action preserves the remembered palette"
 Assert-Contains $native 'YASB theme post-action self-test failed.' "native maintenance self-test exercises post-apply theme generation"
-$powerBlock = [regex]::Match($config, '(?ms)^  power_menu:\r?\n.*
+$powerBlock = [regex]::Match($config, '(?ms)^  power_menu:\r?\n.*$').Value
+Assert-Contains $powerBlock 'yasb.custom.CustomWidget' "power button uses a simple YASB callback surface"
+Assert-Contains $powerBlock 'exec wgdot power-menu' "power button opens the WGDot native overlay"
+Assert-Contains $powerBlock 'Power menu (L/H/R/S/O/Z)' "power tooltip advertises direct action keys"
+Assert-NotContains $config 'yasb.power_menu.PowerMenuWidget' "stock YASB power popup is removed"
+Assert-Contains $native 'if (command == "power-menu") return PowerMenu();' "native WGDot exposes the power overlay"
+Assert-Contains $native 'new PowerAction(''l'', "", "Lock (L)"' "power overlay includes Lock L"
+Assert-Contains $native 'new PowerAction(''h'', "", "Hibernate (H)"' "power overlay includes Hibernate H"
+Assert-Contains $native 'new PowerAction(''r'', "", "Reboot (R)"' "power overlay includes Reboot R"
+Assert-Contains $native 'new PowerAction(''s'', "", "Shutdown (S)"' "power overlay includes Shutdown S"
+Assert-Contains $native 'new PowerAction(''o'', "", "Sign out (O)"' "power overlay includes Sign out O"
+Assert-Contains $native 'new PowerAction(''z'', "", "Sleep (Z)"' "power overlay includes Sleep Z"
+Assert-Contains $native 'System.Windows.Forms.Keys.Escape' "power overlay supports Escape close"
+Assert-Contains $config 'theme_picker:' "bar exposes a YASB theme entrypoint"
 Assert-Contains $config 'tooltip_label: "Themes (Win+T)"' "theme button documents the Awtarchy-style shortcut"
 Assert-Contains $config 'exec wgdot theme-toggle' "theme button uses the single-instance WGDot selector"
 Assert-Contains $native 'if (command == "theme-toggle") return ThemeToggle();' "native WGDot exposes theme toggle"
@@ -250,150 +263,8 @@ Assert-Contains $readme 'plugged-in-but-not-charging' "YASB AC-only battery colo
 Assert-Contains $readme 'trailing `%`' "native YASB volume percent limitation is documented"
 Assert-Contains $readme 'conditional label expression' "Bluetooth connected-name/count limitation is documented"
 Assert-Contains $readme 'no connectivity CSS class' "network disconnected-color limitation is documented"
-Assert-Contains $readme 'no separate open-only PowerMenu callback' "power-menu right-click limitation is documented"
-Assert-Contains $readme 'one native tray monitor service' "multi-monitor systray behavior is documented from current YASB source"
-Assert-Contains $readme 'no native image-tint option' "Awtarchy task/tray recoloring limitation is documented instead of faked"
-Assert-Contains $readme 'visual preview cards' "theme-selector limitation versus Awtarchy is documented"
-Assert-Contains $readme 'output discarded' "direct YASB theme-command diagnostic limitation is documented"
-Assert-Contains $readme '#a1a1a1' "neutral GlazeWM border rationale is documented"
-Assert-Contains $readme 'reload-free reservation model' "bar transition rationale avoids forced GlazeWM reload"
-
-Write-Host "YASB parity checks passed." -ForegroundColor Green
-).Value
-Assert-Contains $powerBlock 'yasb.custom.CustomWidget' "power button uses a simple YASB callback surface"
-Assert-Contains $powerBlock 'exec wgdot power-menu' "power button opens the WGDot native overlay"
-Assert-Contains $powerBlock 'Power menu (L/H/R/S/O/Z)' "power tooltip advertises direct action keys"
-Assert-NotContains $config 'yasb.power_menu.PowerMenuWidget' "stock YASB power popup is removed"
-Assert-Contains $native 'if (command == "power-menu") return PowerMenu();' "native WGDot exposes the power overlay"
-Assert-Contains $native 'new PowerAction(''l'', "", "Lock (L)"' "power overlay includes Lock L"
-Assert-Contains $native 'new PowerAction(''h'', "", "Hibernate (H)"' "power overlay includes Hibernate H"
-Assert-Contains $native 'new PowerAction(''r'', "", "Reboot (R)"' "power overlay includes Reboot R"
-Assert-Contains $native 'new PowerAction(''s'', "", "Shutdown (S)"' "power overlay includes Shutdown S"
-Assert-Contains $native 'new PowerAction(''o'', "", "Sign out (O)"' "power overlay includes Sign out O"
-Assert-Contains $native 'new PowerAction(''z'', "", "Sleep (Z)"' "power overlay includes Sleep Z"
-Assert-Contains $native 'System.Windows.Forms.Keys.Escape' "power overlay supports Escape close"
-Assert-Contains $config 'theme_picker:' "bar exposes a YASB theme entrypoint"
-Assert-Contains $config 'tooltip_label: "Themes (Win+T)"' "theme button documents the Awtarchy-style shortcut"
-Assert-Contains $config 'exec wgdot theme-toggle' "theme button uses the single-instance WGDot selector"
-Assert-Contains $native 'if (command == "theme-toggle") return ThemeToggle();' "native WGDot exposes theme toggle"
-Assert-Contains $native 'FindTopLevelWindowByExactTitle("WGDot Themes")' "theme toggle identifies the existing selector by its stable title"
-Assert-Contains $native 'IsDwmCloaked(existing)' "theme toggle distinguishes a selector on another cloaked workspace"
-Assert-Contains $native 'existingMonitor == focusedMonitor' "theme toggle distinguishes the focused display"
-Assert-Contains $native 'new YasbTheme("carbon-night", "Carbon Night", "#353535", "#d0d0d0", "#404040", "#4a4a4a", "#2b2b2b", "#ff5555", "#1a1a1a", "#6a9955", "#ff5555", "#5c5c5c")' "Carbon Night YASB palette matches current Awtarchy"
-Assert-Contains $native 'new YasbTheme("catppuccin-frappe", "Catppuccin Frappe", "#303446", "#c6d0f5", "#414559", "#535970", "#383c4d", "#e78284", "#232634", "#a6d189", "#ef9f76", "#a5adce")' "Catppuccin Frappe YASB palette matches current Awtarchy"
-Assert-Contains $native 'new YasbTheme("crimson-red", "Crimson Red", "#1e1e2e", "#f38ba8", "#352630", "#5a3442", "#292330", "#f38ba8", "#1e1e2e", "#fab387", "#f38ba8", "#9f8994")' "Crimson Red YASB palette matches current Awtarchy"
-Assert-Contains $native 'new YasbTheme("electric-blue", "Electric Blue", "#1e1e2e", "#89b4fa", "#293448", "#34445e", "#252938", "#f38ba8", "#1e1e2e", "#a6e3a1", "#fab387", "#8993a8")' "Electric Blue YASB palette matches current Awtarchy"
-Assert-Contains $native 'new YasbTheme("gruvbox", "Gruvbox", "#282828", "#ebdbb2", "#4a423c", "#665c4e", "#3c3836", "#b16286", "#fbf1c7", "#98971a", "#cc241d", "#a89984")' "Gruvbox YASB palette matches current Awtarchy"
-Assert-Contains $native 'new YasbTheme("iron-forge", "Iron Forge", "#0f1113", "#bcd2d2", "#1f2328", "#242a32", "#0d0f12", "#a31717", "#ffffff", "#1f6f6f", "#a31717", "#6a7b86")' "Iron Forge YASB palette matches current Awtarchy"
-Assert-Contains $native 'new YasbTheme("obsidian-night", "Obsidian Night", "#0f0f0f", "#cdd6f4", "#1e1e2e", "#313244", "#1a1a1a", "#ff5555", "#1e1e2e", "#6a9955", "#ff5555", "#4b4b4b")' "Obsidian Night YASB palette matches current Awtarchy"
-Assert-Contains $native 'new YasbTheme("pink", "Pink", "#D297A1", "#2E2E2E", "#B77F91", "#C0AFC0", "#C0AFC0", "#B04155", "#FFFFFF", "#D3D3D3", "#B04155", "#7A7A7A")' "Pink YASB palette matches current Awtarchy"
-Assert-Contains $native 'new YasbTheme("pipboy", "Pip-Boy", "#050805", "#a4ff47", "#1f301f", "#1b281b", "#101810", "#263826", "#050805", "#a4ff47", "#3c1b1b", "#2a3d2a")' "Pip-Boy YASB palette matches current Awtarchy"
-
-foreach ($glaze in @($glazeNormal, $glazeWork)) {
-    Assert-Contains $glaze 'top: "38px"' "GlazeWM keeps the existing reload-free top reservation"
-    Assert-NotContains $glaze 'top: "8px"' "bar redesign does not require live GlazeWM gap migration"
-    Assert-Contains $glaze 'shell-exec yasb' "GlazeWM starts YASB"
-    Assert-Contains $glaze 'color: "#a1a1a1"' "focused GlazeWM border stays theme-neutral"
-    Assert-Contains $glaze 'bindings: ["lwin+t", "rwin+t"]' "Win+T opens themes"
-    Assert-Contains $glaze 'bindings: ["lwin+c", "rwin+c"]' "Super+C opens Windows Clipboard History"
-    Assert-NotContains $glaze 'bindings: ["lwin+d", "rwin+d"]' "GlazeWM does not intercept Super+D for Flow Launcher"
-    Assert-NotContains $glaze 'bindings: ["lwin+v", "rwin+v"]' "GlazeWM leaves Win+V to Windows Clipboard History"
-    Assert-NotContains $glaze 'name: "noalt"' "broken noalt mode is removed"
-    Assert-Contains $glaze 'commands: ["wm-toggle-pause"]' "real GlazeWM pause replaces pause/noalt emulation"
-    Assert-Contains $glaze 'bindings: ["alt+shift+p"]' "pause toggle keeps the existing Alt+Shift+P chord"
-    Assert-Contains $glaze 'theme-toggle' "GlazeWM theme hotkey uses the single-instance selector helper"
-    Assert-NotContains $glaze 'shell-exec wt.exe -w new --size 72,22 nt --title "WGDot Themes"' "GlazeWM no longer spawns duplicate theme terminals directly"
-    Assert-Contains $glaze 'window_title: { equals: "WGDot Themes" }' "theme selector has a dedicated GlazeWM title rule"
-    Assert-Contains $glaze 'window_process: { regex: "^WindowsTerminal(\\.exe)?$" }' "theme selector floating rule is scoped to Windows Terminal"
-    Assert-NotContains $glaze 'wm-reload-config wgdot theme' "theme hotkey never chains a GlazeWM reload"
-    Assert-Contains $glaze 'yasbc toggle-bar' "legacy hard visibility uses YASB's supported CLI"
-    Assert-Contains $glaze 'bindings: ["alt+ctrl+b"]' "legacy WGDot hard-visibility hotkey is preserved"
-    Assert-NotContains $glaze 'lwin+alt+ctrl+b' "Awtarchy auto-hide chord is not falsely mapped to YASB hard-hide"
-    Assert-NotContains $glaze 'rwin+alt+ctrl+b' "Awtarchy auto-hide chord is not falsely mapped to YASB hard-hide"
-    Assert-NotContains $glaze 'Stop-Process -Name yasb -Force' "bar visibility no longer kills the YASB process"
-}
-Assert-NotContains $config 'komorebi' "abandoned Komorebi integration is absent"
-Assert-NotContains $config 'whkd' "whkd is not introduced"
-
-foreach ($widgetType in @(
-    'yasb.cpu.CpuWidget',
-    'yasb.memory.MemoryWidget',
-    'yasb.brightness.BrightnessWidget',
-    'yasb.battery.BatteryWidget',
-    'yasb.microphone.MicrophoneWidget',
-    'yasb.volume.VolumeWidget',
-    'yasb.clock.ClockWidget',
-    'yasb.wifi.WifiWidget',
-    'yasb.bluetooth.BluetoothWidget',
-    'yasb.systray.SystrayWidget',
-    'yasb.dnd.DndWidget',
-    'yasb.power_menu.PowerMenuWidget'
-)) {
-    Assert-Contains $config $widgetType "supported YASB widget is present: $widgetType"
-}
-
-Assert-Contains $style '.glazewm-workspaces .ws-btn.empty' "inactive empty workspace buttons collapse"
-Assert-Contains $style 'min-height: 28px;' "workspace shading spans the full 28 px bar height"
-Assert-Contains $style 'margin-left: 2px;' "CPU and memory icons have a tiny separation from their values"
-Assert-Contains $style '.tooltip,' "YASB custom rich tooltips receive an opaque themed background"
-Assert-Contains $style '#353535' "Awtarchy background color is retained"
-Assert-Contains $style '#d0d0d0' "Awtarchy foreground color is retained"
-Assert-Contains $style '#ff5555' "Awtarchy critical color is retained"
-Assert-Contains $style 'JetBrainsMono NFP' "existing WGDot-managed Nerd Font is retained"
-$taskContainerBlock = [regex]::Match($style, '(?ms)^\.taskbar-widget \.app-container \{\r?\n.*?^\}').Value
-Assert-Contains $taskContainerBlock 'min-width: 14px;' "task content width matches its 14 px Awtarchy icon"
-Assert-Contains $taskContainerBlock 'max-width: 14px;' "task content width is fixed so the padded slot remains 26 px"
-Assert-Contains $taskContainerBlock 'padding: 0 6px;' "task slot totals Awtarchy's 26 px width"
-$moverHubBlock = [regex]::Match($style, '(?ms)^\.workspace-move-grouper \.grouper-button \{\r?\n.*?^\}').Value
-$moverButtonBlock = [regex]::Match($style, '(?ms)^\.workspace-move-buttons \.label \{\r?\n.*?^\}').Value
-Assert-Contains $moverHubBlock 'font-size: 14px;' "workspace mover hub matches Awtarchy's 14 px symbol size"
-Assert-Contains $moverHubBlock 'padding: 0 8px;' "workspace mover hub keeps Awtarchy's default 8 px side padding"
-Assert-NotContains $moverHubBlock 'min-width:' "workspace mover hub is content-sized instead of Qt-padding-inflated"
-Assert-Contains $moverButtonBlock 'font-size: 14px;' "workspace mover arrows match Awtarchy's 14 px symbol size"
-Assert-Contains $moverButtonBlock 'padding: 0 8px;' "workspace mover arrows keep Awtarchy's default 8 px side padding"
-Assert-NotContains $moverButtonBlock 'min-width:' "workspace mover arrows are content-sized instead of Qt-padding-inflated"
-Assert-Contains $style '.workspace-move-grouper' "workspace mover has dedicated flat styling"
-Assert-Contains $style '.awtarchy-launcher .icon' "launcher span is styled through YASB's native icon class"
-Assert-Contains $style '.awtarchy-launcher:hover' "launcher uses Awtarchy's strong hover treatment"
-Assert-Contains $style '.dnd-widget:hover' "notification/DND action uses Awtarchy's strong hover treatment"
-Assert-Contains $style 'font-size: 19px;' "notification/DND icon keeps Awtarchy's tuned icon scale"
-Assert-Contains $style 'padding: 0 8px;' "fixed 8 px horizontal action padding is retained"
-
-Assert-Contains $readme 'Evidence-backed mappings' "feature mappings document their evidence boundary"
-Assert-Contains $readme 'Deliberate differences and omissions' "unsupported translations are documented"
-Assert-Contains $style '.battery-widget .label.status-critical' "battery critical state has dedicated styling"
-Assert-NotContains $style '.battery-widget .label.status-low' "battery low range is not incorrectly colored critical"
-Assert-Contains $style '.battery-widget .label.status-charging' "battery charging selector matches YASB's native status-charging class"
-Assert-NotContains $style '.battery-widget .label.charging' "dead non-native battery charging selector is not reintroduced"
-Assert-Contains $style 'Awtarchy indicates charging with the bolt, not a separate color.' "charging battery keeps Awtarchy's normal foreground"
-Assert-Contains $style '.bluetooth-menu .bluetooth-item' "Bluetooth popup rows use YASB's current bluetooth-item class"
-Assert-Contains $style '.bluetooth-menu .bluetooth-item:hover' "Bluetooth popup hover styling targets YASB's current class"
-Assert-NotContains $style '.bluetooth-menu .device' "stale Bluetooth popup device selector is not reintroduced"
-Assert-Contains $style '.bluetooth-widget .icon.bt-off' "Bluetooth disabled state has explicit native-state styling"
-Assert-Contains $style 'color: var(--muted);' "disabled Bluetooth uses Awtarchy's muted foreground"
-$systrayBlocks = [regex]::Matches($style, '(?ms)^\.systray \{\r?\n.*?^\}')
-if ($systrayBlocks.Count -lt 1) {
-    throw "ASSERTION FAILED: dedicated systray styling block is missing"
-}
-$systrayBlock = $systrayBlocks[$systrayBlocks.Count - 1].Value
-Assert-Contains $systrayBlock 'padding: 0;' "Awtarchy-style tray outer padding is removed"
-Assert-Contains $style 'margin: 0 5px;' "tray buttons preserve 10 px inter-icon spacing"
-
-Assert-Contains $readme 'CPU temperature' "CPU temperature is not silently substituted with another metric"
-Assert-Contains $readme 'Clipboard History' "native clipboard-history mapping is documented"
-Assert-Contains $readme 'Do Not Disturb' "notification-mute approximation is documented"
-Assert-Contains $readme 'toggle-bar' "native YASB bar visibility mapping is documented"
-Assert-Contains $readme 'theme.css' "live YASB theme mapping is documented"
-Assert-Contains $readme 'Power & battery' "Windows-native battery details mapping is documented"
-Assert-Contains $readme 'PowerPlanWidget' "native Windows power-plan option was evaluated instead of blindly scripted"
-Assert-Contains $readme 'no wheel callback' "clock wheel limitation is documented from current YASB source"
-Assert-Contains $readme 'exactly 15%' "shared YASB battery threshold edge is documented"
-Assert-Contains $readme 'plugged-in-but-not-charging' "YASB AC-only battery color limitation is documented"
-Assert-Contains $readme 'trailing `%`' "native YASB volume percent limitation is documented"
-Assert-Contains $readme 'conditional label expression' "Bluetooth connected-name/count limitation is documented"
-Assert-Contains $readme 'no connectivity CSS class' "network disconnected-color limitation is documented"
-Assert-Contains $readme 'no separate open-only PowerMenu callback' "power-menu right-click limitation is documented"
-Assert-Contains $readme 'one native tray monitor service' "multi-monitor systray behavior is documented from current YASB source"
+Assert-Contains $readme 'WGDot-native themed full-screen overlay' "Awtarchy-style native power overlay is documented"
+Assert-Contains $readme 'not rendered in the WGDot YASB bar' "system tray omission is documented"
 Assert-Contains $readme 'no native image-tint option' "Awtarchy task/tray recoloring limitation is documented instead of faked"
 Assert-Contains $readme 'visual preview cards' "theme-selector limitation versus Awtarchy is documented"
 Assert-Contains $readme 'output discarded' "direct YASB theme-command diagnostic limitation is documented"
