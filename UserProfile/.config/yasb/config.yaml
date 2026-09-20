@@ -284,8 +284,10 @@ widgets:
       mute_text: "mute"
       tooltip: true
       scroll_step: 2
+      # Match Awtarchy's muted-only bar indicator. YASB collapses the
+      # empty normal icon while retaining its native muted state class.
       icons:
-        normal: ""
+        normal: ""
         muted: ""
       mic_menu:
         blur: false
