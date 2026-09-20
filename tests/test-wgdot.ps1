@@ -590,7 +590,7 @@ Assert-True ($nativeSourceText -match 'command == "display-settings"') "native r
 Assert-True ($nativeSourceText -match 'command == "rawaccel-open"') "native runtime exposes the managed Raw Accel GUI"
 Assert-True ($nativeSourceText -match 'command == "bar-autohide-toggle"') "native runtime exposes coordinated YASB/GlazeWM auto-hide"
 Assert-True ($nativeSourceText -match 'command == "window-audit"') "native runtime exposes visible-window process auditing"
-Assert-True ($nativeSourceText -match 'String\.Equals\(command, "bar-autohide-toggle"') "bar auto-hide command participates in runtime auto-refresh"
+Assert-True ($nativeSourceText -notmatch 'String\.Equals\(command, "bar-autohide-toggle"') "bar auto-hide hotkey skips remote runtime-refresh checks for immediate response"
 Assert-True ($nativeSourceText -match 'String\.Equals\(command, "window-audit"') "window audit command participates in runtime auto-refresh"
 Assert-True ($nativeSourceText -match 'yasbc\.exe", "reload -s"') "bar auto-hide reloads YASB after changing native auto-hide state"
 Assert-True ($nativeSourceText -match 'glazewm\.exe", "command wm-reload-config"') "bar auto-hide reloads GlazeWM after changing the 5/35 px gap"
