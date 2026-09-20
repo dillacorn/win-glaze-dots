@@ -4609,7 +4609,9 @@ internal static class WgdotNative
         if (String.IsNullOrWhiteSpace(id) || (enabled != "0" && enabled != "1"))
             throw new Exception("apply-tweak requires --id <id> --enable <0|1>.");
 
-        ApplyTweak(id, enabled == "1", false);
+        // Direct tweak commands should match the interactive tweak manager: try
+        // the user token first, then request UAC only when Windows denies access.
+        ApplyTweak(id, enabled == "1", true);
         return 0;
     }
 
