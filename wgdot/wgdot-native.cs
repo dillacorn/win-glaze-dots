@@ -19,7 +19,7 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-37";
+    const string Version = "native-preview-38";
     const int WingetPreflightTimeoutMs = 30000;
     const string RepoFullName = "dillacorn/win-glaze-dots";
     const string RepoUrl = "https://github.com/dillacorn/win-glaze-dots.git";
@@ -228,6 +228,7 @@ internal static class WgdotNative
             if (command == "maintenance-self-test") return MaintenanceSelfTest();
             if (command == "software") return SoftwareReconcile();
             if (command == "software-audit") return SoftwareCatalogAudit();
+            if (command == "acceptance-audit") return AcceptanceAudit();
             if (command == "software-elevated") return SoftwareElevatedFromArgs(args.Skip(1).ToArray());
             if (command == "flow-open") return OpenFlowLauncher();
             if (command == "eartrumpet-mixer") return OpenEarTrumpetMixer();
@@ -272,6 +273,7 @@ internal static class WgdotNative
             String.Equals(command, "git-review", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "software", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "software-audit", StringComparison.OrdinalIgnoreCase) ||
+            String.Equals(command, "acceptance-audit", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "gpu-driver", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "update", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "reset", StringComparison.OrdinalIgnoreCase) ||
@@ -394,6 +396,7 @@ internal static class WgdotNative
             "Update managed dots",
             "Install / reconcile software",
             "Audit all software (no install)",
+            "Automated acceptance audit (safe)",
             "GPU driver maintenance",
             "Windows tweaks / integrations",
             "Reset / reconfigure managed dots",
@@ -408,7 +411,7 @@ internal static class WgdotNative
         while (true)
         {
             int choice = ReadSingleChoice("Maintenance", items, 0);
-            if (choice < 0 || choice == 11) return 0;
+            if (choice < 0 || choice == 12) return 0;
 
             try
             {
@@ -429,38 +432,43 @@ internal static class WgdotNative
                 }
                 else if (choice == 3)
                 {
-                    GpuDriverMaintenance();
+                    AcceptanceAudit();
+                    Pause();
                 }
                 else if (choice == 4)
                 {
-                    TweakManager();
+                    GpuDriverMaintenance();
                 }
                 else if (choice == 5)
+                {
+                    TweakManager();
+                }
+                else if (choice == 6)
                 {
                     ManagedOperation("reset", ResolveDefaultSource());
                     Pause();
                 }
-                else if (choice == 6)
+                else if (choice == 7)
                 {
                     ManagedOperation("review", ResolveDefaultSource());
                     Pause();
                 }
-                else if (choice == 7)
+                else if (choice == 8)
                 {
                     BackupManager();
                 }
-                else if (choice == 8)
+                else if (choice == 9)
                 {
                     ShowManualFallback();
                     Pause();
                 }
-                else if (choice == 9)
+                else if (choice == 10)
                 {
                     WriteTitle("Version / status");
                     Status();
                     Pause();
                 }
-                else if (choice == 10)
+                else if (choice == 11)
                 {
                     ShowGitMenu();
                 }
@@ -1758,6 +1766,11 @@ internal static class WgdotNative
 
     static int SoftwareCatalogAudit()
     {
+        return SoftwareCatalogAudit(true);
+    }
+
+    static int SoftwareCatalogAudit(bool askConfirmation)
+    {
         SourceContext source = ResolveDefaultSource();
         Dictionary<string, object> manifest = source.Manifest;
         List<object> packages = GetList(manifest, "packages");
@@ -1770,7 +1783,8 @@ internal static class WgdotNative
         Console.WriteLine("It validates each package's declared source: WinGet, official GitHub, or official publisher page.");
         Console.WriteLine();
 
-        if (!ReadYesNo("Audit all software now? [y/N]", false))
+        if (askConfirmation &&
+            !ReadYesNo("Audit all software now? [y/N]", false))
         {
             Console.WriteLine("No audit was run.");
             return 0;
@@ -1999,6 +2013,286 @@ internal static class WgdotNative
             "Installer execution and application-specific runtime behavior still require an installed app.");
 
         return failureCount == 0 ? 0 : 1;
+    }
+
+    static ProcResult RunIsolatedMaintenanceSelfTest()
+    {
+        string testRoot = Path.Combine(
+            Path.GetTempPath(),
+            "wgdot-acceptance-" + Guid.NewGuid().ToString("N"));
+
+        string previousTestRoot = Environment.GetEnvironmentVariable("WGDOT_TEST_ROOT");
+        string previousSkipRefresh = Environment.GetEnvironmentVariable("WGDOT_SKIP_RUNTIME_REFRESH");
+
+        try
+        {
+            Environment.SetEnvironmentVariable("WGDOT_TEST_ROOT", testRoot);
+            Environment.SetEnvironmentVariable("WGDOT_SKIP_RUNTIME_REFRESH", "1");
+
+            string currentExe = Process.GetCurrentProcess().MainModule.FileName;
+            return Run(currentExe, "maintenance-self-test", null);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("WGDOT_TEST_ROOT", previousTestRoot);
+            Environment.SetEnvironmentVariable("WGDOT_SKIP_RUNTIME_REFRESH", previousSkipRefresh);
+            SafeDeleteDirectory(testRoot);
+        }
+    }
+
+    static bool ValidateBrowserSelectionState(
+        Dictionary<string, object> manifest,
+        InstallationSelection selection,
+        out string error)
+    {
+        error = "";
+        if (selection == null || !selection.BrowserOptionsConfigured)
+            return true;
+
+        var browserByPackage =
+            new Dictionary<string, Dictionary<string, object>>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (object rawBrowser in GetList(manifest, "browserOptions"))
+        {
+            var browser = AsDictionary(rawBrowser);
+            string packageId = GetString(browser, "packageId");
+            if (String.IsNullOrWhiteSpace(packageId))
+            {
+                error = "Browser option entry is missing packageId.";
+                return false;
+            }
+            browserByPackage[packageId] = browser;
+        }
+
+        foreach (KeyValuePair<string, List<string>> pair in selection.BrowserOptions)
+        {
+            Dictionary<string, object> browser;
+            if (!browserByPackage.TryGetValue(pair.Key, out browser))
+            {
+                error = "Saved browser options reference unknown package: " + pair.Key;
+                return false;
+            }
+
+            var knownOptions = new HashSet<string>(
+                GetList(browser, "options")
+                    .Select(raw => GetString(AsDictionary(raw), "id"))
+                    .Where(id => !String.IsNullOrWhiteSpace(id)),
+                StringComparer.OrdinalIgnoreCase);
+
+            foreach (string optionId in pair.Value ?? new List<string>())
+            {
+                if (!knownOptions.Contains(optionId))
+                {
+                    error =
+                        "Saved browser option '" + optionId +
+                        "' is no longer declared for " + pair.Key + ".";
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
+    static int AcceptanceAudit()
+    {
+        WriteTitle("Automated acceptance audit (safe)");
+        Console.WriteLine(
+            "This audit is read-only against your live WGDot/Windows configuration. " +
+            "Mutation tests run only inside an isolated temporary WGDot test root.");
+        Console.WriteLine("It does not install software, change tweaks, apply managed dots, launch DDU, or modify browser profiles.");
+        Console.WriteLine();
+
+        int failures = 0;
+        int warnings = 0;
+        var failureDetails = new List<string>();
+        var warningDetails = new List<string>();
+
+        Console.WriteLine("[1/5] Isolated native mutation/rollback suite...");
+        ProcResult isolated = RunIsolatedMaintenanceSelfTest();
+        if (isolated.ExitCode == 0)
+        {
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine("PASS");
+            Console.ResetColor();
+        }
+        else
+        {
+            failures++;
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine("FAIL");
+            Console.ResetColor();
+            failureDetails.Add(
+                "Isolated maintenance self-test: " +
+                LastUsefulLine(
+                    String.IsNullOrWhiteSpace(isolated.StdErr)
+                        ? isolated.StdOut
+                        : isolated.StdErr));
+        }
+
+        Console.WriteLine();
+        Console.WriteLine("[2/5] Managed configuration planner...");
+        try
+        {
+            SourceContext source = ResolveDefaultSource();
+            InstallationSelection selection = ReadInstallationSelection();
+            if (selection == null)
+            {
+                warnings++;
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine("SKIP: no saved installation selection exists yet.");
+                Console.ResetColor();
+                warningDetails.Add(
+                    "Managed-plan audit skipped because installation selection is not configured.");
+            }
+            else
+            {
+                bool hasBaseline = File.Exists(BaselineIndexPath);
+                string effectiveMode = hasBaseline ? "update" : "reset";
+                List<PlanItem> plan = GetPlan(
+                    source.Manifest,
+                    source.SourceRoot,
+                    selection,
+                    effectiveMode);
+
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine(
+                    "PASS: " + plan.Count.ToString(CultureInfo.InvariantCulture) +
+                    " managed file plan item(s) resolved with safe destinations and present sources.");
+                Console.ResetColor();
+
+                string browserError;
+                if (!ValidateBrowserSelectionState(source.Manifest, selection, out browserError))
+                {
+                    failures++;
+                    failureDetails.Add("Browser selection state: " + browserError);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            failures++;
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine("FAIL");
+            Console.ResetColor();
+            failureDetails.Add("Managed configuration planner: " + ex.Message);
+        }
+
+        Console.WriteLine();
+        Console.WriteLine("[3/5] Full software catalog/source audit...");
+        int softwareResult = SoftwareCatalogAudit(false);
+        if (softwareResult != 0)
+        {
+            failures++;
+            failureDetails.Add("Software catalog/source audit reported one or more failures.");
+        }
+
+        Console.WriteLine();
+        Console.WriteLine("[4/5] GPU inventory (read-only)...");
+        try
+        {
+            List<GpuAdapterInfo> adapters = DetectGpuAdapters();
+            if (adapters.Count == 0)
+            {
+                warnings++;
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine("WARN: no present display adapters were detected.");
+                Console.ResetColor();
+                warningDetails.Add("No present display adapters were detected by SetupAPI.");
+            }
+            else
+            {
+                foreach (GpuAdapterInfo adapter in adapters)
+                {
+                    Console.WriteLine(
+                        "  " + GpuVendorLabel(adapter.Vendor) +
+                        " | " + adapter.Name +
+                        " | provider: " + adapter.DriverProvider +
+                        " | version: " + adapter.DriverVersion);
+                }
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine("PASS: GPU inventory completed without changing drivers.");
+                Console.ResetColor();
+            }
+        }
+        catch (Exception ex)
+        {
+            failures++;
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine("FAIL");
+            Console.ResetColor();
+            failureDetails.Add("GPU inventory: " + ex.Message);
+        }
+
+        Console.WriteLine();
+        Console.WriteLine("[5/5] Runtime refresh policy...");
+        string[] requiredRefreshCommands =
+        {
+            "menu",
+            "status",
+            "git-review",
+            "software",
+            "software-audit",
+            "acceptance-audit",
+            "gpu-driver",
+            "update",
+            "reset",
+            "review"
+        };
+        List<string> missingRefresh = requiredRefreshCommands
+            .Where(command => !ShouldAutoRefreshRuntime(command))
+            .ToList();
+
+        if (missingRefresh.Count == 0)
+        {
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine("PASS: all normal user-facing maintenance commands refresh before dispatch.");
+            Console.ResetColor();
+        }
+        else
+        {
+            failures++;
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine("FAIL");
+            Console.ResetColor();
+            failureDetails.Add(
+                "Runtime auto-refresh missing for: " +
+                String.Join(", ", missingRefresh.ToArray()));
+        }
+
+        Console.WriteLine();
+        Console.WriteLine("Automated acceptance audit complete.");
+        Console.WriteLine("Failures: " + failures.ToString(CultureInfo.InvariantCulture));
+        Console.WriteLine("Warnings: " + warnings.ToString(CultureInfo.InvariantCulture));
+
+        if (failureDetails.Count > 0)
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine();
+            Console.WriteLine("Failure details:");
+            foreach (string detail in failureDetails)
+                Console.WriteLine("  - " + detail);
+            Console.ResetColor();
+        }
+
+        if (warningDetails.Count > 0)
+        {
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine();
+            Console.WriteLine("Warnings:");
+            foreach (string detail in warningDetails)
+                Console.WriteLine("  - " + detail);
+            Console.ResetColor();
+        }
+
+        Console.WriteLine();
+        Console.ForegroundColor = ConsoleColor.DarkGray;
+        Console.WriteLine(
+            "Still requires real Windows interaction: hotkey behavior, actual Firefox/Brave extension consumption, " +
+            "one real managed-dots apply/rollback cycle, and any intentionally tested DDU reboot flow.");
+        Console.ResetColor();
+
+        return failures == 0 ? 0 : 1;
     }
 
     static int SoftwareReconcile()

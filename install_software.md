@@ -15,6 +15,18 @@ privacy.sexy remains optional. WGDot installs/updates only from the official ups
 
 WGDot normally hides the Windows 11 Widgets button through the current-user `TaskbarDa` setting. Some Windows builds protect that specific value even when other taskbar values remain writable. If Windows rejects only `TaskbarDa`, WGDot discards the untouched value's rollback snapshot and uses Microsoft's machine-level Widgets policy `SOFTWARE\Policies\Microsoft\Dsh\AllowNewsAndInterests=0` inside the existing elevated setup batch. The pre-WGDot policy state is snapshotted for rollback.
 
+## Automated acceptance audit
+
+For broad maintainer testing without filling a VM or repeatedly mutating the live profile, run:
+
+```powershell
+wgdot acceptance-audit
+```
+
+This command refreshes the WGDot runtime before dispatch, then runs the isolated native mutation/rollback suite under a temporary `WGDOT_TEST_ROOT`, resolves the current managed-config plan without applying it, validates persisted browser option IDs, runs the complete no-install software catalog/source audit, enumerates GPU state read-only, and verifies refresh coverage for normal maintenance commands.
+
+It does **not** install software, change Windows tweaks, apply managed dots, modify browser profiles, or launch DDU. Human acceptance is still required for actual global hotkeys, Firefox/Brave extension approval/consumption, one real managed-dots apply/rollback cycle, and any intentionally tested DDU reboot flow.
+
 ## Software catalog audit
 
 The native maintenance menu includes **Audit all software (no install)**. This checks every package in the WGDot manifest, including optional applications, without installing or downloading installer payloads. The audit performs exact-ID WinGet metadata lookups, validates any known post-install action names, and checks declared official GitHub fallback repositories for a matching latest-release asset.
