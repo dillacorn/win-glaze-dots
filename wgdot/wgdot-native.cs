@@ -3058,20 +3058,6 @@ internal static class WgdotNative
             });
     }
 
-    static string FindYasbExe()
-    {
-        string local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        return FindExecutableWithCandidates(
-            "yasb.exe",
-            new[]
-            {
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "YASB", "yasb.exe"),
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "YASB", "yasb.exe"),
-                Path.Combine(local, "Programs", "YASB", "yasb.exe"),
-                Path.Combine(local, "yasb", "yasb.exe")
-            });
-    }
-
     static string StartupRunValueName(Dictionary<string, object> package)
     {
         string handler = GetString(package, "startupHandler");
@@ -3104,14 +3090,6 @@ internal static class WgdotNative
             string exe = FindAltSnapExe();
             if (String.IsNullOrWhiteSpace(exe))
                 throw new Exception("AltSnap is selected for startup, but AltSnap.exe could not be found.");
-            return Q(exe);
-        }
-
-        if (String.Equals(handler, "yasb", StringComparison.OrdinalIgnoreCase))
-        {
-            string exe = FindYasbExe();
-            if (String.IsNullOrWhiteSpace(exe))
-                throw new Exception("YASB is selected for startup, but yasb.exe could not be found.");
             return Q(exe);
         }
 
@@ -3250,7 +3228,11 @@ internal static class WgdotNative
             choices.Add(new ChoiceItem
             {
                 Id = GetString(package, "id"),
-                Label = GetString(package, "name") + " [Windows login]",
+                Label =
+                    (String.Equals(GetString(package, "startupHandler"), "glazewm", StringComparison.OrdinalIgnoreCase)
+                        ? "GlazeWM + YASB"
+                        : GetString(package, "name")) +
+                    " [Windows login]",
                 Category = "startup",
                 Selected = IsStartupRegistrationEnabled(package)
             });
