@@ -315,9 +315,19 @@ QToolTip {
 /* Windows Do Not Disturb is the native YASB approximation of Awtarchy's
    notification-popup mute state. Keep the normal bell neutral and make
    restricted modes visibly critical. */
+.dnd-widget {
+    padding: 0;
+}
+
+.dnd-widget .icon,
+.dnd-widget .label {
+    padding: 0;
+}
+
 .dnd-widget .icon.status-disabled,
 .dnd-widget .label.status-disabled {
     color: var(--foreground);
+    padding: 0;
 }
 
 .dnd-widget .icon.status-priority,
@@ -325,6 +335,7 @@ QToolTip {
 .dnd-widget .icon.status-alarms,
 .dnd-widget .label.status-alarms {
     color: var(--critical);
+    padding: 0 5px;
 }
 
 /* Dedicated Windows Clipboard History surface using YASB Quick Launch.
