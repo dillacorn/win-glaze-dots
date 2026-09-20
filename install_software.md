@@ -31,7 +31,7 @@ It does **not** install software, change Windows tweaks, apply managed dots, mod
 
 The native maintenance menu includes **Audit all software (no install)**. This checks every package in the WGDot manifest, including optional applications, without installing or downloading installer payloads. The audit performs exact-ID WinGet metadata lookups, validates any known post-install action names, and checks declared official GitHub fallback repositories for a matching latest-release asset.
 
-The audit does not request UAC, modify the registry, launch applications, install/upgrade packages, or consume meaningful VM disk space. It is intended for broad catalog validation on a small test VM. Packages with a verified official fallback are counted as alternate-source coverage rather than a failure. RustDesk uses its official GitHub releases directly because its historical WinGet package is not currently available. FileZilla is intentionally treated as an official-page package because it is not available from the WinGet community source; WGDot validates its publisher download page without downloading the installer. A passing audit does not prove that a third-party installer itself will execute correctly or that app-specific runtime integration works after installation.
+The audit does not request UAC, modify the registry, launch applications, install/upgrade packages, or consume meaningful VM disk space. It is intended for broad catalog validation on a small test VM. Packages with a verified official fallback are counted as alternate-source coverage rather than a failure. RustDesk uses its official GitHub releases directly because its historical WinGet package is not currently available. Raw Accel uses its official release ZIP and MicLockTray uses its official standalone release executable; both remain opt-in. FileZilla is intentionally treated as an official-page package because it is not available from the WinGet community source; WGDot validates its publisher download page without downloading the installer. A passing audit does not prove that a third-party installer itself will execute correctly or that app-specific runtime integration works after installation.
 
 Direct command:
 
@@ -47,7 +47,7 @@ WGDot keeps the interactive software selector unelevated. After the user reviews
 
 Preflight reads the installed WinGet package state once, then performs exact-ID source validation only for selected packages that are actually missing. Silent WinGet checks run with interactivity disabled and a 30-second timeout; if WinGet itself stops responding, WGDot reports the package/check and stops before launching a partial elevated install batch instead of hanging forever.
 
-Firefox's Windows extension-policy registry mutation and registry-heavy Windows setup tweaks are handled inside the same bounded elevated worker when needed. Betterfox profile changes, Brave/Mullvad browser interaction, Flow Launcher/EarTrumpet application configuration, browser launches, and post-install application launches still run from the normal unelevated WGDot process. WGDot does not require Windows sudo and does not disable or weaken UAC.
+Firefox's Windows extension-policy registry mutation and registry-heavy Windows setup tweaks are handled inside the same bounded elevated worker when needed. Raw Accel's upstream kernel-driver installer also runs there after its official release ZIP is safely extracted; WGDot verifies the driver service/file state and leaves the required restart to the user. Betterfox profile changes, Brave/Mullvad browser interaction, Flow Launcher/EarTrumpet application configuration, browser launches, MicLockTray's standalone portable install/launch, and other user-level post-install launches stay in the normal unelevated WGDot process. WGDot does not require Windows sudo and does not disable or weaken UAC.
 
 
 ## Default ON
@@ -111,6 +111,7 @@ Mullvad Browser is intentionally left untouched. WGDot does not install extensio
 
 - **SpeedCrunch** — `SpeedCrunch.SpeedCrunch`
 - **Everything** — `voidtools.Everything`
+- **MicLockTray** — `dillacorn.MicLockTray` — official standalone GitHub release, optional and default OFF
 
 ### System / diagnostics
 
@@ -169,6 +170,7 @@ Mullvad Browser is intentionally left untouched. WGDot does not install extensio
 - **Prism Launcher** — `PrismLauncher.PrismLauncher`
 - **r2modman** — `ebkr.r2modman`
 - **Epic Games Launcher** — `EpicGames.EpicGamesLauncher`
+- **Raw Accel** — `RawAccelOfficial.RawAccel` — official release ZIP/driver installer, optional and default OFF; restart Windows after installation
 - **Moonlight** — `MoonlightGameStreamingProject.Moonlight`
 - **Sunshine** — `LizardByte.Sunshine`
 
@@ -211,7 +213,7 @@ WGDot has a separate GPU driver maintenance workflow in the main menu.
 
 - Detects present AMD, NVIDIA, and Intel display adapters from PCI hardware IDs.
 - Reports the active display-driver provider/version and recommends the matching vendor tooling when a vendor driver is missing.
-- Supports AMD Auto-Detect, NVIDIA App, and Intel Driver & Support Assistant from vendor-owned download endpoints.
+- Supports AMD Auto-Detect, NVIDIA App, and Intel Driver & Support Assistant from vendor-owned download endpoints. AMD downloads include AMD.com's required support-page referrer, and downloaded executables are checked before launch so an HTML error page is never executed as an installer.
 - Detects possible stale/mismatched display-driver vendors without treating legitimate hybrid Intel+NVIDIA / Intel+AMD systems as errors.
 - Offers a guarded DDU clean reinstall/refresh path that stages Safe Mode only after explicit confirmation.
 - DDU cleanup state survives the reboot. WGDot removes forced Safe Mode before DDU launches and remembers which vendor driver must be reinstalled afterward.
