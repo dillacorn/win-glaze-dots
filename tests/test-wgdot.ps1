@@ -314,6 +314,9 @@ Assert-True ($manualText -match 'theme\.css') "paste-only manual workflow genera
 Assert-True ($manualText -match 'theme\.json') "paste-only manual workflow preserves YASB theme state"
 Assert-True ($manualText -match 'appearance\.css') "paste-only manual workflow generates YASB appearance.css"
 Assert-True ($manualText -match 'yasb-appearance\.json') "paste-only manual workflow preserves YASB appearance state"
+Assert-True ($manualText -match 'Microsoft\.WinGet\.Client') "paste-only manual workflow can bootstrap missing WinGet from Microsoft's module"
+Assert-True ($manualText -match 'Repair-WinGetPackageManager -Force -Latest') "paste-only manual workflow uses Microsoft's current WinGet repair command"
+Assert-True ($manualText -match 'WGDot\.\*') "paste-only manual workflow documents disabling WGDot-owned startup values"
 foreach ($themeId in @("carbon-night", "catppuccin-frappe", "crimson-red", "electric-blue", "gruvbox", "iron-forge", "obsidian-night", "pink", "pipboy")) {
     Assert-True ($manualText.Contains($themeId)) "paste-only manual workflow includes YASB theme palette: $themeId"
 }
@@ -339,6 +342,9 @@ Assert-True ($nativeSourceText -match 'SoftwareReconcile') "native runtime inclu
 Assert-True ($nativeSourceText -match 'SoftwareManager') "native runtime exposes a software/startup management surface"
 Assert-True ($nativeSourceText -match 'StartupManager') "native runtime exposes individual startup management"
 Assert-True ($nativeSourceText -match 'SoftwareUninstallManager') "native runtime exposes explicit individual uninstall management"
+foreach ($command in @("software-reconcile", "software-uninstall", "startup", "startup-disable-all")) {
+    Assert-True ($nativeSourceText -match ('String\.Equals\(command, "' + [regex]::Escape($command) + '"')) "direct $command command participates in runtime auto-refresh"
+}
 Assert-True ($nativeSourceText -match 'Disable all WGDot-managed startup') "software manager exposes a non-uninstall startup back-out path"
 Assert-True ($nativeSourceText -match 'Software\\Microsoft\\Windows\\CurrentVersion\\Run') "startup manager uses per-user Windows startup registration"
 Assert-True ($nativeSourceText -match '"WGDot\." \+ handler') "startup entries are namespaced to WGDot ownership"
