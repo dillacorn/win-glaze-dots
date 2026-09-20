@@ -142,7 +142,7 @@ widgets:
   taskbar:
     type: "yasb.taskbar.TaskbarWidget"
     options:
-      icon_size: 16
+      icon_size: 14
       tooltip: true
       show_only_visible: false
       strict_filtering: true
@@ -208,7 +208,7 @@ widgets:
   cpu:
     type: "yasb.cpu.CpuWidget"
     options:
-      label: "{info[percent][total]}% "
+      label: "{info[percent][total]}% <span></span>"
       label_alt: "{info[freq][current]} MHz"
       update_interval: 2000
       hide_decimal: true
@@ -230,7 +230,7 @@ widgets:
   memory:
     type: "yasb.memory.MemoryWidget"
     options:
-      label: "{virtual_mem_percent}% "
+      label: "{virtual_mem_percent}% <span></span>"
       label_alt: "{virtual_mem_used} / {virtual_mem_total}"
       update_interval: 5000
       hide_decimal: true
@@ -419,7 +419,7 @@ widgets:
     type: "yasb.systray.SystrayWidget"
     options:
       class_name: "systray"
-      icon_size: 16
+      icon_size: 14
       tooltip: true
       show_unpinned: true
       show_unpinned_button: false

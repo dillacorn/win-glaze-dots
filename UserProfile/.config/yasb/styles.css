@@ -239,7 +239,6 @@ QToolTip {
 .clock-widget,
 .wifi-widget,
 .bluetooth-widget,
-
 .dnd-widget,
 .quick-launch-widget,
 .power-menu-widget,
@@ -266,6 +265,41 @@ QToolTip {
     padding-right: 8px;
 }
 
+/* Match current Awtarchy's default per-control icon scale. */
+.cpu-widget .icon,
+.memory-widget .icon,
+.brightness-widget .icon,
+.microphone-widget .icon,
+.clock-widget .icon,
+.wifi-widget .icon,
+.bluetooth-widget .icon,
+.quick-launch-widget .icon {
+    font-size: 18px;
+}
+
+.battery-widget .icon {
+    font-size: 17px;
+}
+
+.volume-widget .icon,
+.power-menu-widget .icon {
+    font-size: 20px;
+}
+
+.dnd-widget .icon {
+    font-size: 19px;
+}
+
+/* Awtarchy uses its stronger hover fill for network/menu-style actions. */
+.wifi-widget:hover,
+.bluetooth-widget:hover,
+.quick-launch-widget:hover,
+.dnd-widget:hover,
+.awtarchy-theme-picker:hover,
+.power-menu-widget:hover {
+    background-color: var(--strong-hover);
+}
+
 .cpu-widget .label,
 .memory-widget .label,
 .brightness-widget .label,
@@ -275,7 +309,6 @@ QToolTip {
 .clock-widget .label,
 .wifi-widget .label,
 .bluetooth-widget .label,
-
 .dnd-widget .label,
 .quick-launch-widget .label,
 .power-menu-widget .label {
@@ -329,12 +362,8 @@ QToolTip {
 
 
 /* Windows Do Not Disturb is the native YASB approximation of Awtarchy's
-   notification-popup mute state. Keep the normal bell neutral and make
-   restricted modes visibly critical. */
-.dnd-widget {
-    padding: 0;
-}
-
+   notification-popup mute state. The outer widget keeps Awtarchy's fixed
+   8px horizontal padding in every state so toggling DND cannot shift layout. */
 .dnd-widget .icon,
 .dnd-widget .label {
     padding: 0;
@@ -351,14 +380,14 @@ QToolTip {
 .dnd-widget .icon.status-alarms,
 .dnd-widget .label.status-alarms {
     color: var(--critical);
-    padding: 0 5px;
+    padding: 0;
 }
 
 /* Dedicated Windows Clipboard History surface using YASB Quick Launch.
    This instance has only the clipboard provider enabled. */
 .quick-launch-widget {
     background-color: transparent;
-    padding: 0 5px;
+    padding: 0 8px;
 }
 
 .quick-launch-widget .icon,
