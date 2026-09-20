@@ -61,7 +61,7 @@ These translations use documented upstream YASB or GlazeWM behavior rather than 
 | power controls | native compact Power Menu popup; both left and right click use YASB's supported menu toggle | YASB Power Menu docs and registered `toggle_power_menu` callback |
 | exclusive bar area + fullscreen hiding | `windows_app_bar: true` + `hide_on_fullscreen: true`; GlazeWM keeps its ordinary 8 px outer gap instead of the old 38 px manual bar allowance | YASB bar configuration; current GlazeWM uses the Windows monitor working area (excluding taskbars/reserved space) and listens for `SPI_SETWORKAREA`; Awtarchy `Bar.qml` uses `exclusiveZone: barSize` while Hyprland keeps normal `gaps_out` |
 | Flow Launcher button | a static native `CustomWidget` calling the existing WGDot `flow-open` helper on both left and right click, matching Awtarchy's launcher mouse behavior | YASB Custom widget uses normal registered mouse callbacks and the existing WGDot helper |
-| bar visibility hotkey | YASB's supported `yasbc toggle-bar`; WGDot keeps the old `Alt+Ctrl+B` convenience and also exposes Awtarchy's `Win+Alt+Ctrl+B` chord, including inside `noalt` and `vm` binding modes | YASB CLI `toggle-bar` + managed GlazeWM bindings |
+| legacy bar visibility hotkey | WGDot keeps its existing `Alt+Ctrl+B` convenience but implements it with supported `yasbc toggle-bar` instead of killing/restarting YASB | YASB CLI `toggle-bar` + managed GlazeWM binding |
 
 ## Deliberate differences and omissions
 
@@ -77,7 +77,7 @@ The following Awtarchy features are not translated because a direct supported eq
 - Awtarchy's workspace mover expands on hover and includes a mouse submap toggle. YASB's native Grouper expands by click, and WGDot has no equivalent mouse binding mode.
 - task-icon left click is still not identical: YASB's native `toggle_window` minimizes an already-active window; Awtarchy's left click simply activates it. Right-click now uses the same native YASB minimize/restore action because that is a closer match to Awtarchy.
 - Awtarchy's notification icon owns both open and popup-mute behavior. YASB does not expose a cross-widget callback for that composition, so Windows Action Center and Windows Do Not Disturb are adjacent controls instead. YASB's DND implementation uses the Windows QuietHoursSettings COM API documented by YASB as an undocumented Windows API, so Windows updates can change that behavior.
-- Awtarchy toggles auto-hide for the focused monitor. YASB exposes a supported CLI visibility toggle, but a monitor-specific toggle requires a concrete screen name; the managed GlazeWM hotkey therefore toggles all YASB bars rather than guessing a monitor name.
+- Awtarchy's `Win+Alt+Ctrl+B` changes focused-monitor auto-hide and releases the exclusive zone. YASB v2.0.7 has a real `auto_hide` mode that also removes its AppBar reservation, but its CLI cannot toggle that setting at runtime. `yasbc toggle-bar` only hides the window and leaves a normal AppBar reservation in place. WGDot therefore does **not** bind the Awtarchy auto-hide chord to `toggle-bar`; the older `Alt+Ctrl+B` hard-visibility convenience remains separate.
 
 ## Anti-cheat-sensitive choices
 
