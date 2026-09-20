@@ -8,6 +8,8 @@ bars:
     enabled: true
     screens: ["*"]
     class_name: "yasb-bar"
+    # Awtarchy has no blank-bar context menu; keep right-clicks scoped to widgets.
+    context_menu: false
 
     alignment:
       position: "top"
