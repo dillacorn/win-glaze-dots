@@ -429,7 +429,7 @@ widgets:
   clipboard_history:
     type: "yasb.quick_launch.QuickLaunchWidget"
     options:
-      label: "<span></span>"
+      label: "<span></span>"
       search_placeholder: "Search clipboard history..."
       remember_last_query: false
       max_results: 30
@@ -470,9 +470,11 @@ widgets:
       label_alt: "<span>{icon}</span> {count}"
       tooltip: true
       hide_empty: false
+      # Awtarchy uses the Font Awesome bell for its notification control.
+      # YASB supplies the unread state through its native new-notification class.
       icons:
-        new: "󰂞"
-        default: "󰂚"
+        new: ""
+        default: ""
       callbacks:
         on_left: "toggle_notification"
         on_middle: "toggle_label"
@@ -486,13 +488,16 @@ widgets:
       class_name: "awtarchy-dnd"
       tooltip: true
       default_active_mode: "priority"
+      # Keep the normal state visually absent so the adjacent Notifications
+      # widget remains the single normal bell. Restricted modes add the
+      # Awtarchy-style muted bell beside it.
       icons:
-        disabled: ""
+        disabled: ""
         priority: ""
         alarms: ""
       callbacks:
         on_left: "toggle_status"
-        on_middle: "toggle_label"
+        on_middle: "do_nothing"
         on_right: "toggle_status"
 
   power_menu:
