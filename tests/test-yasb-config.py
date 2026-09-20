@@ -1,18 +1,22 @@
 #!/usr/bin/env python3
-"""Validate the managed YASB config against a checked-out upstream YASB schema.
+"""Validate the managed YASB config against a checked-out upstream YASB release.
 
 Usage:
     python tests/test-yasb-config.py <yasb-source-root>
 
 The workflow checks out the current stable YASB release and supplies its root.
-This deliberately validates against upstream Pydantic models instead of keeping
-an approximate copy of YASB's schema in win-glaze-dots.
+Validation intentionally uses upstream Pydantic models and upstream callback
+registrations instead of maintaining an approximate local copy of YASB's API.
 """
 
 from __future__ import annotations
 
+import ast
+import io
 import sys
+from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
+from typing import Any, Callable
 
 import yaml
 
@@ -77,6 +81,71 @@ SCHEMAS = {
     "yasb.wifi.WifiWidget": WifiConfig,
 }
 
+WIDGET_SOURCE = {
+    "glazewm.binding_mode.GlazewmBindingModeWidget": "core/widgets/glazewm/binding_mode.py",
+    "yasb.active_window.ActiveWindowWidget": "core/widgets/yasb/active_window.py",
+    "yasb.battery.BatteryWidget": "core/widgets/yasb/battery.py",
+    "yasb.bluetooth.BluetoothWidget": "core/widgets/yasb/bluetooth.py",
+    "yasb.brightness.BrightnessWidget": "core/widgets/yasb/brightness.py",
+    "yasb.clock.ClockWidget": "core/widgets/yasb/clock.py",
+    "yasb.cpu.CpuWidget": "core/widgets/yasb/cpu.py",
+    "yasb.memory.MemoryWidget": "core/widgets/yasb/memory.py",
+    "yasb.microphone.MicrophoneWidget": "core/widgets/yasb/microphone.py",
+    "yasb.notifications.NotificationsWidget": "core/widgets/yasb/notifications.py",
+    "yasb.power_menu.PowerMenuWidget": "core/widgets/yasb/power_menu.py",
+    "yasb.taskbar.TaskbarWidget": "core/widgets/yasb/taskbar.py",
+    "yasb.volume.VolumeWidget": "core/widgets/yasb/volume.py",
+    "yasb.wifi.WifiWidget": "core/widgets/yasb/wifi.py",
+}
+
+
+def validate_without_deprecations(label: str, validator: Callable[[], Any]) -> Any:
+    """Run upstream validation and reject options YASB only accepts as deprecated."""
+    captured_out = io.StringIO()
+    captured_err = io.StringIO()
+    try:
+        with redirect_stdout(captured_out), redirect_stderr(captured_err):
+            result = validator()
+    except Exception as exc:
+        fail(f"{label} failed upstream validation:\n{exc}")
+
+    diagnostics = captured_out.getvalue() + captured_err.getvalue()
+    if "[DEPRECATED]" in diagnostics:
+        fail(f"{label} uses deprecated upstream YASB configuration:\n{diagnostics.strip()}")
+    return result
+
+
+def registered_callbacks(source_path: Path) -> set[str]:
+    """Extract literal self.register_callback("name", ...) registrations."""
+    if not source_path.is_file():
+        fail(f"upstream callback source not found: {source_path}")
+
+    tree = ast.parse(source_path.read_text(encoding="utf-8"), filename=str(source_path))
+    names: set[str] = set()
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call) or not node.args:
+            continue
+        func = node.func
+        if not isinstance(func, ast.Attribute) or func.attr != "register_callback":
+            continue
+        first = node.args[0]
+        if isinstance(first, ast.Constant) and isinstance(first.value, str):
+            names.add(first.value)
+    return names
+
+
+def callback_actions(value: Any) -> list[str]:
+    if isinstance(value, str):
+        stripped = value.strip()
+        return [stripped.split(None, 1)[0]] if stripped else []
+    if isinstance(value, list):
+        result: list[str] = []
+        for item in value:
+            result.extend(callback_actions(item))
+        return result
+    fail(f"callback value has unsupported shape: {value!r}")
+    return []
+
 
 with CONFIG_PATH.open("r", encoding="utf-8") as handle:
     raw = yaml.safe_load(handle)
@@ -84,12 +153,14 @@ with CONFIG_PATH.open("r", encoding="utf-8") as handle:
 if not isinstance(raw, dict):
     fail("config.yaml did not parse to a mapping")
 
-# Validates root options and every bar option, including nested bar fields.
-YasbConfig(**raw)
+# Root validation covers global options and every nested bar field.
+validate_without_deprecations("root/bar configuration", lambda: YasbConfig(**raw))
 
 widgets = raw.get("widgets")
 if not isinstance(widgets, dict) or not widgets:
     fail("widgets mapping is missing or empty")
+
+base_callbacks = registered_callbacks(yasb_src / "core" / "widgets" / "base.py")
 
 for name, widget in widgets.items():
     if not isinstance(widget, dict):
@@ -104,10 +175,27 @@ for name, widget in widgets.items():
     if not isinstance(options, dict):
         fail(f"widget {name!r} options are not a mapping")
 
-    try:
-        schema(**options)
-    except Exception as exc:
-        fail(f"widget {name!r} ({widget_type}) failed upstream validation:\n{exc}")
+    validate_without_deprecations(
+        f"widget {name!r} ({widget_type})",
+        lambda schema=schema, options=options: schema(**options),
+    )
+
+    callbacks = options.get("callbacks")
+    if callbacks is not None:
+        if not isinstance(callbacks, dict):
+            fail(f"widget {name!r} callbacks are not a mapping")
+        source_rel = WIDGET_SOURCE.get(widget_type)
+        if source_rel is None:
+            fail(f"widget {name!r} declares callbacks but has no upstream callback-source mapping")
+
+        allowed = base_callbacks | registered_callbacks(yasb_src / source_rel)
+        for event_name, callback_value in callbacks.items():
+            for action in callback_actions(callback_value):
+                if action not in allowed:
+                    fail(
+                        f"widget {name!r} callback {event_name!r} uses unsupported action "
+                        f"{action!r}; upstream registered callbacks: {sorted(allowed)}"
+                    )
 
 bars = raw.get("bars", {})
 for bar_name, bar in bars.items():
@@ -125,4 +213,7 @@ for name, widget in widgets.items():
         if child not in widgets:
             fail(f"grouper {name!r} references undefined child widget {child!r}")
 
-print(f"YASB config validated against upstream schemas from {yasb_root}")
+print(
+    "YASB config validated against upstream schemas, deprecations, and callback "
+    f"registrations from {yasb_root}"
+)
