@@ -19,7 +19,7 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-46";
+    const string Version = "native-preview-47";
     const int WingetPreflightTimeoutMs = 30000;
     const string RepoFullName = "dillacorn/win-glaze-dots";
     const string RepoUrl = "https://github.com/dillacorn/win-glaze-dots.git";
@@ -45,6 +45,7 @@ internal static class WgdotNative
     static readonly string BrowserStatePath = Path.Combine(StateRoot, "browser-management.json");
     static readonly string ThemeStatePath = Path.Combine(StateRoot, "theme.json");
     static readonly string AppearanceStatePath = Path.Combine(StateRoot, "yasb-appearance.json");
+    static readonly string StartupStatePath = Path.Combine(StateRoot, "startup.json");
     static readonly JavaScriptSerializer Json = new JavaScriptSerializer { MaxJsonLength = int.MaxValue, RecursionLimit = 100 };
 
     static readonly IntPtr HwndBroadcast = new IntPtr(0xffff);
@@ -491,8 +492,10 @@ internal static class WgdotNative
             if (command == "apply-tweak") return ApplyTweakFromArgs(args.Skip(1).ToArray());
             if (command == "mark-runtime") return MarkRuntimeFromArgs(args.Skip(1).ToArray());
             if (command == "maintenance-self-test") return MaintenanceSelfTest();
-            if (command == "software") return SoftwareReconcile();
+            if (command == "software") return SoftwareManager();
+            if (command == "software-reconcile") return SoftwareReconcile();
             if (command == "software-audit") return SoftwareCatalogAudit();
+            if (command == "ensure-winget") return EnsureWingetAvailable();
             if (command == "acceptance-audit") return AcceptanceAudit();
             if (command == "software-elevated") return SoftwareElevatedFromArgs(args.Skip(1).ToArray());
             if (command == "flow-open") return OpenFlowLauncher();
@@ -560,6 +563,7 @@ internal static class WgdotNative
             String.Equals(command, "super-l-test", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "window-audit", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "software", StringComparison.OrdinalIgnoreCase) ||
+            String.Equals(command, "software-reconcile", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "software-audit", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "acceptance-audit", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "theme", StringComparison.OrdinalIgnoreCase) ||
@@ -2077,7 +2081,7 @@ internal static class WgdotNative
                 !String.Equals(expectedRevision, source.Revision, StringComparison.OrdinalIgnoreCase))
                 throw new Exception("WGDot software plan source changed before elevation. Re-run software reconciliation.");
 
-            RequireExecutable("winget.exe", "WinGet was not found.");
+            EnsureWingetAvailable();
 
             foreach (string id in GetStringList(plan, "packageIds")
                 .Distinct(StringComparer.OrdinalIgnoreCase))
@@ -2437,7 +2441,7 @@ internal static class WgdotNative
             return 0;
         }
 
-        RequireExecutable("winget.exe", "WinGet was not found.");
+        EnsureWingetAvailable();
 
         int wingetOk = 0;
         int fallbackOk = 0;
@@ -2995,7 +2999,7 @@ internal static class WgdotNative
             return 0;
         }
 
-        RequireExecutable("winget.exe", "WinGet was not found.");
+        EnsureWingetAvailable();
 
         var wanted = new HashSet<string>(selection.Packages, StringComparer.OrdinalIgnoreCase);
         var installIds = new List<string>();
@@ -4486,7 +4490,7 @@ internal static class WgdotNative
         string exe = FindDduExe();
         if (!String.IsNullOrWhiteSpace(exe)) return exe;
 
-        RequireExecutable("winget.exe", "WinGet is required to install Display Driver Uninstaller.");
+        EnsureWingetAvailable();
         Console.WriteLine("Installing Display Driver Uninstaller from its exact WinGet package...");
         ProcResult install = RunInteractive(
             "winget.exe",
@@ -10130,6 +10134,108 @@ public static class Program
     {
         ProcResult where = Run("where.exe", Q(name), null);
         return where.ExitCode == 0;
+    }
+
+    static string FindWingetExe()
+    {
+        if (ExecutableExists("winget.exe"))
+            return "winget.exe";
+
+        string alias = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "Microsoft",
+            "WindowsApps",
+            "winget.exe");
+        return File.Exists(alias) ? alias : "";
+    }
+
+    static void RegisterCurrentUserAppInstaller()
+    {
+        ProcResult register = Run(
+            "powershell.exe",
+            "-NoProfile -Command " + Q(
+                "$ErrorActionPreference='SilentlyContinue'; " +
+                "Add-AppxPackage -RegisterByFamilyName -MainPackage Microsoft.DesktopAppInstaller_8wekyb3d8bbwe"),
+            null);
+
+        // Registration is best-effort here. The subsequent winget probe is
+        // authoritative and gives a concrete error if App Installer is absent.
+        if (register.ExitCode != 0)
+            System.Threading.Thread.Sleep(500);
+    }
+
+    static int EnsureWingetAvailable()
+    {
+        string winget = FindWingetExe();
+        if (!String.IsNullOrWhiteSpace(winget))
+            return 0;
+
+        WriteTitle("WinGet requirement");
+        Console.WriteLine("WinGet is not available. WGDot requires Windows Package Manager.");
+        Console.WriteLine("Installing Microsoft's App Installer / WinGet bootstrap automatically...");
+        Console.WriteLine();
+
+        if (!IsAdministrator())
+        {
+            int code = RunElevatedSelfWithExitCode("ensure-winget");
+            if (code != 0)
+                throw new Exception(
+                    "Automatic WinGet bootstrap failed with elevated WGDot exit code " +
+                    code.ToString(CultureInfo.InvariantCulture) + ".");
+
+            RegisterCurrentUserAppInstaller();
+        }
+        else
+        {
+            string script =
+                "$ErrorActionPreference='Stop';" +
+                "$ProgressPreference='SilentlyContinue';" +
+                "Install-PackageProvider -Name NuGet -Force | Out-Null;" +
+                "Install-Module -Name Microsoft.WinGet.Client -Force -Repository PSGallery -Scope AllUsers | Out-Null;" +
+                "Import-Module Microsoft.WinGet.Client -Force;" +
+                "Repair-WinGetPackageManager -AllUsers;";
+
+            ProcResult repair = RunInteractive(
+                "powershell.exe",
+                "-NoProfile -Command " + Q(script));
+
+            if (repair.ExitCode != 0)
+                throw new Exception(
+                    "Microsoft WinGet bootstrap failed with exit " +
+                    repair.ExitCode.ToString(CultureInfo.InvariantCulture) + ".");
+
+            RegisterCurrentUserAppInstaller();
+        }
+
+        string windowsApps = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "Microsoft",
+            "WindowsApps");
+        string currentPath = Environment.GetEnvironmentVariable("PATH") ?? "";
+        if (currentPath.IndexOf(windowsApps, StringComparison.OrdinalIgnoreCase) < 0)
+            Environment.SetEnvironmentVariable("PATH", currentPath + ";" + windowsApps);
+
+        for (int i = 0; i < 40; i++)
+        {
+            winget = FindWingetExe();
+            if (!String.IsNullOrWhiteSpace(winget))
+            {
+                ProcResult version = Run(winget, "--version", null);
+                if (version.ExitCode == 0)
+                {
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.WriteLine(
+                        "WinGet ready: " +
+                        LastUsefulLine(version.StdOut + "\n" + version.StdErr));
+                    Console.ResetColor();
+                    return 0;
+                }
+            }
+            System.Threading.Thread.Sleep(250);
+        }
+
+        throw new Exception(
+            "Microsoft App Installer was repaired, but winget.exe is still unavailable for the current user.");
     }
 
     static void RequireExecutable(string name, string error)
