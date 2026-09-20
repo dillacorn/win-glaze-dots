@@ -341,7 +341,7 @@ Assert-True ($nativeSourceText -match 'ReadMultiChoice') "native runtime contain
 Assert-True ($nativeSourceText -match 'SoftwareReconcile') "native runtime includes software reconciliation"
 Assert-True ($nativeSourceText -match 'SoftwareManager') "native runtime exposes a software/startup management surface"
 Assert-True ($nativeSourceText -match 'StartupManager') "native runtime exposes individual startup management"
-Assert-True ($nativeSourceText -match 'SpecialFolder\.ApplicationData.*?AltSnap.*?AltSnap\.exe') "AltSnap startup resolver covers its normal per-user AppData install path"
+Assert-True ($nativeSourceText -match '(?s)SpecialFolder\.ApplicationData.*?AltSnap.*?AltSnap\.exe') "AltSnap startup resolver covers its normal per-user AppData install path"
 Assert-True ($nativeSourceText -match 'SoftwareUninstallManager') "native runtime exposes explicit individual uninstall management"
 foreach ($command in @("software-reconcile", "software-uninstall", "startup", "startup-disable-all")) {
     Assert-True ($nativeSourceText -match ('String\.Equals\(command, "' + [regex]::Escape($command) + '"')) "direct $command command participates in runtime auto-refresh"
