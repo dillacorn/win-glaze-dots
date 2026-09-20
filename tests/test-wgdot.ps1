@@ -390,6 +390,7 @@ Assert-True ($nativeSourceText -match 'GlazeWM was not reloaded') "theme applica
 Assert-True ($nativeSourceText -match 'catppuccin-frappe') "Awtarchy theme palette catalog is carried into WGDot"
 Assert-True ($nativeSourceText -match 'YASB theme CSS generation self-test failed') "isolated native self-test exercises real theme CSS writes"
 Assert-True ($nativeSourceText -match '(?s)requiredRefreshCommands.*?"theme"') "acceptance audit itself requires theme runtime auto-refresh"
+Assert-True ($nativeSourceText -match 'File\.AppendAllText\(cssPath, Environment\.NewLine') "theme apply guarantees YASB receives an imported-stylesheet modified event"
 Assert-True ($nativeSourceText -match 'if \(command == "acceptance-audit"\) return AcceptanceAudit') "native runtime exposes automated acceptance audit"
 Assert-True ($nativeSourceText -match 'String\.Equals\(command, "acceptance-audit"') "acceptance audit refreshes runtime before dispatch"
 Assert-True ($nativeSourceText -match 'Automated acceptance audit \(safe\)') "maintenance menu exposes safe acceptance audit"
