@@ -19,7 +19,7 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-34";
+    const string Version = "native-preview-35";
     const int WingetPreflightTimeoutMs = 30000;
     const string RepoFullName = "dillacorn/win-glaze-dots";
     const string RepoUrl = "https://github.com/dillacorn/win-glaze-dots.git";
@@ -227,6 +227,7 @@ internal static class WgdotNative
             if (command == "mark-runtime") return MarkRuntimeFromArgs(args.Skip(1).ToArray());
             if (command == "maintenance-self-test") return MaintenanceSelfTest();
             if (command == "software") return SoftwareReconcile();
+            if (command == "software-audit") return SoftwareCatalogAudit();
             if (command == "software-elevated") return SoftwareElevatedFromArgs(args.Skip(1).ToArray());
             if (command == "flow-open") return OpenFlowLauncher();
             if (command == "eartrumpet-mixer") return OpenEarTrumpetMixer();
@@ -391,6 +392,7 @@ internal static class WgdotNative
         {
             "Update managed dots",
             "Install / reconcile software",
+            "Audit all software (no install)",
             "GPU driver maintenance",
             "Windows tweaks / integrations",
             "Reset / reconfigure managed dots",
@@ -405,7 +407,7 @@ internal static class WgdotNative
         while (true)
         {
             int choice = ReadSingleChoice("Maintenance", items, 0);
-            if (choice < 0 || choice == 10) return 0;
+            if (choice < 0 || choice == 11) return 0;
 
             try
             {
@@ -421,38 +423,43 @@ internal static class WgdotNative
                 }
                 else if (choice == 2)
                 {
-                    GpuDriverMaintenance();
+                    SoftwareCatalogAudit();
+                    Pause();
                 }
                 else if (choice == 3)
                 {
-                    TweakManager();
+                    GpuDriverMaintenance();
                 }
                 else if (choice == 4)
+                {
+                    TweakManager();
+                }
+                else if (choice == 5)
                 {
                     ManagedOperation("reset", ResolveDefaultSource());
                     Pause();
                 }
-                else if (choice == 5)
+                else if (choice == 6)
                 {
                     ManagedOperation("review", ResolveDefaultSource());
                     Pause();
                 }
-                else if (choice == 6)
+                else if (choice == 7)
                 {
                     BackupManager();
                 }
-                else if (choice == 7)
+                else if (choice == 8)
                 {
                     ShowManualFallback();
                     Pause();
                 }
-                else if (choice == 8)
+                else if (choice == 9)
                 {
                     WriteTitle("Version / status");
                     Status();
                     Pause();
                 }
-                else if (choice == 9)
+                else if (choice == 10)
                 {
                     ShowGitMenu();
                 }
@@ -1249,32 +1256,61 @@ internal static class WgdotNative
         }
     }
 
-    static bool InstallGitHubReleasePackage(Dictionary<string, object> package)
+    static bool ResolveGitHubReleasePackageAsset(
+        Dictionary<string, object> package,
+        out string assetName,
+        out string assetUrl)
     {
         string repo = GetString(package, "fallbackGitHubRepo");
         string assetPattern = GetString(package, "fallbackAssetRegex");
         string name = GetString(package, "name");
 
+        assetName = "";
+        assetUrl = "";
+
         if (!Regex.IsMatch(repo ?? "", "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"))
             throw new Exception("Invalid fallback GitHub repository for " + name + ".");
+        if (String.IsNullOrWhiteSpace(assetPattern))
+            throw new Exception("Missing fallback GitHub asset pattern for " + name + ".");
+
+        Regex assetRegex;
+        try
+        {
+            assetRegex = new Regex(assetPattern, RegexOptions.IgnoreCase);
+        }
+        catch (ArgumentException ex)
+        {
+            throw new Exception("Invalid fallback asset regex for " + name + ": " + ex.Message);
+        }
 
         var release = GetJsonUrl("https://api.github.com/repos/" + repo + "/releases/latest");
-        string assetUrl = "";
-        string assetName = "";
-
         foreach (object rawAsset in GetList(release, "assets"))
         {
             var asset = AsDictionary(rawAsset);
             string candidate = GetString(asset, "name");
-            if (Regex.IsMatch(candidate, assetPattern, RegexOptions.IgnoreCase))
-            {
-                assetName = candidate;
-                assetUrl = GetString(asset, "browser_download_url");
-                break;
-            }
+            if (!assetRegex.IsMatch(candidate ?? ""))
+                continue;
+
+            string candidateUrl = GetString(asset, "browser_download_url");
+            if (String.IsNullOrWhiteSpace(candidateUrl) ||
+                !candidateUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            assetName = candidate;
+            assetUrl = candidateUrl;
+            return true;
         }
 
-        if (String.IsNullOrWhiteSpace(assetUrl))
+        return false;
+    }
+
+    static bool InstallGitHubReleasePackage(Dictionary<string, object> package)
+    {
+        string name = GetString(package, "name");
+        string assetName;
+        string assetUrl;
+
+        if (!ResolveGitHubReleasePackageAsset(package, out assetName, out assetUrl))
         {
             Console.ForegroundColor = ConsoleColor.Yellow;
             Console.WriteLine("No matching upstream release installer found for " + name + ".");
@@ -1638,6 +1674,191 @@ internal static class WgdotNative
         }
 
         return failures == 0 ? 0 : 1;
+    }
+
+    static bool IsKnownPackagePostInstallAction(string action)
+    {
+        return
+            String.IsNullOrWhiteSpace(action) ||
+            String.Equals(action, "launch-open-shell", StringComparison.OrdinalIgnoreCase);
+    }
+
+    static int SoftwareCatalogAudit()
+    {
+        SourceContext source = ResolveDefaultSource();
+        Dictionary<string, object> manifest = source.Manifest;
+        List<object> packages = GetList(manifest, "packages");
+
+        WriteTitle("Software catalog audit (no install)");
+        Console.WriteLine("Packages in manifest: " + packages.Count.ToString(CultureInfo.InvariantCulture));
+        Console.WriteLine();
+        Console.WriteLine("This audit does not install, upgrade, download installers, launch apps,");
+        Console.WriteLine("change registry settings, or request administrator access.");
+        Console.WriteLine("It validates every exact WinGet ID and every declared official GitHub fallback.");
+        Console.WriteLine();
+
+        if (!ReadYesNo("Audit all software now? [y/N]", false))
+        {
+            Console.WriteLine("No audit was run.");
+            return 0;
+        }
+
+        RequireExecutable("winget.exe", "WinGet was not found.");
+
+        int wingetOk = 0;
+        int fallbackOk = 0;
+        int warningCount = 0;
+        int failureCount = 0;
+        var failureDetails = new List<string>();
+        var warningDetails = new List<string>();
+
+        for (int index = 0; index < packages.Count; index++)
+        {
+            var package = AsDictionary(packages[index]);
+            string id = GetString(package, "id");
+            string name = GetString(package, "name");
+            string postInstallAction = GetString(package, "postInstallAction");
+            bool hasFallback = HasOfficialGitHubFallback(package);
+
+            Console.Write(
+                "[" + (index + 1).ToString(CultureInfo.InvariantCulture) +
+                "/" + packages.Count.ToString(CultureInfo.InvariantCulture) + "] " +
+                id + " ... ");
+
+            if (String.IsNullOrWhiteSpace(id))
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine("FAIL");
+                Console.ResetColor();
+                failureCount++;
+                failureDetails.Add("Manifest package has an empty WinGet ID: " + name);
+                continue;
+            }
+
+            if (!IsKnownPackagePostInstallAction(postInstallAction))
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine("FAIL");
+                Console.ResetColor();
+                failureCount++;
+                failureDetails.Add(
+                    "Unknown post-install action '" + postInstallAction + "' for " + id);
+                continue;
+            }
+
+            ProcResult show = RunWithTimeout(
+                "winget.exe",
+                "show --id " + Q(id) +
+                " --exact --source winget --accept-source-agreements --disable-interactivity",
+                null,
+                WingetPreflightTimeoutMs);
+
+            bool exactOk = !show.TimedOut && show.ExitCode == 0;
+            if (exactOk)
+            {
+                wingetOk++;
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.Write("WinGet OK");
+                Console.ResetColor();
+            }
+            else
+            {
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.Write(show.TimedOut ? "WinGet TIMEOUT" : "WinGet MISSING");
+                Console.ResetColor();
+
+                if (!hasFallback)
+                {
+                    failureCount++;
+                    failureDetails.Add(
+                        show.TimedOut
+                            ? "WinGet exact-ID lookup timed out: " + id
+                            : "WinGet exact ID unavailable and no fallback is declared: " + id);
+                }
+            }
+
+            if (hasFallback)
+            {
+                try
+                {
+                    string assetName;
+                    string assetUrl;
+                    if (ResolveGitHubReleasePackageAsset(package, out assetName, out assetUrl))
+                    {
+                        fallbackOk++;
+                        Console.Write(" | fallback ");
+                        Console.ForegroundColor = ConsoleColor.Green;
+                        Console.Write("OK");
+                        Console.ResetColor();
+                        Console.Write(" (" + assetName + ")");
+                    }
+                    else
+                    {
+                        failureCount++;
+                        Console.Write(" | fallback ");
+                        Console.ForegroundColor = ConsoleColor.Red;
+                        Console.Write("FAIL");
+                        Console.ResetColor();
+                        failureDetails.Add(
+                            "Official GitHub fallback has no matching latest-release asset: " + id);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    failureCount++;
+                    Console.Write(" | fallback ");
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.Write("FAIL");
+                    Console.ResetColor();
+                    failureDetails.Add(
+                        "Official GitHub fallback check failed for " + id + ": " + ex.Message);
+                }
+            }
+
+            if (!exactOk && hasFallback)
+            {
+                warningCount++;
+                warningDetails.Add(
+                    "WinGet exact ID unavailable/timed out but official fallback is declared: " + id);
+            }
+
+            Console.WriteLine();
+        }
+
+        Console.WriteLine();
+        Console.WriteLine("Software catalog audit complete.");
+        Console.WriteLine("Packages checked: " + packages.Count.ToString(CultureInfo.InvariantCulture));
+        Console.WriteLine("Exact WinGet IDs available: " + wingetOk.ToString(CultureInfo.InvariantCulture));
+        Console.WriteLine("Official GitHub fallbacks verified: " + fallbackOk.ToString(CultureInfo.InvariantCulture));
+        Console.WriteLine("Warnings: " + warningCount.ToString(CultureInfo.InvariantCulture));
+        Console.WriteLine("Failures: " + failureCount.ToString(CultureInfo.InvariantCulture));
+
+        if (warningDetails.Count > 0)
+        {
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine();
+            Console.WriteLine("Warnings:");
+            foreach (string detail in warningDetails.Distinct(StringComparer.OrdinalIgnoreCase))
+                Console.WriteLine("  - " + detail);
+            Console.ResetColor();
+        }
+
+        if (failureDetails.Count > 0)
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine();
+            Console.WriteLine("Failure details:");
+            foreach (string detail in failureDetails.Distinct(StringComparer.OrdinalIgnoreCase))
+                Console.WriteLine("  - " + detail);
+            Console.ResetColor();
+        }
+
+        Console.WriteLine();
+        Console.WriteLine(
+            "Audit scope: catalog/fallback/post-install metadata only. " +
+            "Installer execution and application-specific runtime behavior still require an installed app.");
+
+        return failureCount == 0 ? 0 : 1;
     }
 
     static int SoftwareReconcile()

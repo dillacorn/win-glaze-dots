@@ -255,6 +255,8 @@ Software management is separate from managed-dot updates.
 - Actual WinGet installs must also be bounded when a package declares `wingetInstallTimeoutSeconds`. On timeout, terminate the stuck WinGet process tree before continuing.
 - A WinGet install timeout/failure may fall back only when the package manifest explicitly declares an approved official GitHub repository and a narrow asset regex. Never invent or scrape third-party mirrors.
 - Flow Launcher is WinGet-first but has an approved fallback to `Flow-Launcher/Flow.Launcher` asset `Flow-Launcher-Setup.exe` because real-VM testing reproduced a WinGet download stall while the same official asset completed normally outside WinGet.
+- The native software catalog audit is strictly non-mutating: no installer downloads, installs, upgrades, app launches, registry writes, or elevation. It checks every manifest package with exact-ID `winget show`, validates known post-install action names, and resolves declared official GitHub fallback assets using the same resolver as real fallback installs.
+- Treat catalog audit success as metadata/source coverage only. It does not prove an installer can execute successfully or that application-specific runtime configuration works after installation.
 - Do not invent package IDs. Verify changed or questionable IDs against current WinGet data before committing them.
 
 ## Browser configuration

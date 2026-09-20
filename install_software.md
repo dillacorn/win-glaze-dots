@@ -15,6 +15,18 @@ privacy.sexy remains optional. WGDot installs/updates only from the official ups
 
 WGDot normally hides the Windows 11 Widgets button through the current-user `TaskbarDa` setting. Some Windows builds protect that specific value even when other taskbar values remain writable. If Windows rejects only `TaskbarDa`, WGDot discards the untouched value's rollback snapshot and uses Microsoft's machine-level Widgets policy `SOFTWARE\Policies\Microsoft\Dsh\AllowNewsAndInterests=0` inside the existing elevated setup batch. The pre-WGDot policy state is snapshotted for rollback.
 
+## Software catalog audit
+
+The native maintenance menu includes **Audit all software (no install)**. This checks every package in the WGDot manifest, including optional applications, without installing or downloading installer payloads. The audit performs exact-ID WinGet metadata lookups, validates any known post-install action names, and checks declared official GitHub fallback repositories for a matching latest-release asset.
+
+The audit does not request UAC, modify the registry, launch applications, install/upgrade packages, or consume meaningful VM disk space. It is intended for broad catalog validation on a small test VM. A passing audit does not prove that a third-party installer itself will execute correctly or that app-specific runtime integration works after installation.
+
+Direct command:
+
+```powershell
+wgdot software-audit
+```
+
 ## Elevation behavior
 
 WGDot keeps the interactive software selector unelevated. After the user reviews and approves the software selection, WGDot preflights the selected WinGet packages, collects any explicitly approved upgrades, and groups missing installs plus administrator-only setup into one internal elevated worker. On a normal unelevated run, this means one UAC approval for the software batch instead of one elevation prompt per installer.
