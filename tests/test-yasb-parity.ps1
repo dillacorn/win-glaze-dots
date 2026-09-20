@@ -56,6 +56,8 @@ Assert-Contains $config 'prefix: "*"' "clipboard provider handles an empty popup
 Assert-Contains $config 'yasb.dnd.DndWidget' "Windows Do Not Disturb uses native YASB DND"
 Assert-Contains $config 'on_left: "toggle_status"' "DND uses its native toggle callback"
 Assert-Contains $config 'on_right: "exec wgdot eartrumpet-mixer"' "audio right click opens the existing EarTrumpet mixer helper"
+Assert-Contains $config 'normal: ""' "unmuted microphone glyph is collapsed like Awtarchy"
+Assert-Contains $style '.microphone-widget .icon.muted' "muted microphone state has dedicated styling"
 
 foreach ($glaze in @($glazeNormal, $glazeWork)) {
     Assert-Contains $glaze 'top: "8px"' "GlazeWM keeps a normal top outer gap when YASB reserves the AppBar area"
