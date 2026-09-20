@@ -67,6 +67,7 @@ bars:
           "clipboard_history",
           "notifications",
           "dnd",
+          "theme_picker",
           "power_menu",
         ]
 
@@ -499,6 +500,21 @@ widgets:
         on_left: "toggle_status"
         on_middle: "do_nothing"
         on_right: "toggle_status"
+
+  theme_picker:
+    type: "yasb.custom.CustomWidget"
+    options:
+      label: "<span></span>"
+      class_name: "awtarchy-theme-picker"
+      tooltip: true
+      tooltip_label: "Themes (Win+T)"
+      exec_options:
+        run_once: true
+        return_format: "string"
+      callbacks:
+        on_left: "exec wt.exe -w new wgdot theme"
+        on_middle: "do_nothing"
+        on_right: "exec wt.exe -w new wgdot theme"
 
   power_menu:
     type: "yasb.power_menu.PowerMenuWidget"
