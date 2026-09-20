@@ -280,9 +280,8 @@ keybindings:
   - commands: ['shell-exec --hide-window "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" clipboard-history']
     bindings: ["lwin+c", "rwin+c"]
 
-  # Awtarchy-style theme entrypoint. WGDot changes only YASB's live palette;
-  # GlazeWM is intentionally not reloaded.
-  - commands: ['shell-exec wt.exe -w new --size 72,22 nt --title "WGDot Themes" --suppressApplicationTitle wgdot theme']
+  # Single-instance WGDot theme selector. No GlazeWM reload.
+  - commands: ['shell-exec --hide-window "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" theme-toggle']
     bindings: ["lwin+t", "rwin+t"]
 
   # Keep the legacy WGDot Alt+Ctrl+B hard visibility toggle, but do not

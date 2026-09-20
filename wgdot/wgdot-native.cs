@@ -66,6 +66,36 @@ internal static class WgdotNative
     [DllImport("user32.dll")]
     static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, UIntPtr dwExtraInfo);
 
+    delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
+
+    [DllImport("user32.dll")]
+    static extern bool EnumWindows(EnumWindowsProc callback, IntPtr lParam);
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    static extern int GetWindowText(IntPtr hWnd, StringBuilder text, int maxCount);
+
+    [DllImport("user32.dll")]
+    static extern int GetWindowTextLength(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    static extern IntPtr GetForegroundWindow();
+
+    [DllImport("user32.dll")]
+    static extern IntPtr MonitorFromWindow(IntPtr hWnd, uint flags);
+
+    [DllImport("user32.dll")]
+    static extern bool PostMessage(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
+
+    [DllImport("user32.dll")]
+    static extern bool IsWindow(IntPtr hWnd);
+
+    [DllImport("dwmapi.dll")]
+    static extern int DwmGetWindowAttribute(IntPtr hWnd, int attribute, out int value, int valueSize);
+
+    const uint WmClose = 0x0010;
+    const uint MonitorDefaultToNearest = 0x00000002;
+    const int DwmwaCloaked = 14;
+
     const byte VkMenu = 0x12;
     const byte VkLwin = 0x5B;
     const byte VkV = 0x56;
@@ -298,6 +328,7 @@ internal static class WgdotNative
             if (command == "clipboard-history") return OpenWindowsClipboardHistory();
             if (command == "glazewm-pause-status") return GlazeWmPauseStatus();
             if (command == "glazewm-pause-toggle") return GlazeWmPauseToggle();
+            if (command == "theme-toggle") return ThemeToggle();
             if (command == "theme") return ThemeManagerFromArgs(args.Skip(1).ToArray());
             if (command == "gpu-driver") return GpuDriverMaintenance();
             if (command == "gpu-stage-safe") return GpuStageSafeFromArgs(args.Skip(1).ToArray());
@@ -5293,6 +5324,76 @@ internal static class WgdotNative
         if (result.ExitCode != 0)
             throw new Exception("GlazeWM pause toggle failed: " + LastUsefulLine(result.StdErr));
         return 0;
+    }
+
+    static IntPtr FindTopLevelWindowByExactTitle(string title)
+    {
+        IntPtr found = IntPtr.Zero;
+        EnumWindows(delegate(IntPtr hWnd, IntPtr lParam)
+        {
+            int length = GetWindowTextLength(hWnd);
+            if (length <= 0) return true;
+
+            var text = new StringBuilder(length + 1);
+            GetWindowText(hWnd, text, text.Capacity);
+            if (!String.Equals(text.ToString(), title, StringComparison.Ordinal))
+                return true;
+
+            found = hWnd;
+            return false;
+        }, IntPtr.Zero);
+        return found;
+    }
+
+    static bool IsDwmCloaked(IntPtr hWnd)
+    {
+        int cloaked;
+        return hWnd != IntPtr.Zero &&
+            DwmGetWindowAttribute(hWnd, DwmwaCloaked, out cloaked, sizeof(int)) == 0 &&
+            cloaked != 0;
+    }
+
+    static int LaunchThemeTerminal()
+    {
+        var psi = new ProcessStartInfo();
+        psi.FileName = "wt.exe";
+        psi.Arguments = "-w new --size 72,22 nt --title \"WGDot Themes\" --suppressApplicationTitle wgdot theme";
+        psi.UseShellExecute = true;
+        Process.Start(psi);
+        return 0;
+    }
+
+    static int ThemeToggle()
+    {
+        IntPtr existing = FindTopLevelWindowByExactTitle("WGDot Themes");
+        if (existing == IntPtr.Zero)
+            return LaunchThemeTerminal();
+
+        IntPtr foreground = GetForegroundWindow();
+        IntPtr focusedMonitor = foreground == IntPtr.Zero
+            ? IntPtr.Zero
+            : MonitorFromWindow(foreground, MonitorDefaultToNearest);
+        IntPtr existingMonitor = MonitorFromWindow(existing, MonitorDefaultToNearest);
+
+        // A visible, uncloaked selector on the focused monitor is the same
+        // user-visible location, so Super+T behaves as a true toggle.
+        bool closeOnly =
+            focusedMonitor != IntPtr.Zero &&
+            existingMonitor == focusedMonitor &&
+            !IsDwmCloaked(existing);
+
+        PostMessage(existing, WmClose, IntPtr.Zero, IntPtr.Zero);
+
+        if (closeOnly)
+            return 0;
+
+        // If the old selector lives on another monitor or a cloaked GlazeWM
+        // workspace, close it and spawn exactly one replacement in the
+        // currently focused Windows context.
+        for (int i = 0; i < 20 && IsWindow(existing); i++)
+            System.Threading.Thread.Sleep(25);
+
+        return LaunchThemeTerminal();
     }
 
     static int OpenEarTrumpetMixer()
