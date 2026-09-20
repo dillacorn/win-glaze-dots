@@ -567,6 +567,9 @@ internal static class WgdotNative
             String.Equals(command, "window-audit", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "software", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "software-reconcile", StringComparison.OrdinalIgnoreCase) ||
+            String.Equals(command, "software-uninstall", StringComparison.OrdinalIgnoreCase) ||
+            String.Equals(command, "startup", StringComparison.OrdinalIgnoreCase) ||
+            String.Equals(command, "startup-disable-all", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "software-audit", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "acceptance-audit", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "theme", StringComparison.OrdinalIgnoreCase) ||
@@ -2887,6 +2890,10 @@ internal static class WgdotNative
             "git-update",
             "git-reset",
             "software",
+            "software-reconcile",
+            "software-uninstall",
+            "startup",
+            "startup-disable-all",
             "software-audit",
             "acceptance-audit",
             "theme",
