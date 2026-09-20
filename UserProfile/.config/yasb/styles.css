@@ -75,8 +75,8 @@ QToolTip,
 
 .quick-launch-widget .icon,
 .quick-launch-widget .label {
-    min-width: 34px;
-    font-size: 18px;
+    min-width: 28px;
+    font-size: 14px;
 }
 
 .quick-launch-widget:hover {
@@ -256,10 +256,10 @@ QToolTip,
     background-color: transparent;
     border: none;
     border-radius: 0;
-    font-size: 18px;
-    min-width: 18px;
+    font-size: 14px;
+    min-width: 14px;
     margin: 0;
-    padding: 0 6px;
+    padding: 0 5px;
 }
 
 .glazewm-tiling-direction .btn:hover {
@@ -398,7 +398,7 @@ QToolTip,
     padding-right: 8px;
 }
 
-/* Match current Awtarchy's default per-control icon scale. */
+/* Keep bar glyphs visually level with the adjacent 14 px text. */
 .cpu-widget .icon,
 .memory-widget .icon {
     margin-left: 2px;
@@ -407,26 +407,18 @@ QToolTip,
 .cpu-widget .icon,
 .memory-widget .icon,
 .brightness-widget .icon,
+.battery-widget .icon,
 .microphone-widget .icon,
+.volume-widget .icon,
 .clock-widget .icon,
 .wifi-widget .icon,
 .bluetooth-widget .icon,
+.dnd-widget .icon,
 .awtarchy-clipboard .icon,
-.awtarchy-theme-picker .icon {
-    font-size: 18px;
-}
-
-.battery-widget .icon {
-    font-size: 17px;
-}
-
-.volume-widget .icon,
-.awtarchy-power .icon {
-    font-size: 20px;
-}
-
-.dnd-widget .icon {
-    font-size: 19px;
+.awtarchy-theme-picker .icon,
+.awtarchy-power .icon,
+.awtarchy-control-center .icon {
+    font-size: 14px;
 }
 
 .bluetooth-widget .icon.bt-off,
