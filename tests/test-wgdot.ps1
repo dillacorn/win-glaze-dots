@@ -895,7 +895,7 @@ foreach ($text in @($glazeNormalText, $glazeWorkText)) {
     Assert-True ($flameshotIndex -gt $globalIndex) "Win+Shift+S Flameshot bind is global, not trapped inside a binding mode"
     Assert-True (-not (($bindingModesIndex -ge 0) -and ($flameshotIndex -gt $bindingModesIndex) -and ($flameshotIndex -lt $globalIndex))) "Flameshot bind is not trapped inside a binding mode"
     Assert-True ($text -notmatch 'win\+shift\+f') "old Win+Shift+F Flameshot bind is removed"
-    Assert-True ($text -match 'bindings:\s*\["lwin\+d",\s*"rwin\+d"\]') "GlazeWM owns Super+D during NoWinKeys testing"
+    Assert-True ($text -notmatch 'bindings:\s*\["lwin\+d",\s*"rwin\+d"\]') "GlazeWM leaves Super+D to YASB Quick Launch"
     Assert-True ($text -match 'bindings:\s*\["lwin\+v",\s*"rwin\+v"\]') "GlazeWM owns Super+V for the EarTrumpet mixer"
     Assert-True ($text -match 'bindings:\s*\["lwin\+c",\s*"rwin\+c"\]') "Super+C opens Windows Clipboard History"
     Assert-True ($text -notmatch 'wgdot\.exe flow-open') "managed GlazeWM profiles no longer invoke Flow Launcher"
