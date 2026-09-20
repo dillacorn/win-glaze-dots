@@ -567,6 +567,7 @@ keybindings:
   - commands: ["move --workspace 10"]
     bindings: ["alt+shift+0", "lwin+shift+0", "rwin+shift+0"]
 
-  # Launch the user's scripts menu in Windows Terminal.
+  # Alt+Shift+M matches Awtarchy's Raw Accel launcher. Keep the older
+  # Windows scripts-menu convenience on a non-conflicting maintenance chord.
   - commands: ["shell-exec wt.exe -w new new-tab --title \"Scripts\" --suppressApplicationTitle -d \"%USERPROFILE%\\scripts\" cmd.exe /k menu.bat"]
-    bindings: ["alt+shift+m"]
+    bindings: ["alt+ctrl+shift+m"]
