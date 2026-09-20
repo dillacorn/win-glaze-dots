@@ -7,6 +7,7 @@ $stylePath = Join-Path $repoRoot "UserProfile\.config\yasb\styles.css"
 $readmePath = Join-Path $repoRoot "UserProfile\.config\yasb\README.md"
 $glazeNormalPath = Join-Path $repoRoot "UserProfile\.glzr\glazewm\config.yaml"
 $glazeWorkPath = Join-Path $repoRoot "UserProfile\.glzr\glazewm\custom_work_config.yaml"
+$nativePath = Join-Path $repoRoot "wgdot\wgdot-native.cs"
 
 function Assert-Contains {
     param([string]$Text, [string]$Needle, [string]$Message)
@@ -18,7 +19,7 @@ function Assert-NotContains {
     if ($Text.Contains($Needle)) { throw "ASSERTION FAILED: $Message" }
 }
 
-foreach ($path in @($configPath, $stylePath, $readmePath, $glazeNormalPath, $glazeWorkPath)) {
+foreach ($path in @($configPath, $stylePath, $readmePath, $glazeNormalPath, $glazeWorkPath, $nativePath)) {
     if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
         throw "ASSERTION FAILED: missing YASB parity file: $path"
     }
@@ -29,6 +30,7 @@ $style = Get-Content -LiteralPath $stylePath -Raw
 $readme = Get-Content -LiteralPath $readmePath -Raw
 $glazeNormal = Get-Content -LiteralPath $glazeNormalPath -Raw
 $glazeWork = Get-Content -LiteralPath $glazeWorkPath -Raw
+$native = Get-Content -LiteralPath $nativePath -Raw
 
 Assert-Contains $config 'height: 28' "bar height stays at Awtarchy horizontal default"
 Assert-Contains $config 'always_on_top: true' "YASB remains above normal windows without changing reservation models"
@@ -114,6 +116,15 @@ Assert-Contains $style '@import "theme.css";' "YASB imports the generated live t
 Assert-Contains $config 'theme_picker:' "bar exposes a YASB theme entrypoint"
 Assert-Contains $config 'tooltip_label: "Themes (Win+T)"' "theme button documents the Awtarchy-style shortcut"
 Assert-Contains $config 'wt.exe -w new --size 72,22 nt --title "WGDot Themes" --suppressApplicationTitle wgdot theme' "theme button keeps WGDot errors visible in a stable titled Windows Terminal"
+Assert-Contains $native 'new YasbTheme("carbon-night", "Carbon Night", "#353535", "#d0d0d0", "#404040", "#4a4a4a", "#2b2b2b", "#ff5555", "#1a1a1a", "#6a9955", "#ff5555", "#5c5c5c")' "Carbon Night YASB palette matches current Awtarchy"
+Assert-Contains $native 'new YasbTheme("catppuccin-frappe", "Catppuccin Frappe", "#303446", "#c6d0f5", "#414559", "#535970", "#383c4d", "#e78284", "#232634", "#a6d189", "#ef9f76", "#a5adce")' "Catppuccin Frappe YASB palette matches current Awtarchy"
+Assert-Contains $native 'new YasbTheme("crimson-red", "Crimson Red", "#1e1e2e", "#f38ba8", "#352630", "#5a3442", "#292330", "#f38ba8", "#1e1e2e", "#fab387", "#f38ba8", "#9f8994")' "Crimson Red YASB palette matches current Awtarchy"
+Assert-Contains $native 'new YasbTheme("electric-blue", "Electric Blue", "#1e1e2e", "#89b4fa", "#293448", "#34445e", "#252938", "#f38ba8", "#1e1e2e", "#a6e3a1", "#fab387", "#8993a8")' "Electric Blue YASB palette matches current Awtarchy"
+Assert-Contains $native 'new YasbTheme("gruvbox", "Gruvbox", "#282828", "#ebdbb2", "#4a423c", "#665c4e", "#3c3836", "#b16286", "#fbf1c7", "#98971a", "#cc241d", "#a89984")' "Gruvbox YASB palette matches current Awtarchy"
+Assert-Contains $native 'new YasbTheme("iron-forge", "Iron Forge", "#0f1113", "#bcd2d2", "#1f2328", "#242a32", "#0d0f12", "#a31717", "#ffffff", "#1f6f6f", "#a31717", "#6a7b86")' "Iron Forge YASB palette matches current Awtarchy"
+Assert-Contains $native 'new YasbTheme("obsidian-night", "Obsidian Night", "#0f0f0f", "#cdd6f4", "#1e1e2e", "#313244", "#1a1a1a", "#ff5555", "#1e1e2e", "#6a9955", "#ff5555", "#4b4b4b")' "Obsidian Night YASB palette matches current Awtarchy"
+Assert-Contains $native 'new YasbTheme("pink", "Pink", "#D297A1", "#2E2E2E", "#B77F91", "#C0AFC0", "#C0AFC0", "#B04155", "#FFFFFF", "#D3D3D3", "#B04155", "#7A7A7A")' "Pink YASB palette matches current Awtarchy"
+Assert-Contains $native 'new YasbTheme("pipboy", "Pip-Boy", "#050805", "#a4ff47", "#1f301f", "#1b281b", "#101810", "#263826", "#050805", "#a4ff47", "#3c1b1b", "#2a3d2a")' "Pip-Boy YASB palette matches current Awtarchy"
 
 foreach ($glaze in @($glazeNormal, $glazeWork)) {
     Assert-Contains $glaze 'top: "38px"' "GlazeWM keeps the existing reload-free top reservation"
