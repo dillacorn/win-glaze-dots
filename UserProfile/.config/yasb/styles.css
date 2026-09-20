@@ -62,6 +62,7 @@ QToolTip {
 /* Awtarchy-style launcher button. */
 .awtarchy-launcher,
 .awtarchy-launcher .widget-container,
+.awtarchy-launcher .icon,
 .awtarchy-launcher .label {
     background-color: transparent;
     border: none;
@@ -70,12 +71,16 @@ QToolTip {
     padding: 0;
 }
 
+.awtarchy-launcher .icon,
 .awtarchy-launcher .label {
     min-width: 34px;
-    font-size: 16px;
 }
 
-.awtarchy-launcher .label:hover {
+.awtarchy-launcher .icon {
+    font-size: 18px;
+}
+
+.awtarchy-launcher:hover {
     background-color: var(--strong-hover);
 }
 
@@ -273,7 +278,8 @@ QToolTip {
 .clock-widget .icon,
 .wifi-widget .icon,
 .bluetooth-widget .icon,
-.quick-launch-widget .icon {
+.quick-launch-widget .icon,
+.awtarchy-theme-picker .icon {
     font-size: 18px;
 }
 
