@@ -831,6 +831,8 @@ foreach ($text in @($glazeNormalText, $glazeWorkText)) {
     Assert-True ($text -match 'bindings:\s*\["lwin\+d",\s*"rwin\+d"\]') "GlazeWM owns Super+D during NoWinKeys testing"
     Assert-True ($text -notmatch 'bindings:\s*\["lwin\+v",\s*"rwin\+v"\]') "GlazeWM leaves Win+V native"
     Assert-True ($text -match 'bindings:\s*\["lwin\+c",\s*"rwin\+c"\]') "Super+C opens Windows Clipboard History"
+    Assert-True ($text -match 'shell-exec --hide-window %LOCALAPPDATA%\\wgdot\\bin\\wgdot\.exe flow-open') "WGDot GlazeWM helper paths do not need executable quotes"
+    Assert-True ($text -notmatch 'shell-exec --hide-window "%LOCALAPPDATA%\\wgdot\\bin\\wgdot\.exe"') "WGDot GlazeWM helper paths avoid parser-breaking executable quotes"
     Assert-True ($text -match 'name:\s*"noalt"') "GlazeWM noalt mode is restored"
     Assert-True ($text -match 'wm-enable-binding-mode --name noalt') "noalt mode can be enabled"
     Assert-True ($text -match 'commands:\s*\["wm-toggle-pause"\]') "GlazeWM real pause command is present"
