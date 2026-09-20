@@ -359,7 +359,7 @@ widgets:
       callbacks:
         on_left: "toggle_menu"
         on_middle: "exec cmd.exe /c start ms-settings:network"
-        on_right: "toggle_label"
+        on_right: "toggle_menu"
       ethernet_label: "<span>{wifi_icon}</span>"
       ethernet_label_alt: "<span>{wifi_icon}</span> {ip_addr}"
       ethernet_icon: ""
@@ -391,7 +391,7 @@ widgets:
       callbacks:
         on_left: "toggle_menu"
         on_middle: "do_nothing"
-        on_right: "toggle_label"
+        on_right: "toggle_menu"
       menu_config:
         blur: false
         round_corners: false
@@ -437,6 +437,10 @@ widgets:
       show_user: false
       animation_duration: 0
       menu_style: "popup"
+      callbacks:
+        on_left: "toggle_power_menu"
+        on_middle: "do_nothing"
+        on_right: "toggle_power_menu"
       popup:
         blur: false
         round_corners: false
