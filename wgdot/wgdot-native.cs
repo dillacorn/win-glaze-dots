@@ -1303,6 +1303,13 @@ internal static class WgdotNative
                 !String.Equals(CurrentYasbThemeId(), "carbon-night", StringComparison.OrdinalIgnoreCase))
                 throw new Exception("YASB theme post-action self-test failed.");
 
+            string postApplyAppearanceCss = YasbAppearanceCssPath();
+            if (!File.Exists(postApplyAppearanceCss) ||
+                File.ReadAllText(postApplyAppearanceCss).IndexOf(
+                    "YASB live appearance toggles",
+                    StringComparison.OrdinalIgnoreCase) < 0)
+                throw new Exception("YASB appearance post-action self-test failed.");
+
             if (File.ReadAllText(live) != "release-two")
                 throw new Exception("Apply self-test did not replace the live file.");
 
