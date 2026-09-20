@@ -187,6 +187,7 @@ Backup deletion must support review/dry-run behavior and explicit confirmation.
 - Flow Launcher keeps native `Alt+P`; GlazeWM maps `Win+D` to WGDot's `flow-open` helper.
 - EarTrumpet keeps native mixer `Alt+V`; GlazeWM maps `Win+V` to WGDot's `eartrumpet-mixer` helper so both reach the same mixer action.
 - Flameshot selection capture is `Win+Shift+S` in both managed GlazeWM profiles; do not restore the old `Win+Shift+F` binding.
+- Theme switching must not reload GlazeWM. Keep the focused-window border theme-neutral at `#a1a1a1` in both managed profiles so palette changes can stay entirely on the YASB side. `Win+T` opens the WGDot theme selector in normal and `noalt` modes; do not add it to `vm`, where Windows-key input belongs to the guest.
 
 - Yazi launcher binding uses both `lwin+shift+e` and `rwin+shift+e`. Keep both Windows-key variants together and do not restore the old `alt+shift+e` launcher bind.
 
@@ -224,6 +225,7 @@ The `feat/awtarchy-yasb-bar` work treats the current Awtarchy Quickshell bar as 
 - Use YASB's supported `yasbc toggle-bar` for WGDot's legacy `Alt+Ctrl+B` hard-visibility convenience; never kill/restart the YASB process merely to hide the bar. Do **not** map Awtarchy's `Win+Alt+Ctrl+B` auto-hide chord to `toggle-bar`: upstream YASB v2.0.7 hard-hide only hides the window while a normal `windows_app_bar` reservation remains. YASB's real `auto_hide` mode removes the reservation during setup, but no supported runtime CLI toggle exists for that configuration flag. Keep `auto_hide: false` explicit until a direct runtime mapping exists.
 - Awtarchy's audio right-click mixer maps to the existing WGDot EarTrumpet mixer helper; keep native YASB left-click mute and wheel volume behavior.
 - Awtarchy's microphone indicator is muted-only. Preserve the native YASB Microphone widget but keep its normal icon empty and collapse its normal padding; rely on YASB's native `muted` class to reveal the red muted indicator rather than adding polling/helper logic.
+- YASB theme changes are live stylesheet changes, not WM configuration changes. Keep the Carbon Night palette in `styles.css` as a fallback, then import generated `theme.css` after it so selected palettes override only CSS variables. WGDot `theme` owns that generated file and its state under `%LOCALAPPDATA%\wgdot\state\theme.json`. Preserve the current Awtarchy palette names/colors unless intentionally changing the shared visual catalog. Never call `wm-reload-config` or restart GlazeWM from the theme path.
 - The workspace mover may use YASB's native Grouper + Applications widgets because GlazeWM already exposes native `move-workspace --direction` commands. Keep the documented difference that expansion is click-based rather than Awtarchy's hover drawer.
 - The visible GlazeWM binding-mode widget is the supported equivalent for Awtarchy's submap indicator and should reflect WGDot's existing `noalt` / `vm` modes.
 - Do not add AutoHotkey, whkd, keyboard hooks, DLL injection, or a custom background input daemon as part of bar parity work.
