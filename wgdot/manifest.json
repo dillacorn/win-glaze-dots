@@ -507,6 +507,22 @@
       "defaultWork": false
     },
     {
+      "name": "Raw Accel",
+      "id": "RawAccelOfficial.RawAccel",
+      "category": "gaming",
+      "defaultNormal": false,
+      "defaultWork": false,
+      "installMode": "official-github-archive-driver",
+      "fallbackGitHubRepo": "RawAccelOfficial/rawaccel",
+      "fallbackAssetRegex": "^RawAccel_v[0-9.]+\\.zip$",
+      "installDirectory": "RawAccel",
+      "archiveInstaller": "installer.exe",
+      "installedFile": "rawaccel.exe",
+      "installedService": "rawaccel",
+      "driverFileName": "rawaccel.sys",
+      "postInstallAction": "rawaccel-restart-notice"
+    },
+    {
       "name": "Vesktop (Vencord)",
       "id": "Vencord.Vesktop",
       "category": "communication",
@@ -558,6 +574,19 @@
       "category": "utilities",
       "defaultNormal": false,
       "defaultWork": false
+    },
+    {
+      "name": "MicLockTray",
+      "id": "dillacorn.MicLockTray",
+      "category": "utilities",
+      "defaultNormal": false,
+      "defaultWork": false,
+      "installMode": "official-github-portable",
+      "fallbackGitHubRepo": "dillacorn/MicLockTray",
+      "fallbackAssetRegex": "^MicLockTray\\.exe$",
+      "installDirectory": "MicLockTray",
+      "installedFile": "MicLockTray.exe",
+      "launchAfterInstall": true
     },
     {
       "name": "Okular",
