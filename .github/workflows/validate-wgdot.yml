@@ -11,6 +11,7 @@ on:
       - "UserProfile/.config/yasb/**"
       - "UserProfile/.glzr/glazewm/**"
       - "MANUAL_POWERSHELL.md"
+      - "UPDATE.md"
       - "AGENTS.md"
       - ".github/workflows/validate-wgdot.yml"
   pull_request:
@@ -22,6 +23,7 @@ on:
       - "UserProfile/.config/yasb/**"
       - "UserProfile/.glzr/glazewm/**"
       - "MANUAL_POWERSHELL.md"
+      - "UPDATE.md"
       - "AGENTS.md"
       - ".github/workflows/validate-wgdot.yml"
 
