@@ -263,9 +263,28 @@ QToolTip {
     background-color: transparent;
 }
 
+/* Awtarchy only renders its microphone indicator while muted.
+   The normal YASB microphone glyph is intentionally empty, so remove the
+   surrounding widget padding until the native muted class appears. */
+.microphone-widget {
+    padding: 0;
+}
+
+.microphone-widget .icon,
+.microphone-widget .label {
+    padding: 0;
+}
+
 .microphone-widget .label.muted,
 .microphone-widget .icon.muted {
     color: var(--critical);
+    padding: 0 5px;
+}
+
+.microphone-widget .label.no-device,
+.microphone-widget .icon.no-device {
+    color: var(--muted);
+    padding: 0;
 }
 
 .volume-widget .label.muted,
