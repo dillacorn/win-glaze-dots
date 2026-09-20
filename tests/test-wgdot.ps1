@@ -103,12 +103,14 @@ Assert-Equal "official-github-archive-driver" ([string]$rawAccelPackage.installM
 Assert-Equal "RawAccelOfficial/rawaccel" ([string]$rawAccelPackage.fallbackGitHubRepo) "Raw Accel source is the official upstream repository"
 Assert-Equal "installer.exe" ([string]$rawAccelPackage.archiveInstaller) "Raw Accel uses the upstream driver installer"
 Assert-Equal "rawaccel" ([string]$rawAccelPackage.installedService) "Raw Accel installation verifies the kernel-driver service"
+Assert-Equal "rawaccel.sys" ([string]$rawAccelPackage.driverFileName) "Raw Accel installation verifies the installed driver file"
 
 $micLockTrayPackage = Get-ManifestPackage -Id "dillacorn.MicLockTray"
 Assert-True ($null -ne $micLockTrayPackage) "MicLockTray package exists"
 Assert-Equal "official-github-portable" ([string]$micLockTrayPackage.installMode) "MicLockTray uses the unelevated official GitHub portable path"
 Assert-Equal "dillacorn/MicLockTray" ([string]$micLockTrayPackage.fallbackGitHubRepo) "MicLockTray source is the official repository"
 Assert-Equal "MicLockTray.exe" ([string]$micLockTrayPackage.installedFile) "MicLockTray installs the published standalone executable"
+Assert-Equal $true ([bool]$micLockTrayPackage.launchAfterInstall) "MicLockTray launches after its user-level portable install"
 
 $expectedDefaultOnPackages = @(
     "Git.Git",
