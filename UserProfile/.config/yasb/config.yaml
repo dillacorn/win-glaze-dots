@@ -51,11 +51,11 @@ bars:
         [
           "launcher",
           "glazewm_workspaces",
-          "workspace_move_group",
-          "glazewm_tiling_direction",
+          "workspace_move",
           "taskbar",
           "glazewm_pause",
           "glazewm_binding_mode",
+          "glazewm_tiling_direction",
         ]
       center: ["active_window"]
       right:
@@ -117,6 +117,9 @@ widgets:
       class_name: "workspace-move-buttons"
       tooltip: true
       app_list:
+        - icon: "󰍽"
+          launch: "wgdot mouse-mode-toggle"
+          name: "Mouse window mode (Super+Alt+M)"
         - icon: "↑"
           launch: "glazewm.exe command move-workspace --direction up"
           name: "Move workspace up"
@@ -130,24 +133,11 @@ widgets:
           launch: "glazewm.exe command move-workspace --direction right"
           name: "Move workspace right"
 
-  workspace_move_group:
-    type: "yasb.grouper.GrouperWidget"
-    options:
-      class_name: "workspace-move-grouper"
-      widgets: ["workspace_move"]
-      hide_empty: false
-      collapse_options:
-        enabled: true
-        exclude_widgets: []
-        expanded_label: "󰍽"
-        collapsed_label: "󰍽"
-        label_position: "left"
-
   glazewm_tiling_direction:
     type: "glazewm.tiling_direction.GlazewmTilingDirectionWidget"
     options:
-      horizontal_label: "󰶞"
-      vertical_label: "󰶡"
+      horizontal_label: "↔"
+      vertical_label: "↕"
 
   taskbar:
     type: "yasb.taskbar.TaskbarWidget"
@@ -214,7 +204,8 @@ widgets:
         none: ""
         noalt: ""
         vm: ""
-      binding_modes_to_cycle_through: ["none", "noalt", "vm"]
+        mouse: ""
+      binding_modes_to_cycle_through: ["none", "noalt", "vm", "mouse"]
       callbacks:
         # Match Awtarchy's visible submap label: either primary mouse button
         # clears the active binding mode.
