@@ -45,16 +45,26 @@ Assert-Contains $config 'enable_scroll_switching: true' "workspace wheel switchi
 Assert-Contains $config 'yasb.grouper.GrouperWidget' "workspace mover uses native YASB Grouper"
 Assert-Contains $config 'glazewm.exe command move-workspace --direction left' "workspace mover uses native GlazeWM commands"
 Assert-Contains $config 'glazewm.binding_mode.GlazewmBindingModeWidget' "binding mode is used as the Windows submap equivalent"
-Assert-Contains $config 'on_right: "context_menu"' "taskbar right click uses the Windows-native YASB context menu"
+Assert-Contains $config 'on_right: "toggle_window"' "taskbar right click uses YASB minimize/restore behavior"
 Assert-Contains $config 'label_icon: false' "active window title remains text-only"
 Assert-Contains $config 'ddc_poll_interval: 60' "brightness uses native YASB DDC polling"
 Assert-Contains $config 'use_hook: false' "systray avoids explorer DLL injection"
 Assert-NotContains $config 'use_hook: true' "systray DLL injection is never enabled"
+Assert-Contains $config 'yasb.quick_launch.QuickLaunchWidget' "clipboard history uses native YASB Quick Launch"
+Assert-Contains $config 'search_placeholder: "Search clipboard history..."' "clipboard Quick Launch is dedicated to history"
+Assert-Contains $config 'prefix: "*"' "clipboard provider handles an empty popup query directly"
+Assert-Contains $config 'yasb.dnd.DndWidget' "Windows Do Not Disturb uses native YASB DND"
+Assert-Contains $config 'on_left: "toggle_status"' "DND uses its native toggle callback"
+Assert-Contains $config 'on_right: "exec wgdot eartrumpet-mixer"' "audio right click opens the existing EarTrumpet mixer helper"
 
 foreach ($glaze in @($glazeNormal, $glazeWork)) {
     Assert-Contains $glaze 'top: "8px"' "GlazeWM keeps a normal top outer gap when YASB reserves the AppBar area"
     Assert-NotContains $glaze 'top: "38px"' "legacy manual YASB top allowance is removed"
     Assert-Contains $glaze 'shell-exec yasb' "GlazeWM starts YASB"
+    Assert-Contains $glaze 'yasbc toggle-bar' "bar visibility uses YASB's supported CLI"
+    Assert-Contains $glaze 'lwin+alt+ctrl+b' "Awtarchy-style left-Win bar chord is preserved"
+    Assert-Contains $glaze 'rwin+alt+ctrl+b' "Awtarchy-style right-Win bar chord is preserved"
+    Assert-NotContains $glaze 'Stop-Process -Name yasb -Force' "bar visibility no longer kills the YASB process"
 }
 Assert-NotContains $config 'komorebi' "abandoned Komorebi integration is absent"
 Assert-NotContains $config 'whkd' "whkd is not introduced"
@@ -71,6 +81,8 @@ foreach ($widgetType in @(
     'yasb.bluetooth.BluetoothWidget',
     'yasb.systray.SystrayWidget',
     'yasb.notifications.NotificationsWidget',
+    'yasb.quick_launch.QuickLaunchWidget',
+    'yasb.dnd.DndWidget',
     'yasb.power_menu.PowerMenuWidget'
 )) {
     Assert-Contains $config $widgetType "supported YASB widget is present: $widgetType"
@@ -85,7 +97,9 @@ Assert-Contains $style '.workspace-move-grouper' "workspace mover has dedicated 
 Assert-Contains $readme 'Evidence-backed mappings' "feature mappings document their evidence boundary"
 Assert-Contains $readme 'Deliberate differences and omissions' "unsupported translations are documented"
 Assert-Contains $readme 'CPU temperature' "CPU temperature is not silently substituted with another metric"
-Assert-Contains $readme 'context menu' "Windows-native taskbar right-click difference is documented"
+Assert-Contains $readme 'Clipboard History' "native clipboard-history mapping is documented"
+Assert-Contains $readme 'Do Not Disturb' "notification-mute approximation is documented"
+Assert-Contains $readme 'toggle-bar' "native YASB bar visibility mapping is documented"
 Assert-Contains $readme 'double gap' "AppBar transition avoids double-reserving the top edge"
 
 Write-Host "YASB parity checks passed." -ForegroundColor Green
