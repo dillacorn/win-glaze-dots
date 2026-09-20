@@ -284,6 +284,14 @@ widgets:
         icon_format: "{icon} {charging_icon}"
         blink_charging_icon: false
         blink_interval: 500
+      # Match Awtarchy's 15/40/65/90 battery bands as closely as YASB's
+      # shared status threshold for both color and icon allows.
+      status_thresholds:
+        critical: 15
+        low: 39
+        medium: 64
+        high: 89
+        full: 100
       callbacks:
         # YASB has no native battery details popup. Open Windows' own
         # Power & battery surface on either primary mouse button; keep
@@ -323,7 +331,7 @@ widgets:
       label_alt: "<span>{icon}</span> {level}"
       mute_text: "mute"
       tooltip: true
-      scroll_step: 2
+      scroll_step: 5
       slider_beep: false
       icons:
         muted: ""

@@ -361,14 +361,10 @@ QToolTip {
     color: var(--critical);
 }
 
-.battery-widget .label.status-low,
-.battery-widget .icon.status-low {
-    color: var(--urgent);
-}
-
 .battery-widget .label.charging,
 .battery-widget .icon.charging {
-    color: var(--charging);
+    /* Awtarchy indicates charging with the bolt, not a separate color. */
+    color: var(--foreground);
 }
 
 
