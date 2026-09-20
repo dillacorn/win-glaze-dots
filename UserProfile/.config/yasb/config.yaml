@@ -257,6 +257,8 @@ widgets:
       tooltip: true
       scroll_step: 5
       invert_wheel: false
+      # Awtarchy uses one fixed gear glyph for brightness at every level.
+      brightness_icons: ["", "", "", ""]
       ddc_poll_interval: 60
       brightness_menu:
         blur: false
@@ -323,9 +325,9 @@ widgets:
       slider_beep: false
       icons:
         muted: ""
-        "10": ""
-        "30": ""
-        "60": ""
+        # Awtarchy: <25 low, <60 medium, otherwise high.
+        "24": ""
+        "59": ""
         "100": ""
       audio_menu:
         blur: false
@@ -346,7 +348,7 @@ widgets:
     type: "yasb.clock.ClockWidget"
     options:
       label: "<span></span> {%H:%M}"
-      label_alt: "<span></span> {%a %m/%d}"
+      label_alt: "<span></span> {%a %#m/%#d}"
       tooltip: true
       update_interval: 1000
       timezones: []
@@ -378,10 +380,10 @@ widgets:
         on_right: "toggle_menu"
       ethernet_label: "<span>{wifi_icon}</span>"
       ethernet_label_alt: "<span>{wifi_icon}</span> {ip_addr}"
-      ethernet_icon: ""
+      ethernet_icon: "󰈀"
       wifi_icons:
         [
-          "󰤮",
+          "󰤯",
           "󰤟",
           "󰤢",
           "󰤥",
@@ -400,10 +402,11 @@ widgets:
       label: "<span>{icon}</span>"
       label_alt: "{device_name}"
       tooltip: true
+      # Awtarchy keeps the same Bluetooth glyph and changes state by color.
       icons:
-        bluetooth_on: "󰂯"
-        bluetooth_off: "󰂲"
-        bluetooth_connected: "󰂱"
+        bluetooth_on: ""
+        bluetooth_off: ""
+        bluetooth_connected: ""
       callbacks:
         on_left: "toggle_menu"
         on_middle: "do_nothing"
@@ -433,7 +436,7 @@ widgets:
   clipboard_history:
     type: "yasb.quick_launch.QuickLaunchWidget"
     options:
-      label: "<span></span>"
+      label: "<span></span>"
       search_placeholder: "Search clipboard history..."
       remember_last_query: false
       max_results: 30

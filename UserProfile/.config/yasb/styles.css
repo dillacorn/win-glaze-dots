@@ -296,6 +296,11 @@ QToolTip {
     font-size: 19px;
 }
 
+.bluetooth-widget .icon.bt-off,
+.bluetooth-widget .label.bt-off {
+    color: var(--muted);
+}
+
 /* Awtarchy uses its stronger hover fill for network/menu-style actions. */
 .wifi-widget:hover,
 .bluetooth-widget:hover,

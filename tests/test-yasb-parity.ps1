@@ -63,6 +63,9 @@ $brightnessBlock = [regex]::Match($config, '(?ms)^  brightness:\r?\n.*?(?=^  bat
 $batteryBlock = [regex]::Match($config, '(?ms)^  battery:\r?\n.*?(?=^  microphone:)').Value
 Assert-Contains $brightnessBlock 'yasb.brightness.BrightnessWidget' "brightness widget block is discoverable"
 Assert-Contains $brightnessBlock 'label: "<span>{icon}</span> {percent}%"' "brightness retains Awtarchy's explicit percent suffix"
+if (([regex]::Matches($brightnessBlock, '')).Count -ne 4) {
+    throw "ASSERTION FAILED: brightness uses Awtarchy's fixed gear glyph in all four native YASB slots"
+}
 Assert-Contains $brightnessBlock 'ddc_poll_interval: 60' "brightness uses native YASB DDC polling"
 Assert-Contains $batteryBlock 'yasb.battery.BatteryWidget' "battery widget block is discoverable"
 Assert-Contains $batteryBlock 'exec cmd.exe /c start ms-settings:powersleep' "battery clicks use Windows Power and battery settings"
@@ -70,9 +73,26 @@ Assert-Contains $batteryBlock 'label: "<span>{icon}</span> {percent}"' "battery 
 Assert-NotContains $batteryBlock 'label: "<span>{icon}</span> {percent}%"' "battery bar label does not reintroduce a percent suffix"
 Assert-Contains $batteryBlock 'icon_format: "{icon} {charging_icon}"' "plugged-in battery retains the battery glyph and adds the charging bolt"
 Assert-Contains $batteryBlock 'on_middle: "toggle_label"' "battery middle click retains YASB alternate battery label"
-Assert-Contains $config 'muted: ""' "volume muted glyph matches current Awtarchy"
+$volumeBlock = [regex]::Match($config, '(?ms)^  volume:\r?\n.*?(?=^  clock:)').Value
+Assert-Contains $volumeBlock 'muted: ""' "volume muted glyph matches current Awtarchy"
+Assert-Contains $volumeBlock '"24": ""' "volume low icon ends at 24 like Awtarchy's <25 threshold"
+Assert-Contains $volumeBlock '"59": ""' "volume medium icon ends at 59 like Awtarchy's <60 threshold"
+Assert-Contains $volumeBlock '"100": ""' "volume high icon covers the remaining range"
+Assert-NotContains $volumeBlock '"10": ""' "old YASB default low-volume cutoff is removed"
+Assert-NotContains $volumeBlock '"30": ""' "old YASB default medium-volume cutoff is removed"
 Assert-Contains $config 'use_hook: false' "systray avoids explorer DLL injection"
 Assert-NotContains $config 'use_hook: true' "systray DLL injection is never enabled"
+$clockBlock = [regex]::Match($config, '(?ms)^  clock:\r?\n.*?(?=^  wifi:)').Value
+$wifiBlock = [regex]::Match($config, '(?ms)^  wifi:\r?\n.*?(?=^  bluetooth:)').Value
+$bluetoothBlock = [regex]::Match($config, '(?ms)^  bluetooth:\r?\n.*?(?=^  systray:)').Value
+$clipboardBlock = [regex]::Match($config, '(?ms)^  clipboard_history:\r?\n.*?(?=^  dnd:)').Value
+Assert-Contains $clockBlock '{%a %#m/%#d}' "clock alternate date matches Awtarchy's non-zero-padded M/d"
+Assert-Contains $wifiBlock '"󰤯"' "Wi-Fi zero-strength glyph matches Awtarchy"
+Assert-Contains $wifiBlock 'ethernet_icon: "󰈀"' "active Ethernet glyph matches Awtarchy"
+Assert-Contains $bluetoothBlock 'bluetooth_on: ""' "Bluetooth enabled glyph matches Awtarchy"
+Assert-Contains $bluetoothBlock 'bluetooth_off: ""' "Bluetooth disabled keeps Awtarchy's single glyph"
+Assert-Contains $bluetoothBlock 'bluetooth_connected: ""' "Bluetooth connected keeps Awtarchy's single glyph"
+Assert-Contains $clipboardBlock 'label: "<span></span>"' "clipboard glyph matches current Awtarchy"
 Assert-Contains $config 'yasb.quick_launch.QuickLaunchWidget' "clipboard history uses native YASB Quick Launch"
 Assert-Contains $config 'search_placeholder: "Search clipboard history..."' "clipboard Quick Launch is dedicated to history"
 Assert-Contains $config 'prefix: "*"' "clipboard provider handles an empty popup query directly"
@@ -139,8 +159,14 @@ Assert-Contains $style 'padding: 0 8px;' "fixed 8 px horizontal action padding i
 
 Assert-Contains $readme 'Evidence-backed mappings' "feature mappings document their evidence boundary"
 Assert-Contains $readme 'Deliberate differences and omissions' "unsupported translations are documented"
-Assert-Contains $style '.systray {' "systray styling is explicitly controlled"
-Assert-Contains $style 'padding: 0;' "Awtarchy-style tray outer padding is removed"
+Assert-Contains $style '.bluetooth-widget .icon.bt-off' "Bluetooth disabled state has explicit native-state styling"
+Assert-Contains $style 'color: var(--muted);' "disabled Bluetooth uses Awtarchy's muted foreground"
+$systrayBlocks = [regex]::Matches($style, '(?ms)^\.systray \{\r?\n.*?^\}')
+if ($systrayBlocks.Count -lt 1) {
+    throw "ASSERTION FAILED: dedicated systray styling block is missing"
+}
+$systrayBlock = $systrayBlocks[$systrayBlocks.Count - 1].Value
+Assert-Contains $systrayBlock 'padding: 0;' "Awtarchy-style tray outer padding is removed"
 Assert-Contains $style 'margin: 0 5px;' "tray buttons preserve 10 px inter-icon spacing"
 
 Assert-Contains $readme 'CPU temperature' "CPU temperature is not silently substituted with another metric"
@@ -151,6 +177,8 @@ Assert-Contains $readme 'theme.css' "live YASB theme mapping is documented"
 Assert-Contains $readme 'Power & battery' "Windows-native battery details mapping is documented"
 Assert-Contains $readme 'PowerPlanWidget' "native Windows power-plan option was evaluated instead of blindly scripted"
 Assert-Contains $readme 'no wheel callback' "clock wheel limitation is documented from current YASB source"
+Assert-Contains $readme 'trailing `%`' "native YASB volume percent limitation is documented"
+Assert-Contains $readme 'conditional label expression' "Bluetooth connected-name/count limitation is documented"
 Assert-Contains $readme 'one native tray monitor service' "multi-monitor systray behavior is documented from current YASB source"
 Assert-Contains $readme 'no native image-tint option' "Awtarchy task/tray recoloring limitation is documented instead of faked"
 Assert-Contains $readme 'visual preview cards' "theme-selector limitation versus Awtarchy is documented"
