@@ -56,13 +56,17 @@ Status reports the installed runtime revision separately from stable managed-con
 
 ## Test unreleased work
 
-Use the interactive **Advanced / Git testing** menu or the direct Git-review command:
+Use the interactive **Advanced / Git testing** menu or the explicit direct commands:
 
 ```powershell
-wgdot git-review
+wgdot git-review --branch <branch> --revision <full-40-character-sha>
+wgdot git-update --branch <branch> --revision <full-40-character-sha>
+wgdot git-reset --branch <branch> --revision <full-40-character-sha>
 ```
 
-Git testing is explicit maintainer/developer behavior. A branch is not treated as a stable release, and stable `wgdot update` returns to the published release stream.
+`git-review` is non-mutating. `git-update` applies the normal managed-file update rules from that exact branch revision, including backup/baseline protection. `git-reset` is the intentional reset/reconfigure path and may replace selected managed files after backing up differences.
+
+Git testing is explicit maintainer/developer behavior. A branch is not treated as a stable release, and normal stable operations remain a separate release stream.
 
 ## Audits
 
