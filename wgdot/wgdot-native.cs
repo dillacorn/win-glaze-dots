@@ -5174,6 +5174,12 @@ internal static class WgdotNative
         string cssPath = YasbThemeCssPath();
         WriteTextAtomic(cssPath, BuildYasbThemeCss(theme));
 
+        // YASB v2.0.7 watches imported stylesheets through on_modified.
+        // Atomic replacement can surface as a move/create event instead, so
+        // finish with a harmless in-place whitespace write to guarantee the
+        // live stylesheet watcher sees a modification event.
+        File.AppendAllText(cssPath, Environment.NewLine, new UTF8Encoding(false));
+
         var state = new Dictionary<string, object>();
         state["id"] = theme.Id;
         state["label"] = theme.Label;
