@@ -226,6 +226,29 @@ QToolTip,
     background-color: var(--urgent);
 }
 
+/* Native GlazeWM split-direction indicator. Clicking it toggles the
+   direction and it tracks external Alt+Shift+R-style direction changes live. */
+.glazewm-tiling-direction {
+    background-color: transparent;
+    margin: 0;
+    padding: 0;
+}
+
+.glazewm-tiling-direction .btn {
+    color: var(--foreground);
+    background-color: transparent;
+    border: none;
+    border-radius: 0;
+    font-size: 18px;
+    min-width: 18px;
+    margin: 0;
+    padding: 0 6px;
+}
+
+.glazewm-tiling-direction .btn:hover {
+    background-color: var(--subtle-hover);
+}
+
 /* GlazeWM binding mode is the direct Windows equivalent of Awtarchy's
    visible Hyprland submap label. */
 .glazewm-binding-mode {
