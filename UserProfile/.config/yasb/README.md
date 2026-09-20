@@ -33,6 +33,8 @@ Right:
 
 The bar uses Awtarchy's current flat palette: `#353535` background, `#d0d0d0` foreground, subtle active/hover fills, square controls, and a 28 px horizontal bar. JetBrainsMono NFP remains the Windows font because WGDot already installs it; this branch does not add another font dependency solely for visual parity.
 
+Because YASB now reserves its own 28 px Windows AppBar area, the managed GlazeWM profiles use the normal 8 px top outer gap. The previous 38 px top gap was a manual allowance for the old non-AppBar YASB setup and would create a double gap with this configuration.
+
 ## Evidence-backed mappings
 
 These translations use documented upstream YASB or GlazeWM behavior rather than custom emulation:
@@ -53,7 +55,7 @@ These translations use documented upstream YASB or GlazeWM behavior rather than 
 | inline tray | native Systray widget | YASB Systray docs |
 | notifications | native Notifications widget opening Windows Action Center | YASB Notifications docs |
 | power controls | native compact Power Menu popup | YASB Power Menu docs |
-| exclusive bar area + fullscreen hiding | `windows_app_bar: true` + `hide_on_fullscreen: true` | YASB bar configuration |
+| exclusive bar area + fullscreen hiding | `windows_app_bar: true` + `hide_on_fullscreen: true`; GlazeWM keeps its ordinary 8 px outer gap instead of the old 38 px manual bar allowance | YASB bar configuration + Awtarchy `Bar.qml` uses `exclusiveZone: barSize` while Hyprland keeps normal `gaps_out` |
 | Flow Launcher button | `ApplicationsWidget` launching the existing WGDot helper | YASB Applications widget supports arbitrary commands |
 
 ## Deliberate differences and omissions
@@ -71,7 +73,7 @@ The following Awtarchy features are not translated because a direct supported eq
 - Awtarchy's workspace mover expands on hover and includes a mouse submap toggle. YASB's native Grouper expands by click, and WGDot has no equivalent mouse binding mode.
 - Awtarchy only shows its microphone indicator while muted. YASB's native microphone widget remains visible and applies a muted CSS state instead.
 - task-icon left click is not identical: YASB's native `toggle_window` minimizes an already-active window; Awtarchy's left click simply activates it.
-- task-icon right click intentionally uses YASB's native Windows context menu instead of duplicating Awtarchy's activate action; this is the more useful Windows-native behavior.
+- task-icon right click intentionally uses YASB's native Windows context menu. Awtarchy uses right click to minimize/restore; YASB exposes `toggle_window`, `close_app`, and `context_menu`, so keeping the Windows context menu avoids inventing another input layer.
 
 ## Anti-cheat-sensitive choices
 
