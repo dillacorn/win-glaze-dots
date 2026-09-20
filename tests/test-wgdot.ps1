@@ -289,6 +289,18 @@ Assert-True ($launcherText -match 'Get-ExecutionPolicy') "launcher checks effect
 Assert-True ($launcherText -match '(?i)Restricted') "launcher handles Restricted policy"
 Assert-True ($launcherText -match '(?i)AllSigned') "launcher handles AllSigned policy"
 Assert-True ($manualText -notmatch '(?i)-ExecutionPolicy\s+Bypass') "manual path does not bypass execution policy"
+Assert-True ($manualText -match 'theme\.css') "paste-only manual workflow generates YASB theme.css"
+Assert-True ($manualText -match 'theme\.json') "paste-only manual workflow preserves YASB theme state"
+foreach ($themeId in @("carbon-night", "catppuccin-frappe", "crimson-red", "electric-blue", "gruvbox", "iron-forge", "obsidian-night", "pink", "pipboy")) {
+    Assert-True ($manualText.Contains($themeId)) "paste-only manual workflow includes YASB theme palette: $themeId"
+}
+
+$manualManagedBlock = [regex]::Match(
+    $manualText,
+    '(?s)## Apply managed files from the latest stable WGDot release.*?```powershell\r?\n(.*?)\r?\n```'
+)
+Assert-True $manualManagedBlock.Success "paste-only managed-files PowerShell block can be extracted"
+[scriptblock]::Create($manualManagedBlock.Groups[1].Value) | Out-Null
 Assert-True ($nativeBootstrapText -notmatch '(?i)Set-ExecutionPolicy|-ExecutionPolicy\s+(Bypass|Unrestricted)') "native bootstrap does not change or bypass execution policy"
 Assert-True ($nativeSourceText -notmatch '(?i)Set-ExecutionPolicy|-ExecutionPolicy\s+(Bypass|Unrestricted)') "native bootstrap source does not change or bypass execution policy"
 Assert-True ($nativeSourceText -match 'WmSettingChange') "native installer broadcasts environment changes"
@@ -472,6 +484,7 @@ try {
     Assert-True ($manualThemeText -match 'theme\.json') "generated manual recovery includes theme state"
     Assert-True ($manualThemeText -match 'electric-blue') "generated manual recovery preserves selected theme id"
     Assert-True ($manualThemeText -match 'glazewmReloaded = \$false') "generated manual recovery never reloads GlazeWM"
+    [scriptblock]::Create($manualThemeText) | Out-Null
 } finally {
     if (Test-Path -LiteralPath $themeTestRoot) { Remove-Item -LiteralPath $themeTestRoot -Recurse -Force }
 }
