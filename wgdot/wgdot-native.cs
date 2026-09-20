@@ -5800,7 +5800,7 @@ internal static class WgdotNative
         string verb = enabled ? "wm-enable-binding-mode" : "wm-disable-binding-mode";
         ProcResult result = Run(
             "glazewm.exe",
-            "command " + verb + " --name " + QuoteArgument(name),
+            "command " + verb + " --name " + Q(name),
             null);
         if (result.ExitCode != 0)
             throw new Exception(
