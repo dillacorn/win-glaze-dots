@@ -14,12 +14,12 @@ general:
 
 gaps:
   scale_with_dpi: true
-  inner_gap: "2px"
+  inner_gap: "5px"
   outer_gap:
-    top: "38px"
-    right: "8px"
-    bottom: "8px"
-    left: "8px"
+    top: "35px"
+    right: "3px"
+    bottom: "5px"
+    left: "3px"
 
 window_effects:
   focused_window:
@@ -174,6 +174,7 @@ window_rules:
     match:
       - window_title: { regex: "Volume Mixer" }
       - window_process: { equals: "EarTrumpet" }
+      - window_process: { regex: "^rawaccel(\\.exe)?$" }
       - window_title: { regex: "(Find|Replace)" }
       # Keep the WGDot theme selector out of the tiling tree. Its terminal
       # title is fixed with Windows Terminal --suppressApplicationTitle.
@@ -221,7 +222,15 @@ binding_modes:
         bindings: ["lwin+t", "rwin+t"]
       - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe clipboard-history']
         bindings: ["lwin+c", "rwin+c"]
-      - commands: ["shell-exec flameshot gui"]
+      - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe eartrumpet-mixer']
+        bindings: ["lwin+v", "rwin+v"]
+      - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe power-menu']
+        bindings: ["lwin+p", "rwin+p"]
+      - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe display-settings']
+        bindings: ["lwin+ctrl+m", "rwin+ctrl+m"]
+      - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe rawaccel-open']
+        bindings: ["alt+shift+m", "lwin+shift+m", "rwin+shift+m"]
+      - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe flameshot-gui']
         bindings: ["lwin+shift+s", "rwin+shift+s"]
       - commands: ["shell-exec wt.exe -w new"]
         bindings: ["lwin+enter", "rwin+enter", "lwin+shift+enter", "rwin+shift+enter"]
@@ -326,7 +335,7 @@ binding_modes:
       - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe eartrumpet-mixer']
         bindings: ["lwin+alt+ctrl+v", "rwin+alt+ctrl+v"]
 
-      - commands: ["shell-exec flameshot gui"]
+      - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe flameshot-gui']
         bindings: ["lwin+alt+s", "rwin+alt+s"]
 
       - commands: ["shell-exec wt.exe -w new"]
@@ -382,26 +391,35 @@ keybindings:
   - commands: ["wm-redraw"]
     bindings: ["lwin", "rwin"]
 
-  - commands: ["shell-exec flameshot gui"]
+  - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe flameshot-gui']
     bindings: ["lwin+shift+s", "rwin+shift+s"]
 
   # NoWinKeys frees this shell chord so GlazeWM can mirror Awtarchy.
   - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe flow-open']
     bindings: ["lwin+d", "rwin+d"]
 
-  # Windows Clipboard History stays native on Win+V. Super+C is the WGDot alias.
+  # Match Awtarchy: Super+C opens Clipboard History and Super+V opens the mixer.
   - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe clipboard-history']
     bindings: ["lwin+c", "rwin+c"]
+
+  - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe eartrumpet-mixer']
+    bindings: ["lwin+v", "rwin+v"]
+
+  - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe power-menu']
+    bindings: ["lwin+p", "rwin+p"]
+
+  - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe display-settings']
+    bindings: ["lwin+ctrl+m", "rwin+ctrl+m"]
+
+  - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe rawaccel-open']
+    bindings: ["alt+shift+m", "lwin+shift+m", "rwin+shift+m"]
 
   # Single-instance WGDot theme selector. No GlazeWM reload.
   - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe theme-toggle']
     bindings: ["lwin+t", "rwin+t"]
 
-  # Keep the legacy WGDot Alt+Ctrl+B hard visibility toggle, but do not
-  # bind Awtarchy's Win+Alt+Ctrl+B auto-hide chord here. YASB toggle-bar
-  # hides the window without releasing a normal AppBar reservation.
-  - commands: ["shell-exec --hide-window yasbc toggle-bar"]
-    bindings: ["alt+ctrl+b"]
+  # No hard bar-hide hotkey: stock YASB can auto-hide/reveal safely from
+  # its blank-bar context menu, while toggle-bar can strand an invisible bar.
 
   - commands: ['shell-exec C:\Program Files (x86)\SpeedCrunch\speedcrunch.exe']
     bindings: ["alt+shift+c"]
@@ -477,7 +495,7 @@ keybindings:
     bindings: ["alt+ctrl+shift+k"]
 
   - commands: ["wm-reload-config"]
-    bindings: ["alt+ctrl+shift+q"]
+    bindings: ["alt+ctrl+shift+r"]
 
   - commands: ["wm-redraw"]
     bindings: ["alt+ctrl+shift+w"]
