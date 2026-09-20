@@ -8,8 +8,9 @@ bars:
     enabled: true
     screens: ["*"]
     class_name: "yasb-bar"
-    # Awtarchy has no blank-bar context menu; keep right-clicks scoped to widgets.
-    context_menu: false
+    # Keep the native blank-bar menu available for safe auto-hide/reveal,
+    # widget visibility, bar reload, and recovery actions.
+    context_menu: true
 
     alignment:
       position: "top"
@@ -51,6 +52,7 @@ bars:
           "launcher",
           "glazewm_workspaces",
           "workspace_move_group",
+          "glazewm_tiling_direction",
           "taskbar",
           "glazewm_pause",
           "glazewm_binding_mode",
@@ -140,6 +142,12 @@ widgets:
         expanded_label: "󰍽"
         collapsed_label: "󰍽"
         label_position: "left"
+
+  glazewm_tiling_direction:
+    type: "glazewm.tiling_direction.GlazewmTilingDirectionWidget"
+    options:
+      horizontal_label: "󰶞"
+      vertical_label: "󰶡"
 
   taskbar:
     type: "yasb.taskbar.TaskbarWidget"
@@ -473,7 +481,7 @@ widgets:
       label: "<span></span>"
       class_name: "awtarchy-clipboard"
       tooltip: true
-      tooltip_label: "Windows Clipboard History (Super+C / Win+V)"
+      tooltip_label: "Windows Clipboard History (Super+C)"
       exec_options:
         run_once: true
         return_format: "string"
