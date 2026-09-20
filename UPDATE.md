@@ -10,7 +10,7 @@ Run:
 wgdot
 ```
 
-The maintenance menu exposes managed-dot updates, software reconciliation, Windows tweaks, GPU maintenance, backup management, review/reset operations, audits, status, and explicit Git testing.
+The maintenance menu exposes managed-dot updates, a software/startup manager, Windows tweaks, GPU maintenance, backup management, review/reset operations, audits, status, and explicit Git testing.
 
 ## Update managed dots
 
@@ -38,13 +38,34 @@ wgdot reset
 
 Use reset when you intentionally want selected WGDot-managed files returned to the selected stable release state. Differing live files are backed up before replacement.
 
-## Software reconciliation
+## Software, startup, and uninstall management
 
 ```powershell
 wgdot software
 ```
 
-WGDot checks the selected software catalog, installs missing approved packages, and can offer explicitly approved upgrades. It does not run a blind `winget upgrade --all`.
+This opens the **Software / startup manager**. It provides separate actions for installing/reconciling selected software, managing Windows-login startup entries, uninstalling individual applications, and disabling every WGDot-owned startup entry while keeping the applications installed.
+
+Direct commands are also available:
+
+```powershell
+wgdot software-reconcile
+wgdot startup
+wgdot software-uninstall
+wgdot startup-disable-all
+```
+
+Software reconciliation installs missing approved packages and can offer explicitly approved upgrades. It does not run a blind `winget upgrade --all`. Deselecting software during reconciliation does not itself uninstall anything; removal requires the dedicated uninstall workflow and its confirmation.
+
+WGDot requires WinGet. If WinGet/App Installer is missing, the runtime uses Microsoft's WinGet repair/bootstrap path automatically rather than requiring a separate manual setup step.
+
+## GPU driver maintenance
+
+```powershell
+wgdot gpu-driver
+```
+
+WGDot detects present AMD, NVIDIA, and Intel display adapters and runs the matching official vendor auto-detect/driver assistant when requested. Missing matching vendor drivers are also surfaced after software reconciliation. DDU/Safe Mode cleanup remains a separate confirmation-gated recovery path.
 
 ## Check state
 
