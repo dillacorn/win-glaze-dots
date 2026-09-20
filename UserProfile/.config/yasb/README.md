@@ -31,7 +31,7 @@ Right:
 - Windows Clipboard History
 - Windows notifications
 - Windows Do Not Disturb state/control
-- live YASB theme picker
+- live YASB theme drawer
 - power menu
 
 The default bar uses Awtarchy's Carbon Night palette: `#353535` background, `#d0d0d0` foreground, subtle active/hover fills, square controls, and a 28 px horizontal bar. WGDot also exposes the current Awtarchy palette set through a live YASB theme selector. JetBrainsMono NFP remains the Windows font because WGDot already installs it; this branch does not add another font dependency solely for visual parity.
@@ -51,7 +51,7 @@ These translations use documented upstream YASB or GlazeWM behavior rather than 
 | workspace move drawer | collapsed `GrouperWidget` containing `ApplicationsWidget` buttons that call GlazeWM's native directional workspace move command | YASB Grouper/Applications docs + existing WGDot GlazeWM `move-workspace --direction` bindings |
 | CPU / memory | native CPU and Memory widgets | YASB CPU/Memory docs |
 | DDC brightness | native Brightness widget | YASB brightness docs explicitly support external DDC/CI monitors and background DDC polling |
-| battery | native Battery widget with `hide_unsupported` | YASB Battery docs |
+| battery | native Battery widget with `hide_unsupported`; left/right open Windows' own Power & battery settings because YASB has no battery-details popup, while middle-click toggles the alternate label | YASB Battery source exposes label callbacks but no menu; YASB's own Control Center uses `ms-settings:powersleep` for Power & battery |
 | microphone | native Microphone widget with an empty normal glyph and YASB's native `muted` class styling, so the bar indicator collapses while unmuted and appears red while muted | YASB Microphone source applies `muted` / `no-device` classes dynamically |
 | output audio | native Volume widget for mute/scroll volume; right-click opens the existing WGDot EarTrumpet mixer helper, paralleling Awtarchy's Wiremix action | YASB Volume callbacks + existing WGDot `eartrumpet-mixer` integration |
 | clock/date | Clock widget primary/alternate labels | YASB Clock docs |
@@ -63,7 +63,7 @@ These translations use documented upstream YASB or GlazeWM behavior rather than 
 | exclusive bar area + fullscreen hiding | `windows_app_bar: true` + `hide_on_fullscreen: true`; GlazeWM keeps its ordinary 8 px outer gap instead of the old 38 px manual bar allowance | YASB bar configuration; current GlazeWM uses the Windows monitor working area (excluding taskbars/reserved space) and listens for `SPI_SETWORKAREA`; Awtarchy `Bar.qml` uses `exclusiveZone: barSize` while Hyprland keeps normal `gaps_out` |
 | Flow Launcher button | a static native `CustomWidget` calling the existing WGDot `flow-open` helper on both left and right click, matching Awtarchy's launcher mouse behavior | YASB Custom widget uses normal registered mouse callbacks and the existing WGDot helper |
 | legacy bar visibility hotkey | WGDot keeps its existing `Alt+Ctrl+B` convenience but implements it with supported `yasbc toggle-bar` instead of killing/restarting YASB | YASB CLI `toggle-bar` + managed GlazeWM binding |
-| theme switching | WGDot `theme` writes only `~/.config/yasb/theme.css`; YASB's watched `@import` applies the palette live. The bar palette button and `Win+T` open the same selector. The palette set mirrors Awtarchy's current themes. | YASB v2.0.7 watches imported stylesheets through its stylesheet watcher; no YASB restart or GlazeWM reload is required |
+| theme switching | a native YASB `GrouperWidget` expands nine compact theme choices that directly call `wgdot theme <id>`; `Win+T` keeps the keyboard-friendly WGDot selector. WGDot writes only `~/.config/yasb/theme.css`, and YASB's watched `@import` applies it live. | YASB v2.0.7 Grouper/Applications widgets + imported-stylesheet watcher; no YASB restart or GlazeWM reload is required |
 
 ## Deliberate differences and omissions
 
@@ -81,6 +81,7 @@ The following Awtarchy features are not translated because a direct supported eq
 - Awtarchy's notification icon owns both open and popup-mute behavior. YASB does not expose a cross-widget callback for that composition, so Windows Action Center and Windows Do Not Disturb are adjacent controls instead. YASB's DND implementation uses the Windows QuietHoursSettings COM API documented by YASB as an undocumented Windows API, so Windows updates can change that behavior.
 - Awtarchy's `Win+Alt+Ctrl+B` changes focused-monitor auto-hide and releases the exclusive zone. YASB v2.0.7 has a real `auto_hide` mode that also removes its AppBar reservation, but its CLI cannot toggle that setting at runtime. `yasbc toggle-bar` only hides the window and leaves a normal AppBar reservation in place. WGDot therefore does **not** bind the Awtarchy auto-hide chord to `toggle-bar`; the older `Alt+Ctrl+B` hard-visibility convenience remains separate.
 - Awtarchy themes also retint Hyprland borders. WGDot deliberately does not retint GlazeWM on theme changes because GlazeWM requires a config reload and reloads can disturb the current tiling layout. Both managed GlazeWM profiles therefore keep the focused border at neutral `#a1a1a1`, while YASB changes live.
+- Awtarchy's theme picker provides large visual preview cards and marks the active theme. The YASB bar uses a compact native click-to-expand drawer with short theme tokens instead; YASB's Grouper/Applications widgets do not expose WGDot's external active-theme state, so no fake active marker is drawn. `Win+T` remains the fuller keyboard selector.
 
 ## Anti-cheat-sensitive choices
 
