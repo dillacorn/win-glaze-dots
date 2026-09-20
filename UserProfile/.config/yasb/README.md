@@ -59,7 +59,7 @@ These translations use documented upstream YASB or GlazeWM behavior rather than 
 | notifications | native Notifications widget opens Windows Action Center; adjacent `DndWidget` exposes Windows Do Not Disturb as the supported Windows-side approximation of Awtarchy's notification-popup mute state | YASB Notifications + DND docs/source |
 | power controls | native compact Power Menu popup; both left and right click use YASB's supported menu toggle | YASB Power Menu docs and registered `toggle_power_menu` callback |
 | exclusive bar area + fullscreen hiding | `windows_app_bar: true` + `hide_on_fullscreen: true`; GlazeWM keeps its ordinary 8 px outer gap instead of the old 38 px manual bar allowance | YASB bar configuration; current GlazeWM uses the Windows monitor working area (excluding taskbars/reserved space) and listens for `SPI_SETWORKAREA`; Awtarchy `Bar.qml` uses `exclusiveZone: barSize` while Hyprland keeps normal `gaps_out` |
-| Flow Launcher button | `ApplicationsWidget` launching the existing WGDot helper | YASB Applications widget supports arbitrary commands |
+| Flow Launcher button | a static native `CustomWidget` calling the existing WGDot `flow-open` helper on both left and right click, matching Awtarchy's launcher mouse behavior | YASB Custom widget uses normal registered mouse callbacks and the existing WGDot helper |
 | bar visibility hotkey | YASB's supported `yasbc toggle-bar`; WGDot keeps the old `Alt+Ctrl+B` convenience and also exposes Awtarchy's `Win+Alt+Ctrl+B` chord, including inside `noalt` and `vm` binding modes | YASB CLI `toggle-bar` + managed GlazeWM bindings |
 
 ## Deliberate differences and omissions
