@@ -60,7 +60,9 @@ bars:
           "wifi",
           "bluetooth",
           "systray",
+          "clipboard_history",
           "notifications",
+          "dnd",
           "power_menu",
         ]
 
@@ -414,6 +416,43 @@ widgets:
       use_hook: false
       hide_icons: []
 
+  clipboard_history:
+    type: "yasb.quick_launch.QuickLaunchWidget"
+    options:
+      label: "<span></span>"
+      search_placeholder: "Search clipboard history..."
+      remember_last_query: false
+      max_results: 30
+      show_icons: true
+      icon_size: 28
+      home_page: false
+      compact_mode: false
+      compact_text: true
+      providers:
+        apps:
+          enabled: false
+        snippets:
+          enabled: false
+        color:
+          enabled: false
+        clipboard_history:
+          enabled: true
+          prefix: "*"
+          priority: 0
+          max_items: 30
+          show_preview: true
+      popup:
+        width: 720
+        height: 480
+        blur: false
+        round_corners: false
+        border_color: None
+        dark_mode: true
+      callbacks:
+        on_left: "toggle_quick_launch"
+        on_middle: "do_nothing"
+        on_right: "toggle_quick_launch"
+
   notifications:
     type: "yasb.notifications.NotificationsWidget"
     options:
@@ -428,6 +467,23 @@ widgets:
         on_left: "toggle_notification"
         on_middle: "toggle_label"
         on_right: "do_nothing"
+
+  dnd:
+    type: "yasb.dnd.DndWidget"
+    options:
+      label: "<span>{icon}</span>"
+      label_alt: "<span>{icon}</span> {status}"
+      class_name: "awtarchy-dnd"
+      tooltip: true
+      default_active_mode: "priority"
+      icons:
+        disabled: ""
+        priority: ""
+        alarms: ""
+      callbacks:
+        on_left: "toggle_status"
+        on_middle: "toggle_label"
+        on_right: "toggle_status"
 
   power_menu:
     type: "yasb.power_menu.PowerMenuWidget"
