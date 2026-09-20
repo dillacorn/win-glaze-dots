@@ -5,6 +5,8 @@ $repoRoot = Split-Path -Parent $PSScriptRoot
 $configPath = Join-Path $repoRoot "UserProfile\.config\yasb\config.yaml"
 $stylePath = Join-Path $repoRoot "UserProfile\.config\yasb\styles.css"
 $readmePath = Join-Path $repoRoot "UserProfile\.config\yasb\README.md"
+$glazeNormalPath = Join-Path $repoRoot "UserProfile\.glzr\glazewm\config.yaml"
+$glazeWorkPath = Join-Path $repoRoot "UserProfile\.glzr\glazewm\custom_work_config.yaml"
 
 function Assert-Contains {
     param([string]$Text, [string]$Needle, [string]$Message)
@@ -16,7 +18,7 @@ function Assert-NotContains {
     if ($Text.Contains($Needle)) { throw "ASSERTION FAILED: $Message" }
 }
 
-foreach ($path in @($configPath, $stylePath, $readmePath)) {
+foreach ($path in @($configPath, $stylePath, $readmePath, $glazeNormalPath, $glazeWorkPath)) {
     if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
         throw "ASSERTION FAILED: missing YASB parity file: $path"
     }
@@ -25,6 +27,8 @@ foreach ($path in @($configPath, $stylePath, $readmePath)) {
 $config = Get-Content -LiteralPath $configPath -Raw
 $style = Get-Content -LiteralPath $stylePath -Raw
 $readme = Get-Content -LiteralPath $readmePath -Raw
+$glazeNormal = Get-Content -LiteralPath $glazeNormalPath -Raw
+$glazeWork = Get-Content -LiteralPath $glazeWorkPath -Raw
 
 Assert-Contains $config 'height: 28' "bar height stays at Awtarchy horizontal default"
 Assert-Contains $config 'windows_app_bar: true' "YASB reserves the Windows work area"
@@ -46,6 +50,12 @@ Assert-Contains $config 'label_icon: false' "active window title remains text-on
 Assert-Contains $config 'ddc_poll_interval: 60' "brightness uses native YASB DDC polling"
 Assert-Contains $config 'use_hook: false' "systray avoids explorer DLL injection"
 Assert-NotContains $config 'use_hook: true' "systray DLL injection is never enabled"
+
+foreach ($glaze in @($glazeNormal, $glazeWork)) {
+    Assert-Contains $glaze 'top: "8px"' "GlazeWM keeps a normal top outer gap when YASB reserves the AppBar area"
+    Assert-NotContains $glaze 'top: "38px"' "legacy manual YASB top allowance is removed"
+    Assert-Contains $glaze 'shell-exec yasb' "GlazeWM starts YASB"
+}
 Assert-NotContains $config 'komorebi' "abandoned Komorebi integration is absent"
 Assert-NotContains $config 'whkd' "whkd is not introduced"
 
@@ -76,5 +86,6 @@ Assert-Contains $readme 'Evidence-backed mappings' "feature mappings document th
 Assert-Contains $readme 'Deliberate differences and omissions' "unsupported translations are documented"
 Assert-Contains $readme 'CPU temperature' "CPU temperature is not silently substituted with another metric"
 Assert-Contains $readme 'context menu' "Windows-native taskbar right-click difference is documented"
+Assert-Contains $readme 'double gap' "AppBar transition avoids double-reserving the top edge"
 
 Write-Host "YASB parity checks passed." -ForegroundColor Green
