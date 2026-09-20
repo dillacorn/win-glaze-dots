@@ -19,7 +19,7 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-43";
+    const string Version = "native-preview-44";
     const int WingetPreflightTimeoutMs = 30000;
     const string RepoFullName = "dillacorn/win-glaze-dots";
     const string RepoUrl = "https://github.com/dillacorn/win-glaze-dots.git";
@@ -5372,12 +5372,30 @@ internal static class WgdotNative
     static int OpenWindowsClipboardHistory()
     {
         // Awtarchy parity: Super+C invokes the native Windows Clipboard History
-        // flyout by synthesizing its real Win+V shortcut after Super is released.
+        // flyout. GlazeWM also owns Super+V for EarTrumpet, and its low-level
+        // keyboard hook receives injected key events. Preserve the existing
+        // pause state while temporarily pausing GlazeWM around native Win+V so
+        // the injected shortcut reaches Windows instead of the Super+V binding.
         WaitForWindowsModifierRelease();
-        keybd_event(VkLwin, 0, 0, UIntPtr.Zero);
-        keybd_event(VkV, 0, 0, UIntPtr.Zero);
-        keybd_event(VkV, 0, KeyeventfKeyup, UIntPtr.Zero);
-        keybd_event(VkLwin, 0, KeyeventfKeyup, UIntPtr.Zero);
+
+        bool wasPaused = GlazeWmIsPaused();
+        if (!wasPaused)
+            GlazeWmPauseToggle();
+
+        try
+        {
+            keybd_event(VkLwin, 0, 0, UIntPtr.Zero);
+            keybd_event(VkV, 0, 0, UIntPtr.Zero);
+            keybd_event(VkV, 0, KeyeventfKeyup, UIntPtr.Zero);
+            keybd_event(VkLwin, 0, KeyeventfKeyup, UIntPtr.Zero);
+            System.Threading.Thread.Sleep(80);
+        }
+        finally
+        {
+            if (!wasPaused)
+                GlazeWmPauseToggle();
+        }
+
         return 0;
     }
 
