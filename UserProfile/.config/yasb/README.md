@@ -51,11 +51,11 @@ These translations use documented upstream YASB or GlazeWM behavior rather than 
 | microphone | native Microphone widget | YASB Microphone docs |
 | output audio | native Volume widget | YASB Volume docs |
 | clock/date | Clock widget primary/alternate labels | YASB Clock docs |
-| network / Bluetooth | native WiFi and Bluetooth menus | YASB WiFi/Bluetooth docs |
+| network / Bluetooth | native WiFi and Bluetooth menus; both left and right click open the native menu, matching Awtarchy's bar behavior | YASB WiFi/Bluetooth docs and registered `toggle_menu` callbacks |
 | inline tray | native Systray widget | YASB Systray docs |
 | notifications | native Notifications widget opening Windows Action Center | YASB Notifications docs |
-| power controls | native compact Power Menu popup | YASB Power Menu docs |
-| exclusive bar area + fullscreen hiding | `windows_app_bar: true` + `hide_on_fullscreen: true`; GlazeWM keeps its ordinary 8 px outer gap instead of the old 38 px manual bar allowance | YASB bar configuration + Awtarchy `Bar.qml` uses `exclusiveZone: barSize` while Hyprland keeps normal `gaps_out` |
+| power controls | native compact Power Menu popup; both left and right click use YASB's supported menu toggle | YASB Power Menu docs and registered `toggle_power_menu` callback |
+| exclusive bar area + fullscreen hiding | `windows_app_bar: true` + `hide_on_fullscreen: true`; GlazeWM keeps its ordinary 8 px outer gap instead of the old 38 px manual bar allowance | YASB bar configuration; current GlazeWM uses the Windows monitor working area (excluding taskbars/reserved space) and listens for `SPI_SETWORKAREA`; Awtarchy `Bar.qml` uses `exclusiveZone: barSize` while Hyprland keeps normal `gaps_out` |
 | Flow Launcher button | `ApplicationsWidget` launching the existing WGDot helper | YASB Applications widget supports arbitrary commands |
 
 ## Deliberate differences and omissions
