@@ -1540,7 +1540,10 @@ internal static class WgdotNative
                 throw new Exception("Could not determine extracted package root for " + name + ".");
 
             string installedFileName = GetString(package, "installedFile");
-            FindPackageArchiveFile(stagedRoot, installedFileName);
+            if (String.IsNullOrWhiteSpace(installedFileName) ||
+                !String.Equals(Path.GetFileName(installedFileName), installedFileName, StringComparison.Ordinal) ||
+                !File.Exists(Path.Combine(stagedRoot, installedFileName)))
+                throw new Exception("Required application file '" + installedFileName + "' was not found beside the driver installer.");
 
             string targetRoot = GetPackageProgramDirectory(package);
             CopyDirectory(stagedRoot, targetRoot);
@@ -1550,7 +1553,7 @@ internal static class WgdotNative
                 throw new Exception(name + " installer was not extracted correctly.");
 
             Console.WriteLine("Launching official upstream driver installer: " + installerName);
-            ProcResult result = RunInteractive(installer, "");
+            ProcResult result = RunInteractiveInDirectory(installer, "", targetRoot);
             if (result.ExitCode != 0)
             {
                 Console.ForegroundColor = ConsoleColor.Yellow;
@@ -8408,6 +8411,27 @@ public static class Program
                 StdErr = "",
                 TimedOut = true
             };
+        }
+    }
+
+    static ProcResult RunInteractiveInDirectory(
+        string fileName,
+        string arguments,
+        string workingDirectory)
+    {
+        var psi = new ProcessStartInfo();
+        psi.FileName = fileName;
+        psi.Arguments = arguments;
+        psi.WorkingDirectory = workingDirectory;
+        psi.UseShellExecute = false;
+        psi.RedirectStandardOutput = false;
+        psi.RedirectStandardError = false;
+        psi.CreateNoWindow = false;
+
+        using (Process p = Process.Start(psi))
+        {
+            p.WaitForExit();
+            return new ProcResult { ExitCode = p.ExitCode, StdOut = "", StdErr = "" };
         }
     }
 
