@@ -252,7 +252,7 @@ widgets:
   brightness:
     type: "yasb.brightness.BrightnessWidget"
     options:
-      label: "<span>{icon}</span> {percent}"
+      label: "<span>{icon}</span> {percent}%"
       label_alt: "Brightness {percent}%"
       tooltip: true
       scroll_step: 5
@@ -272,7 +272,7 @@ widgets:
   battery:
     type: "yasb.battery.BatteryWidget"
     options:
-      label: "<span>{icon}</span> {percent}%"
+      label: "<span>{icon}</span> {percent}"
       label_alt: "<span>{icon}</span> {percent} {time_remaining}"
       update_interval: 5000
       hide_unsupported: true

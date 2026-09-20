@@ -59,11 +59,17 @@ if (([regex]::Matches($config, 'icon_size:\s*14')).Count -lt 2) {
 }
 Assert-Contains $config 'label_icon: false' "active window title remains text-only"
 Assert-Contains $config 'monitor_exclusive: false' "active window title follows the globally focused window like Awtarchy"
-Assert-Contains $config 'ddc_poll_interval: 60' "brightness uses native YASB DDC polling"
-Assert-Contains $config 'exec cmd.exe /c start ms-settings:powersleep' "battery clicks use Windows Power and battery settings"
-Assert-Contains $config 'label: "<span>{icon}</span> {percent}"' "battery bar label matches Awtarchy's unitless integer"
-Assert-Contains $config 'icon_format: "{icon} {charging_icon}"' "plugged-in battery retains the battery glyph and adds the charging bolt"
-Assert-Contains $config 'on_middle: "toggle_label"' "battery middle click retains YASB alternate battery label"
+$brightnessBlock = [regex]::Match($config, '(?ms)^  brightness:\r?\n.*?(?=^  battery:)').Value
+$batteryBlock = [regex]::Match($config, '(?ms)^  battery:\r?\n.*?(?=^  microphone:)').Value
+Assert-Contains $brightnessBlock 'yasb.brightness.BrightnessWidget' "brightness widget block is discoverable"
+Assert-Contains $brightnessBlock 'label: "<span>{icon}</span> {percent}%"' "brightness retains Awtarchy's explicit percent suffix"
+Assert-Contains $brightnessBlock 'ddc_poll_interval: 60' "brightness uses native YASB DDC polling"
+Assert-Contains $batteryBlock 'yasb.battery.BatteryWidget' "battery widget block is discoverable"
+Assert-Contains $batteryBlock 'exec cmd.exe /c start ms-settings:powersleep' "battery clicks use Windows Power and battery settings"
+Assert-Contains $batteryBlock 'label: "<span>{icon}</span> {percent}"' "battery bar label matches Awtarchy's unitless integer"
+Assert-NotContains $batteryBlock 'label: "<span>{icon}</span> {percent}%"' "battery bar label does not reintroduce a percent suffix"
+Assert-Contains $batteryBlock 'icon_format: "{icon} {charging_icon}"' "plugged-in battery retains the battery glyph and adds the charging bolt"
+Assert-Contains $batteryBlock 'on_middle: "toggle_label"' "battery middle click retains YASB alternate battery label"
 Assert-Contains $config 'muted: ""' "volume muted glyph matches current Awtarchy"
 Assert-Contains $config 'use_hook: false' "systray avoids explorer DLL injection"
 Assert-NotContains $config 'use_hook: true' "systray DLL injection is never enabled"
