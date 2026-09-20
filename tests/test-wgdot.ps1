@@ -126,7 +126,6 @@ $expectedDefaultOnPackages = @(
     "Microsoft.VCRedist.2015+.x64",
     "AmN.yasb",
     "Flameshot.Flameshot",
-    "Flow-Launcher.Flow-Launcher",
     "File-New-Project.EarTrumpet",
     "zyedidia.micro",
     "sxyazi.yazi",
@@ -270,14 +269,15 @@ foreach ($id in @(
     "disable-remote-assistance",
     "enable-windows-sudo",
     "reduce-visual-effects",
-    "disable-windows-shell-hotkeys"
+    "disable-windows-shell-hotkeys",
+    "flow-launcher-alt-p"
 )) {
     $t = $manifest.tweaks | Where-Object { $_.id -eq $id } | Select-Object -First 1
     Assert-True (-not [bool]$t.defaultNormal) "$id defaults off"
 }
 
 
-foreach ($id in @("flow-launcher-alt-p", "eartrumpet-mixer-alt-v", "automatic-time-and-timezone")) {
+foreach ($id in @("eartrumpet-mixer-alt-v", "automatic-time-and-timezone")) {
     $tweak = $manifest.tweaks | Where-Object { $_.id -eq $id } | Select-Object -First 1
     Assert-True ([bool]$tweak.defaultNormal) "$id defaults on for Normal"
     Assert-True ([bool]$tweak.defaultWork) "$id defaults on for Work"
@@ -408,7 +408,7 @@ $rustDeskPackage = @($manifest.packages | Where-Object { $_.id -eq 'RustDesk.Rus
 Assert-True ($null -ne $rustDeskPackage) "RustDesk catalog entry exists"
 Assert-Equal ([string]$rustDeskPackage.installMode) 'official-github' "RustDesk uses its verified official GitHub source instead of a missing WinGet ID"
 Assert-Equal ([string]$rustDeskPackage.fallbackGitHubRepo) 'rustdesk/rustdesk' "RustDesk official GitHub source remains publisher-owned"
-Assert-True ($nativeSourceText -match 'const string Version = "native-preview-45"') "native runtime version tracks live YASB theme support"
+Assert-True ($nativeSourceText -match 'const string Version = "native-preview-46"') "native runtime version tracks live YASB theme support"
 Assert-True ($nativeSourceText -match 'if \(command == "theme"\) return ThemeManagerFromArgs') "native runtime exposes direct YASB theme selection"
 Assert-True ($nativeSourceText -match 'String\.Equals\(command, "theme"') "theme command refreshes the WGDot runtime before dispatch"
 Assert-True ($nativeSourceText -match 'BuildYasbThemeCss') "native runtime generates a variable-only YASB theme override"
@@ -595,6 +595,16 @@ Assert-True ($nativeSourceText -match 'command == "bar-autohide-toggle"') "nativ
 Assert-True ($nativeSourceText -match 'command == "window-audit"') "native runtime exposes visible-window process auditing"
 Assert-True ($nativeSourceText -match 'command == "mouse-mode-toggle"') "native runtime exposes the scoped mouse-mode toggle"
 Assert-True ($nativeSourceText -match 'command == "mouse-mode-hook"') "native runtime exposes the scoped mouse hook worker"
+Assert-True ($nativeSourceText -match 'command == "yasb-running-apps-toggle"') "native runtime exposes the running-app visibility toggle"
+Assert-True ($nativeSourceText -match 'command == "yasb-running-apps-shade-toggle"') "native runtime exposes the themed running-app shading toggle"
+Assert-True ($nativeSourceText -match 'AppearanceStatePath') "YASB appearance state is persisted separately from managed styles"
+Assert-True ($nativeSourceText -match 'BuildYasbAppearanceCss') "YASB appearance toggles generate a live imported stylesheet"
+Assert-True ($nativeSourceText -match 'command == "super-l-test"') "native runtime exposes the isolated Super+L test controller"
+Assert-True ($nativeSourceText -match 'command == "super-l-hook"') "native runtime exposes the hidden Super+L test hook worker"
+Assert-True ($nativeSourceText -match 'SetWindowsHookExKeyboard') "Super+L test uses a scoped low-level keyboard hook"
+Assert-True ($nativeSourceText -match 'focus --direction right') "Super+L test sends focus-right to GlazeWM"
+Assert-True ($nativeSourceText -match 'SuperLTestStopEventName') "Super+L test hook has an explicit stop signal"
+Assert-True ($nativeSourceText -match 'String\.Equals\(command, "super-l-test"') "Super+L test controller participates in runtime auto-refresh"
 Assert-True ($nativeSourceText -match 'SetWindowsHookEx') "mouse mode installs a Windows low-level mouse hook only while active"
 Assert-True ($nativeSourceText -match 'UnhookWindowsHookEx') "mouse mode always removes its low-level hook"
 Assert-True ($nativeSourceText -match 'GlazeWmBindingModeActive\("mouse"\)') "mouse hook lifetime follows the real GlazeWM mouse binding mode"
@@ -630,7 +640,7 @@ foreach ($text in @($glazeNormalText, $glazeWorkText)) {
     Assert-True ($flameshotIndex -gt $globalIndex) "Win+Shift+S Flameshot bind is global, not trapped inside a binding mode"
     Assert-True (-not (($bindingModesIndex -ge 0) -and ($flameshotIndex -gt $bindingModesIndex) -and ($flameshotIndex -lt $globalIndex))) "Flameshot bind is not trapped inside a binding mode"
     Assert-True ($text -notmatch 'win\+shift\+f') "old Win+Shift+F Flameshot bind is removed"
-    Assert-True ($text -match 'bindings:\s*\["lwin\+d",\s*"rwin\+d"\]') "GlazeWM owns Super+D for Flow Launcher during NoWinKeys testing"
+    Assert-True ($text -notmatch 'bindings:\s*\["lwin\+d",\s*"rwin\+d"\]') "GlazeWM leaves Super+D to YASB Quick Launch"
     Assert-True ($text -match 'bindings:\s*\["lwin\+v",\s*"rwin\+v"\]') "GlazeWM owns Super+V for the EarTrumpet mixer"
     Assert-True ($text -match 'bindings:\s*\["lwin\+c",\s*"rwin\+c"\]') "GlazeWM adds Super+C for Windows Clipboard History"
     Assert-True ($text -match 'bindings:\s*\["lwin\+p",\s*"rwin\+p"\]') "Super+P opens the WGDot power menu"
@@ -658,7 +668,7 @@ foreach ($text in @($glazeNormalText, $glazeWorkText)) {
     Assert-True ($text -match 'wm-enable-binding-mode --name vm') "VM mode can be entered from global bindings"
     Assert-True ($text -match 'wm-disable-binding-mode --name vm') "VM mode can be exited"
     Assert-True ($text -match 'bindings:\s*\["lwin\+alt\+v",\s*"rwin\+alt\+v"\]') "Win+Alt+V toggles/switches VM mode"
-    Assert-True ($text -match 'bindings:\s*\["lwin\+alt\+d",\s*"rwin\+alt\+d"\]') "VM mode retains host Flow Launcher on Win+Alt+D because Win+Alt+P is pause"
+    Assert-True ($text -notmatch 'bindings:\s*\["lwin\+alt\+d",\s*"rwin\+alt\+d"\]') "GlazeWM leaves Win+Alt+D to YASB Quick Launch"
     Assert-True ($text -match 'bindings:\s*\["lwin\+alt\+ctrl\+v",\s*"rwin\+alt\+ctrl\+v"\]') "VM mode retains host EarTrumpet on Win+Alt+Ctrl+V"
     Assert-True ($text -match 'bindings:\s*\["lwin\+alt\+s",\s*"rwin\+alt\+s"\]') "VM mode retains host Flameshot on Win+Alt+S"
     Assert-True ($text -match 'bindings:\s*\["lwin\+alt\+1",\s*"rwin\+alt\+1"\]') "VM mode keeps host workspace switching on Win+Alt+number"
@@ -832,8 +842,8 @@ Assert-True ($nativeSourceText -match 'key == ConsoleKey\.Escape \|\| key == Con
 Assert-True ($nativeSourceText -match 'Q/Esc: back') "keyboard UI advertises Q and Escape as back keys"
 Assert-True ($nativeSourceText -match 'launch-open-shell') "native runtime starts Open-Shell after installation"
 Assert-True ($nativeSourceText -match 'ApplyFlowLauncherAltP') "native runtime manages Flow Launcher Alt+P"
-Assert-True ($nativeSourceText -match 'OpenFlowLauncher') "native runtime exposes the Flow Launcher helper used by bar/Super+D"
-Assert-True ($nativeSourceText -match 'command == "flow-open"') "Flow Launcher alias command is dispatchable"
+Assert-True ($nativeSourceText -match 'OpenFlowLauncher') "native runtime retains the optional Flow Launcher helper"
+Assert-True ($nativeSourceText -match 'command == "flow-open"') "optional Flow Launcher alias command remains dispatchable"
 Assert-True ($nativeSourceText -match 'ApplyEarTrumpetMixerAltV') "native runtime manages EarTrumpet Alt+V"
 Assert-True ($nativeSourceText -match 'OpenEarTrumpetMixer') "native runtime exposes the EarTrumpet bar helper"
 Assert-True ($nativeSourceText -match 'keybd_event\(VkMenu') "EarTrumpet helper triggers the configured Alt+V mixer hotkey"
@@ -888,7 +898,7 @@ foreach ($text in @($glazeNormalText, $glazeWorkText)) {
     Assert-True ($text -match 'bindings:\s*\["lwin\+d",\s*"rwin\+d"\]') "GlazeWM owns Super+D during NoWinKeys testing"
     Assert-True ($text -match 'bindings:\s*\["lwin\+v",\s*"rwin\+v"\]') "GlazeWM owns Super+V for the EarTrumpet mixer"
     Assert-True ($text -match 'bindings:\s*\["lwin\+c",\s*"rwin\+c"\]') "Super+C opens Windows Clipboard History"
-    Assert-True ($text -match 'shell-exec --hide-window %LOCALAPPDATA%\\wgdot\\bin\\wgdot\.exe flow-open') "WGDot GlazeWM helper paths do not need executable quotes"
+    Assert-True ($text -notmatch 'wgdot\.exe flow-open') "managed GlazeWM profiles no longer invoke Flow Launcher"
     Assert-True ($text -notmatch 'shell-exec --hide-window "%LOCALAPPDATA%\\wgdot\\bin\\wgdot\.exe"') "WGDot GlazeWM helper paths avoid parser-breaking executable quotes"
     Assert-True ($text -match 'name:\s*"noalt"') "GlazeWM noalt mode is restored"
     Assert-True ($text -match 'wm-enable-binding-mode --name noalt') "noalt mode can be enabled"
@@ -897,7 +907,7 @@ foreach ($text in @($glazeNormalText, $glazeWorkText)) {
     Assert-True ($text -match 'wm-enable-binding-mode --name vm') "VM mode can be entered from global bindings"
     Assert-True ($text -match 'wm-disable-binding-mode --name vm') "VM mode can be exited"
     Assert-True ($text -match 'bindings:\s*\["lwin\+alt\+v",\s*"rwin\+alt\+v"\]') "Win+Alt+V toggles/switches VM mode"
-    Assert-True ($text -match 'bindings:\s*\["lwin\+alt\+d",\s*"rwin\+alt\+d"\]') "VM mode retains host Flow Launcher on Win+Alt+D because Win+Alt+P is pause"
+    Assert-True ($text -notmatch 'bindings:\s*\["lwin\+alt\+d",\s*"rwin\+alt\+d"\]') "GlazeWM leaves Win+Alt+D to YASB Quick Launch"
     Assert-True ($text -match 'bindings:\s*\["lwin\+alt\+ctrl\+v",\s*"rwin\+alt\+ctrl\+v"\]') "VM mode retains host EarTrumpet on Win+Alt+Ctrl+V"
     Assert-True ($text -match 'bindings:\s*\["lwin\+alt\+s",\s*"rwin\+alt\+s"\]') "VM mode retains host Flameshot on Win+Alt+S"
     Assert-True ($text -match 'bindings:\s*\["lwin\+alt\+1",\s*"rwin\+alt\+1"\]') "VM mode keeps host workspace switching on Win+Alt+number"
