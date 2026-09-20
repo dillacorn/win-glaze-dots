@@ -66,7 +66,6 @@ bars:
           "bluetooth",
           "systray",
           "clipboard_history",
-          "notifications",
           "dnd",
           "theme_picker",
           "power_menu",
@@ -468,23 +467,6 @@ widgets:
         on_middle: "do_nothing"
         on_right: "toggle_quick_launch"
 
-  notifications:
-    type: "yasb.notifications.NotificationsWidget"
-    options:
-      label: "<span>{icon}</span>"
-      label_alt: "<span>{icon}</span> {count}"
-      tooltip: true
-      hide_empty: false
-      # Awtarchy uses the Font Awesome bell for its notification control.
-      # YASB supplies the unread state through its native new-notification class.
-      icons:
-        new: ""
-        default: ""
-      callbacks:
-        on_left: "toggle_notification"
-        on_middle: "toggle_label"
-        on_right: "do_nothing"
-
   dnd:
     type: "yasb.dnd.DndWidget"
     options:
@@ -493,15 +475,16 @@ widgets:
       class_name: "awtarchy-dnd"
       tooltip: true
       default_active_mode: "priority"
-      # Keep the normal state visually absent so the adjacent Notifications
-      # widget remains the single normal bell. Restricted modes add the
-      # Awtarchy-style muted bell beside it.
+      # One native YASB control now matches Awtarchy's notification button:
+      # normal bell when enabled, muted bell when DND is active.
       icons:
-        disabled: ""
+        disabled: ""
         priority: ""
         alarms: ""
       callbacks:
-        on_left: "toggle_status"
+        # BaseWidget's native exec callback recognizes notification_center
+        # through YASB's own Windows function map (Win+N).
+        on_left: "exec notification_center"
         on_middle: "do_nothing"
         on_right: "toggle_status"
 
