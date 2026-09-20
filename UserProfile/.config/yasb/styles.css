@@ -412,8 +412,7 @@ QToolTip,
     padding: 0;
 }
 
-/* Dedicated Windows Clipboard History surface using YASB Quick Launch.
-   This instance has only the clipboard provider enabled. */
+/* Windows Clipboard History button. WGDot opens the native Win+V surface. */
 .awtarchy-clipboard {
     background-color: transparent;
     padding: 0 8px;
