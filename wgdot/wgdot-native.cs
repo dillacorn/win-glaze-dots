@@ -1330,6 +1330,23 @@ internal static class WgdotNative
                 StringComparison.OrdinalIgnoreCase))
                 throw new Exception("Firefox default-profile rollback self-test failed.");
 
+            // Theme writes are redirected by WGDOT_TEST_ROOT, so exercise the
+            // real live-palette path without touching the user's profile.
+            if (ApplyYasbTheme("electric-blue") != 0)
+                throw new Exception("YASB theme apply self-test failed.");
+
+            string themeCssSelfTest = YasbThemeCssPath();
+            if (!File.Exists(themeCssSelfTest))
+                throw new Exception("YASB theme CSS generation self-test failed.");
+
+            string themeCssText = File.ReadAllText(themeCssSelfTest);
+            if (themeCssText.IndexOf("--foreground: #89b4fa;", StringComparison.OrdinalIgnoreCase) < 0 ||
+                themeCssText.IndexOf("--background: #1e1e2e;", StringComparison.OrdinalIgnoreCase) < 0 ||
+                !String.Equals(CurrentYasbThemeId(), "electric-blue", StringComparison.OrdinalIgnoreCase))
+                throw new Exception("YASB theme state/content self-test failed.");
+
+            SafeDeleteFile(themeCssSelfTest);
+
             Console.WriteLine("WGDot native maintenance self-test passed.");
             return 0;
         }
@@ -2621,6 +2638,7 @@ internal static class WgdotNative
             "software",
             "software-audit",
             "acceptance-audit",
+            "theme",
             "gpu-driver",
             "update",
             "reset",
