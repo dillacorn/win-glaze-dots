@@ -203,6 +203,22 @@ The selected profile is remembered. Normal updates use the remembered profile. R
 
 Do not deploy both source files as active configs.
 
+## Awtarchy-to-YASB bar parity
+
+The `feat/awtarchy-yasb-bar` work treats the current Awtarchy Quickshell bar as the visual/behavioral reference while keeping Windows behavior native to YASB, GlazeWM, or Windows.
+
+- Verify a current upstream YASB/GlazeWM capability before translating an Awtarchy bar feature. Do not infer widget options from old YASB themes or invent unsupported config keys.
+- Prefer direct native widgets and commands over helper scripts. A missing feature should remain documented as missing rather than be simulated solely for visual parity.
+- Keep the Windows bar flat and compact around Awtarchy's current defaults: 28 px horizontal height, `#353535` background, `#d0d0d0` foreground, square controls, subtle hover/active fills, no decorative taskbar/bar animations.
+- Preserve JetBrainsMono NFP on Windows unless the project explicitly decides to add a different font package.
+- Use YASB's native DDC/CI brightness support rather than a translated Awtarchy DDC script.
+- Keep YASB systray `use_hook: false`. Upstream documents `use_hook: true` as an `explorer.exe` DLL-injection path. Do not introduce that extra hook for cosmetic parity, especially on a gaming-oriented setup.
+- Do not substitute GPU temperature for Awtarchy's CPU-temperature module. Do not require Libre Hardware Monitor solely to make the bar look equivalent.
+- Do not fake Awtarchy's idle inhibitor, Hyprland scratchpad count, global new-window floating state, privacy/capture state, vertical bar layouts, urgent-workspace state, or dedicated clipboard popup unless a direct supported equivalent is first verified.
+- The workspace mover may use YASB's native Grouper + Applications widgets because GlazeWM already exposes native `move-workspace --direction` commands. Keep the documented difference that expansion is click-based rather than Awtarchy's hover drawer.
+- The visible GlazeWM binding-mode widget is the supported equivalent for Awtarchy's submap indicator and should reflect WGDot's existing `noalt` / `vm` modes.
+- Do not add AutoHotkey, whkd, keyboard hooks, DLL injection, or a custom background input daemon as part of bar parity work.
+
 ## Work-PC constraints
 
 Some Work systems can run PowerShell commands but cannot freely execute downloaded `.ps1` files.
