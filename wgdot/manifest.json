@@ -254,7 +254,10 @@
       "id": "AltSnap.AltSnap",
       "category": "desktop",
       "defaultNormal": true,
-      "defaultWork": true
+      "defaultWork": true,
+      "startupHandler": "altsnap",
+      "startupDefault": true,
+      "startupNeedsAdmin": true
     },
     {
       "name": "Visual C++ Redistributable",
@@ -292,7 +295,10 @@
       "id": "File-New-Project.EarTrumpet",
       "category": "desktop",
       "defaultNormal": true,
-      "defaultWork": true
+      "defaultWork": true,
+      "startupHandler": "eartrumpet",
+      "startupDefault": true,
+      "startupNeedsAdmin": false
     },
     {
       "name": "Notepad++",
@@ -446,7 +452,10 @@
       "id": "glzr-io.glazewm",
       "category": "desktop",
       "defaultNormal": true,
-      "defaultWork": true
+      "defaultWork": true,
+      "startupHandler": "glazewm",
+      "startupDefault": true,
+      "startupNeedsAdmin": false
     },
     {
       "name": "Cava",
@@ -591,7 +600,10 @@
       "fallbackAssetRegex": "^MicLockTray\\.exe$",
       "installDirectory": "MicLockTray",
       "installedFile": "MicLockTray.exe",
-      "launchAfterInstall": true
+      "launchAfterInstall": true,
+      "startupHandler": "miclocktray",
+      "startupDefault": true,
+      "startupNeedsAdmin": false
     },
     {
       "name": "Okular",
