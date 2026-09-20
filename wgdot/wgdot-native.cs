@@ -7371,18 +7371,17 @@ public static class Program
                 IsContinueInstallationConfirmationKey(ConsoleKey.Y))
                 throw new Exception("Installation quit confirmation self-test failed.");
 
-            var snapshotState = new Dictionary<string, object>();
-            snapshotState["registryOriginals"] = new object[0];
-            WriteJson(TweakStatePath, snapshotState);
+            string discardRegistrySelfTestPath =
+                @"Software\WGDot\SelfTest\" + Guid.NewGuid().ToString("N");
             CaptureRegistryOriginal(
                 "selftest-discard",
                 "HKCU",
-                registrySelfTestPath,
+                discardRegistrySelfTestPath,
                 "DiscardMe");
             DiscardRegistryOriginalSnapshot(
                 "selftest-discard",
                 "HKCU",
-                registrySelfTestPath,
+                discardRegistrySelfTestPath,
                 "DiscardMe");
             Dictionary<string, object> discardState = ReadJson(TweakStatePath);
             if (GetList(discardState, "registryOriginals").Any(raw =>
