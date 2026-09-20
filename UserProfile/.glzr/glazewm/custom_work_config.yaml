@@ -32,7 +32,9 @@ window_effects:
   focused_window:
     border:
       enabled: true
-      color: "#b5bd68"
+      # Theme-neutral on purpose. YASB themes update live without reloading
+      # GlazeWM, preserving the current tiling/layout state.
+      color: "#a1a1a1"
     hide_title_bar:
       enabled: false
     corner_style:
@@ -208,6 +210,9 @@ binding_modes:
       - commands: ['shell-exec --hide-window "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" flow-open']
         bindings: ["lwin+d", "rwin+d"]
 
+      - commands: ["shell-exec wt.exe -w new wgdot theme"]
+        bindings: ["lwin+t", "rwin+t"]
+
       - commands: ['shell-exec --hide-window "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" eartrumpet-mixer']
         bindings: ["lwin+v", "rwin+v"]
 
@@ -312,6 +317,11 @@ keybindings:
   # EarTrumpet keeps Alt+V as its native mixer hotkey; this aliases Win+V to it.
   - commands: ['shell-exec --hide-window "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" eartrumpet-mixer']
     bindings: ["lwin+v", "rwin+v"]
+
+  # Awtarchy-style theme entrypoint. WGDot changes only YASB's live palette;
+  # GlazeWM is intentionally not reloaded.
+  - commands: ["shell-exec wt.exe -w new wgdot theme"]
+    bindings: ["lwin+t", "rwin+t"]
 
   # Keep the legacy WGDot Alt+Ctrl+B hard visibility toggle, but do not
   # bind Awtarchy's Win+Alt+Ctrl+B auto-hide chord here. YASB toggle-bar
