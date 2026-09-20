@@ -197,7 +197,8 @@ widgets:
       label_icon_size: 14
       max_length: 64
       max_length_ellipsis: "..."
-      monitor_exclusive: true
+      # Awtarchy shows the globally focused title on every horizontal bar.
+      monitor_exclusive: false
 
   cpu:
     type: "yasb.cpu.CpuWidget"
