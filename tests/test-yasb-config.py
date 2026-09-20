@@ -23,6 +23,8 @@ import yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 CONFIG_PATH = REPO_ROOT / "UserProfile" / ".config" / "yasb" / "config.yaml"
+STYLE_PATH = REPO_ROOT / "UserProfile" / ".config" / "yasb" / "styles.css"
+THEME_PATH = REPO_ROOT / "UserProfile" / ".config" / "yasb" / "theme.css"
 
 
 def fail(message: str) -> None:
@@ -39,6 +41,7 @@ if not yasb_src.is_dir():
 
 sys.path.insert(0, str(yasb_src))
 
+from core.utils.css_processor import CSSProcessor
 from core.validation.config import YasbConfig
 from core.validation.widgets.glazewm.binding_mode import GlazewmBindingModeConfig
 from core.validation.widgets.glazewm.workspaces import GlazewmWorkspacesConfig
@@ -222,7 +225,35 @@ for name, widget in widgets.items():
         if child not in widgets:
             fail(f"grouper {name!r} references undefined child widget {child!r}")
 
+# Exercise the actual upstream CSS processor with a temporary generated theme
+# override. This proves the managed @import ordering resolves WGDot's live
+# palette variables instead of merely checking that the text exists.
+original_theme = THEME_PATH.read_bytes() if THEME_PATH.exists() else None
+try:
+    THEME_PATH.write_text(
+        ":root {\n"
+        "  --background: #112233;\n"
+        "  --foreground: #abcdef;\n"
+        "}\n",
+        encoding="utf-8",
+    )
+    processor = CSSProcessor(str(STYLE_PATH))
+    processed_css = processor.process()
+    normalized_imports = {Path(path).resolve() for path in processor.imported_files}
+
+    if THEME_PATH.resolve() not in normalized_imports:
+        fail("upstream CSS processor did not register theme.css as an imported stylesheet")
+    if "#112233" not in processed_css or "#abcdef" not in processed_css:
+        fail("generated theme.css variables did not override the fallback YASB palette")
+    if "var(--" in processed_css:
+        fail("managed YASB stylesheet leaves unresolved CSS variables after upstream processing")
+finally:
+    if original_theme is None:
+        THEME_PATH.unlink(missing_ok=True)
+    else:
+        THEME_PATH.write_bytes(original_theme)
+
 print(
-    "YASB config validated against upstream schemas, deprecations, and callback "
-    f"registrations from {yasb_root}"
+    "YASB config/CSS validated against upstream schemas, deprecations, callbacks, "
+    f"and CSS processing from {yasb_root}"
 )
