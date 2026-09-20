@@ -29,8 +29,7 @@ Right:
 - Bluetooth
 - system tray
 - Windows Clipboard History
-- Windows notifications
-- Windows Do Not Disturb state/control
+- unified Windows notifications / Do Not Disturb control
 - live YASB theme picker
 - power menu
 
@@ -60,7 +59,7 @@ These translations use documented upstream YASB or GlazeWM behavior rather than 
 | network / Bluetooth | native WiFi and Bluetooth menus; both left and right click open the native menu, matching Awtarchy's bar behavior | YASB WiFi/Bluetooth docs and registered `toggle_menu` callbacks |
 | inline tray | native Systray widget | YASB Systray docs |
 | clipboard history | a dedicated `QuickLaunchWidget` instance with only YASB's native Windows Clipboard History provider enabled; it opens directly to history and supports text/images, restore, delete, clear, and previews | YASB Quick Launch and Clipboard History provider docs/source |
-| notifications | native Notifications widget opens Windows Action Center; adjacent `DndWidget` exposes Windows Do Not Disturb as the supported Windows-side approximation of Awtarchy's notification-popup mute state | YASB Notifications + DND docs/source |
+| notifications / mute | one native `DndWidget`: left click uses YASB's built-in `exec notification_center` mapping to open Windows Notification Center; right click uses the widget's native `toggle_status` callback for Windows Do Not Disturb; the icon changes from bell to muted bell with DND state | YASB v2.0.7 `BaseWidget`, Windows `function_map`, and DND source |
 | power controls | native compact Power Menu popup; both left and right click use YASB's supported menu toggle | YASB Power Menu docs and registered `toggle_power_menu` callback |
 | bar reservation + fullscreen hiding | keep WGDot's existing 38 px GlazeWM top gap, with YASB `always_on_top: true`, `windows_app_bar: false`, and `hide_on_fullscreen: true` | YASB supports non-AppBar always-on-top/fullscreen behavior; this avoids forcing a GlazeWM reload solely to migrate reservation models |
 | Flow Launcher button | a static native `CustomWidget` calling the existing WGDot `flow-open` helper on both left and right click, matching Awtarchy's launcher mouse behavior | YASB Custom widget uses normal registered mouse callbacks and the existing WGDot helper |
@@ -80,7 +79,7 @@ The following Awtarchy features are not translated because a direct supported eq
 - workspace urgent-state coloring and Awtarchy's static number+glyph workspace labels: the YASB GlazeWM workspace widget does not expose those exact Hyprland states/mappings.
 - Awtarchy's workspace mover expands on hover and includes a mouse submap toggle. YASB's native Grouper expands by click, and WGDot has no equivalent mouse binding mode.
 - task-icon left click is still not identical: YASB's native `toggle_window` minimizes an already-active window; Awtarchy's left click simply activates it. Right-click now uses the same native YASB minimize/restore action because that is a closer match to Awtarchy.
-- Awtarchy's notification icon owns both open and popup-mute behavior. YASB does not expose a cross-widget callback for that composition, so Windows Action Center and Windows Do Not Disturb are adjacent controls instead. YASB's DND implementation uses the Windows QuietHoursSettings COM API documented by YASB as an undocumented Windows API, so Windows updates can change that behavior.
+- Awtarchy's single notification icon maps to one YASB `DndWidget`: left click opens Windows Notification Center through YASB's native system-function mapping, while right click toggles Windows Do Not Disturb. This is still an approximation because Windows Notification Center and DND are separate Windows facilities, and YASB's DND implementation uses the Windows QuietHoursSettings COM API documented by YASB as an undocumented Windows API, so Windows updates can change that behavior.
 - Awtarchy's `Win+Alt+Ctrl+B` changes focused-monitor auto-hide and releases the exclusive zone. YASB v2.0.7 has native auto-hide, but no supported runtime CLI toggle for that configuration flag. WGDot's `yasbc toggle-bar` hard-hide also cannot reclaim the separate 38 px GlazeWM reservation. WGDot therefore does **not** bind the Awtarchy auto-hide chord to `toggle-bar`; the older `Alt+Ctrl+B` hard-visibility convenience remains separate.
 - Awtarchy themes also retint Hyprland borders. WGDot deliberately does not retint GlazeWM on theme changes because GlazeWM requires a config reload and reloads can disturb the current tiling layout. Both managed GlazeWM profiles therefore keep the focused border at neutral `#a1a1a1`, while YASB changes live.
 - Awtarchy's theme picker provides large visual preview cards and marks the active theme. The Windows translation keeps a simpler WGDot terminal selector. YASB's Applications widget launches arbitrary app entries through a shell with output discarded, so using it as a direct palette drawer would hide WGDot errors and can introduce console-launch behavior rather than giving a true native theme-state UI. The selector window is intentionally floated by its fixed Windows Terminal title instead of forcing a GlazeWM config reload when a palette changes.

@@ -60,8 +60,10 @@ Assert-NotContains $config 'use_hook: true' "systray DLL injection is never enab
 Assert-Contains $config 'yasb.quick_launch.QuickLaunchWidget' "clipboard history uses native YASB Quick Launch"
 Assert-Contains $config 'search_placeholder: "Search clipboard history..."' "clipboard Quick Launch is dedicated to history"
 Assert-Contains $config 'prefix: "*"' "clipboard provider handles an empty popup query directly"
-Assert-Contains $config 'yasb.dnd.DndWidget' "Windows Do Not Disturb uses native YASB DND"
-Assert-Contains $config 'on_left: "toggle_status"' "DND uses its native toggle callback"
+Assert-Contains $config 'yasb.dnd.DndWidget' "unified notifications and Do Not Disturb control uses native YASB DND"
+Assert-NotContains $config 'yasb.notifications.NotificationsWidget' "separate Notifications widget stays removed after DND unification"
+Assert-Contains $config 'on_left: "exec notification_center"' "unified DND left click opens Windows Notification Center through YASB native exec mapping"
+Assert-Contains $config 'on_right: "toggle_status"' "unified DND right click uses its native DND toggle callback"
 Assert-Contains $config 'on_right: "exec wgdot eartrumpet-mixer"' "audio right click opens the existing EarTrumpet mixer helper"
 Assert-Contains $config 'normal: ""' "unmuted microphone glyph is collapsed like Awtarchy"
 Assert-Contains $style '.microphone-widget .icon.muted' "muted microphone state has dedicated styling"
@@ -101,7 +103,6 @@ foreach ($widgetType in @(
     'yasb.wifi.WifiWidget',
     'yasb.bluetooth.BluetoothWidget',
     'yasb.systray.SystrayWidget',
-    'yasb.notifications.NotificationsWidget',
     'yasb.quick_launch.QuickLaunchWidget',
     'yasb.dnd.DndWidget',
     'yasb.power_menu.PowerMenuWidget'

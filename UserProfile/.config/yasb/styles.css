@@ -239,7 +239,7 @@ QToolTip {
 .clock-widget,
 .wifi-widget,
 .bluetooth-widget,
-.notification-widget,
+
 .dnd-widget,
 .quick-launch-widget,
 .power-menu-widget,
@@ -275,7 +275,7 @@ QToolTip {
 .clock-widget .label,
 .wifi-widget .label,
 .bluetooth-widget .label,
-.notification-widget .label,
+
 .dnd-widget .label,
 .quick-launch-widget .label,
 .power-menu-widget .label {
@@ -327,10 +327,6 @@ QToolTip {
     color: var(--charging);
 }
 
-.notification-widget .icon.new-notification,
-.notification-widget .label.new-notification {
-    color: var(--urgent);
-}
 
 /* Windows Do Not Disturb is the native YASB approximation of Awtarchy's
    notification-popup mute state. Keep the normal bell neutral and make
