@@ -10841,7 +10841,7 @@ public static class Program
                 "Install-PackageProvider -Name NuGet -Force | Out-Null;" +
                 "Install-Module -Name Microsoft.WinGet.Client -Force -Repository PSGallery -Scope AllUsers | Out-Null;" +
                 "Import-Module Microsoft.WinGet.Client -Force;" +
-                "Repair-WinGetPackageManager -AllUsers;";
+                "Repair-WinGetPackageManager -Force -Latest;";
 
             ProcResult repair = RunInteractive(
                 "powershell.exe",
