@@ -19,7 +19,7 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-39";
+    const string Version = "native-preview-40";
     const int WingetPreflightTimeoutMs = 30000;
     const string RepoFullName = "dillacorn/win-glaze-dots";
     const string RepoUrl = "https://github.com/dillacorn/win-glaze-dots.git";
@@ -7014,7 +7014,13 @@ public static class Program
             browserName + " extensions / options",
             notice,
             choices);
-        if (edited == null) return;
+
+        // Browser-option checkboxes are edited in place. Q/Esc means "back",
+        // not "cancel", so preserve the toggles exactly like the package menus do.
+        // This matters for default-OFF Firefox options such as Dark Reader and
+        // ScrollAnywhere: previously they were silently discarded when the user
+        // toggled them and then backed out of the nested options screen.
+        if (edited == null) edited = choices;
 
         browserOptions[packageId] = edited
             .Where(x => x.Selected)
