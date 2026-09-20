@@ -53,20 +53,23 @@ Assert-Contains $config 'monitor_exclusive: true' "monitor-local workspace/task 
 Assert-Contains $config 'enable_scroll_switching: true' "workspace wheel switching is enabled"
 Assert-Contains $config 'yasb.grouper.GrouperWidget' "workspace mover uses native YASB Grouper"
 Assert-Contains $config 'glazewm.exe command move-workspace --direction left' "workspace mover uses native GlazeWM commands"
-Assert-Contains $config 'glazewm.binding_mode.GlazewmBindingModeWidget' "binding mode is used as the Windows submap equivalent"
-$bindingModeBlock = [regex]::Match($config, '(?ms)^  glazewm_binding_mode:\r?\n.*?(?=^  active_window:)').Value
-Assert-Contains $bindingModeBlock 'on_left: "disable_binding_mode"' "binding-mode left click resets like Awtarchy's submap label"
-Assert-Contains $bindingModeBlock 'on_right: "disable_binding_mode"' "binding-mode right click resets like Awtarchy's submap label"
+Assert-Contains $config 'glazewm.binding_mode.GlazewmBindingModeWidget' "VM binding mode retains native YASB mode visibility"
+Assert-NotContains $config 'noalt: ""' "broken noalt binding mode is removed from YASB"
+Assert-Contains $config 'binding_modes_to_cycle_through: ["none", "vm"]' "only the real VM mode remains in the binding-mode widget"
+Assert-Contains $config 'glazewm_pause:' "real GlazeWM pause has a dedicated bar state"
+Assert-Contains $config 'run_cmd: "wgdot glazewm-pause-status"' "pause state queries the real GlazeWM paused flag"
+Assert-Contains $config 'run_interval: 1000' "pause state refreshes without a persistent helper daemon"
 Assert-Contains $config 'on_right: "toggle_window"' "taskbar right click uses YASB minimize/restore behavior"
 Assert-Contains $config 'label: "{info[percent][total]} <span></span>"' "CPU label matches Awtarchy's unitless integer plus glyph"
 Assert-Contains $config 'label: "{virtual_mem_percent} <span></span>"' "memory label matches Awtarchy's unitless integer plus glyph"
 Assert-NotContains $config 'label: "{info[percent][total]}% <span></span>"' "CPU bar label does not reintroduce a percent suffix"
 Assert-NotContains $config 'label: "{virtual_mem_percent}% <span></span>"' "memory bar label does not reintroduce a percent suffix"
-if (([regex]::Matches($config, 'icon_size:\s*14')).Count -lt 2) {
-    throw "ASSERTION FAILED: taskbar and systray retain Awtarchy's current 14 px default icon size"
-}
+Assert-Contains $config 'icon_size: 14' "taskbar retains the 14 px Awtarchy icon size"
+Assert-NotContains $config '"systray",' "systray is not rendered in the bar"
 Assert-Contains $config 'label_icon: false' "active window title remains text-only"
 Assert-Contains $config 'monitor_exclusive: false' "active window title follows the globally focused window like Awtarchy"
+Assert-Contains $config 'label_alt: "class={win[class_name]} | exe={win[process][name]} | hwnd={win[hwnd]}"' "active window click exposes class/process/HWND details"
+Assert-Contains $config 'on_left: "toggle_label"' "active window left click toggles details"
 $brightnessBlock = [regex]::Match($config, '(?ms)^  brightness:\r?\n.*?(?=^  battery:)').Value
 $batteryBlock = [regex]::Match($config, '(?ms)^  battery:\r?\n.*?(?=^  microphone:)').Value
 Assert-Contains $brightnessBlock 'yasb.brightness.BrightnessWidget' "brightness widget block is discoverable"
@@ -99,17 +102,14 @@ $clockBlock = [regex]::Match($config, '(?ms)^  clock:\r?\n.*?(?=^  wifi:)').Valu
 $wifiBlock = [regex]::Match($config, '(?ms)^  wifi:\r?\n.*?(?=^  bluetooth:)').Value
 $bluetoothBlock = [regex]::Match($config, '(?ms)^  bluetooth:\r?\n.*?(?=^  systray:)').Value
 $clipboardBlock = [regex]::Match($config, '(?ms)^  clipboard_history:\r?\n.*?(?=^  dnd:)').Value
-Assert-Contains $clockBlock '{%a %#m/%#d}' "clock alternate date matches Awtarchy's non-zero-padded M/d"
-Assert-Contains $wifiBlock '"󰤯"' "Wi-Fi zero-strength glyph matches Awtarchy"
-Assert-Contains $wifiBlock 'ethernet_icon: "󰈀"' "active Ethernet glyph matches Awtarchy"
-Assert-Contains $bluetoothBlock 'bluetooth_on: ""' "Bluetooth enabled glyph matches Awtarchy"
-Assert-Contains $bluetoothBlock 'bluetooth_off: ""' "Bluetooth disabled keeps Awtarchy's single glyph"
-Assert-Contains $bluetoothBlock 'bluetooth_connected: ""' "Bluetooth connected keeps Awtarchy's single glyph"
-Assert-Contains $clipboardBlock 'label: "<span></span>"' "clipboard glyph matches what current Awtarchy actually renders after BarButton translation"
-Assert-NotContains $clipboardBlock 'label: "<span></span>"' "legacy Awtarchy clipboard token is not rendered directly in YASB"
-Assert-Contains $config 'yasb.quick_launch.QuickLaunchWidget' "clipboard history uses native YASB Quick Launch"
-Assert-Contains $config 'search_placeholder: "Search clipboard history..."' "clipboard Quick Launch is dedicated to history"
-Assert-Contains $config 'prefix: "*"' "clipboard provider handles an empty popup query directly"
+Assert-Contains $clipboardBlock 'yasb.custom.CustomWidget' "clipboard bar button uses a simple native callback surface"
+Assert-Contains $clipboardBlock 'exec wgdot clipboard-history' "clipboard bar button opens Windows Clipboard History"
+Assert-Contains $clipboardBlock 'label: "<span></span>"' "clipboard glyph matches current Awtarchy rendering"
+Assert-NotContains $config 'yasb.quick_launch.QuickLaunchWidget' "buggy duplicate QuickLaunch clipboard UI is removed"
+Assert-Contains $native 'if (command == "clipboard-history") return OpenWindowsClipboardHistory();' "WGDot exposes Windows Clipboard History"
+Assert-Contains $native 'if (command == "glazewm-pause-status") return GlazeWmPauseStatus();' "WGDot exposes real GlazeWM pause state"
+Assert-Contains $native 'if (command == "glazewm-pause-toggle") return GlazeWmPauseToggle();' "WGDot can toggle real GlazeWM pause"
+
 Assert-Contains $config 'yasb.dnd.DndWidget' "unified notifications and Do Not Disturb control uses native YASB DND"
 Assert-NotContains $config 'yasb.notifications.NotificationsWidget' "separate Notifications widget stays removed after DND unification"
 Assert-Contains $config 'on_left: "exec notification_center"' "unified DND left click opens Windows Notification Center through YASB native exec mapping"
@@ -143,7 +143,13 @@ foreach ($glaze in @($glazeNormal, $glazeWork)) {
     Assert-NotContains $glaze 'top: "8px"' "bar redesign does not require live GlazeWM gap migration"
     Assert-Contains $glaze 'shell-exec yasb' "GlazeWM starts YASB"
     Assert-Contains $glaze 'color: "#a1a1a1"' "focused GlazeWM border stays theme-neutral"
-    Assert-Contains $glaze 'bindings: ["lwin+t", "rwin+t"]' "Win+T opens themes in normal/noalt contexts"
+    Assert-Contains $glaze 'bindings: ["lwin+t", "rwin+t"]' "Win+T opens themes"
+    Assert-Contains $glaze 'bindings: ["lwin+c", "rwin+c"]' "Super+C opens Windows Clipboard History"
+    Assert-NotContains $glaze 'bindings: ["lwin+d", "rwin+d"]' "GlazeWM does not intercept Super+D for Flow Launcher"
+    Assert-NotContains $glaze 'bindings: ["lwin+v", "rwin+v"]' "GlazeWM leaves Win+V to Windows Clipboard History"
+    Assert-NotContains $glaze 'name: "noalt"' "broken noalt mode is removed"
+    Assert-Contains $glaze 'commands: ["wm-toggle-pause"]' "real GlazeWM pause replaces pause/noalt emulation"
+    Assert-Contains $glaze 'bindings: ["alt+shift+p"]' "pause toggle keeps the existing Alt+Shift+P chord"
     Assert-Contains $glaze 'shell-exec wt.exe -w new --size 72,22 nt --title "WGDot Themes" --suppressApplicationTitle wgdot theme' "GlazeWM theme hotkey opens the stable WGDot terminal selector"
     Assert-Contains $glaze 'window_title: { equals: "WGDot Themes" }' "theme selector has a dedicated GlazeWM title rule"
     Assert-Contains $glaze 'window_process: { regex: "^WindowsTerminal(\\.exe)?$" }' "theme selector floating rule is scoped to Windows Terminal"
@@ -168,13 +174,16 @@ foreach ($widgetType in @(
     'yasb.wifi.WifiWidget',
     'yasb.bluetooth.BluetoothWidget',
     'yasb.systray.SystrayWidget',
-    'yasb.quick_launch.QuickLaunchWidget',
     'yasb.dnd.DndWidget',
     'yasb.power_menu.PowerMenuWidget'
 )) {
     Assert-Contains $config $widgetType "supported YASB widget is present: $widgetType"
 }
 
+Assert-Contains $style '.glazewm-workspaces .ws-btn.empty' "inactive empty workspace buttons collapse"
+Assert-Contains $style 'min-height: 28px;' "workspace shading spans the full 28 px bar height"
+Assert-Contains $style 'margin-left: 2px;' "CPU and memory icons have a tiny separation from their values"
+Assert-Contains $style '.tooltip,' "YASB custom rich tooltips receive an opaque themed background"
 Assert-Contains $style '#353535' "Awtarchy background color is retained"
 Assert-Contains $style '#d0d0d0' "Awtarchy foreground color is retained"
 Assert-Contains $style '#ff5555' "Awtarchy critical color is retained"

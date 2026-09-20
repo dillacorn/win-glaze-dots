@@ -194,43 +194,6 @@ binding_modes:
       - commands: ["wm-disable-binding-mode --name resize"]
         bindings: ["escape", "enter"]
 
-  - name: "pause"
-    keybindings:
-      - commands: ["wm-disable-binding-mode --name pause"]
-        bindings: ["alt+shift+p"]
-
-  # Gaming-friendly mode based on Awtarchy's noalt submap.
-  # It suppresses the normal Alt-heavy GlazeWM bindings while preserving
-  # the Windows-key launcher/screenshot alternatives.
-  - name: "noalt"
-    keybindings:
-      - commands: ["wm-disable-binding-mode --name noalt"]
-        bindings: ["lwin+alt+n", "rwin+alt+n"]
-
-      - commands: ['shell-exec --hide-window "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" flow-open']
-        bindings: ["lwin+d", "rwin+d"]
-
-      - commands: ['shell-exec wt.exe -w new --size 72,22 nt --title "WGDot Themes" --suppressApplicationTitle wgdot theme']
-        bindings: ["lwin+t", "rwin+t"]
-
-      - commands: ['shell-exec --hide-window "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" eartrumpet-mixer']
-        bindings: ["lwin+v", "rwin+v"]
-
-      - commands: ["shell-exec flameshot gui"]
-        bindings: ["lwin+shift+s", "rwin+shift+s"]
-
-      - commands: ["shell-exec wt.exe -w new"]
-        bindings: ["lwin+shift+enter", "rwin+shift+enter"]
-
-      - commands: ["shell-exec wt.exe -w new new-tab --title \"Yazi\" --suppressApplicationTitle powershell.exe -NoProfile -NoLogo -NoExit -Command yazi"]
-        bindings: ["lwin+shift+e", "rwin+shift+e"]
-
-      - commands: ["shell-exec explorer.exe http:"]
-        bindings: ["lwin+b", "rwin+b"]
-
-      - commands: ["wm-enable-binding-mode --name vm"]
-        bindings: ["lwin+alt+v", "rwin+alt+v"]
-
   # VM mode based on Awtarchy's vm submap.
   # Normal host keybindings are replaced while active so the guest receives
   # ordinary Alt/Windows shortcuts. Host escape controls live on Win+Alt.
@@ -238,9 +201,6 @@ binding_modes:
     keybindings:
       - commands: ["wm-disable-binding-mode --name vm"]
         bindings: ["lwin+alt+v", "rwin+alt+v"]
-
-      - commands: ["wm-enable-binding-mode --name noalt"]
-        bindings: ["lwin+alt+n", "rwin+alt+n"]
 
       - commands: ["close"]
         bindings: ["lwin+alt+q", "rwin+alt+q"]
@@ -310,13 +270,11 @@ keybindings:
   - commands: ["shell-exec flameshot gui"]
     bindings: ["lwin+shift+s", "rwin+shift+s"]
 
-  # Flow keeps Alt+P as its native hotkey; GlazeWM provides the Windows-key alias.
-  - commands: ['shell-exec --hide-window "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" flow-open']
-    bindings: ["lwin+d", "rwin+d"]
+  # Flow Launcher keeps its own Alt+P hotkey; GlazeWM does not intercept Super+D.
 
-  # EarTrumpet keeps Alt+V as its native mixer hotkey; this aliases Win+V to it.
-  - commands: ['shell-exec --hide-window "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" eartrumpet-mixer']
-    bindings: ["lwin+v", "rwin+v"]
+  # Windows Clipboard History stays native on Win+V. Super+C is the WGDot alias.
+  - commands: ['shell-exec --hide-window "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" clipboard-history']
+    bindings: ["lwin+c", "rwin+c"]
 
   # Awtarchy-style theme entrypoint. WGDot changes only YASB's live palette;
   # GlazeWM is intentionally not reloaded.
@@ -362,13 +320,12 @@ keybindings:
   - commands: ["resize --height -2%"]
     bindings: ["alt+u", "alt+ctrl+down"]
 
-  - commands: ["wm-enable-binding-mode --name noalt"]
-    bindings: ["lwin+alt+n", "rwin+alt+n"]
-
   - commands: ["wm-enable-binding-mode --name vm"]
     bindings: ["lwin+alt+v", "rwin+alt+v"]
 
-  - commands: ["wm-enable-binding-mode --name pause"]
+  # Real GlazeWM pause. While paused, GlazeWM intentionally keeps only
+  # wm-toggle-pause bindings active, so this same key always unpauses.
+  - commands: ["wm-toggle-pause"]
     bindings: ["alt+shift+p"]
 
   - commands: ["toggle-tiling-direction"]

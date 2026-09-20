@@ -67,6 +67,7 @@ internal static class WgdotNative
     static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, UIntPtr dwExtraInfo);
 
     const byte VkMenu = 0x12;
+    const byte VkLwin = 0x5B;
     const byte VkV = 0x56;
     const uint KeyeventfKeyup = 0x0002;
 
@@ -294,6 +295,9 @@ internal static class WgdotNative
             if (command == "software-elevated") return SoftwareElevatedFromArgs(args.Skip(1).ToArray());
             if (command == "flow-open") return OpenFlowLauncher();
             if (command == "eartrumpet-mixer") return OpenEarTrumpetMixer();
+            if (command == "clipboard-history") return OpenWindowsClipboardHistory();
+            if (command == "glazewm-pause-status") return GlazeWmPauseStatus();
+            if (command == "glazewm-pause-toggle") return GlazeWmPauseToggle();
             if (command == "theme") return ThemeManagerFromArgs(args.Skip(1).ToArray());
             if (command == "gpu-driver") return GpuDriverMaintenance();
             if (command == "gpu-stage-safe") return GpuStageSafeFromArgs(args.Skip(1).ToArray());
@@ -5247,6 +5251,50 @@ internal static class WgdotNative
         return 0;
     }
 
+    static int OpenWindowsClipboardHistory()
+    {
+        // WGDot leaves the real Win+V shortcut untouched and only synthesizes
+        // it for the bar button / Super+C alias.
+        System.Threading.Thread.Sleep(80);
+        keybd_event(VkLwin, 0, 0, UIntPtr.Zero);
+        keybd_event(VkV, 0, 0, UIntPtr.Zero);
+        keybd_event(VkV, 0, KeyeventfKeyup, UIntPtr.Zero);
+        keybd_event(VkLwin, 0, KeyeventfKeyup, UIntPtr.Zero);
+        return 0;
+    }
+
+    static bool GlazeWmIsPaused()
+    {
+        ProcResult result = Run("glazewm.exe", "query paused", null);
+        if (result.ExitCode != 0 || String.IsNullOrWhiteSpace(result.StdOut))
+            return false;
+
+        try
+        {
+            Dictionary<string, object> response = AsDictionary(Json.DeserializeObject(result.StdOut.Trim()));
+            object data;
+            return response.TryGetValue("data", out data) && data != null && Convert.ToBoolean(data);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    static int GlazeWmPauseStatus()
+    {
+        if (GlazeWmIsPaused()) Console.Write("PAUSED");
+        return 0;
+    }
+
+    static int GlazeWmPauseToggle()
+    {
+        ProcResult result = Run("glazewm.exe", "command wm-toggle-pause", null);
+        if (result.ExitCode != 0)
+            throw new Exception("GlazeWM pause toggle failed: " + LastUsefulLine(result.StdErr));
+        return 0;
+    }
+
     static int OpenEarTrumpetMixer()
     {
         if (Process.GetProcessesByName("EarTrumpet").Length == 0)
@@ -5257,9 +5305,8 @@ internal static class WgdotNative
             System.Threading.Thread.Sleep(500);
         }
 
-        // EarTrumpet supports one native mixer hotkey. WGDot keeps Alt+V as
-        // that native binding and lets GlazeWM's Win+V alias trigger the same
-        // action instead of opening Windows clipboard history.
+        // EarTrumpet supports one native mixer hotkey. WGDot keeps Alt+V
+        // internal to this helper; Win+V remains Windows Clipboard History.
         keybd_event(VkMenu, 0, 0, UIntPtr.Zero);
         keybd_event(VkV, 0, 0, UIntPtr.Zero);
         keybd_event(VkV, 0, KeyeventfKeyup, UIntPtr.Zero);

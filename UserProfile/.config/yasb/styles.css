@@ -51,7 +51,9 @@
     color: var(--foreground);
 }
 
-QToolTip {
+QToolTip,
+.tooltip,
+.tooltip.dark {
     color: var(--foreground);
     background-color: var(--active);
     border: 1px solid var(--focus);
@@ -98,8 +100,19 @@ QToolTip {
     border: none;
     border-radius: 0;
     min-width: 24px;
+    min-height: 28px;
+    max-height: 28px;
     margin: 0;
     padding: 0 8px;
+}
+
+/* Awtarchy shows only focused or populated workspaces. YASB exposes
+   inactive empty workspaces as the distinct .empty state. */
+.glazewm-workspaces .ws-btn.empty {
+    min-width: 0;
+    max-width: 0;
+    padding: 0;
+    margin: 0;
 }
 
 .glazewm-workspaces .ws-btn.populated {
@@ -248,7 +261,7 @@ QToolTip {
 .wifi-widget,
 .bluetooth-widget,
 .dnd-widget,
-.quick-launch-widget,
+.awtarchy-clipboard,
 .power-menu-widget,
 .systray {
     background-color: transparent;
@@ -275,13 +288,18 @@ QToolTip {
 
 /* Match current Awtarchy's default per-control icon scale. */
 .cpu-widget .icon,
+.memory-widget .icon {
+    margin-left: 2px;
+}
+
+.cpu-widget .icon,
 .memory-widget .icon,
 .brightness-widget .icon,
 .microphone-widget .icon,
 .clock-widget .icon,
 .wifi-widget .icon,
 .bluetooth-widget .icon,
-.quick-launch-widget .icon,
+.awtarchy-clipboard .icon,
 .awtarchy-theme-picker .icon {
     font-size: 18px;
 }
@@ -307,7 +325,7 @@ QToolTip {
 /* Awtarchy uses its stronger hover fill for network/menu-style actions. */
 .wifi-widget:hover,
 .bluetooth-widget:hover,
-.quick-launch-widget:hover,
+.awtarchy-clipboard:hover,
 .dnd-widget:hover,
 .awtarchy-theme-picker:hover,
 .power-menu-widget:hover {
@@ -324,7 +342,7 @@ QToolTip {
 .wifi-widget .label,
 .bluetooth-widget .label,
 .dnd-widget .label,
-.quick-launch-widget .label,
+.awtarchy-clipboard .label,
 .power-menu-widget .label {
     color: var(--foreground);
     background-color: transparent;
@@ -396,13 +414,13 @@ QToolTip {
 
 /* Dedicated Windows Clipboard History surface using YASB Quick Launch.
    This instance has only the clipboard provider enabled. */
-.quick-launch-widget {
+.awtarchy-clipboard {
     background-color: transparent;
     padding: 0 8px;
 }
 
-.quick-launch-widget .icon,
-.quick-launch-widget .label {
+.awtarchy-clipboard .icon,
+.awtarchy-clipboard .label {
     color: var(--foreground);
     background-color: transparent;
 }

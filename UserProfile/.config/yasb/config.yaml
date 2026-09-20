@@ -52,6 +52,7 @@ bars:
           "glazewm_workspaces",
           "workspace_move_group",
           "taskbar",
+          "glazewm_pause",
           "glazewm_binding_mode",
         ]
       center: ["active_window"]
@@ -66,7 +67,6 @@ bars:
           "clock",
           "wifi",
           "bluetooth",
-          "systray",
           "clipboard_history",
           "dnd",
           "theme_picker",
@@ -176,6 +176,24 @@ widgets:
         titles: []
         classes: []
 
+  glazewm_pause:
+    type: "yasb.custom.CustomWidget"
+    options:
+      label: "{data}"
+      class_name: "awtarchy-pause"
+      tooltip: true
+      tooltip_label: "GlazeWM pause (Alt+Shift+P)"
+      exec_options:
+        run_cmd: "wgdot glazewm-pause-status"
+        run_once: false
+        run_interval: 1000
+        return_format: "string"
+        hide_empty: true
+      callbacks:
+        on_left: "exec wgdot glazewm-pause-toggle"
+        on_middle: "do_nothing"
+        on_right: "exec wgdot glazewm-pause-toggle"
+
   glazewm_binding_mode:
     type: "glazewm.binding_mode.GlazewmBindingModeWidget"
     options:
@@ -186,9 +204,8 @@ widgets:
       default_icon: ""
       icons:
         none: ""
-        noalt: ""
         vm: ""
-      binding_modes_to_cycle_through: ["none", "noalt", "vm"]
+      binding_modes_to_cycle_through: ["none", "vm"]
       callbacks:
         # Match Awtarchy's visible submap label: either primary mouse button
         # clears the active binding mode.
@@ -200,7 +217,7 @@ widgets:
     type: "yasb.active_window.ActiveWindowWidget"
     options:
       label: "{win[title]}"
-      label_alt: "{win[title]}"
+      label_alt: "class={win[class_name]} | exe={win[process][name]} | hwnd={win[hwnd]}"
       label_no_window: ""
       label_icon: false
       label_icon_size: 14
@@ -208,6 +225,10 @@ widgets:
       max_length_ellipsis: "..."
       # Awtarchy shows the globally focused title on every horizontal bar.
       monitor_exclusive: false
+      callbacks:
+        on_left: "toggle_label"
+        on_middle: "do_nothing"
+        on_right: "toggle_label"
 
   cpu:
     type: "yasb.cpu.CpuWidget"
@@ -446,42 +467,19 @@ widgets:
       hide_icons: []
 
   clipboard_history:
-    type: "yasb.quick_launch.QuickLaunchWidget"
+    type: "yasb.custom.CustomWidget"
     options:
-      # Awtarchy BarButton translates its legacy  token to  before rendering.
       label: "<span></span>"
-      search_placeholder: "Search clipboard history..."
-      remember_last_query: false
-      max_results: 30
-      show_icons: true
-      icon_size: 28
-      home_page: false
-      compact_mode: false
-      compact_text: true
-      providers:
-        apps:
-          enabled: false
-        snippets:
-          enabled: false
-        color:
-          enabled: false
-        clipboard_history:
-          enabled: true
-          prefix: "*"
-          priority: 0
-          max_items: 30
-          show_preview: true
-      popup:
-        width: 720
-        height: 480
-        blur: false
-        round_corners: false
-        border_color: None
-        dark_mode: true
+      class_name: "awtarchy-clipboard"
+      tooltip: true
+      tooltip_label: "Windows Clipboard History (Super+C / Win+V)"
+      exec_options:
+        run_once: true
+        return_format: "string"
       callbacks:
-        on_left: "toggle_quick_launch"
+        on_left: "exec wgdot clipboard-history"
         on_middle: "do_nothing"
-        on_right: "toggle_quick_launch"
+        on_right: "exec wgdot clipboard-history"
 
   dnd:
     type: "yasb.dnd.DndWidget"
