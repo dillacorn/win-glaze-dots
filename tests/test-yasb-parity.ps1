@@ -62,6 +62,7 @@ Assert-Contains $config 'on_left: "toggle_status"' "DND uses its native toggle c
 Assert-Contains $config 'on_right: "exec wgdot eartrumpet-mixer"' "audio right click opens the existing EarTrumpet mixer helper"
 Assert-Contains $config 'normal: ""' "unmuted microphone glyph is collapsed like Awtarchy"
 Assert-Contains $style '.microphone-widget .icon.muted' "muted microphone state has dedicated styling"
+Assert-Contains $style '--muted: #5c5c5c;' "fallback palette matches Awtarchy Carbon Night"
 Assert-Contains $style '@import "theme.css";' "YASB imports the generated live theme palette"
 Assert-Contains $config 'theme_picker:' "bar exposes a YASB theme entrypoint"
 Assert-Contains $config 'tooltip_label: "Themes (Win+T)"' "theme button documents the Awtarchy-style shortcut"
