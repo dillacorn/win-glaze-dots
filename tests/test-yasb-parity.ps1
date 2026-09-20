@@ -125,7 +125,10 @@ Assert-Contains $bluetoothBlock 'bluetooth_connected: ""' "Bluetooth connecte
 Assert-Contains $clipboardBlock 'yasb.custom.CustomWidget' "clipboard bar button uses a simple native callback surface"
 Assert-Contains $clipboardBlock 'exec wgdot clipboard-history' "clipboard bar button opens Windows Clipboard History"
 Assert-Contains $clipboardBlock 'label: "<span></span>"' "clipboard glyph matches current Awtarchy rendering"
-Assert-NotContains $config 'yasb.quick_launch.QuickLaunchWidget' "buggy duplicate QuickLaunch clipboard UI is removed"
+$launcherBlock = [regex]::Match($config, '(?ms)^  launcher:\r?\n.*?(?=^  glazewm_workspaces:)').Value
+Assert-Contains $launcherBlock 'yasb.quick_launch.QuickLaunchWidget' "native Quick Launch replaces the old Flow launcher surface"
+Assert-Contains $launcherBlock 'clipboard_history:' "Quick Launch clipboard provider remains explicitly configured"
+Assert-Contains $launcherBlock 'enabled: false' "Quick Launch does not duplicate the dedicated Windows Clipboard History bar action"
 Assert-Contains $native 'if (command == "clipboard-history") return OpenWindowsClipboardHistory();' "WGDot exposes Windows Clipboard History"
 Assert-Contains $native 'if (command == "glazewm-pause-status") return GlazeWmPauseStatus();' "WGDot exposes real GlazeWM pause state"
 Assert-Contains $native 'if (command == "glazewm-pause-toggle") return GlazeWmPauseToggle();' "WGDot can toggle real GlazeWM pause"
