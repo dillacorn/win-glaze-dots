@@ -68,16 +68,19 @@ bars:
 
 widgets:
   launcher:
-    type: "yasb.applications.ApplicationsWidget"
+    type: "yasb.custom.CustomWidget"
     options:
-      label: "{data}"
+      label: "<span></span>"
       class_name: "awtarchy-launcher"
-      image_icon_size: 14
       tooltip: true
-      app_list:
-        - icon: ""
-          launch: "wgdot flow-open"
-          name: "Flow Launcher"
+      tooltip_label: "Flow Launcher"
+      exec_options:
+        run_once: true
+        return_format: "string"
+      callbacks:
+        on_left: "exec wgdot flow-open"
+        on_middle: "do_nothing"
+        on_right: "exec wgdot flow-open"
 
   glazewm_workspaces:
     type: "glazewm.workspaces.GlazewmWorkspacesWidget"
