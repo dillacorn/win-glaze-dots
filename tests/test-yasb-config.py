@@ -44,6 +44,7 @@ sys.path.insert(0, str(yasb_src))
 from core.utils.css_processor import CSSProcessor
 from core.validation.config import YasbConfig
 from core.validation.widgets.glazewm.binding_mode import GlazewmBindingModeConfig
+from core.validation.widgets.glazewm.tiling_direction import GlazewmTilingDirectionConfig
 from core.validation.widgets.glazewm.workspaces import GlazewmWorkspacesConfig
 from core.validation.widgets.yasb.active_window import ActiveWindowConfig
 from core.validation.widgets.yasb.applications import ApplicationsWidgetConfig
@@ -68,6 +69,7 @@ from core.validation.widgets.yasb.wifi import WifiConfig
 
 SCHEMAS = {
     "glazewm.binding_mode.GlazewmBindingModeWidget": GlazewmBindingModeConfig,
+    "glazewm.tiling_direction.GlazewmTilingDirectionWidget": GlazewmTilingDirectionConfig,
     "glazewm.workspaces.GlazewmWorkspacesWidget": GlazewmWorkspacesConfig,
     "yasb.active_window.ActiveWindowWidget": ActiveWindowConfig,
     "yasb.applications.ApplicationsWidget": ApplicationsWidgetConfig,
