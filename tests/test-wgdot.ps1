@@ -652,6 +652,8 @@ foreach ($text in @($glazeNormalText, $glazeWorkText)) {
     Assert-True ($text -match 'bindings:\s*\["lwin\+alt\+shift\+1",\s*"rwin\+alt\+shift\+1"\]') "VM mode keeps host move-to-workspace on Win+Alt+Shift+number"
     Assert-True ($text -match 'bindings:\s*\["lwin\+shift\+e",\s*"rwin\+shift\+e"\]') "Yazi uses both Windows keys for Win+Shift+E"
     Assert-True ($text -match 'bindings:\s*\["lwin",\s*"rwin"\]') "normal/noalt/resize consume standalone Super experimentally"
+    Assert-True ($text -notmatch 'bindings:\s*\["lwin\+l",\s*"rwin\+l"') "reserved Windows Super+L is not advertised as a usable GlazeWM focus binding"
+    Assert-True ($text -match 'bindings:\s*\["lwin\+right",\s*"rwin\+right"\]') "Super+Right remains the Windows-safe focus-right binding"
     Assert-True ($text -match 'bindings:\s*\["lwin\+1",\s*"rwin\+1"\]') "noalt/global Super+number workspace switching is present"
     Assert-True ($text -match 'bindings:\s*\["lwin\+shift\+1",\s*"rwin\+shift\+1"\]') "noalt/global Super+Shift+number move-to-workspace is present"
     Assert-True ($text -notmatch 'bindings:\s*\["alt\+shift\+e"\]') "Yazi no longer uses Alt+Shift+E"
