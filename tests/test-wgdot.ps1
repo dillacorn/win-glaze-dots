@@ -588,6 +588,14 @@ Assert-True ($nativeSourceText -match 'command == "flameshot-gui"') "native runt
 Assert-True ($nativeSourceText -match 'FindFlameshotExe') "Flameshot launcher resolves the installed executable"
 Assert-True ($nativeSourceText -match 'command == "display-settings"') "native runtime exposes Windows display settings"
 Assert-True ($nativeSourceText -match 'command == "rawaccel-open"') "native runtime exposes the managed Raw Accel GUI"
+Assert-True ($nativeSourceText -match 'command == "bar-autohide-toggle"') "native runtime exposes coordinated YASB/GlazeWM auto-hide"
+Assert-True ($nativeSourceText -match 'command == "window-audit"') "native runtime exposes visible-window process auditing"
+Assert-True ($nativeSourceText -match 'String\.Equals\(command, "bar-autohide-toggle"') "bar auto-hide command participates in runtime auto-refresh"
+Assert-True ($nativeSourceText -match 'String\.Equals\(command, "window-audit"') "window audit command participates in runtime auto-refresh"
+Assert-True ($nativeSourceText -match 'yasbc\.exe", "reload -s"') "bar auto-hide reloads YASB after changing native auto-hide state"
+Assert-True ($nativeSourceText -match 'glazewm\.exe", "command wm-reload-config"') "bar auto-hide reloads GlazeWM after changing the 5/35 px gap"
+Assert-True ($nativeSourceText -match 'GetWindowThreadProcessId') "window audit resolves process IDs from real top-level windows"
+Assert-True ($nativeSourceText -match 'IsWindowVisible') "window audit filters to visible top-level windows"
 Assert-True ($nativeSourceText -match 'CenterWindowOnMonitor') "theme picker can move to the focused monitor"
 
 $terminalSettingsPath = Join-Path $repoRoot "UserProfile\AppData\Local\Packages\Microsoft.WindowsTerminal_8wekyb3d8bbwe\LocalState\settings.json"
@@ -600,6 +608,7 @@ $glazeWorkText = Get-Content -LiteralPath (Join-Path $repoRoot "UserProfile\.glz
 Assert-True ($glazeNormalText -match 'bindings:\s*\["alt\+shift\+m",\s*"lwin\+shift\+m",\s*"rwin\+shift\+m"\]') "Normal profile matches Awtarchy Raw Accel launch keys"
 Assert-True ($glazeNormalText -match 'bindings:\s*\["alt\+ctrl\+shift\+m"\]') "Normal scripts menu moves off the Raw Accel Alt+Shift+M chord"
 Assert-True ($glazeNormalText -match 'window_process:\s*\{ regex: "\^rawaccel') "Raw Accel launches floating and centered in Normal profile"
+Assert-True ($glazeNormalText -match '(?ms)cursor_jump:\s*\r?\n\s+enabled:\s*true') "Normal profile enables cursor jump by default"
 Assert-True ($glazeNormalText -notmatch '(?ms)- name: "1"\r?\n\s+display_name: "1: Flame"\r?\n\s+keep_alive:\s*true') "normal GlazeWM workspace 1 is not pinned alive"
 foreach ($text in @($glazeNormalText, $glazeWorkText)) {
     $globalMarker = [Environment]::NewLine + "keybindings:" + [Environment]::NewLine
@@ -617,7 +626,9 @@ foreach ($text in @($glazeNormalText, $glazeWorkText)) {
     Assert-True ($text -match 'bindings:\s*\["lwin\+ctrl\+m",\s*"rwin\+ctrl\+m"\]') "Super+Ctrl+M opens Windows display settings"
     Assert-True ($text -match 'flameshot-gui') "Flameshot bindings route through the WGDot executable resolver"
     Assert-True ($text -match 'bindings:\s*\["alt\+ctrl\+shift\+r"\]') "Alt+Ctrl+Shift+R reloads GlazeWM"
-    Assert-True ($text -notmatch 'bindings:\s*\["alt\+ctrl\+b"\]') "unsafe hard-hide bar shortcut is removed"
+    Assert-True ($text -match 'bindings:\s*\["alt\+ctrl\+b"\]') "Alt+Ctrl+B toggles coordinated YASB auto-hide and the GlazeWM top gap"
+    Assert-True ($text -match 'bar-autohide-toggle') "bar visibility binding uses the coordinated WGDot auto-hide helper"
+    Assert-True ($text -notmatch 'yasbc toggle-bar') "GlazeWM does not use the unsafe hard-hide YASB command"
     Assert-True ($text -match 'inner_gap:\s*"5px"') "GlazeWM uses the requested 5px inner gap"
     Assert-True ($text -match 'top:\s*"35px"') "GlazeWM reserves the requested 35px top gap"
     Assert-True ($text -match 'clipboard-history') "Super+C routes through the WGDot Clipboard History helper"
