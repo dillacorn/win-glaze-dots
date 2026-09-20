@@ -114,6 +114,12 @@ internal static class WgdotNative
     static extern int GetWindowTextLength(IntPtr hWnd);
 
     [DllImport("user32.dll")]
+    static extern bool IsWindowVisible(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
+
+    [DllImport("user32.dll")]
     static extern IntPtr GetForegroundWindow();
 
     [DllImport("user32.dll")]
@@ -389,6 +395,8 @@ internal static class WgdotNative
             if (command == "flameshot-gui") return OpenFlameshotGui();
             if (command == "rawaccel-open") return OpenRawAccel();
             if (command == "display-settings") return OpenDisplaySettings();
+            if (command == "bar-autohide-toggle") return BarAutoHideToggle();
+            if (command == "window-audit") return WindowAudit();
             if (command == "glazewm-pause-status") return GlazeWmPauseStatus();
             if (command == "glazewm-pause-toggle") return GlazeWmPauseToggle();
             if (command == "theme-toggle") return ThemeToggle();
@@ -436,6 +444,8 @@ internal static class WgdotNative
             String.Equals(command, "git-update", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "git-reset", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "apply-tweak", StringComparison.OrdinalIgnoreCase) ||
+            String.Equals(command, "bar-autohide-toggle", StringComparison.OrdinalIgnoreCase) ||
+            String.Equals(command, "window-audit", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "software", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "software-audit", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "acceptance-audit", StringComparison.OrdinalIgnoreCase) ||
@@ -5504,6 +5514,172 @@ internal static class WgdotNative
         psi.FileName = "ms-settings:display";
         psi.UseShellExecute = true;
         Process.Start(psi);
+        return 0;
+    }
+
+    static int BarAutoHideToggle()
+    {
+        string profile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        string yasbPath = Path.Combine(profile, ".config", "yasb", "config.yaml");
+        string glazePath = Path.Combine(profile, ".glzr", "glazewm", "config.yaml");
+
+        if (!File.Exists(yasbPath))
+            throw new Exception("YASB config was not found: " + yasbPath);
+        if (!File.Exists(glazePath))
+            throw new Exception("GlazeWM config was not found: " + glazePath);
+
+        string yasbOriginal = File.ReadAllText(yasbPath);
+        string glazeOriginal = File.ReadAllText(glazePath);
+
+        MatchCollection autoMatches = Regex.Matches(
+            yasbOriginal,
+            @"(?m)^(\s*)auto_hide:\s*(true|false)\s*$",
+            RegexOptions.IgnoreCase);
+        if (autoMatches.Count != 1)
+            throw new Exception(
+                "Expected exactly one YASB auto_hide setting, found " +
+                autoMatches.Count.ToString(CultureInfo.InvariantCulture) + ".");
+
+        bool currentAutoHide = String.Equals(
+            autoMatches[0].Groups[2].Value,
+            "true",
+            StringComparison.OrdinalIgnoreCase);
+        bool enableAutoHide = !currentAutoHide;
+
+        MatchCollection topGapMatches = Regex.Matches(
+            glazeOriginal,
+            @"(?m)^(\s*)top:\s*""(5|35)px""\s*$");
+        if (topGapMatches.Count != 1)
+            throw new Exception(
+                "Expected exactly one GlazeWM 5/35 px top gap, found " +
+                topGapMatches.Count.ToString(CultureInfo.InvariantCulture) + ".");
+
+        string yasbNext = Regex.Replace(
+            yasbOriginal,
+            @"(?m)^(\s*)auto_hide:\s*(true|false)\s*$",
+            m => m.Groups[1].Value + "auto_hide: " + (enableAutoHide ? "true" : "false"));
+
+        string glazeNext = Regex.Replace(
+            glazeOriginal,
+            @"(?m)^(\s*)top:\s*""(5|35)px""\s*$",
+            m => m.Groups[1].Value + "top: \"" + (enableAutoHide ? "5" : "35") + "px\"");
+
+        try
+        {
+            WriteTextAtomic(yasbPath, yasbNext);
+            WriteTextAtomic(glazePath, glazeNext);
+
+            ProcResult yasbReload = Run("yasbc.exe", "reload -s", null);
+            if (yasbReload.ExitCode != 0)
+                throw new Exception(
+                    "YASB reload failed: " +
+                    LastUsefulLine(yasbReload.StdErr + "\n" + yasbReload.StdOut));
+
+            ProcResult glazeReload = Run("glazewm.exe", "command wm-reload-config", null);
+            if (glazeReload.ExitCode != 0)
+                throw new Exception(
+                    "GlazeWM reload failed: " +
+                    LastUsefulLine(glazeReload.StdErr + "\n" + glazeReload.StdOut));
+        }
+        catch
+        {
+            WriteTextAtomic(yasbPath, yasbOriginal);
+            WriteTextAtomic(glazePath, glazeOriginal);
+            try { Run("yasbc.exe", "reload -s", null); } catch { }
+            try { Run("glazewm.exe", "command wm-reload-config", null); } catch { }
+            throw;
+        }
+
+        Console.WriteLine(
+            "YASB auto-hide " + (enableAutoHide ? "enabled" : "disabled") +
+            "; GlazeWM top gap set to " + (enableAutoHide ? "5px" : "35px") + ".");
+        Console.WriteLine("YASB and GlazeWM reloaded.");
+        return 0;
+    }
+
+    sealed class WindowAuditRow
+    {
+        public string ProcessName;
+        public int ProcessId;
+        public string Title;
+        public string Executable;
+    }
+
+    static int WindowAudit()
+    {
+        var rows = new List<WindowAuditRow>();
+
+        EnumWindows(delegate(IntPtr hWnd, IntPtr lParam)
+        {
+            if (!IsWindowVisible(hWnd) || IsDwmCloaked(hWnd))
+                return true;
+
+            int titleLength = GetWindowTextLength(hWnd);
+            if (titleLength <= 0)
+                return true;
+
+            var title = new StringBuilder(titleLength + 1);
+            GetWindowText(hWnd, title, title.Capacity);
+            string titleText = title.ToString().Trim();
+            if (String.IsNullOrWhiteSpace(titleText))
+                return true;
+
+            uint processId;
+            GetWindowThreadProcessId(hWnd, out processId);
+            if (processId == 0)
+                return true;
+
+            try
+            {
+                using (Process process = Process.GetProcessById((int)processId))
+                {
+                    string executable = "";
+                    try
+                    {
+                        executable = process.MainModule == null
+                            ? ""
+                            : process.MainModule.FileName;
+                    }
+                    catch
+                    {
+                    }
+
+                    rows.Add(new WindowAuditRow
+                    {
+                        ProcessName = process.ProcessName ?? "",
+                        ProcessId = (int)processId,
+                        Title = titleText,
+                        Executable = executable
+                    });
+                }
+            }
+            catch
+            {
+            }
+
+            return true;
+        }, IntPtr.Zero);
+
+        rows = rows
+            .OrderBy(x => x.ProcessName, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(x => x.Title, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        Console.WriteLine("Visible top-level windows for GlazeWM rule matching");
+        Console.WriteLine("GlazeWM window_process should match PROCESS, not the WinGet package ID.");
+        Console.WriteLine();
+
+        foreach (WindowAuditRow row in rows)
+        {
+            Console.WriteLine(
+                "PROCESS: " + row.ProcessName +
+                "    PID: " + row.ProcessId.ToString(CultureInfo.InvariantCulture));
+            Console.WriteLine("TITLE:   " + row.Title);
+            if (!String.IsNullOrWhiteSpace(row.Executable))
+                Console.WriteLine("EXE:     " + row.Executable);
+            Console.WriteLine();
+        }
+
         return 0;
     }
 
