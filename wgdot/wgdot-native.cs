@@ -19,7 +19,7 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-40";
+    const string Version = "native-preview-41";
     const int WingetPreflightTimeoutMs = 30000;
     const string RepoFullName = "dillacorn/win-glaze-dots";
     const string RepoUrl = "https://github.com/dillacorn/win-glaze-dots.git";
@@ -4453,6 +4453,7 @@ internal static class WgdotNative
     static bool TweakNeedsAdministrator(string id)
     {
         return
+            String.Equals(id, "automatic-time-and-timezone", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(id, "disable-remote-assistance", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(id, "enable-windows-sudo", StringComparison.OrdinalIgnoreCase);
     }
@@ -4520,6 +4521,8 @@ internal static class WgdotNative
             ApplyCommunicationsDucking(enable);
         else if (String.Equals(id, "disable-snap-assist", StringComparison.OrdinalIgnoreCase))
             ApplySnapAssist(enable);
+        else if (String.Equals(id, "automatic-time-and-timezone", StringComparison.OrdinalIgnoreCase))
+            ApplyAutomaticTimeAndTimeZone(enable);
         else if (String.Equals(id, "disable-remote-assistance", StringComparison.OrdinalIgnoreCase))
             ApplyRemoteAssistance(enable);
         else if (String.Equals(id, "enable-windows-sudo", StringComparison.OrdinalIgnoreCase))
@@ -5468,6 +5471,75 @@ public static class Program
         SetRegistryValueWithSnapshot(id, "HKCU",
             @"Control Panel\Desktop",
             "WindowArrangementActive", "0", RegistryValueKind.String);
+    }
+
+    static void StartWindowsServiceBestEffort(string serviceName)
+    {
+        ProcResult start = Run("sc.exe", "start " + Q(serviceName), null);
+        if (start.ExitCode == 0 || start.ExitCode == 1056)
+            return;
+
+        string output = ((start.StdOut ?? "") + " " + (start.StdErr ?? "")).Trim();
+        Console.ForegroundColor = ConsoleColor.Yellow;
+        Console.WriteLine(
+            "Could not start Windows service '" + serviceName + "'" +
+            (String.IsNullOrWhiteSpace(output) ? "." : ": " + output));
+        Console.ResetColor();
+    }
+
+    static void ApplyAutomaticTimeAndTimeZone(bool enable)
+    {
+        const string id = "automatic-time-and-timezone";
+        const string timeServicePath = @"SYSTEM\CurrentControlSet\Services\W32Time";
+        const string timeZoneServicePath = @"SYSTEM\CurrentControlSet\Services\tzautoupdate";
+        const string locationPath =
+            @"SOFTWARE\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\location";
+
+        if (!enable)
+        {
+            RestoreRegistryOriginals(id);
+            Console.WriteLine(
+                "Automatic time/time-zone settings restored to their pre-WGDot values. " +
+                "The current clock and selected time zone are not rolled backward.");
+            return;
+        }
+
+        // Keep Windows' normal trigger/manual time service available, enable
+        // automatic time-zone detection, and allow the Windows Location service
+        // that Microsoft requires for automatic time-zone selection.
+        SetRegistryValueWithSnapshot(
+            id, "HKLM", timeServicePath, "Start", 3, RegistryValueKind.DWord);
+        SetRegistryValueWithSnapshot(
+            id, "HKLM", timeZoneServicePath, "Start", 3, RegistryValueKind.DWord);
+        SetRegistryValueWithSnapshot(
+            id, "HKLM", locationPath, "Value", "Allow", RegistryValueKind.String);
+
+        StartWindowsServiceBestEffort("lfsvc");
+        StartWindowsServiceBestEffort("tzautoupdate");
+        StartWindowsServiceBestEffort("w32time");
+
+        ProcResult sync = Run("w32tm.exe", "/resync /rediscover", null);
+        if (sync.ExitCode == 0)
+        {
+            Console.WriteLine("Windows time resync requested successfully.");
+        }
+        else
+        {
+            string detail = ((sync.StdOut ?? "") + " " + (sync.StdErr ?? "")).Trim();
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine(
+                "Windows automatic time is enabled, but the immediate resync did not complete" +
+                (String.IsNullOrWhiteSpace(detail) ? "." : ": " + detail));
+            Console.ResetColor();
+        }
+
+        ProcResult zone = Run("tzutil.exe", "/g", null);
+        if (zone.ExitCode == 0 && !String.IsNullOrWhiteSpace(zone.StdOut))
+            Console.WriteLine("Current Windows time zone: " + zone.StdOut.Trim());
+
+        Console.WriteLine(
+            "Automatic time-zone detection is enabled through Windows Location services. " +
+            "Windows may update the zone after location resolves.");
     }
 
     static void ApplyRemoteAssistance(bool enable)
