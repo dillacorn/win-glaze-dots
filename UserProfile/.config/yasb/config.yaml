@@ -23,6 +23,10 @@ bars:
       always_on_top: true
       windows_app_bar: true
       hide_on_fullscreen: true
+      # YASB auto-hide correctly releases AppBar work area, but v2.0.7
+      # exposes no runtime CLI toggle for this setting. Keep normal mode
+      # explicit instead of pretending toggle-bar is Awtarchy auto-hide.
+      auto_hide: false
 
     dimensions:
       width: "100%"
