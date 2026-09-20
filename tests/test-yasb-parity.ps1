@@ -39,7 +39,7 @@ Assert-Contains $config 'always_on_top: true' "YASB remains above normal windows
 Assert-Contains $config 'windows_app_bar: false' "YASB keeps the reload-free GlazeWM gap reservation"
 Assert-Contains $config 'hide_on_fullscreen: true' "YASB hides for fullscreen applications"
 Assert-Contains $config 'auto_hide: false' "normal YASB AppBar mode is explicit until runtime auto-hide is supported"
-Assert-Contains $config 'context_menu: true' "blank-bar YASB context menu provides safe auto-hide and recovery controls"
+Assert-Contains $config 'context_menu: false' "blank-bar YASB context menu is disabled; coordinated auto-hide remains on Alt+Ctrl+B"
 Assert-Contains $config 'align: "center"' "current YASB BarAlignment field is used"
 Assert-NotContains $config 'center: false' "obsolete bar alignment field is absent"
 Assert-NotContains $config 'acrylic:' "removed YASB blur field is absent"
@@ -254,7 +254,7 @@ Assert-Contains $style '.awtarchy-control-center:hover' "quick settings button u
 Assert-Contains $style '.control-center-menu' "Control Center popup has WGDot theme styling"
 Assert-Contains $style '@import "appearance.css";' "styles import WGDot live appearance overrides"
 Assert-Contains $style '.dnd-widget:hover' "notification/DND action uses Awtarchy's strong hover treatment"
-Assert-Contains $style 'font-size: 19px;' "notification/DND icon keeps Awtarchy's tuned icon scale"
+Assert-Contains $style 'font-size: 14px;' "bar icon scale is normalized to the adjacent 14 px text"
 Assert-Contains $style 'padding: 0 8px;' "fixed 8 px horizontal action padding is retained"
 
 Assert-Contains $readme 'Evidence-backed mappings' "feature mappings document their evidence boundary"
