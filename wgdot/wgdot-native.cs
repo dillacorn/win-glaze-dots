@@ -494,6 +494,9 @@ internal static class WgdotNative
             if (command == "maintenance-self-test") return MaintenanceSelfTest();
             if (command == "software") return SoftwareManager();
             if (command == "software-reconcile") return SoftwareReconcile();
+            if (command == "software-uninstall") return SoftwareUninstallManager();
+            if (command == "startup") return StartupManager();
+            if (command == "startup-disable-all") return DisableAllManagedStartup(true);
             if (command == "software-audit") return SoftwareCatalogAudit();
             if (command == "ensure-winget") return EnsureWingetAvailable();
             if (command == "acceptance-audit") return AcceptanceAudit();
@@ -694,7 +697,7 @@ internal static class WgdotNative
         var items = new List<string>
         {
             "Update managed dots",
-            "Install / reconcile software",
+            "Software / startup manager",
             "Audit all software (no install)",
             "Automated acceptance audit (safe)",
             "GPU driver maintenance",
@@ -723,8 +726,7 @@ internal static class WgdotNative
                 }
                 else if (choice == 1)
                 {
-                    SoftwareReconcile();
-                    Pause();
+                    SoftwareManager();
                 }
                 else if (choice == 2)
                 {
@@ -2949,6 +2951,582 @@ internal static class WgdotNative
         return failures == 0 ? 0 : 1;
     }
 
+    static List<Dictionary<string, object>> GetStartupPackages(Dictionary<string, object> manifest)
+    {
+        return GetList(manifest, "packages")
+            .Select(AsDictionary)
+            .Where(p => !String.IsNullOrWhiteSpace(GetString(p, "startupHandler")))
+            .OrderBy(p => GetString(p, "name"), StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    static Dictionary<string, object> ReadStartupState()
+    {
+        Dictionary<string, object> state =
+            ReadJson(StartupStatePath) ??
+            new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+        if (!state.ContainsKey("preferences"))
+            state["preferences"] = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+        return state;
+    }
+
+    static bool TryGetStartupPreference(
+        Dictionary<string, object> state,
+        string packageId,
+        out bool enabled)
+    {
+        Dictionary<string, object> prefs = GetDictionary(state, "preferences");
+        object raw;
+        if (prefs.TryGetValue(packageId, out raw) && raw != null)
+        {
+            enabled = Convert.ToBoolean(raw);
+            return true;
+        }
+
+        enabled = false;
+        return false;
+    }
+
+    static void SetStartupPreference(string packageId, bool enabled)
+    {
+        Dictionary<string, object> state = ReadStartupState();
+        Dictionary<string, object> prefs = GetDictionary(state, "preferences");
+        prefs[packageId] = enabled;
+        state["preferences"] = prefs;
+        state["updatedAt"] = DateTime.UtcNow.ToString("o");
+        WriteJson(StartupStatePath, state);
+    }
+
+    static string FindExecutableWithCandidates(
+        string fileName,
+        IEnumerable<string> candidates)
+    {
+        string registered = FindRegisteredAppPath(fileName);
+        if (!String.IsNullOrWhiteSpace(registered))
+            return registered;
+
+        ProcResult where = Run("where.exe", fileName, null);
+        if (where.ExitCode == 0)
+        {
+            foreach (string line in (where.StdOut ?? "").Replace("\r", "").Split('\n'))
+            {
+                string candidate = line.Trim();
+                if (!String.IsNullOrWhiteSpace(candidate) && File.Exists(candidate))
+                    return candidate;
+            }
+        }
+
+        foreach (string candidate in candidates ?? Enumerable.Empty<string>())
+            if (!String.IsNullOrWhiteSpace(candidate) && File.Exists(candidate))
+                return candidate;
+
+        return "";
+    }
+
+    static string FindGlazeWmExe()
+    {
+        string local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        return FindExecutableWithCandidates(
+            "glazewm.exe",
+            new[]
+            {
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "glzr.io", "cli", "glazewm.exe"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "glzr.io", "cli", "glazewm.exe"),
+                Path.Combine(local, "Programs", "glzr.io", "cli", "glazewm.exe"),
+                Path.Combine(local, "Microsoft", "WinGet", "Packages", "glzr-io.glazewm", "glazewm.exe")
+            });
+    }
+
+    static string FindAltSnapExe()
+    {
+        string local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        return FindExecutableWithCandidates(
+            "AltSnap.exe",
+            new[]
+            {
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "AltSnap", "AltSnap.exe"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "AltSnap", "AltSnap.exe"),
+                Path.Combine(local, "Programs", "AltSnap", "AltSnap.exe")
+            });
+    }
+
+    static string StartupRunValueName(Dictionary<string, object> package)
+    {
+        string handler = GetString(package, "startupHandler");
+        if (String.IsNullOrWhiteSpace(handler) ||
+            !Regex.IsMatch(handler, "^[A-Za-z0-9-]+$"))
+            throw new Exception("Invalid WGDot startup handler for " + GetString(package, "name") + ".");
+        return "WGDot." + handler;
+    }
+
+    static string BuildStartupCommand(Dictionary<string, object> package)
+    {
+        string handler = GetString(package, "startupHandler");
+
+        if (String.Equals(handler, "glazewm", StringComparison.OrdinalIgnoreCase))
+        {
+            string exe = FindGlazeWmExe();
+            if (String.IsNullOrWhiteSpace(exe))
+                throw new Exception("GlazeWM is selected for startup, but glazewm.exe could not be found.");
+
+            string config = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                ".glzr",
+                "glazewm",
+                "config.yaml");
+            return Q(exe) + " start --config=" + Q(config);
+        }
+
+        if (String.Equals(handler, "altsnap", StringComparison.OrdinalIgnoreCase))
+        {
+            string exe = FindAltSnapExe();
+            if (String.IsNullOrWhiteSpace(exe))
+                throw new Exception("AltSnap is selected for startup, but AltSnap.exe could not be found.");
+            return Q(exe);
+        }
+
+        if (String.Equals(handler, "eartrumpet", StringComparison.OrdinalIgnoreCase))
+            return "explorer.exe shell:AppsFolder\\40459File-New-Project.EarTrumpet_725pr5jq8wr8a!EarTrumpet";
+
+        if (String.Equals(handler, "miclocktray", StringComparison.OrdinalIgnoreCase))
+        {
+            string path = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "Programs",
+                "MicLockTray",
+                "MicLockTray.exe");
+            if (!File.Exists(path))
+                throw new Exception("MicLockTray is selected for startup, but its WGDot-managed executable is missing.");
+            return Q(path);
+        }
+
+        throw new Exception("Unknown WGDot startup handler: " + handler);
+    }
+
+    static bool IsStartupRegistrationEnabled(Dictionary<string, object> package)
+    {
+        string name = StartupRunValueName(package);
+        using (RegistryKey key = Registry.CurrentUser.OpenSubKey(
+            @"Software\Microsoft\Windows\CurrentVersion\Run",
+            false))
+        {
+            return key != null && key.GetValue(name, null) != null;
+        }
+    }
+
+    static void SetStartupRegistration(Dictionary<string, object> package, bool enable)
+    {
+        string name = StartupRunValueName(package);
+        const string runPath = @"Software\Microsoft\Windows\CurrentVersion\Run";
+
+        using (RegistryKey key = Registry.CurrentUser.CreateSubKey(runPath))
+        {
+            if (key == null)
+                throw new Exception("Could not open the current-user Windows startup registry key.");
+
+            if (!enable)
+            {
+                key.DeleteValue(name, false);
+                Console.WriteLine("Startup disabled: " + GetString(package, "name"));
+                return;
+            }
+
+            string command = BuildStartupCommand(package);
+            key.SetValue(name, command, RegistryValueKind.String);
+            Console.WriteLine("Startup enabled: " + GetString(package, "name"));
+        }
+    }
+
+    static void ApplyStartupDefaultsForSelection(
+        Dictionary<string, object> manifest,
+        InstallationSelection selection)
+    {
+        if (selection == null) return;
+
+        var selected = new HashSet<string>(
+            selection.Packages,
+            StringComparer.OrdinalIgnoreCase);
+        Dictionary<string, object> state = ReadStartupState();
+        Dictionary<string, object> prefs = GetDictionary(state, "preferences");
+        bool changedState = false;
+
+        foreach (Dictionary<string, object> package in GetStartupPackages(manifest))
+        {
+            string id = GetString(package, "id");
+            bool preferred;
+            object rawPreference;
+            if (prefs.TryGetValue(id, out rawPreference) && rawPreference != null)
+                preferred = Convert.ToBoolean(rawPreference);
+            else
+            {
+                preferred = GetBool(package, "startupDefault");
+                prefs[id] = preferred;
+                changedState = true;
+            }
+
+            bool desired = selected.Contains(id) && preferred;
+            try
+            {
+                SetStartupRegistration(package, desired);
+            }
+            catch (Exception ex)
+            {
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine(
+                    "Startup integration skipped for " +
+                    GetString(package, "name") + ": " + ex.Message);
+                Console.ResetColor();
+            }
+        }
+
+        if (changedState)
+        {
+            state["preferences"] = prefs;
+            state["updatedAt"] = DateTime.UtcNow.ToString("o");
+            WriteJson(StartupStatePath, state);
+        }
+    }
+
+    static int StartupManager()
+    {
+        SourceContext source = ResolveDefaultSource();
+        Dictionary<string, object> manifest = source.Manifest;
+        InstallationSelection selection = ReadInstallationSelection();
+        if (selection == null)
+        {
+            WriteTitle("Startup applications");
+            Console.WriteLine("No WGDot software selection exists yet.");
+            Console.WriteLine("Install / reconcile software first.");
+            return 0;
+        }
+
+        var selectedPackages = new HashSet<string>(
+            selection.Packages,
+            StringComparer.OrdinalIgnoreCase);
+        List<Dictionary<string, object>> packages = GetStartupPackages(manifest)
+            .Where(p => selectedPackages.Contains(GetString(p, "id")))
+            .ToList();
+
+        if (packages.Count == 0)
+        {
+            WriteTitle("Startup applications");
+            Console.WriteLine("No selected WGDot applications expose managed startup entries.");
+            return 0;
+        }
+
+        var choices = new List<ChoiceItem>();
+        foreach (Dictionary<string, object> package in packages)
+        {
+            choices.Add(new ChoiceItem
+            {
+                Id = GetString(package, "id"),
+                Label = GetString(package, "name") + " [Windows login]",
+                Category = "startup",
+                Selected = IsStartupRegistrationEnabled(package)
+            });
+        }
+
+        List<ChoiceItem> edited = ReadMultiChoice("Startup applications", choices);
+        if (edited == null) return 0;
+
+        WriteTitle("Startup applications review");
+        foreach (ChoiceItem item in edited)
+            Console.WriteLine((item.Selected ? "[ON]  " : "[OFF] ") + item.Label);
+        Console.WriteLine();
+        Console.WriteLine("WGDot only changes its own HKCU Run entries (WGDot.*).");
+        Console.WriteLine("Vendor/user startup entries are left untouched.");
+        Console.WriteLine();
+
+        if (!ReadYesNo("Apply this startup selection? [y/N]", false))
+        {
+            Console.WriteLine("No startup changes were made.");
+            return 0;
+        }
+
+        foreach (ChoiceItem item in edited)
+        {
+            Dictionary<string, object> package = FindPackageById(manifest, item.Id);
+            if (package == null) continue;
+
+            try
+            {
+                SetStartupRegistration(package, item.Selected);
+                SetStartupPreference(item.Id, item.Selected);
+            }
+            catch (Exception ex)
+            {
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine(
+                    "Startup change failed for " +
+                    GetString(package, "name") + ": " + ex.Message);
+                Console.ResetColor();
+            }
+        }
+
+        return 0;
+    }
+
+    static int DisableAllManagedStartup(bool askConfirmation)
+    {
+        SourceContext source = ResolveDefaultSource();
+        Dictionary<string, object> manifest = source.Manifest;
+
+        WriteTitle("Disable all WGDot startup");
+        Console.WriteLine("This keeps applications installed and removes only WGDot-owned startup registrations.");
+        Console.WriteLine("Vendor/user startup entries are not touched.");
+        Console.WriteLine();
+
+        if (askConfirmation &&
+            !ReadYesNo("Disable all WGDot-managed startup applications? [y/N]", false))
+        {
+            Console.WriteLine("No startup changes were made.");
+            return 0;
+        }
+
+        foreach (Dictionary<string, object> package in GetStartupPackages(manifest))
+        {
+            SetStartupRegistration(package, false);
+            SetStartupPreference(GetString(package, "id"), false);
+        }
+
+        Console.WriteLine("All WGDot-managed startup entries are disabled.");
+        return 0;
+    }
+
+    static bool PackageLooksInstalled(
+        Dictionary<string, object> package,
+        string wingetList)
+    {
+        if (IsOfficialGitHubPortablePackage(package))
+            return IsOfficialGitHubPortablePackageInstalled(package);
+
+        if (IsOfficialGitHubArchiveDriverPackage(package))
+            return IsOfficialGitHubArchiveDriverPackageInstalled(package);
+
+        string id = GetString(package, "id");
+        string installedName = GetString(package, "installedName");
+        if (!String.IsNullOrWhiteSpace(id) &&
+            (wingetList ?? "").IndexOf(id, StringComparison.OrdinalIgnoreCase) >= 0)
+            return true;
+        if (!String.IsNullOrWhiteSpace(installedName) &&
+            (wingetList ?? "").IndexOf(installedName, StringComparison.OrdinalIgnoreCase) >= 0)
+            return true;
+        return false;
+    }
+
+    static bool UninstallManagedPackage(Dictionary<string, object> package)
+    {
+        string name = GetString(package, "name");
+
+        if (IsOfficialGitHubArchiveDriverPackage(package))
+        {
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine(
+                name +
+                " includes a kernel driver and is not removed by WGDot's generic application uninstaller.");
+            Console.WriteLine("Use its upstream uninstaller/manual driver removal path.");
+            Console.ResetColor();
+            return false;
+        }
+
+        if (IsOfficialGitHubPortablePackage(package))
+        {
+            string installedFile = GetPackageProgramFilePath(package, "installedFile");
+            string processName = Path.GetFileNameWithoutExtension(installedFile);
+            if (!String.IsNullOrWhiteSpace(processName))
+                StopProcessesByName(processName);
+
+            string root = GetPackageProgramDirectory(package);
+            if (Directory.Exists(root))
+                Directory.Delete(root, true);
+
+            Console.WriteLine("Uninstalled WGDot-owned portable application: " + name);
+            return true;
+        }
+
+        EnsureWingetAvailable();
+
+        string id = GetString(package, "id");
+        string installedName = GetString(package, "installedName");
+        string arguments;
+        if (!String.IsNullOrWhiteSpace(installedName) &&
+            (IsOfficialGitHubPackage(package) || IsOfficialPagePackage(package)))
+        {
+            arguments =
+                "uninstall --name " + Q(installedName) +
+                " --exact --disable-interactivity";
+        }
+        else
+        {
+            arguments =
+                "uninstall --id " + Q(id) +
+                " --exact --disable-interactivity";
+        }
+
+        ProcResult result = RunInteractive("winget.exe", arguments);
+        if (result.ExitCode != 0)
+        {
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine(
+                "Uninstall failed for " + name + " with exit " +
+                result.ExitCode.ToString(CultureInfo.InvariantCulture) + ".");
+            Console.ResetColor();
+            return false;
+        }
+
+        Console.WriteLine("Uninstalled: " + name);
+        return true;
+    }
+
+    static int SoftwareUninstallManager()
+    {
+        EnsureWingetAvailable();
+
+        SourceContext source = ResolveDefaultSource();
+        Dictionary<string, object> manifest = source.Manifest;
+        InstallationSelection selection = ReadInstallationSelection();
+
+        WriteTitle("Uninstall applications");
+        Console.WriteLine("Reading installed package state...");
+        ProcResult list = RunWithTimeout(
+            "winget.exe",
+            "list --accept-source-agreements --disable-interactivity",
+            null,
+            WingetPreflightTimeoutMs);
+        if (list.TimedOut || list.ExitCode != 0)
+            throw new Exception(
+                "WinGet could not read installed applications: " +
+                LastUsefulLine(list.StdErr + "\n" + list.StdOut));
+
+        var packages = GetList(manifest, "packages")
+            .Select(AsDictionary)
+            .Where(p => PackageLooksInstalled(p, list.StdOut))
+            .ToList();
+
+        if (packages.Count == 0)
+        {
+            Console.WriteLine("No WGDot catalog applications are currently detected as installed.");
+            return 0;
+        }
+
+        var choices = packages.Select(p => new ChoiceItem
+        {
+            Id = GetString(p, "id"),
+            Label = GetString(p, "name") + " [" + GetString(p, "category") + "]",
+            Category = GetString(p, "category"),
+            Selected = false
+        }).ToList();
+
+        choices = ReadMultiChoice("Select applications to uninstall", choices);
+        if (choices == null) return 0;
+
+        List<string> ids = choices
+            .Where(x => x.Selected)
+            .Select(x => x.Id)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        if (ids.Count == 0)
+        {
+            Console.WriteLine("No applications selected.");
+            return 0;
+        }
+
+        WriteTitle("Uninstall review");
+        foreach (string id in ids)
+        {
+            Dictionary<string, object> package = FindPackageById(manifest, id);
+            if (package != null)
+                Console.WriteLine("REMOVE  " + GetString(package, "name") + " (" + id + ")");
+        }
+        Console.WriteLine();
+        Console.ForegroundColor = ConsoleColor.Yellow;
+        Console.WriteLine("This removes applications. Managed dotfile backups are unaffected.");
+        Console.ResetColor();
+        Console.WriteLine();
+
+        if (!ReadYesNo("Uninstall exactly these applications? [y/N]", false))
+        {
+            Console.WriteLine("No applications were removed.");
+            return 0;
+        }
+
+        int removed = 0;
+        int failed = 0;
+        foreach (string id in ids)
+        {
+            Dictionary<string, object> package = FindPackageById(manifest, id);
+            if (package == null) continue;
+
+            try
+            {
+                SetStartupRegistration(package, false);
+            }
+            catch
+            {
+            }
+            SetStartupPreference(id, false);
+
+            if (UninstallManagedPackage(package))
+            {
+                removed++;
+                if (selection != null)
+                    selection.Packages.RemoveAll(
+                        x => String.Equals(x, id, StringComparison.OrdinalIgnoreCase));
+            }
+            else
+            {
+                failed++;
+            }
+        }
+
+        if (selection != null)
+            WriteInstallationSelection(selection);
+
+        Console.WriteLine();
+        Console.WriteLine("Uninstalled: " + removed.ToString(CultureInfo.InvariantCulture));
+        Console.WriteLine("Failed / manual removal required: " + failed.ToString(CultureInfo.InvariantCulture));
+        return failed == 0 ? 0 : 1;
+    }
+
+    static int SoftwareManager()
+    {
+        var items = new List<string>
+        {
+            "Install / reconcile selected software",
+            "Startup applications",
+            "Uninstall individual applications",
+            "Disable all WGDot-managed startup (keep applications)",
+            "Back"
+        };
+
+        while (true)
+        {
+            int choice = ReadSingleChoice("Software / startup manager", items, 0);
+            if (choice < 0 || choice == 4) return 0;
+
+            if (choice == 0)
+            {
+                SoftwareReconcile();
+                Pause();
+            }
+            else if (choice == 1)
+            {
+                StartupManager();
+                Pause();
+            }
+            else if (choice == 2)
+            {
+                SoftwareUninstallManager();
+                Pause();
+            }
+            else if (choice == 3)
+            {
+                DisableAllManagedStartup(true);
+                Pause();
+            }
+        }
+    }
+
     static int SoftwareReconcile()
     {
         SourceContext source = ResolveDefaultSource();
@@ -3342,6 +3920,7 @@ internal static class WgdotNative
             .ToList();
         selection.TweaksConfigured = true;
         WriteInstallationSelection(selection);
+        ApplyStartupDefaultsForSelection(manifest, selection);
 
         if (officialPagePending.Count > 0)
         {
