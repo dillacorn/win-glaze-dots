@@ -103,7 +103,7 @@ widgets:
           enabled: true
           prefix: "="
         clipboard_history:
-          enabled: true
+          enabled: false
           prefix: "cb"
           max_items: 30
           show_preview: true
