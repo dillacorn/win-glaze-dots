@@ -4768,7 +4768,7 @@ internal static class WgdotNative
 
             var actions = new List<string>
             {
-                "Install / repair recommended vendor driver",
+                "Run official auto-detect / driver assistant for detected GPU(s)",
                 "Clean reinstall / refresh detected GPU driver with DDU (Safe Mode)"
             };
             bool hasCleanup = cleanup.Count > 0;
@@ -4782,12 +4782,20 @@ internal static class WgdotNative
 
             if (action == 0)
             {
-                string vendor = SelectGpuVendor(physical, "Select detected GPU vendor");
-                if (!String.IsNullOrWhiteSpace(vendor))
+                if (physical.Count == 0)
+                {
+                    WriteTitle("GPU driver maintenance");
+                    Console.WriteLine("No AMD, NVIDIA, or Intel display adapter was detected.");
+                    Pause();
+                    continue;
+                }
+
+                foreach (string vendor in physical.OrderBy(GpuVendorLabel))
                 {
                     InstallGpuVendorDriver(vendor);
-                    Pause();
+                    Console.WriteLine();
                 }
+                Pause();
             }
             else if (action == 1)
             {
@@ -4830,16 +4838,17 @@ internal static class WgdotNative
         WriteTitle("GPU driver check");
         PrintGpuStatus(adapters);
 
-        foreach (string vendor in missing)
+        foreach (string vendor in missing.OrderBy(GpuVendorLabel))
         {
             Console.ForegroundColor = ConsoleColor.Yellow;
             Console.WriteLine(
                 GpuVendorLabel(vendor) +
                 " hardware is present but a matching active vendor display driver was not confirmed.");
+            Console.WriteLine(
+                "Launching the official vendor auto-detect / driver assistant automatically.");
             Console.ResetColor();
 
-            if (ReadYesNo("Launch the official " + GpuVendorLabel(vendor) + " driver installer/assistant now? [y/N]", false))
-                InstallGpuVendorDriver(vendor);
+            InstallGpuVendorDriver(vendor);
             Console.WriteLine();
         }
 
@@ -4900,21 +4909,52 @@ internal static class WgdotNative
         return false;
     }
 
+    static string DownloadVendorPageText(string page)
+    {
+        if (ExecutableExists("curl.exe"))
+        {
+            ProcResult curl = RunWithTimeout(
+                "curl.exe",
+                "-fL --retry 2 --connect-timeout 15 --max-time 45 " +
+                "-A " + Q("Mozilla/5.0 WGDot") + " " + Q(page),
+                null,
+                50000);
+            if (!curl.TimedOut && curl.ExitCode == 0 && !String.IsNullOrWhiteSpace(curl.StdOut))
+                return curl.StdOut;
+        }
+
+        using (var client = new WebClient())
+        {
+            client.Headers[HttpRequestHeader.UserAgent] = "Mozilla/5.0 WGDot";
+            client.Headers[HttpRequestHeader.Accept] = "text/html,application/xhtml+xml";
+            return client.DownloadString(page);
+        }
+    }
+
     static string ResolveOfficialGpuInstallerUrl(string vendor)
     {
         if (String.Equals(vendor, "intel", StringComparison.OrdinalIgnoreCase))
             return "https://dsadata.intel.com/installer";
 
-        string page;
         string pattern;
+        string[] pages;
         if (String.Equals(vendor, "amd", StringComparison.OrdinalIgnoreCase))
         {
-            page = "https://www.amd.com/en/support/download/drivers.html";
-            pattern = @"https://drivers\.amd\.com/[^""'<>\s]+\.exe";
+            // AMD's current support page exposes one vendor auto-detect web
+            // installer for supported Radeon/Ryzen hardware. Keep a second
+            // official product-family page as a resolver fallback because AMD
+            // periodically changes the generic page markup.
+            pages = new[]
+            {
+                "https://www.amd.com/en/support/download/drivers.html",
+                "https://www.amd.com/en/support/downloads/drivers.html/graphics/radeon-rx/radeon-rx-7000-series.html"
+            };
+            pattern =
+                @"https://drivers\.amd\.com/[^""'<>\s]+(?:minimalsetup|installer)[^""'<>\s]*_web\.exe";
         }
         else if (String.Equals(vendor, "nvidia", StringComparison.OrdinalIgnoreCase))
         {
-            page = "https://www.nvidia.com/en-us/software/nvidia-app/";
+            pages = new[] { "https://www.nvidia.com/en-us/software/nvidia-app/" };
             pattern = @"https://us\.download\.nvidia\.com/nvapp/client/[^""'<>\s]+\.exe";
         }
         else
@@ -4922,17 +4962,23 @@ internal static class WgdotNative
             throw new Exception("Unsupported GPU vendor: " + vendor);
         }
 
-        using (var client = new WebClient())
+        foreach (string page in pages)
         {
-            client.Headers[HttpRequestHeader.UserAgent] = "Mozilla/5.0 WGDot";
-            string html = client.DownloadString(page);
-            Match match = Regex.Match(html, pattern, RegexOptions.IgnoreCase);
-            if (!match.Success)
-                throw new Exception(
-                    "Could not resolve the current official " +
-                    GpuVendorLabel(vendor) + " installer URL.");
-            return WebUtility.HtmlDecode(match.Value);
+            try
+            {
+                string html = DownloadVendorPageText(page);
+                Match match = Regex.Match(html, pattern, RegexOptions.IgnoreCase);
+                if (match.Success)
+                    return WebUtility.HtmlDecode(match.Value);
+            }
+            catch
+            {
+            }
         }
+
+        throw new Exception(
+            "Could not resolve the current official " +
+            GpuVendorLabel(vendor) + " installer URL.");
     }
 
     static void ValidateOfficialGpuInstallerUrl(string vendor, string url)
@@ -4973,12 +5019,39 @@ internal static class WgdotNative
         SafeDeleteFile(installer);
 
         Console.WriteLine("Downloading from " + new Uri(url).Host + "...");
-        using (var client = new WebClient())
+        bool downloaded = false;
+        if (ExecutableExists("curl.exe"))
         {
-            client.Headers[HttpRequestHeader.UserAgent] = "Mozilla/5.0 WGDot";
-            if (String.Equals(vendor, "amd", StringComparison.OrdinalIgnoreCase))
-                client.Headers[HttpRequestHeader.Referer] = "https://www.amd.com/en/support/download/drivers.html";
-            client.DownloadFile(url, installer);
+            string referer = String.Equals(vendor, "amd", StringComparison.OrdinalIgnoreCase)
+                ? "https://www.amd.com/en/support/download/drivers.html"
+                : String.Equals(vendor, "nvidia", StringComparison.OrdinalIgnoreCase)
+                    ? "https://www.nvidia.com/en-us/software/nvidia-app/"
+                    : "";
+
+            string curlArgs =
+                "-fL --retry 2 --connect-timeout 15 --max-time 300 " +
+                "-A " + Q("Mozilla/5.0 WGDot") + " ";
+            if (!String.IsNullOrWhiteSpace(referer))
+                curlArgs += "-e " + Q(referer) + " ";
+            curlArgs += Q(url) + " -o " + Q(installer);
+
+            ProcResult curl = RunWithTimeout(
+                "curl.exe",
+                curlArgs,
+                null,
+                310000);
+            downloaded = !curl.TimedOut && curl.ExitCode == 0 && File.Exists(installer);
+        }
+
+        if (!downloaded)
+        {
+            using (var client = new WebClient())
+            {
+                client.Headers[HttpRequestHeader.UserAgent] = "Mozilla/5.0 WGDot";
+                if (String.Equals(vendor, "amd", StringComparison.OrdinalIgnoreCase))
+                    client.Headers[HttpRequestHeader.Referer] = "https://www.amd.com/en/support/download/drivers.html";
+                client.DownloadFile(url, installer);
+            }
         }
 
         if (!File.Exists(installer) || new FileInfo(installer).Length < 100000)
@@ -4988,21 +5061,10 @@ internal static class WgdotNative
         {
             SafeDeleteFile(installer);
 
-            if (String.Equals(vendor, "amd", StringComparison.OrdinalIgnoreCase))
-            {
-                Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.WriteLine("AMD did not return a valid installer even with the required AMD.com referrer.");
-                Console.WriteLine("Opening AMD Drivers & Support so the download can be completed directly in the browser.");
-                Console.ResetColor();
-
-                var browser = new ProcessStartInfo();
-                browser.FileName = "https://www.amd.com/en/support/download/drivers.html";
-                browser.UseShellExecute = true;
-                Process.Start(browser);
-                return 1;
-            }
-
-            throw new Exception("Downloaded GPU installer is not a valid Windows executable.");
+            throw new Exception(
+                "Official " + GpuVendorLabel(vendor) +
+                " download did not produce a valid Windows executable. " +
+                "No third-party fallback was used.");
         }
 
         var state = ReadJson(GpuStatePath) ?? new Dictionary<string, object>();
