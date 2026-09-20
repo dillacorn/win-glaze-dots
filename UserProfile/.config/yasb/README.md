@@ -1,97 +1,79 @@
-# Pure Black Nord
+# Awtarchy-inspired YASB
 
-A pure black variant of the Dark Nord theme for YASB (Yet Another Status Bar) with high contrast elements and clean aesthetics.
+This YASB configuration intentionally mirrors the current Awtarchy Quickshell bar where Windows, YASB, and GlazeWM have direct supported equivalents. It does not add helper scripts to imitate compositor-only features.
 
-## Preview
+## Bar layout
 
-![Pure Black Nord Theme](https://raw.githubusercontent.com/amnweb/yasb-themes/refs/heads/main/themes/03a6eaa2-6d0b-485d-94aa-2d87e98f3c64/image.png)
+Left:
 
-## Features
+- Flow Launcher button using the existing WGDot `flow-open` helper
+- GlazeWM workspaces
+- collapsible workspace-move controls using GlazeWM's native `move-workspace --direction` command
+- running-window task icons
+- active GlazeWM binding mode
 
-- **Pure Black Background**: Minimal visual noise with true black (`#000000`) base
-- **Nord-Inspired Colors**: Based on the popular Dark Nord color scheme
-- **High Contrast**: Bright text on dark backgrounds for excellent readability
-- **Clean Typography**: Uses JetBrainsMono NFP font for crisp text rendering
-- **Vibrant Accents**: Nord-inspired accent colors for important elements
-- **GlazeWM Integration**: Full workspace indicator support with active state highlighting
-- **Media Controls**: Integrated media player controls with modern styling
-- **System Widgets**: Complete system monitoring with Cava audio visualization
+Center:
 
-## Widgets Included
+- active window title
 
-- **GlazeWM Workspaces**: Visual workspace indicators with active highlighting
-- **Active Window**: Current window title display
-- **Media Player**: Now playing information with controls
-- **Audio Visualizer**: Cava integration for audio visualization
-- **Taskbar**: Application launcher and switcher
-- **System Info**: Clock, weather, volume, WiFi, Bluetooth
-- **Power Menu**: System power controls
-- **Notes**: Quick note-taking widget
-- **Wallpaper Manager**: Background image switcher
+Right:
 
-## Installation
+- CPU usage
+- memory usage
+- brightness
+- battery when supported
+- microphone status/control
+- output volume
+- clock/date toggle
+- network
+- Bluetooth
+- system tray
+- Windows notifications
+- power menu
 
-1. Download the theme files
-2. Copy `styles.css` to your YASB styles directory
-3. Copy `config.yaml` to your YASB config directory
-4. Restart YASB or reload configuration
+The bar uses Awtarchy's current flat palette: `#353535` background, `#d0d0d0` foreground, subtle active/hover fills, square controls, and a 28 px horizontal bar. JetBrainsMono NFP remains the Windows font because WGDot already installs it; this branch does not add another font dependency solely for visual parity.
 
-## Customization
+## Evidence-backed mappings
 
-### Color Scheme
+These translations use documented upstream YASB or GlazeWM behavior rather than custom emulation:
 
-The theme uses CSS variables based on Nord colors with pure black backgrounds:
+| Awtarchy behavior | Windows mapping | Evidence |
+| --- | --- | --- |
+| monitor-local workspaces + wheel switching | `GlazewmWorkspacesWidget` | YASB `docs/widgets/(Widget)-GlazeWM-Workspaces.md` |
+| visible Hyprland submap | `GlazewmBindingModeWidget` for WGDot's `noalt` / `vm` modes | YASB `docs/widgets/(Widget)-GlazeWM-Binding-Mode.md` |
+| task icons | `TaskbarWidget` | YASB taskbar supports monitor filtering, close callbacks, minimize/restore focus behavior, and disabled animation |
+| workspace move drawer | collapsed `GrouperWidget` containing `ApplicationsWidget` buttons that call GlazeWM's native directional workspace move command | YASB Grouper/Applications docs + existing WGDot GlazeWM `move-workspace --direction` bindings |
+| CPU / memory | native CPU and Memory widgets | YASB CPU/Memory docs |
+| DDC brightness | native Brightness widget | YASB brightness docs explicitly support external DDC/CI monitors and background DDC polling |
+| battery | native Battery widget with `hide_unsupported` | YASB Battery docs |
+| microphone | native Microphone widget | YASB Microphone docs |
+| output audio | native Volume widget | YASB Volume docs |
+| clock/date | Clock widget primary/alternate labels | YASB Clock docs |
+| network / Bluetooth | native WiFi and Bluetooth menus | YASB WiFi/Bluetooth docs |
+| inline tray | native Systray widget | YASB Systray docs |
+| notifications | native Notifications widget opening Windows Action Center | YASB Notifications docs |
+| power controls | native compact Power Menu popup | YASB Power Menu docs |
+| exclusive bar area + fullscreen hiding | `windows_app_bar: true` + `hide_on_fullscreen: true` | YASB bar configuration |
+| Flow Launcher button | `ApplicationsWidget` launching the existing WGDot helper | YASB Applications widget supports arbitrary commands |
 
-```css
-:root {
-    --background: #000000;    /* Pure black (modified from Nord) */
-    --text: #ffffff;          /* Pure white text */
-    --base1: #1a1a1a;        /* Dark gray variant */
-    --base2: #0d0d0d;        /* Dark gray variant */
-    --base3: #171717;        /* Dark gray variant */
-    --red: #bf616a;          /* Nord red */
-    --green: #a3be8c;        /* Nord green */
-    --yellow: #ebcb8b;       /* Nord yellow */
-    --blue: #88c0d0;         /* Nord blue */
-    --pink: #b48ead;         /* Nord purple/pink */
-}
-```
+## Deliberate differences and omissions
 
-### Font
+The following Awtarchy features are not translated because a direct supported equivalent was not verified:
 
-Change the font family by modifying the universal selector:
+- CPU temperature: YASB's CPU widget does not expose CPU temperature. GPU temperature or an external Libre Hardware Monitor service would not be the same feature.
+- idle inhibitor: no native YASB idle-inhibitor equivalent was verified.
+- Hyprland special-workspace scratchpad count: GlazeWM does not expose the same special-workspace model.
+- Awtarchy's global "new windows float" indicator: no direct GlazeWM/YASB state equivalent was verified.
+- privacy / screen-capture indicator: no native YASB equivalent was verified.
+- one-click Awtarchy clipboard popup: YASB has Windows clipboard history inside Quick Launch, but not the same dedicated bar surface.
+- vertical left/right bar layouts: current YASB bar positioning supports top/bottom, not Awtarchy's vertical edge layouts.
+- workspace urgent-state coloring and Awtarchy's static number+glyph workspace labels: the YASB GlazeWM workspace widget does not expose those exact Hyprland states/mappings.
+- Awtarchy's workspace mover expands on hover and includes a mouse submap toggle. YASB's native Grouper expands by click, and WGDot has no equivalent mouse binding mode.
+- Awtarchy only shows its microphone indicator while muted. YASB's native microphone widget remains visible and applies a muted CSS state instead.
+- task-icon left click is not identical: YASB's native `toggle_window` minimizes an already-active window; Awtarchy's left click simply activates it.
 
-```css
-* {
-    font-family: "Your Font Name", monospace;
-}
-```
+## Anti-cheat-sensitive choices
 
-## Requirements
+The YASB systray stays on `use_hook: false`. Upstream documents `use_hook: true` as an `explorer.exe` DLL-injection method that may interact badly with Defender or other security software. WGDot does not need that extra hook merely to imitate the Awtarchy tray.
 
-- YASB (Yet Another Status Bar)
-- GlazeWM (for workspace functionality)
-- JetBrainsMono NFP font (recommended)
-
-## Compatibility
-
-- **Windows**: 10/11
-- **YASB Version**: Latest
-- **GlazeWM**: v3.x+
-
-## Credits
-
-- **Base Theme**: [Dark Nord by sumCottage](https://github.com/amnweb/yasb-themes/tree/main/themes/03a6eaa2-6d0b-485d-94aa-2d87e98f3c64)
-- **Original Author**: sumCottage
-- **Modified By**: dillacorn
-- **YASB**: [amnweb/yasb](https://github.com/amnweb/yasb)
-- **Font**: JetBrains Mono Nerd Font
-- **Color Scheme**: Nord + Pure Black variant
-
-## License
-
-This theme is released under the MIT License. Feel free to modify and distribute.
-
----
-
-*For issues or feature requests, please open an issue on the YASB themes repository.*
+No AutoHotkey, whkd, keyboard hook, DLL injection, or custom background input daemon is added by this bar translation.
