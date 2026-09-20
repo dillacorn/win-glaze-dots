@@ -326,7 +326,8 @@ foreach ($widgetType in @(
     'yasb.wifi.WifiWidget',
     'yasb.bluetooth.BluetoothWidget',
     'yasb.systray.SystrayWidget',
-    'yasb.dnd.DndWidget'
+    'yasb.dnd.DndWidget',
+    'yasb.power_menu.PowerMenuWidget'
 )) {
     Assert-Contains $config $widgetType "supported YASB widget is present: $widgetType"
 }

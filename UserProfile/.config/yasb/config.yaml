@@ -531,28 +531,3 @@ widgets:
         on_left: "exec wgdot power-menu"
         on_middle: "do_nothing"
         on_right: "exec wgdot power-menu"
-
-    type: "yasb.power_menu.PowerMenuWidget"
-    options:
-      label: "<span></span>"
-      uptime: false
-      show_user: false
-      animation_duration: 0
-      menu_style: "popup"
-      callbacks:
-        on_left: "toggle_power_menu"
-        on_middle: "do_nothing"
-        on_right: "toggle_power_menu"
-      popup:
-        blur: false
-        round_corners: false
-        border_color: None
-        alignment: "right"
-        direction: "down"
-      buttons:
-        lock: ["", "Lock"]
-        signout: ["󰍃", "Sign out"]
-        sleep: ["󰤄", "Sleep"]
-        restart: ["", "Restart"]
-        shutdown: ["", "Shut Down"]
-        cancel: ["", "Cancel"]
