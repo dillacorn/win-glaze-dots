@@ -628,7 +628,7 @@ Assert-True ($yasbConfigText -match 'glazewm_tiling_direction') "YASB exposes Gl
 Assert-True ($yasbConfigText -match 'GlazewmTilingDirectionWidget') "YASB uses its native GlazeWM tiling-direction widget"
 
 $flameshotConfigText = Get-Content -LiteralPath (Join-Path $repoRoot "UserProfile\AppData\Roaming\flameshot\flameshot.ini") -Raw
-Assert-True ($flameshotConfigText -match '(?m)^captureActiveMonitor=true\s*
+Assert-True ($flameshotConfigText -match '(?m)^captureActiveMonitor=true') "Flameshot defaults to capturing the active monitor without monitor selection"
 Assert-True ($nativeSourceText -match 'WaitForWindowsModifierRelease') "synthetic clipboard/mixer hotkeys wait for physical Super release"
 Assert-True ($nativeSourceText -match 'bool wasPaused = GlazeWmIsPaused\(\)') "Clipboard History preserves the existing GlazeWM pause state"
 Assert-True ($nativeSourceText -match '(?s)OpenWindowsClipboardHistory\(\).*?GlazeWmPauseToggle\(\).*?keybd_event\(VkLwin.*?keybd_event\(VkV.*?GlazeWmPauseToggle\(\)') "Clipboard History bypasses GlazeWM Super+V interception while injecting native Win+V"
