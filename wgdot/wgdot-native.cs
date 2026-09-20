@@ -19,7 +19,7 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-45";
+    const string Version = "native-preview-46";
     const int WingetPreflightTimeoutMs = 30000;
     const string RepoFullName = "dillacorn/win-glaze-dots";
     const string RepoUrl = "https://github.com/dillacorn/win-glaze-dots.git";
@@ -44,6 +44,7 @@ internal static class WgdotNative
     static readonly string GpuStatePath = Path.Combine(StateRoot, "gpu-maintenance.json");
     static readonly string BrowserStatePath = Path.Combine(StateRoot, "browser-management.json");
     static readonly string ThemeStatePath = Path.Combine(StateRoot, "theme.json");
+    static readonly string AppearanceStatePath = Path.Combine(StateRoot, "yasb-appearance.json");
     static readonly JavaScriptSerializer Json = new JavaScriptSerializer { MaxJsonLength = int.MaxValue, RecursionLimit = 100 };
 
     static readonly IntPtr HwndBroadcast = new IntPtr(0xffff);
@@ -98,6 +99,18 @@ internal static class WgdotNative
     delegate IntPtr LowLevelMouseProc(int nCode, IntPtr wParam, IntPtr lParam);
 
     [StructLayout(LayoutKind.Sequential)]
+    struct KBDLLHOOKSTRUCT
+    {
+        public uint vkCode;
+        public uint scanCode;
+        public uint flags;
+        public uint time;
+        public UIntPtr dwExtraInfo;
+    }
+
+    delegate IntPtr LowLevelKeyboardProc(int nCode, IntPtr wParam, IntPtr lParam);
+
+    [StructLayout(LayoutKind.Sequential)]
     struct MONITORINFO
     {
         public uint cbSize;
@@ -142,6 +155,13 @@ internal static class WgdotNative
     static extern IntPtr SetWindowsHookEx(
         int idHook,
         LowLevelMouseProc lpfn,
+        IntPtr hMod,
+        uint dwThreadId);
+
+    [DllImport("user32.dll", EntryPoint = "SetWindowsHookEx", SetLastError = true)]
+    static extern IntPtr SetWindowsHookExKeyboard(
+        int idHook,
+        LowLevelKeyboardProc lpfn,
         IntPtr hMod,
         uint dwThreadId);
 
@@ -198,9 +218,15 @@ internal static class WgdotNative
     const int WmRButtonDown = 0x0204;
     const int WmRButtonUp = 0x0205;
     const int WmMButtonDown = 0x0207;
+    const int WmKeyDown = 0x0100;
+    const int WmKeyUp = 0x0101;
+    const int WmSysKeyDown = 0x0104;
+    const int WmSysKeyUp = 0x0105;
+    const int WhKeyboardLl = 13;
     const int WhMouseLl = 14;
     const uint GaRoot = 2;
     const uint LlMhfInjected = 0x00000001;
+    const uint LlKhfInjected = 0x00000010;
     const int HtCaption = 2;
     const int HtTopLeft = 13;
     const int HtTopRight = 14;
@@ -211,12 +237,20 @@ internal static class WgdotNative
 
     const string MouseModeMutexName = @"Local\WGDot.MouseModeHook";
     const string MouseModeStopEventName = @"Local\WGDot.MouseModeStop";
+    const string SuperLTestMutexName = @"Local\WGDot.SuperLTestHook";
+    const string SuperLTestStopEventName = @"Local\WGDot.SuperLTestStop";
 
     static LowLevelMouseProc MouseModeHookProc;
     static IntPtr MouseModeHookHandle = IntPtr.Zero;
     static IntPtr MouseModeResizeTarget = IntPtr.Zero;
+    static LowLevelKeyboardProc SuperLHookProc;
+    static IntPtr SuperLHookHandle = IntPtr.Zero;
+    static bool SuperLLeftWinDown;
+    static bool SuperLRightWinDown;
+    static bool SuperLSuppressKeyUp;
 
     const byte VkMenu = 0x12;
+    const byte VkL = 0x4C;
     const byte VkLwin = 0x5B;
     const byte VkRwin = 0x5C;
     const byte VkV = 0x56;
@@ -468,7 +502,11 @@ internal static class WgdotNative
             if (command == "rawaccel-open") return OpenRawAccel();
             if (command == "display-settings") return OpenDisplaySettings();
             if (command == "bar-autohide-toggle") return BarAutoHideToggle();
+            if (command == "yasb-running-apps-toggle") return ToggleYasbRunningApps();
+            if (command == "yasb-running-apps-shade-toggle") return ToggleYasbRunningAppsShade();
             if (command == "window-audit") return WindowAudit();
+            if (command == "super-l-test") return SuperLTestFromArgs(args.Skip(1).ToArray());
+            if (command == "super-l-hook") return SuperLHookWorker();
             if (command == "mouse-mode-toggle") return MouseModeToggle();
             if (command == "mouse-mode-switch") return MouseModeSwitchFromArgs(args.Skip(1).ToArray());
             if (command == "mouse-mode-hook") return MouseModeHook();
@@ -519,6 +557,7 @@ internal static class WgdotNative
             String.Equals(command, "git-update", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "git-reset", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "apply-tweak", StringComparison.OrdinalIgnoreCase) ||
+            String.Equals(command, "super-l-test", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "window-audit", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "software", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "software-audit", StringComparison.OrdinalIgnoreCase) ||
@@ -626,6 +665,12 @@ internal static class WgdotNative
         Console.WriteLine("Baseline: " + (File.Exists(BaselineIndexPath) ? "present" : "not initialized"));
         Console.WriteLine("Recorded backups: " + CountRecordedBackups().ToString(CultureInfo.InvariantCulture));
         Console.WriteLine("YASB theme: " + CurrentYasbThemeId());
+        Dictionary<string, object> appearance = ReadYasbAppearanceState();
+        Console.WriteLine(
+            "YASB running apps: " +
+            (GetBool(appearance, "runningAppsVisible") ? "shown" : "hidden") +
+            ", shading " +
+            (GetBool(appearance, "shadeRunningApps") ? "on" : "off"));
 
         var gpuState = ReadJson(GpuStatePath);
         if (gpuState != null)
@@ -5314,6 +5359,105 @@ internal static class WgdotNative
         return Path.Combine(profileRoot, ".config", "yasb", "theme.css");
     }
 
+    static string YasbAppearanceCssPath()
+    {
+        string profileRoot;
+        if (!String.IsNullOrWhiteSpace(TestRootOverride))
+            profileRoot = Path.Combine(TestRootOverride, "user-profile");
+        else
+            profileRoot = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+
+        return Path.Combine(profileRoot, ".config", "yasb", "appearance.css");
+    }
+
+    static Dictionary<string, object> ReadYasbAppearanceState()
+    {
+        Dictionary<string, object> state =
+            ReadJson(AppearanceStatePath) ??
+            new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+
+        if (!state.ContainsKey("runningAppsVisible"))
+            state["runningAppsVisible"] = true;
+        if (!state.ContainsKey("shadeRunningApps"))
+            state["shadeRunningApps"] = false;
+
+        return state;
+    }
+
+    static string BuildYasbAppearanceCss(bool runningAppsVisible, bool shadeRunningApps)
+    {
+        var lines = new List<string>();
+        lines.Add("/* Generated by WGDot. YASB live appearance toggles. */");
+
+        if (!runningAppsVisible)
+        {
+            lines.Add(".taskbar-widget,");
+            lines.Add(".taskbar-widget .widget-container,");
+            lines.Add(".taskbar-widget .app-container {");
+            lines.Add("    min-width: 0;");
+            lines.Add("    max-width: 0;");
+            lines.Add("    margin: 0;");
+            lines.Add("    padding: 0;");
+            lines.Add("    border: none;");
+            lines.Add("}");
+        }
+        else if (shadeRunningApps)
+        {
+            lines.Add(".taskbar-widget .app-container.running {");
+            lines.Add("    background-color: var(--subtle-hover);");
+            lines.Add("}");
+            lines.Add(".taskbar-widget .app-container.foreground {");
+            lines.Add("    background-color: var(--subtle-active);");
+            lines.Add("}");
+            lines.Add(".taskbar-widget .app-container.running.minimized {");
+            lines.Add("    background-color: var(--active);");
+            lines.Add("    opacity: 0.55;");
+            lines.Add("}");
+        }
+
+        lines.Add("");
+        return String.Join("\r\n", lines.ToArray());
+    }
+
+    static void WriteYasbAppearance(Dictionary<string, object> state)
+    {
+        bool visible = GetBool(state, "runningAppsVisible");
+        bool shaded = GetBool(state, "shadeRunningApps");
+        string cssPath = YasbAppearanceCssPath();
+
+        WriteTextAtomic(cssPath, BuildYasbAppearanceCss(visible, shaded));
+        File.AppendAllText(cssPath, Environment.NewLine, new UTF8Encoding(false));
+
+        state["updatedAt"] = DateTime.UtcNow.ToString("o");
+        state["cssPath"] = cssPath;
+        WriteJson(AppearanceStatePath, state);
+    }
+
+    static void EnsureYasbAppearance()
+    {
+        WriteYasbAppearance(ReadYasbAppearanceState());
+    }
+
+    static int ToggleYasbRunningApps()
+    {
+        Dictionary<string, object> state = ReadYasbAppearanceState();
+        bool next = !GetBool(state, "runningAppsVisible");
+        state["runningAppsVisible"] = next;
+        WriteYasbAppearance(state);
+        Console.WriteLine("YASB running applications: " + (next ? "shown" : "hidden"));
+        return 0;
+    }
+
+    static int ToggleYasbRunningAppsShade()
+    {
+        Dictionary<string, object> state = ReadYasbAppearanceState();
+        bool next = !GetBool(state, "shadeRunningApps");
+        state["shadeRunningApps"] = next;
+        WriteYasbAppearance(state);
+        Console.WriteLine("YASB running-app shading: " + (next ? "enabled" : "disabled"));
+        return 0;
+    }
+
     static int ThemeManagerFromArgs(string[] args)
     {
         if (args == null || args.Length == 0)
@@ -6010,6 +6154,219 @@ internal static class WgdotNative
         System.Threading.ThreadPool.QueueUserWorkItem(
             delegate { ToggleFloatingWindowUnderMouse(window); });
         return new IntPtr(1);
+    }
+
+    static bool NamedMutexExists(string name)
+    {
+        try
+        {
+            using (System.Threading.Mutex mutex = System.Threading.Mutex.OpenExisting(name))
+                return true;
+        }
+        catch (System.Threading.WaitHandleCannotBeOpenedException)
+        {
+            return false;
+        }
+    }
+
+    static void SignalSuperLTestStop()
+    {
+        try
+        {
+            using (var stop = System.Threading.EventWaitHandle.OpenExisting(SuperLTestStopEventName))
+                stop.Set();
+        }
+        catch (System.Threading.WaitHandleCannotBeOpenedException)
+        {
+        }
+    }
+
+    static void StartSuperLHookWorker()
+    {
+        string exe = Process.GetCurrentProcess().MainModule.FileName;
+        var psi = new ProcessStartInfo();
+        psi.FileName = exe;
+        psi.Arguments = "super-l-hook";
+        psi.UseShellExecute = false;
+        psi.CreateNoWindow = true;
+        psi.WindowStyle = ProcessWindowStyle.Hidden;
+        psi.EnvironmentVariables["WGDOT_SKIP_RUNTIME_REFRESH"] = "1";
+
+        Process process = Process.Start(psi);
+        if (process == null)
+            throw new Exception("Failed to start the WGDot Super+L test hook.");
+    }
+
+    static int SuperLTestFromArgs(string[] args)
+    {
+        if (args.Length != 1)
+        {
+            Console.Error.WriteLine("Usage: wgdot super-l-test <start|stop|status>");
+            return 2;
+        }
+
+        string action = args[0].Trim().ToLowerInvariant();
+        if (action == "status")
+        {
+            Console.WriteLine(
+                "Super+L focus-right test hook: " +
+                (NamedMutexExists(SuperLTestMutexName) ? "running" : "stopped"));
+            return 0;
+        }
+
+        if (action == "stop")
+        {
+            SignalSuperLTestStop();
+            for (int i = 0; i < 20 && NamedMutexExists(SuperLTestMutexName); i++)
+                System.Threading.Thread.Sleep(50);
+            Console.WriteLine("Super+L focus-right test hook stopped.");
+            return 0;
+        }
+
+        if (action != "start")
+        {
+            Console.Error.WriteLine("Usage: wgdot super-l-test <start|stop|status>");
+            return 2;
+        }
+
+        if (NamedMutexExists(SuperLTestMutexName))
+        {
+            Console.WriteLine("Super+L focus-right test hook is already running.");
+            return 0;
+        }
+
+        StartSuperLHookWorker();
+        for (int i = 0; i < 30 && !NamedMutexExists(SuperLTestMutexName); i++)
+            System.Threading.Thread.Sleep(50);
+
+        if (!NamedMutexExists(SuperLTestMutexName))
+            throw new Exception("Super+L focus-right test hook did not start.");
+
+        Console.WriteLine("Super+L focus-right test hook started.");
+        Console.WriteLine("Press Super+L with two adjacent tiled windows. It should focus right instead of locking.");
+        Console.WriteLine("Stop test: wgdot super-l-test stop");
+        return 0;
+    }
+
+    static void FocusRightFromSuperL()
+    {
+        ProcResult result = Run("glazewm.exe", "command focus --direction right", null);
+        if (result.ExitCode != 0)
+            Console.Error.WriteLine(
+                "Super+L focus-right command failed: " +
+                LastUsefulLine(result.StdErr + "\n" + result.StdOut));
+    }
+
+    static IntPtr SuperLHookCallback(int nCode, IntPtr wParam, IntPtr lParam)
+    {
+        if (nCode < 0)
+            return CallNextHookEx(SuperLHookHandle, nCode, wParam, lParam);
+
+        KBDLLHOOKSTRUCT data =
+            (KBDLLHOOKSTRUCT)Marshal.PtrToStructure(lParam, typeof(KBDLLHOOKSTRUCT));
+
+        if ((data.flags & LlKhfInjected) != 0)
+            return CallNextHookEx(SuperLHookHandle, nCode, wParam, lParam);
+
+        int message = unchecked((int)wParam.ToInt64());
+        bool down = message == WmKeyDown || message == WmSysKeyDown;
+        bool up = message == WmKeyUp || message == WmSysKeyUp;
+
+        if (data.vkCode == VkLwin)
+        {
+            if (down) SuperLLeftWinDown = true;
+            if (up) SuperLLeftWinDown = false;
+            return CallNextHookEx(SuperLHookHandle, nCode, wParam, lParam);
+        }
+
+        if (data.vkCode == VkRwin)
+        {
+            if (down) SuperLRightWinDown = true;
+            if (up) SuperLRightWinDown = false;
+            return CallNextHookEx(SuperLHookHandle, nCode, wParam, lParam);
+        }
+
+        if (data.vkCode == VkL && down && (SuperLLeftWinDown || SuperLRightWinDown))
+        {
+            if (!SuperLSuppressKeyUp)
+            {
+                SuperLSuppressKeyUp = true;
+                System.Threading.ThreadPool.QueueUserWorkItem(
+                    delegate { FocusRightFromSuperL(); });
+            }
+            return new IntPtr(1);
+        }
+
+        if (data.vkCode == VkL && up && SuperLSuppressKeyUp)
+        {
+            SuperLSuppressKeyUp = false;
+            return new IntPtr(1);
+        }
+
+        return CallNextHookEx(SuperLHookHandle, nCode, wParam, lParam);
+    }
+
+    static int SuperLHookWorker()
+    {
+        bool createdNew;
+        using (var mutex = new System.Threading.Mutex(true, SuperLTestMutexName, out createdNew))
+        {
+            if (!createdNew)
+                return 0;
+
+            using (var stop = new System.Threading.EventWaitHandle(
+                false,
+                System.Threading.EventResetMode.ManualReset,
+                SuperLTestStopEventName))
+            {
+                stop.Reset();
+                SuperLLeftWinDown = false;
+                SuperLRightWinDown = false;
+                SuperLSuppressKeyUp = false;
+
+                SuperLHookProc = SuperLHookCallback;
+                SuperLHookHandle = SetWindowsHookExKeyboard(
+                    WhKeyboardLl,
+                    SuperLHookProc,
+                    GetModuleHandle(null),
+                    0);
+
+                if (SuperLHookHandle == IntPtr.Zero)
+                    throw new System.ComponentModel.Win32Exception(
+                        Marshal.GetLastWin32Error(),
+                        "Failed to install WGDot Super+L test hook.");
+
+                var timer = new System.Windows.Forms.Timer();
+                timer.Interval = 250;
+                timer.Tick += delegate
+                {
+                    if (stop.WaitOne(0) || Process.GetProcessesByName("glazewm").Length == 0)
+                        System.Windows.Forms.Application.ExitThread();
+                };
+
+                try
+                {
+                    timer.Start();
+                    System.Windows.Forms.Application.Run();
+                }
+                finally
+                {
+                    timer.Stop();
+                    timer.Dispose();
+                    if (SuperLHookHandle != IntPtr.Zero)
+                    {
+                        UnhookWindowsHookEx(SuperLHookHandle);
+                        SuperLHookHandle = IntPtr.Zero;
+                    }
+                    SuperLHookProc = null;
+                    SuperLLeftWinDown = false;
+                    SuperLRightWinDown = false;
+                    SuperLSuppressKeyUp = false;
+                }
+            }
+        }
+
+        return 0;
     }
 
     static int MouseModeHook()
@@ -7902,6 +8259,7 @@ public static class Program
                     string themeId = CurrentYasbThemeId();
                     if (ApplyYasbTheme(themeId) != 0)
                         throw new Exception("Failed to generate the YASB theme stylesheet.");
+                    EnsureYasbAppearance();
                 }
             }
         }
