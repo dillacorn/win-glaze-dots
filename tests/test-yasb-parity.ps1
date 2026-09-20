@@ -31,7 +31,8 @@ $glazeNormal = Get-Content -LiteralPath $glazeNormalPath -Raw
 $glazeWork = Get-Content -LiteralPath $glazeWorkPath -Raw
 
 Assert-Contains $config 'height: 28' "bar height stays at Awtarchy horizontal default"
-Assert-Contains $config 'windows_app_bar: true' "YASB reserves the Windows work area"
+Assert-Contains $config 'always_on_top: true' "YASB remains above normal windows without changing reservation models"
+Assert-Contains $config 'windows_app_bar: false' "YASB keeps the reload-free GlazeWM gap reservation"
 Assert-Contains $config 'hide_on_fullscreen: true' "YASB hides for fullscreen applications"
 Assert-Contains $config 'auto_hide: false' "normal YASB AppBar mode is explicit until runtime auto-hide is supported"
 Assert-Contains $config 'align: "center"' "current YASB BarAlignment field is used"
@@ -71,8 +72,8 @@ Assert-Contains $config 'tooltip_label: "Themes (Win+T)"' "theme button document
 Assert-Contains $config 'wt.exe -w new --size 72,22 nt --title "WGDot Themes" --suppressApplicationTitle wgdot theme' "theme button keeps WGDot errors visible in a stable titled Windows Terminal"
 
 foreach ($glaze in @($glazeNormal, $glazeWork)) {
-    Assert-Contains $glaze 'top: "8px"' "GlazeWM keeps a normal top outer gap when YASB reserves the AppBar area"
-    Assert-NotContains $glaze 'top: "38px"' "legacy manual YASB top allowance is removed"
+    Assert-Contains $glaze 'top: "38px"' "GlazeWM keeps the existing reload-free top reservation"
+    Assert-NotContains $glaze 'top: "8px"' "bar redesign does not require live GlazeWM gap migration"
     Assert-Contains $glaze 'shell-exec yasb' "GlazeWM starts YASB"
     Assert-Contains $glaze 'color: "#a1a1a1"' "focused GlazeWM border stays theme-neutral"
     Assert-Contains $glaze 'bindings: ["lwin+t", "rwin+t"]' "Win+T opens themes in normal/noalt contexts"
@@ -125,6 +126,6 @@ Assert-Contains $readme 'Power & battery' "Windows-native battery details mappin
 Assert-Contains $readme 'visual preview cards' "theme-selector limitation versus Awtarchy is documented"
 Assert-Contains $readme 'output discarded' "direct YASB theme-command diagnostic limitation is documented"
 Assert-Contains $readme '#a1a1a1' "neutral GlazeWM border rationale is documented"
-Assert-Contains $readme 'double gap' "AppBar transition avoids double-reserving the top edge"
+Assert-Contains $readme 'reload-free reservation model' "bar transition rationale avoids forced GlazeWM reload"
 
 Write-Host "YASB parity checks passed." -ForegroundColor Green
