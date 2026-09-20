@@ -23,6 +23,9 @@ Assert-True (Test-Path -LiteralPath $runtimePath -PathType Leaf) "runtime exists
 Assert-True (Test-Path -LiteralPath $manifestPath -PathType Leaf) "manifest exists"
 Assert-True (Test-Path -LiteralPath $launcherPath -PathType Leaf) "launcher exists"
 Assert-True (Test-Path -LiteralPath $nativeBootstrapPath -PathType Leaf) "native bootstrap exists"
+$nativeBootstrapText = Get-Content -LiteralPath $nativeBootstrapPath -Raw
+Assert-True ($nativeBootstrapText -match 'System\.Windows\.Forms\.dll') "native bootstrap references WinForms for the WGDot power overlay"
+Assert-True ($nativeBootstrapText -match 'System\.Drawing\.dll') "native bootstrap references System.Drawing for the WGDot power overlay"
 Assert-True (Test-Path -LiteralPath $nativeSourcePath -PathType Leaf) "native bootstrap source exists"
 
 $env:WGDOT_TEST_MODE = "1"
@@ -522,6 +525,10 @@ Assert-True ($nativeSourceText -match 'command == "clipboard-history"') "native 
 Assert-True ($nativeSourceText -match 'command == "glazewm-pause-status"') "native runtime exposes GlazeWM paused state"
 Assert-True ($nativeSourceText -match 'command == "glazewm-pause-toggle"') "native runtime exposes real GlazeWM pause toggle"
 Assert-True ($nativeSourceText -match 'command == "theme-toggle"') "native runtime exposes the single-instance theme selector"
+Assert-True ($nativeSourceText -match 'command == "power-menu"') "native runtime exposes the WGDot power overlay"
+Assert-True ($nativeSourceText -match 'System\.Windows\.Forms\.Application\.Run') "power overlay uses a native WinForms event loop"
+Assert-True ($nativeSourceText -match 'LockWorkStation') "power overlay uses Windows lock API"
+Assert-True ($nativeSourceText -match 'SetSuspendState') "power overlay uses Windows sleep API"
 Assert-True ($nativeSourceText -match 'ApplicationDataManager\.CreateForPackageFamily') "EarTrumpet AppX settings use Windows packaged LocalSettings"
 Assert-True ($nativeSourceText -match '40459File-New-Project\.EarTrumpet_725pr5jq8wr8a') "EarTrumpet package family is explicit"
 Assert-True ($nativeSourceText -match 'ApplyClassicContextMenu') "native runtime manages classic context menu"

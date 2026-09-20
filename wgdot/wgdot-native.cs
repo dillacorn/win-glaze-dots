@@ -92,6 +92,12 @@ internal static class WgdotNative
     [DllImport("dwmapi.dll")]
     static extern int DwmGetWindowAttribute(IntPtr hWnd, int attribute, out int value, int valueSize);
 
+    [DllImport("user32.dll", SetLastError = true)]
+    static extern bool LockWorkStation();
+
+    [DllImport("powrprof.dll", SetLastError = true)]
+    static extern bool SetSuspendState(bool hibernate, bool forceCritical, bool disableWakeEvent);
+
     const uint WmClose = 0x0010;
     const uint MonitorDefaultToNearest = 0x00000002;
     const int DwmwaCloaked = 14;
@@ -219,6 +225,22 @@ internal static class WgdotNative
         public string DriverKey;
     }
 
+    sealed class PowerAction
+    {
+        public char Key;
+        public string Icon;
+        public string Label;
+        public Action Invoke;
+
+        public PowerAction(char key, string icon, string label, Action invoke)
+        {
+            Key = key;
+            Icon = icon;
+            Label = label;
+            Invoke = invoke;
+        }
+    }
+
     sealed class YasbTheme
     {
         public string Id;
@@ -278,6 +300,7 @@ internal static class WgdotNative
         new YasbTheme("pipboy", "Pip-Boy", "#050805", "#a4ff47", "#1f301f", "#1b281b", "#101810", "#263826", "#050805", "#a4ff47", "#3c1b1b", "#2a3d2a")
     };
 
+    [STAThread]
     static int Main(string[] args)
     {
         bool stagedRuntime = false;
@@ -329,6 +352,7 @@ internal static class WgdotNative
             if (command == "glazewm-pause-status") return GlazeWmPauseStatus();
             if (command == "glazewm-pause-toggle") return GlazeWmPauseToggle();
             if (command == "theme-toggle") return ThemeToggle();
+            if (command == "power-menu") return PowerMenu();
             if (command == "theme") return ThemeManagerFromArgs(args.Skip(1).ToArray());
             if (command == "gpu-driver") return GpuDriverMaintenance();
             if (command == "gpu-stage-safe") return GpuStageSafeFromArgs(args.Skip(1).ToArray());
@@ -5394,6 +5418,220 @@ internal static class WgdotNative
             System.Threading.Thread.Sleep(25);
 
         return LaunchThemeTerminal();
+    }
+
+    static System.Drawing.Color WgdotDrawingColor(string hex, System.Drawing.Color fallback)
+    {
+        try
+        {
+            return System.Drawing.ColorTranslator.FromHtml(hex);
+        }
+        catch
+        {
+            return fallback;
+        }
+    }
+
+    static void StartShutdownCommand(string arguments)
+    {
+        var psi = new ProcessStartInfo();
+        psi.FileName = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.System),
+            "shutdown.exe");
+        psi.Arguments = arguments;
+        psi.UseShellExecute = false;
+        psi.CreateNoWindow = true;
+        Process.Start(psi);
+    }
+
+    static List<PowerAction> BuildPowerActions()
+    {
+        return new List<PowerAction>
+        {
+            new PowerAction('l', "", "Lock (L)", delegate
+            {
+                if (!LockWorkStation())
+                    throw new Exception("Windows lock request failed.");
+            }),
+            new PowerAction('h', "", "Hibernate (H)", delegate
+            {
+                StartShutdownCommand("/h");
+            }),
+            new PowerAction('r', "", "Reboot (R)", delegate
+            {
+                StartShutdownCommand("/r /t 0");
+            }),
+            new PowerAction('s', "", "Shutdown (S)", delegate
+            {
+                StartShutdownCommand("/s /t 0");
+            }),
+            new PowerAction('o', "", "Sign out (O)", delegate
+            {
+                StartShutdownCommand("/l");
+            }),
+            new PowerAction('z', "", "Sleep (Z)", delegate
+            {
+                if (!SetSuspendState(false, false, false))
+                    throw new Exception("Windows sleep request failed.");
+            })
+        };
+    }
+
+    static void InvokePowerAction(System.Windows.Forms.Form form, PowerAction action)
+    {
+        if (form != null && !form.IsDisposed)
+        {
+            form.Hide();
+            form.Close();
+            System.Windows.Forms.Application.DoEvents();
+        }
+
+        if (action != null && action.Invoke != null)
+            action.Invoke();
+    }
+
+    static System.Windows.Forms.Control CreatePowerTile(
+        System.Windows.Forms.Form form,
+        PowerAction action,
+        System.Drawing.Color foreground,
+        System.Drawing.Color background,
+        System.Drawing.Color hover)
+    {
+        var tile = new System.Windows.Forms.Panel();
+        tile.Dock = System.Windows.Forms.DockStyle.Fill;
+        tile.Margin = new System.Windows.Forms.Padding(8);
+        tile.BackColor = background;
+        tile.Cursor = System.Windows.Forms.Cursors.Hand;
+
+        var grid = new System.Windows.Forms.TableLayoutPanel();
+        grid.Dock = System.Windows.Forms.DockStyle.Fill;
+        grid.ColumnCount = 1;
+        grid.RowCount = 2;
+        grid.Margin = new System.Windows.Forms.Padding(0);
+        grid.Padding = new System.Windows.Forms.Padding(0);
+        grid.BackColor = System.Drawing.Color.Transparent;
+        grid.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 65f));
+        grid.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 35f));
+
+        var icon = new System.Windows.Forms.Label();
+        icon.Text = action.Icon;
+        icon.Dock = System.Windows.Forms.DockStyle.Fill;
+        icon.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+        icon.ForeColor = foreground;
+        icon.BackColor = System.Drawing.Color.Transparent;
+        icon.Font = new System.Drawing.Font("JetBrainsMono NFP", 42f, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel);
+        icon.Cursor = System.Windows.Forms.Cursors.Hand;
+
+        var label = new System.Windows.Forms.Label();
+        label.Text = action.Label;
+        label.Dock = System.Windows.Forms.DockStyle.Fill;
+        label.TextAlign = System.Drawing.ContentAlignment.TopCenter;
+        label.ForeColor = foreground;
+        label.BackColor = System.Drawing.Color.Transparent;
+        label.Font = new System.Drawing.Font("JetBrainsMono NFP", 17f, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel);
+        label.Cursor = System.Windows.Forms.Cursors.Hand;
+
+        grid.Controls.Add(icon, 0, 0);
+        grid.Controls.Add(label, 0, 1);
+        tile.Controls.Add(grid);
+
+        EventHandler enter = delegate { tile.BackColor = hover; };
+        EventHandler leave = delegate { tile.BackColor = background; };
+        EventHandler click = delegate { InvokePowerAction(form, action); };
+
+        foreach (System.Windows.Forms.Control control in new System.Windows.Forms.Control[] { tile, grid, icon, label })
+        {
+            control.MouseEnter += enter;
+            control.MouseLeave += leave;
+            control.Click += click;
+        }
+
+        return tile;
+    }
+
+    static int PowerMenu()
+    {
+        const string title = "WGDot Power Menu";
+        IntPtr existing = FindTopLevelWindowByExactTitle(title);
+        if (existing != IntPtr.Zero)
+        {
+            PostMessage(existing, WmClose, IntPtr.Zero, IntPtr.Zero);
+            return 0;
+        }
+
+        YasbTheme theme = FindYasbTheme(CurrentYasbThemeId()) ?? YasbThemes[0];
+        System.Drawing.Color background = WgdotDrawingColor(theme.Background, System.Drawing.Color.FromArgb(53, 53, 53));
+        System.Drawing.Color foreground = WgdotDrawingColor(theme.Foreground, System.Drawing.Color.Gainsboro);
+        System.Drawing.Color tileBackground = WgdotDrawingColor(theme.Active, System.Drawing.Color.FromArgb(43, 43, 43));
+        System.Drawing.Color tileHover = WgdotDrawingColor(theme.Hover, System.Drawing.Color.FromArgb(64, 64, 64));
+
+        IntPtr foregroundWindow = GetForegroundWindow();
+        System.Windows.Forms.Screen screen = foregroundWindow == IntPtr.Zero
+            ? System.Windows.Forms.Screen.PrimaryScreen
+            : System.Windows.Forms.Screen.FromHandle(foregroundWindow);
+
+        var form = new System.Windows.Forms.Form();
+        form.Text = title;
+        form.FormBorderStyle = System.Windows.Forms.FormBorderStyle.None;
+        form.StartPosition = System.Windows.Forms.FormStartPosition.Manual;
+        form.Bounds = screen.Bounds;
+        form.TopMost = true;
+        form.ShowInTaskbar = false;
+        form.KeyPreview = true;
+        form.BackColor = background;
+        form.Opacity = 0.92;
+        form.Cursor = System.Windows.Forms.Cursors.Default;
+
+        int gridWidth = Math.Min(1000, Math.Max(690, (int)(screen.Bounds.Width * 0.58)));
+        int gridHeight = Math.Min(500, Math.Max(360, (int)(screen.Bounds.Height * 0.43)));
+
+        var grid = new System.Windows.Forms.TableLayoutPanel();
+        grid.ColumnCount = 3;
+        grid.RowCount = 2;
+        grid.Size = new System.Drawing.Size(gridWidth, gridHeight);
+        grid.Location = new System.Drawing.Point(
+            Math.Max(0, (screen.Bounds.Width - gridWidth) / 2),
+            Math.Max(0, (screen.Bounds.Height - gridHeight) / 2));
+        grid.BackColor = System.Drawing.Color.Transparent;
+        grid.Margin = new System.Windows.Forms.Padding(0);
+        grid.Padding = new System.Windows.Forms.Padding(0);
+        for (int i = 0; i < 3; i++)
+            grid.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 33.333f));
+        for (int i = 0; i < 2; i++)
+            grid.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 50f));
+
+        List<PowerAction> actions = BuildPowerActions();
+        for (int i = 0; i < actions.Count; i++)
+            grid.Controls.Add(CreatePowerTile(form, actions[i], foreground, tileBackground, tileHover), i % 3, i / 3);
+
+        form.Controls.Add(grid);
+
+        form.KeyDown += delegate(object sender, System.Windows.Forms.KeyEventArgs e)
+        {
+            if (e.KeyCode == System.Windows.Forms.Keys.Escape)
+            {
+                form.Close();
+                e.Handled = true;
+                return;
+            }
+
+            char typed = Char.ToLowerInvariant((char)e.KeyValue);
+            PowerAction action = actions.FirstOrDefault(x => x.Key == typed);
+            if (action != null)
+            {
+                e.Handled = true;
+                InvokePowerAction(form, action);
+            }
+        };
+
+        form.MouseDown += delegate(object sender, System.Windows.Forms.MouseEventArgs e)
+        {
+            form.Close();
+        };
+
+        System.Windows.Forms.Application.EnableVisualStyles();
+        System.Windows.Forms.Application.Run(form);
+        return 0;
     }
 
     static int OpenEarTrumpetMixer()

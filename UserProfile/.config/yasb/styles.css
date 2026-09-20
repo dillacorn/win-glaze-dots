@@ -262,7 +262,7 @@ QToolTip,
 .bluetooth-widget,
 .dnd-widget,
 .awtarchy-clipboard,
-.power-menu-widget,
+.awtarchy-power,
 .systray {
     background-color: transparent;
     border: none;
@@ -276,7 +276,7 @@ QToolTip,
     padding-right: 6px;
 }
 
-.power-menu-widget {
+.awtarchy-power {
     padding-left: 10px;
     padding-right: 10px;
 }
@@ -309,7 +309,7 @@ QToolTip,
 }
 
 .volume-widget .icon,
-.power-menu-widget .icon {
+.awtarchy-power .icon {
     font-size: 20px;
 }
 
@@ -328,7 +328,7 @@ QToolTip,
 .awtarchy-clipboard:hover,
 .dnd-widget:hover,
 .awtarchy-theme-picker:hover,
-.power-menu-widget:hover {
+.awtarchy-power:hover {
     background-color: var(--strong-hover);
 }
 
@@ -343,7 +343,7 @@ QToolTip,
 .bluetooth-widget .label,
 .dnd-widget .label,
 .awtarchy-clipboard .label,
-.power-menu-widget .label {
+.awtarchy-power .label {
     color: var(--foreground);
     background-color: transparent;
 }
@@ -535,7 +535,6 @@ QToolTip,
 .bluetooth-menu,
 .cpu-popup,
 .memory-popup,
-.power-menu-popup,
 .systray-popup {
     color: var(--foreground);
     background-color: var(--background);
@@ -618,23 +617,3 @@ QToolTip,
     color: var(--foreground);
 }
 
-.power-menu-popup .button {
-    color: var(--foreground);
-    background-color: transparent;
-    border: none;
-    border-radius: 0;
-}
-
-.power-menu-popup .button:hover {
-    background-color: var(--subtle-hover);
-}
-
-.power-menu-popup .button .label,
-.power-menu-popup .button .icon {
-    color: var(--foreground);
-}
-
-.power-menu-popup .button.shutdown .icon,
-.power-menu-popup .button.restart .icon {
-    color: var(--urgent);
-}

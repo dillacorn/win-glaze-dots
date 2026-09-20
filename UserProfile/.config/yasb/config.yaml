@@ -518,6 +518,20 @@ widgets:
         on_right: "exec wgdot theme-toggle"
 
   power_menu:
+    type: "yasb.custom.CustomWidget"
+    options:
+      label: "<span></span>"
+      class_name: "awtarchy-power"
+      tooltip: true
+      tooltip_label: "Power menu (L/H/R/S/O/Z)"
+      exec_options:
+        run_once: true
+        return_format: "string"
+      callbacks:
+        on_left: "exec wgdot power-menu"
+        on_middle: "do_nothing"
+        on_right: "exec wgdot power-menu"
+
     type: "yasb.power_menu.PowerMenuWidget"
     options:
       label: "<span></span>"
