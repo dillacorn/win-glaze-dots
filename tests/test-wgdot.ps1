@@ -241,6 +241,7 @@ foreach ($id in @(
     "disable-enhanced-pointer-precision",
     "communications-do-nothing",
     "disable-snap-assist",
+    "automatic-time-and-timezone",
     "disable-remote-assistance",
     "enable-windows-sudo",
     "reduce-visual-effects",
@@ -264,7 +265,7 @@ foreach ($id in @(
 }
 
 
-foreach ($id in @("flow-launcher-alt-p", "eartrumpet-mixer-alt-v")) {
+foreach ($id in @("flow-launcher-alt-p", "eartrumpet-mixer-alt-v", "automatic-time-and-timezone")) {
     $tweak = $manifest.tweaks | Where-Object { $_.id -eq $id } | Select-Object -First 1
     Assert-True ([bool]$tweak.defaultNormal) "$id defaults on for Normal"
     Assert-True ([bool]$tweak.defaultWork) "$id defaults on for Work"
@@ -343,6 +344,13 @@ Assert-True ($nativeSourceText -match 'Registry access denied:') "registry failu
 Assert-True ($nativeSourceText -match 'DiscardRegistryOriginalSnapshot') "failed TaskbarDa writes do not leave a false rollback snapshot"
 Assert-True ($nativeSourceText -match 'AllowNewsAndInterests') "protected TaskbarDa falls back to the documented Widgets policy"
 Assert-True ($nativeSourceText -match 'using the supported Widgets policy fallback') "Widgets fallback is visible during reconciliation"
+Assert-True ($nativeSourceText -match 'automatic-time-and-timezone') "native runtime manages automatic time/time-zone setup"
+Assert-True ($nativeSourceText -match 'Services\\tzautoupdate') "automatic time-zone setup manages the Windows Auto Time Zone service"
+Assert-True ($nativeSourceText -match 'CapabilityAccessManager\\ConsentStore\\location') "automatic time-zone setup enables Windows Location services"
+Assert-True ($nativeSourceText -match '"Allow", RegistryValueKind\.String') "automatic time-zone setup uses Microsoft\'s Location Allow value"
+Assert-True ($nativeSourceText -match 'w32tm\.exe') "automatic time setup invokes Windows Time"
+Assert-True ($nativeSourceText -match '/resync /rediscover') "automatic time setup requests an immediate rediscovery/resync"
+Assert-True ($nativeSourceText -match 'tzutil\.exe') "automatic time-zone setup reports the current Windows time zone"
 Assert-True ($nativeSourceText -match 'Registry snapshot discard self-test failed') "native self-test covers failed-write snapshot cleanup"
 Assert-True ($nativeSourceText -match 'Audit all software \(no install\)') "maintenance menu exposes full software audit"
 Assert-True ($nativeSourceText -match 'if \(command == "software-audit"\) return SoftwareCatalogAudit') "software audit has a direct native command"
@@ -370,7 +378,7 @@ $rustDeskPackage = @($manifest.packages | Where-Object { $_.id -eq 'RustDesk.Rus
 Assert-True ($null -ne $rustDeskPackage) "RustDesk catalog entry exists"
 Assert-Equal ([string]$rustDeskPackage.installMode) 'official-github' "RustDesk uses its verified official GitHub source instead of a missing WinGet ID"
 Assert-Equal ([string]$rustDeskPackage.fallbackGitHubRepo) 'rustdesk/rustdesk' "RustDesk official GitHub source remains publisher-owned"
-Assert-True ($nativeSourceText -match 'const string Version = "native-preview-40"') "native runtime version tracks umbrella acceptance audit"
+Assert-True ($nativeSourceText -match 'const string Version = "native-preview-41"') "native runtime version tracks umbrella acceptance audit"
 Assert-True ($nativeSourceText -match 'if \(command == "acceptance-audit"\) return AcceptanceAudit') "native runtime exposes automated acceptance audit"
 Assert-True ($nativeSourceText -match 'String\.Equals\(command, "acceptance-audit"') "acceptance audit refreshes runtime before dispatch"
 Assert-True ($nativeSourceText -match 'Automated acceptance audit \(safe\)') "maintenance menu exposes safe acceptance audit"
