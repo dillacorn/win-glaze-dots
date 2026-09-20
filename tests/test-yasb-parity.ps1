@@ -275,6 +275,6 @@ Assert-Contains $readme 'no native image-tint option' "Awtarchy task/tray recolo
 Assert-Contains $readme 'visual preview cards' "theme-selector limitation versus Awtarchy is documented"
 Assert-Contains $readme 'output discarded' "direct YASB theme-command diagnostic limitation is documented"
 Assert-Contains $readme '#a1a1a1' "neutral GlazeWM border rationale is documented"
-Assert-Contains $readme 'reload-free reservation model' "bar transition rationale avoids forced GlazeWM reload"
+Assert-Contains $readme 'theme changes still never reload GlazeWM' "theme changes remain reload-free while geometry changes require one config reload"
 
 Write-Host "YASB parity checks passed." -ForegroundColor Green
