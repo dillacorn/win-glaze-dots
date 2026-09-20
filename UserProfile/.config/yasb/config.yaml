@@ -326,7 +326,7 @@ widgets:
       callbacks:
         on_left: "toggle_mute"
         on_middle: "toggle_label"
-        on_right: "toggle_volume_menu"
+        on_right: "exec wgdot eartrumpet-mixer"
 
   clock:
     type: "yasb.clock.ClockWidget"
