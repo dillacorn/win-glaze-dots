@@ -19,7 +19,7 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-38";
+    const string Version = "native-preview-39";
     const int WingetPreflightTimeoutMs = 30000;
     const string RepoFullName = "dillacorn/win-glaze-dots";
     const string RepoUrl = "https://github.com/dillacorn/win-glaze-dots.git";
@@ -1313,29 +1313,284 @@ internal static class WgdotNative
         return false;
     }
 
-    static bool InstallGitHubReleasePackage(Dictionary<string, object> package)
+    static bool IsWindowsExecutableFile(string path)
+    {
+        if (String.IsNullOrWhiteSpace(path) || !File.Exists(path))
+            return false;
+
+        try
+        {
+            using (FileStream stream = File.OpenRead(path))
+            {
+                if (stream.Length < 2) return false;
+                return stream.ReadByte() == 0x4D && stream.ReadByte() == 0x5A;
+            }
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    static string DownloadOfficialGitHubPackageAsset(
+        Dictionary<string, object> package,
+        out string assetName)
     {
         string name = GetString(package, "name");
-        string assetName;
         string assetUrl;
 
         if (!ResolveGitHubReleasePackageAsset(package, out assetName, out assetUrl))
-        {
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine("No matching upstream release installer found for " + name + ".");
-            Console.ResetColor();
-            return false;
-        }
+            throw new Exception("No matching upstream release asset found for " + name + ".");
 
         string packageCache = Path.Combine(CacheRoot, "package-fallback");
         Directory.CreateDirectory(packageCache);
-        string installer = Path.Combine(packageCache, assetName);
-        SafeDeleteFile(installer);
+        string path = Path.Combine(packageCache, assetName);
+        SafeDeleteFile(path);
 
         using (var client = new WebClient())
         {
             client.Headers[HttpRequestHeader.UserAgent] = "wgdot";
-            client.DownloadFile(assetUrl, installer);
+            client.DownloadFile(assetUrl, path);
+        }
+
+        if (!File.Exists(path) || new FileInfo(path).Length == 0)
+            throw new Exception("Downloaded upstream release asset is empty or missing for " + name + ".");
+
+        if (assetName.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) &&
+            !IsWindowsExecutableFile(path))
+        {
+            SafeDeleteFile(path);
+            throw new Exception("Downloaded upstream release asset is not a valid Windows executable for " + name + ".");
+        }
+
+        return path;
+    }
+
+    static string GetPackageProgramDirectory(Dictionary<string, object> package)
+    {
+        string leaf = GetString(package, "installDirectory");
+        if (String.IsNullOrWhiteSpace(leaf) ||
+            !String.Equals(Path.GetFileName(leaf), leaf, StringComparison.Ordinal) ||
+            leaf == "." ||
+            leaf == "..")
+            throw new Exception("Invalid package install directory for " + GetString(package, "name") + ".");
+
+        return Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "Programs",
+            leaf);
+    }
+
+    static string GetPackageProgramFilePath(
+        Dictionary<string, object> package,
+        string fieldName)
+    {
+        string fileName = GetString(package, fieldName);
+        if (String.IsNullOrWhiteSpace(fileName) ||
+            !String.Equals(Path.GetFileName(fileName), fileName, StringComparison.Ordinal))
+            throw new Exception("Invalid " + fieldName + " for " + GetString(package, "name") + ".");
+
+        return Path.Combine(GetPackageProgramDirectory(package), fileName);
+    }
+
+    static bool IsInstalledService(string serviceName)
+    {
+        if (String.IsNullOrWhiteSpace(serviceName)) return false;
+
+        try
+        {
+            using (RegistryKey key = Registry.LocalMachine.OpenSubKey(
+                @"SYSTEM\CurrentControlSet\Services\" + serviceName,
+                false))
+            {
+                return key != null;
+            }
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    static bool IsOfficialGitHubPortablePackageInstalled(Dictionary<string, object> package)
+    {
+        return File.Exists(GetPackageProgramFilePath(package, "installedFile"));
+    }
+
+    static bool IsOfficialGitHubArchiveDriverPackageInstalled(Dictionary<string, object> package)
+    {
+        string serviceName = GetString(package, "installedService");
+        string driverFileName = GetString(package, "driverFileName");
+        bool servicePresent = IsInstalledService(serviceName);
+        bool appPresent = File.Exists(GetPackageProgramFilePath(package, "installedFile"));
+
+        bool driverPresent = true;
+        if (!String.IsNullOrWhiteSpace(driverFileName))
+        {
+            if (!String.Equals(Path.GetFileName(driverFileName), driverFileName, StringComparison.Ordinal))
+                throw new Exception("Invalid driverFileName for " + GetString(package, "name") + ".");
+
+            driverPresent = File.Exists(Path.Combine(
+                Environment.SystemDirectory,
+                "drivers",
+                driverFileName));
+        }
+
+        return servicePresent && appPresent && driverPresent;
+    }
+
+    static void ExtractZipToDirectorySafe(string archivePath, string destination)
+    {
+        Directory.CreateDirectory(destination);
+        string root = Path.GetFullPath(destination);
+        if (!root.EndsWith(Path.DirectorySeparatorChar.ToString(), StringComparison.Ordinal))
+            root += Path.DirectorySeparatorChar;
+
+        using (ZipArchive archive = ZipFile.OpenRead(archivePath))
+        {
+            foreach (ZipArchiveEntry entry in archive.Entries)
+            {
+                string relative = (entry.FullName ?? "").Replace('/', Path.DirectorySeparatorChar);
+                if (String.IsNullOrWhiteSpace(relative)) continue;
+                if (Path.IsPathRooted(relative) || relative.IndexOf(':') >= 0)
+                    throw new Exception("Unsafe path in upstream package archive.");
+
+                string target = Path.GetFullPath(Path.Combine(destination, relative));
+                if (!target.StartsWith(root, StringComparison.OrdinalIgnoreCase))
+                    throw new Exception("Unsafe path in upstream package archive.");
+
+                if (String.IsNullOrEmpty(entry.Name))
+                {
+                    Directory.CreateDirectory(target);
+                    continue;
+                }
+
+                string parent = Path.GetDirectoryName(target);
+                if (!String.IsNullOrWhiteSpace(parent))
+                    Directory.CreateDirectory(parent);
+                entry.ExtractToFile(target, true);
+            }
+        }
+    }
+
+    static string FindPackageArchiveFile(string root, string fileName)
+    {
+        if (String.IsNullOrWhiteSpace(fileName) ||
+            !String.Equals(Path.GetFileName(fileName), fileName, StringComparison.Ordinal))
+            throw new Exception("Invalid package archive file name.");
+
+        string[] matches = Directory.GetFiles(root, fileName, SearchOption.AllDirectories);
+        if (matches.Length == 0)
+            throw new Exception("Required file '" + fileName + "' was not found in the upstream package archive.");
+
+        return matches
+            .OrderBy(path => path.Length)
+            .ThenBy(path => path, StringComparer.OrdinalIgnoreCase)
+            .First();
+    }
+
+    static bool InstallGitHubPortablePackage(Dictionary<string, object> package)
+    {
+        string name = GetString(package, "name");
+        string assetName;
+        string downloaded = DownloadOfficialGitHubPackageAsset(package, out assetName);
+        string target = GetPackageProgramFilePath(package, "installedFile");
+
+        Directory.CreateDirectory(Path.GetDirectoryName(target));
+        File.Copy(downloaded, target, true);
+
+        if (!File.Exists(target) || !IsWindowsExecutableFile(target))
+            throw new Exception(name + " portable executable was not installed correctly.");
+
+        Console.WriteLine("Installed " + name + ": " + target);
+
+        if (GetBool(package, "launchAfterInstall"))
+        {
+            var psi = new ProcessStartInfo();
+            psi.FileName = target;
+            psi.UseShellExecute = true;
+            Process.Start(psi);
+            Console.WriteLine("Started " + name + ".");
+        }
+
+        return true;
+    }
+
+    static bool InstallGitHubArchiveDriverPackage(Dictionary<string, object> package)
+    {
+        string name = GetString(package, "name");
+        string assetName;
+        string archivePath = DownloadOfficialGitHubPackageAsset(package, out assetName);
+        if (!assetName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+            throw new Exception(name + " archive-driver source must be a ZIP release asset.");
+
+        string staging = Path.Combine(
+            CacheRoot,
+            "package-extract",
+            Guid.NewGuid().ToString("N"));
+
+        try
+        {
+            ExtractZipToDirectorySafe(archivePath, staging);
+
+            string installerName = GetString(package, "archiveInstaller");
+            string stagedInstaller = FindPackageArchiveFile(staging, installerName);
+            string stagedRoot = Path.GetDirectoryName(stagedInstaller);
+            if (String.IsNullOrWhiteSpace(stagedRoot))
+                throw new Exception("Could not determine extracted package root for " + name + ".");
+
+            string installedFileName = GetString(package, "installedFile");
+            FindPackageArchiveFile(stagedRoot, installedFileName);
+
+            string targetRoot = GetPackageProgramDirectory(package);
+            CopyDirectory(stagedRoot, targetRoot);
+
+            string installer = Path.Combine(targetRoot, installerName);
+            if (!File.Exists(installer) || !IsWindowsExecutableFile(installer))
+                throw new Exception(name + " installer was not extracted correctly.");
+
+            Console.WriteLine("Launching official upstream driver installer: " + installerName);
+            ProcResult result = RunInteractive(installer, "");
+            if (result.ExitCode != 0)
+            {
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine(name + " installer failed with exit " + result.ExitCode.ToString(CultureInfo.InvariantCulture) + ".");
+                Console.ResetColor();
+                return false;
+            }
+
+            if (!IsOfficialGitHubArchiveDriverPackageInstalled(package))
+            {
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine(name + " installer closed without a complete driver installation.");
+                Console.ResetColor();
+                return false;
+            }
+
+            return true;
+        }
+        finally
+        {
+            SafeDeleteDirectory(staging);
+        }
+    }
+
+    static bool InstallGitHubReleasePackage(Dictionary<string, object> package)
+    {
+        string name = GetString(package, "name");
+        string assetName;
+        string installer;
+
+        try
+        {
+            installer = DownloadOfficialGitHubPackageAsset(package, out assetName);
+        }
+        catch (Exception ex)
+        {
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine(ex.Message);
+            Console.ResetColor();
+            return false;
         }
 
         Console.WriteLine("Launching official upstream installer: " + assetName);
@@ -1355,6 +1610,15 @@ internal static class WgdotNative
     {
         string action = GetString(package, "postInstallAction");
         if (String.IsNullOrWhiteSpace(action)) return;
+
+        if (String.Equals(action, "rawaccel-restart-notice", StringComparison.OrdinalIgnoreCase))
+        {
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine("Raw Accel driver installed. Restart Windows before using Raw Accel.");
+            Console.ResetColor();
+            Console.WriteLine("Raw Accel GUI: " + GetPackageProgramFilePath(package, "installedFile"));
+            return;
+        }
 
         if (String.Equals(action, "launch-open-shell", StringComparison.OrdinalIgnoreCase))
         {
@@ -1492,6 +1756,31 @@ internal static class WgdotNative
 
                 Console.WriteLine();
                 Console.WriteLine("Installing " + id + "...");
+
+                if (IsOfficialGitHubPortablePackage(package))
+                {
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.WriteLine("Refusing to install a user-level portable package inside the elevated worker: " + id);
+                    Console.ResetColor();
+                    failedIds.Add(id);
+                    failureDetails.Add("Portable package was incorrectly sent to the elevated worker: " + id);
+                    failures++;
+                    continue;
+                }
+
+                if (IsOfficialGitHubArchiveDriverPackage(package))
+                {
+                    Console.WriteLine("Using approved official GitHub driver archive for " + id + ".");
+                    if (InstallGitHubArchiveDriverPackage(package))
+                        installedIds.Add(id);
+                    else
+                    {
+                        failedIds.Add(id);
+                        failureDetails.Add("Official GitHub driver archive install failed: " + id);
+                        failures++;
+                    }
+                    continue;
+                }
 
                 if (IsOfficialGitHubPackage(package))
                 {
@@ -1701,9 +1990,26 @@ internal static class WgdotNative
 
     static bool IsOfficialGitHubPackage(Dictionary<string, object> package)
     {
+        string mode = GetString(package, "installMode");
+        return
+            String.Equals(mode, "official-github", StringComparison.OrdinalIgnoreCase) ||
+            String.Equals(mode, "official-github-portable", StringComparison.OrdinalIgnoreCase) ||
+            String.Equals(mode, "official-github-archive-driver", StringComparison.OrdinalIgnoreCase);
+    }
+
+    static bool IsOfficialGitHubPortablePackage(Dictionary<string, object> package)
+    {
         return String.Equals(
             GetString(package, "installMode"),
-            "official-github",
+            "official-github-portable",
+            StringComparison.OrdinalIgnoreCase);
+    }
+
+    static bool IsOfficialGitHubArchiveDriverPackage(Dictionary<string, object> package)
+    {
+        return String.Equals(
+            GetString(package, "installMode"),
+            "official-github-archive-driver",
             StringComparison.OrdinalIgnoreCase);
     }
 
@@ -1761,7 +2067,8 @@ internal static class WgdotNative
     {
         return
             String.IsNullOrWhiteSpace(action) ||
-            String.Equals(action, "launch-open-shell", StringComparison.OrdinalIgnoreCase);
+            String.Equals(action, "launch-open-shell", StringComparison.OrdinalIgnoreCase) ||
+            String.Equals(action, "rawaccel-restart-notice", StringComparison.OrdinalIgnoreCase);
     }
 
     static int SoftwareCatalogAudit()
@@ -2352,6 +2659,7 @@ internal static class WgdotNative
         var installedExistingIds = new List<string>();
         var upgradeIds = new List<string>();
         var officialPagePending = new List<Dictionary<string, object>>();
+        var portableGitHubPending = new List<Dictionary<string, object>>();
         int installed = 0;
         int already = 0;
         int unavailable = 0;
@@ -2391,6 +2699,36 @@ internal static class WgdotNative
 
             Console.WriteLine();
             Console.WriteLine("Checking " + id + "...");
+
+            if (IsOfficialGitHubPortablePackage(package))
+            {
+                if (IsOfficialGitHubPortablePackageInstalled(package))
+                {
+                    Console.WriteLine("Already installed.");
+                    already++;
+                }
+                else
+                {
+                    Console.WriteLine("Official GitHub portable source selected.");
+                    portableGitHubPending.Add(package);
+                }
+                continue;
+            }
+
+            if (IsOfficialGitHubArchiveDriverPackage(package))
+            {
+                if (IsOfficialGitHubArchiveDriverPackageInstalled(package))
+                {
+                    Console.WriteLine("Already installed.");
+                    already++;
+                }
+                else
+                {
+                    Console.WriteLine("Official GitHub driver archive selected.");
+                    installIds.Add(id);
+                }
+                continue;
+            }
 
             if (IsOfficialGitHubPackage(package))
             {
@@ -2609,6 +2947,32 @@ internal static class WgdotNative
                 Dictionary<string, object> package = FindPackageById(manifest, id);
                 if (package != null)
                     RunPackagePostInstall(package);
+            }
+        }
+
+        foreach (Dictionary<string, object> package in portableGitHubPending)
+        {
+            string id = GetString(package, "id");
+            try
+            {
+                if (InstallGitHubPortablePackage(package))
+                {
+                    installed++;
+                    RunPackagePostInstall(package);
+                }
+                else
+                {
+                    failed++;
+                    failureDetails.Add("Official GitHub portable install failed: " + id);
+                }
+            }
+            catch (Exception ex)
+            {
+                failed++;
+                failureDetails.Add("Official GitHub portable install failed for " + id + ": " + ex.Message);
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine("Portable install failed for " + id + ": " + ex.Message);
+                Console.ResetColor();
             }
         }
 
@@ -3686,11 +4050,34 @@ internal static class WgdotNative
         using (var client = new WebClient())
         {
             client.Headers[HttpRequestHeader.UserAgent] = "Mozilla/5.0 WGDot";
+            if (String.Equals(vendor, "amd", StringComparison.OrdinalIgnoreCase))
+                client.Headers[HttpRequestHeader.Referer] = "https://www.amd.com/en/support/download/drivers.html";
             client.DownloadFile(url, installer);
         }
 
         if (!File.Exists(installer) || new FileInfo(installer).Length < 100000)
             throw new Exception("Downloaded GPU installer is unexpectedly small or missing.");
+
+        if (!IsWindowsExecutableFile(installer))
+        {
+            SafeDeleteFile(installer);
+
+            if (String.Equals(vendor, "amd", StringComparison.OrdinalIgnoreCase))
+            {
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine("AMD did not return a valid installer even with the required AMD.com referrer.");
+                Console.WriteLine("Opening AMD Drivers & Support so the download can be completed directly in the browser.");
+                Console.ResetColor();
+
+                var browser = new ProcessStartInfo();
+                browser.FileName = "https://www.amd.com/en/support/download/drivers.html";
+                browser.UseShellExecute = true;
+                Process.Start(browser);
+                return 1;
+            }
+
+            throw new Exception("Downloaded GPU installer is not a valid Windows executable.");
+        }
 
         var state = ReadJson(GpuStatePath) ?? new Dictionary<string, object>();
         state["phase"] = "driver-install-pending";
@@ -5395,6 +5782,12 @@ public static class Program
         {
             client.Headers[HttpRequestHeader.UserAgent] = "wgdot";
             client.DownloadFile(installerUrl, installerPath);
+        }
+
+        if (!IsWindowsExecutableFile(installerPath))
+        {
+            SafeDeleteFile(installerPath);
+            throw new Exception("privacy.sexy download did not return a valid Windows executable.");
         }
 
         ProcResult installed = RunInteractive(installerPath, "");
