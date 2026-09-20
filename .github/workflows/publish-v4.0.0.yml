@@ -1,0 +1,65 @@
+name: Publish WGDot v4.0.0
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/publish-v4.0.0.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Publish v4.0.0
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          notes="$RUNNER_TEMP/wgdot-v4.0.0-notes.md"
+          cat > "$notes" <<'EOF'
+          # WGDot v4.0.0
+
+          This is the first WGDot-native stable release of win-glaze-dots.
+
+          ## Install and update
+
+          Fresh installation: [INSTALL.md](https://github.com/dillacorn/win-glaze-dots/blob/main/INSTALL.md)
+
+          Existing installations and normal maintenance: [UPDATE.md](https://github.com/dillacorn/win-glaze-dots/blob/main/UPDATE.md)
+
+          Quick start after installing WGDot:
+
+          ```powershell
+          wgdot
+          ```
+
+          ## Highlights
+
+          - Native `wgdot` maintenance runtime with runtime self-refresh independent from stable managed-config releases.
+          - Interactive Normal/Work setup, managed-dot update/review/reset, adjacent backups, baselines, guarded migrations, and explicit Git testing.
+          - Category-based software reconciliation with bounded elevation, exact WinGet/source validation, official fallbacks, and readable failure reporting.
+          - Firefox Betterfox profile management, signed Firefox extension policy handling, guided Brave extension setup, and Mullvad Browser left upstream-as-shipped.
+          - Windows tweaks/integrations, GlazeWM binding modes, Yazi/Terminal/Micro integration, GPU driver maintenance, software audit, and safe automated acceptance audit.
+
+          ## Validation
+
+          - Release target: `1fb0d17053367849af99758783a454a666455e1d`.
+          - WGDot runtime/manifest on the release target are unchanged from `084af6ad601abf8fba8d26a2882daf951e68121a`, where Validate WGDot run `35480334529` passed.
+          - Real-VM software catalog audit completed with zero warnings and zero failures.
+          - Real-VM automated acceptance audit completed with zero failures; its only warning was the expected absence of a present display adapter in the VM.
+          - Firefox Betterfox dedicated-profile creation and selected extension flow were exercised successfully in the VM.
+
+          Physical-machine acceptance continues in issue #14.
+          EOF
+
+          if gh release view v4.0.0 --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "v4.0.0 already exists; leaving it unchanged."
+          else
+            gh release create v4.0.0               --repo "$GITHUB_REPOSITORY"               --target 1fb0d17053367849af99758783a454a666455e1d               --title "WGDot v4.0.0"               --notes-file "$notes"
+          fi
