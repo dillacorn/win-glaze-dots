@@ -38,6 +38,8 @@ The default bar uses Awtarchy's Carbon Night palette: `#353535` background, `#d0
 
 WGDot deliberately keeps the existing GlazeWM 38 px top outer gap and runs YASB as an always-on-top, non-AppBar bar. Moving an already-running setup to Windows AppBar reservation would require GlazeWM to reload the new smaller gap to avoid double spacing. Since GlazeWM reloads can disturb the current tiling tree, this branch keeps the reload-free reservation model for an easy live transition.
 
+The YASB redesign itself can therefore be tested by restarting YASB only. New GlazeWM-only conveniences on this branch, such as `Win+T` and the `WGDot Themes` floating-window rule, naturally become active the next time GlazeWM starts; WGDot does not force a live GlazeWM reload just to activate them.
+
 ## Evidence-backed mappings
 
 These translations use documented upstream YASB or GlazeWM behavior rather than custom emulation:
