@@ -50,7 +50,8 @@ Windows 10/11
     |       +--> explicit feature-branch refresh while maintainer-testing
     |       +--> stable release resolver
     |       +--> managed config planner/executor
-    |       +--> WinGet software reconciliation
+    |       +--> required WinGet bootstrap + software reconciliation
+    |       +--> reversible application startup / uninstall manager
     |       +--> adjacent backup manager
     |       +--> Git-testing mode
     |
@@ -272,11 +273,16 @@ Use `powershell.exe -NoProfile` for Windows PowerShell validation and `pwsh` as 
 
 Software management is separate from managed-dot updates.
 
+- WinGet is a WGDot prerequisite. `wgdot/bootstrap.cmd` invokes the native `ensure-winget` path after installing the runtime. If `winget.exe` is missing, WGDot automatically uses Microsoft's supported `Microsoft.WinGet.Client` / `Repair-WinGetPackageManager` bootstrap and requests current-user App Installer registration. Do not use unofficial WinGet bootstrap scripts or execution-policy bypasses.
+- An already working WinGet installation must be left alone; bootstrap is missing-only.
 - Package IDs live in `wgdot/manifest.json`. For WinGet-backed entries they are exact WinGet IDs; explicit non-WinGet install modes may use a stable WGDot selection identity that still follows the manifest ID shape.
 - Verify every WinGet-backed package with exact-ID WinGet lookup before installation or upgrade. Do not send explicit direct-source packages through a fake WinGet probe.
 - Never silently run `winget upgrade --all`.
 - Updates may detect available software upgrades and ask for explicit user consent.
 - Deselecting a package must not uninstall it.
+- Removal is a separate, explicit `Software / startup manager -> Uninstall individual applications` operation with its own review/confirmation. Successful removals must also remove the package from WGDot's desired package selection so the next reconcile does not reinstall it.
+- Generic uninstall must never guess at kernel-driver teardown. Packages using `official-github-archive-driver` remain manual/upstream uninstall unless an explicit verified uninstall implementation is added.
+- WGDot-owned portable application directories may be deleted only when the manifest positively identifies the install directory/file that WGDot itself created.
 - Removal/retirement of software requires explicit project behavior and ownership tracking.
 - Normal software reconciliation keeps the interactive WGDot UI unelevated. After the user approves the selection, missing WinGet/installer/driver package installs, explicitly approved package upgrades, and selected administrator-only tweaks are grouped into one internal elevated WGDot worker so normal installs do not trigger one UAC prompt per package. Explicit user-level portable packages stay in the normal process and must not be launched from that elevated worker.
 - The elevated software worker may consume only a WGDot-created plan under the WGDot state directory, must validate package/tweak IDs against the active manifest/source revision, and must not launch browser configuration or ordinary user-level post-install configuration while elevated.
@@ -293,6 +299,17 @@ Software management is separate from managed-dot updates.
 - Actual WinGet installs must also be bounded when a package declares `wingetInstallTimeoutSeconds`. On timeout, terminate the stuck WinGet process tree before continuing.
 - A WinGet install timeout/failure may fall back only when the package manifest explicitly declares an approved official GitHub repository and a narrow asset regex. Never invent or scrape third-party mirrors.
 - Flow Launcher is WinGet-first but has an approved fallback to `Flow-Launcher/Flow.Launcher` asset `Flow-Launcher-Setup.exe` because real-VM testing reproduced a WinGet download stall while the same official asset completed normally outside WinGet.
+
+## Application startup ownership
+
+- Startup management is separate from installation. Manifest packages may declare a narrow `startupHandler` and `startupDefault`.
+- WGDot startup entries are current-user `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` values named `WGDot.<handler>`. Never overwrite, delete, or reinterpret unrelated vendor/user Run values.
+- Current managed startup handlers are GlazeWM, AltSnap, EarTrumpet, and MicLockTray when those packages are selected. YASB is deliberately not a second Windows startup entry because the managed GlazeWM config already starts/stops YASB through `startup_commands` / `shutdown_commands`.
+- GlazeWM startup must use its real executable plus `start --config=<live config>`; do not rely on an arbitrary shell working directory.
+- `startup.json` under WGDot state owns user enable/disable preferences. A software reconcile applies those remembered preferences; a selected startup-capable package gets its manifest default only when no preference exists yet.
+- The startup manager must expose individual enable/disable selection plus a one-action `Disable all WGDot-managed startup` path that keeps software installed.
+- Uninstalling a startup-managed package must remove WGDot's startup entry and persist the disabled preference first.
+
 - The native software catalog audit is strictly non-mutating: no installer downloads, installs, upgrades, app launches, registry writes, or elevation. It checks every manifest package with exact-ID `winget show`, validates known post-install action names, and resolves declared official GitHub fallback assets using the same resolver as real fallback installs.
 - Treat catalog audit success as metadata/source coverage only. It does not prove an installer can execute successfully or that application-specific runtime configuration works after installation.
 - `acceptance-audit` is the preferred broad maintainer smoke test. It must stay safe against the live system: actual mutation/rollback tests run only in an isolated `WGDOT_TEST_ROOT`; live checks are read-only planner/state/source/GPU inspections plus the no-install software audit.
@@ -414,3 +431,7 @@ Do not turn this file into a changelog or duplicate the package manifest.
 - On Safe Mode resume: remove the safeboot BCD value successfully before launching DDU. If normal boot cannot be restored, do not launch DDU.
 - Persist `driver-needed` state before DDU launches so a DDU-triggered reboot cannot lose the reinstall reminder.
 - Vendor driver tooling must come from vendor-owned HTTPS endpoints: AMD Auto-Detect from `drivers.amd.com`, NVIDIA App from `us.download.nvidia.com`, Intel Driver & Support Assistant from `dsadata.intel.com`.
+- Normal driver install/repair uses hardware autodetection first, then launches the vendor's own auto-detect/assistant for every detected AMD/NVIDIA/Intel GPU vendor. Hybrid systems may therefore launch more than one vendor assistant.
+- After software reconciliation, a detected GPU whose matching vendor display driver is not active launches its official vendor assistant automatically; do not ask a redundant second yes/no question after the user already approved software reconciliation.
+- AMD resolver logic must tolerate AMD support-page markup changes while remaining pinned to `drivers.amd.com`: try the current generic support page and a current official Radeon family page, and accept only the Auto-Detect web-installer URL shape. Installer download may use Windows curl with the vendor page as referrer, with WebClient as a fallback. Invalid/non-PE payloads fail closed; never fall back to a third-party driver source.
+
