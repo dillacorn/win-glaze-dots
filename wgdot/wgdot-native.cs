@@ -222,7 +222,9 @@ internal static class WgdotNative
             if (command == "status") return Status();
             if (command == "menu") return Menu();
             if (command == "self-test") return SelfTest();
-            if (command == "git-review") return GitReviewFromArgs(args.Skip(1).ToArray());
+            if (command == "git-review") return GitManagedFromArgs("review", args.Skip(1).ToArray());
+            if (command == "git-update") return GitManagedFromArgs("update", args.Skip(1).ToArray());
+            if (command == "git-reset") return GitManagedFromArgs("reset", args.Skip(1).ToArray());
             if (command == "apply-tweak") return ApplyTweakFromArgs(args.Skip(1).ToArray());
             if (command == "mark-runtime") return MarkRuntimeFromArgs(args.Skip(1).ToArray());
             if (command == "maintenance-self-test") return MaintenanceSelfTest();
@@ -271,6 +273,8 @@ internal static class WgdotNative
             String.Equals(command, "menu", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "status", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "git-review", StringComparison.OrdinalIgnoreCase) ||
+            String.Equals(command, "git-update", StringComparison.OrdinalIgnoreCase) ||
+            String.Equals(command, "git-reset", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "software", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "software-audit", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "acceptance-audit", StringComparison.OrdinalIgnoreCase) ||
@@ -736,13 +740,16 @@ internal static class WgdotNative
         }
     }
 
-    static int GitReviewFromArgs(string[] args)
+    static int GitManagedFromArgs(string operation, string[] args)
     {
+        if (operation != "review" && operation != "update" && operation != "reset")
+            throw new Exception("Unsupported Git-testing operation '" + operation + "'.");
+
         string branch = GetOption(args, "--branch");
         string revision = GetOption(args, "--revision");
 
         if (String.IsNullOrWhiteSpace(branch))
-            throw new Exception("git-review requires --branch <remote-branch>.");
+            throw new Exception("git-" + operation + " requires --branch <remote-branch>.");
 
         string resolved = ResolveGitRevision(branch, revision);
         string sourceRoot = PrepareGitSource(resolved);
@@ -754,7 +761,7 @@ internal static class WgdotNative
             SourceRoot = sourceRoot,
             Manifest = ReadManifest(sourceRoot)
         };
-        return ManagedOperation("review", context);
+        return ManagedOperation(operation, context);
     }
 
     static SourceContext ResolveDefaultSource()
@@ -2541,6 +2548,8 @@ internal static class WgdotNative
             "menu",
             "status",
             "git-review",
+            "git-update",
+            "git-reset",
             "software",
             "software-audit",
             "acceptance-audit",
