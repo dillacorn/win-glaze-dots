@@ -74,7 +74,7 @@ widgets:
       tooltip: true
       app_list:
         - icon: ""
-          launch: 'cmd.exe /c ""%LOCALAPPDATA%\wgdot\bin\wgdot.exe" flow-open"'
+          launch: "wgdot flow-open"
           name: "Flow Launcher"
 
   glazewm_workspaces:
@@ -141,7 +141,7 @@ widgets:
       callbacks:
         on_left: "toggle_window"
         on_middle: "close_app"
-        on_right: "toggle_window"
+        on_right: "context_menu"
       animation:
         enabled: false
         duration: 0
