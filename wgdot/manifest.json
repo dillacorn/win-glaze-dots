@@ -883,6 +883,14 @@
       "defaultWork": true
     },
     {
+      "id": "automatic-time-and-timezone",
+      "name": "Sync Windows time + detect time zone automatically (enables Location services)",
+      "category": "Windows settings",
+      "type": "automatic-time-and-timezone",
+      "defaultNormal": true,
+      "defaultWork": true
+    },
+    {
       "id": "disable-remote-assistance",
       "name": "Disable Remote Assistance (requires elevation)",
       "category": "Windows settings",
