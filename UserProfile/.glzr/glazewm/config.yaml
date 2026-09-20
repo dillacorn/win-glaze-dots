@@ -215,11 +215,11 @@ binding_modes:
       - commands: ["wm-redraw"]
         bindings: ["lwin", "rwin"]
 
-      - commands: ['shell-exec --hide-window "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" flow-open']
+      - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe flow-open']
         bindings: ["lwin+d", "rwin+d"]
-      - commands: ['shell-exec --hide-window "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" theme-toggle']
+      - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe theme-toggle']
         bindings: ["lwin+t", "rwin+t"]
-      - commands: ['shell-exec --hide-window "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" clipboard-history']
+      - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe clipboard-history']
         bindings: ["lwin+c", "rwin+c"]
       - commands: ["shell-exec flameshot gui"]
         bindings: ["lwin+shift+s", "rwin+shift+s"]
@@ -317,13 +317,13 @@ binding_modes:
       - commands: ["toggle-floating --centered"]
         bindings: ["lwin+alt+f", "rwin+alt+f"]
 
-      - commands: ['shell-exec --hide-window "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" flow-open']
+      - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe flow-open']
         bindings: ["lwin+alt+d", "rwin+alt+d"]
 
       - commands: ["shell-exec calc.exe"]
         bindings: ["lwin+alt+c", "rwin+alt+c"]
 
-      - commands: ['shell-exec --hide-window "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" eartrumpet-mixer']
+      - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe eartrumpet-mixer']
         bindings: ["lwin+alt+ctrl+v", "rwin+alt+ctrl+v"]
 
       - commands: ["shell-exec flameshot gui"]
@@ -386,15 +386,15 @@ keybindings:
     bindings: ["lwin+shift+s", "rwin+shift+s"]
 
   # NoWinKeys frees this shell chord so GlazeWM can mirror Awtarchy.
-  - commands: ['shell-exec --hide-window "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" flow-open']
+  - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe flow-open']
     bindings: ["lwin+d", "rwin+d"]
 
   # Windows Clipboard History stays native on Win+V. Super+C is the WGDot alias.
-  - commands: ['shell-exec --hide-window "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" clipboard-history']
+  - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe clipboard-history']
     bindings: ["lwin+c", "rwin+c"]
 
   # Single-instance WGDot theme selector. No GlazeWM reload.
-  - commands: ['shell-exec --hide-window "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" theme-toggle']
+  - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe theme-toggle']
     bindings: ["lwin+t", "rwin+t"]
 
   # Keep the legacy WGDot Alt+Ctrl+B hard visibility toggle, but do not
