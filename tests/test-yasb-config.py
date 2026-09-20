@@ -49,11 +49,13 @@ from core.validation.widgets.yasb.bluetooth import BluetoothConfig
 from core.validation.widgets.yasb.brightness import BrightnessConfig
 from core.validation.widgets.yasb.clock import ClockConfig
 from core.validation.widgets.yasb.cpu import CpuConfig
+from core.validation.widgets.yasb.dnd import DndConfig
 from core.validation.widgets.yasb.grouper import GrouperWidgetConfig
 from core.validation.widgets.yasb.memory import MemoryConfig
 from core.validation.widgets.yasb.microphone import MicrophoneConfig
 from core.validation.widgets.yasb.notifications import NotificationsConfig
 from core.validation.widgets.yasb.power_menu import PowerMenuConfig
+from core.validation.widgets.yasb.quick_launch import QuickLaunchConfig
 from core.validation.widgets.yasb.systray import SystrayWidgetConfig
 from core.validation.widgets.yasb.taskbar import TaskbarConfig
 from core.validation.widgets.yasb.volume import VolumeConfig
@@ -70,11 +72,13 @@ SCHEMAS = {
     "yasb.brightness.BrightnessWidget": BrightnessConfig,
     "yasb.clock.ClockWidget": ClockConfig,
     "yasb.cpu.CpuWidget": CpuConfig,
+    "yasb.dnd.DndWidget": DndConfig,
     "yasb.grouper.GrouperWidget": GrouperWidgetConfig,
     "yasb.memory.MemoryWidget": MemoryConfig,
     "yasb.microphone.MicrophoneWidget": MicrophoneConfig,
     "yasb.notifications.NotificationsWidget": NotificationsConfig,
     "yasb.power_menu.PowerMenuWidget": PowerMenuConfig,
+    "yasb.quick_launch.QuickLaunchWidget": QuickLaunchConfig,
     "yasb.systray.SystrayWidget": SystrayWidgetConfig,
     "yasb.taskbar.TaskbarWidget": TaskbarConfig,
     "yasb.volume.VolumeWidget": VolumeConfig,
@@ -89,10 +93,12 @@ WIDGET_SOURCE = {
     "yasb.brightness.BrightnessWidget": "core/widgets/yasb/brightness.py",
     "yasb.clock.ClockWidget": "core/widgets/yasb/clock.py",
     "yasb.cpu.CpuWidget": "core/widgets/yasb/cpu.py",
+    "yasb.dnd.DndWidget": "core/widgets/yasb/dnd.py",
     "yasb.memory.MemoryWidget": "core/widgets/yasb/memory.py",
     "yasb.microphone.MicrophoneWidget": "core/widgets/yasb/microphone.py",
     "yasb.notifications.NotificationsWidget": "core/widgets/yasb/notifications.py",
     "yasb.power_menu.PowerMenuWidget": "core/widgets/yasb/power_menu.py",
+    "yasb.quick_launch.QuickLaunchWidget": "core/widgets/yasb/quick_launch.py",
     "yasb.taskbar.TaskbarWidget": "core/widgets/yasb/taskbar.py",
     "yasb.volume.VolumeWidget": "core/widgets/yasb/volume.py",
     "yasb.wifi.WifiWidget": "core/widgets/yasb/wifi.py",
