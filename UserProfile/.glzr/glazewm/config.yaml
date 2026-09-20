@@ -220,8 +220,6 @@ binding_modes:
       - commands: ["wm-redraw"]
         bindings: ["lwin", "rwin"]
 
-      - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe flow-open']
-        bindings: ["lwin+d", "rwin+d"]
       - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe theme-toggle']
         bindings: ["lwin+t", "rwin+t"]
       - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe clipboard-history']
@@ -343,8 +341,6 @@ binding_modes:
       - commands: ["toggle-floating --centered"]
         bindings: ["lwin+alt+f", "rwin+alt+f"]
 
-      - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe flow-open']
-        bindings: ["lwin+alt+d", "rwin+alt+d"]
 
       - commands: ["shell-exec calc.exe"]
         bindings: ["lwin+alt+c", "rwin+alt+c"]
@@ -410,10 +406,6 @@ keybindings:
 
   - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe flameshot-gui']
     bindings: ["lwin+shift+s", "rwin+shift+s"]
-
-  # NoWinKeys frees this shell chord so GlazeWM can mirror Awtarchy.
-  - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe flow-open']
-    bindings: ["lwin+d", "rwin+d"]
 
   # Match Awtarchy: Super+C opens Clipboard History and Super+V opens the mixer.
   - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe clipboard-history']
