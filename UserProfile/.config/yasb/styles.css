@@ -13,6 +13,11 @@
     --strong-hover: rgba(115, 121, 148, 64);
 }
 
+/* WGDot writes this generated file when a theme is selected. YASB v2.0.7
+   watches imported stylesheets, so palette changes apply live. If the file
+   does not exist yet, the Carbon Night fallback above remains active. */
+@import "theme.css";
+
 * {
     font-family: "JetBrainsMono NFP";
     font-size: 14px;
