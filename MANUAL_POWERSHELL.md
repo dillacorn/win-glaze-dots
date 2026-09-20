@@ -237,10 +237,31 @@ if ($gitFile) {
 
 ## Install selected software from the same release manifest
 
+WinGet is a WGDot requirement. The normal native runtime handles a missing WinGet installation automatically. For this paste-only fallback, use Microsoft's WinGet repair/bootstrap path before package reconciliation when `winget.exe` is absent.
+
 This example uses the profile defaults stored in the release manifest. It verifies every exact WinGet ID before installation and does not upgrade unrelated software.
 
 ```powershell
 $ErrorActionPreference = "Stop"
+
+if (-not (Get-Command winget.exe -ErrorAction SilentlyContinue)) {
+    Write-Host "WinGet is missing; repairing/installing Microsoft Windows Package Manager..."
+    Install-PackageProvider -Name NuGet -Force | Out-Null
+    Install-Module -Name Microsoft.WinGet.Client -Force -Repository PSGallery | Out-Null
+    Import-Module Microsoft.WinGet.Client -Force
+    Repair-WinGetPackageManager -Force -Latest
+    Add-AppxPackage -RegisterByFamilyName -MainPackage Microsoft.DesktopAppInstaller_8wekyb3d8bbwe -ErrorAction SilentlyContinue
+
+    $windowsApps = Join-Path $env:LOCALAPPDATA "Microsoft\WindowsApps"
+    if ($env:PATH -notlike "*$windowsApps*") {
+        $env:PATH += ";$windowsApps"
+    }
+
+    if (-not (Get-Command winget.exe -ErrorAction SilentlyContinue)) {
+        throw "WinGet repair completed but winget.exe is still unavailable in this user session."
+    }
+}
+
 $scope = "work"  # work or normal
 $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
 
@@ -262,3 +283,28 @@ foreach ($package in $manifest.packages) {
 ```
 
 Software upgrades remain explicit. For one selected package, use `winget upgrade --id <PackageId> --exact` after reviewing what WinGet reports.
+
+## Reversible startup management
+
+The normal `wgdot software` menu owns startup state and individual uninstall behavior. If native WGDot is unavailable, the startup entries it creates are ordinary current-user Run values named `WGDot.*` under:
+
+```text
+HKCU\Software\Microsoft\Windows\CurrentVersion\Run
+```
+
+To disable every WGDot-managed login startup entry without uninstalling applications:
+
+```powershell
+$runKey = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run"
+if (Test-Path -LiteralPath $runKey) {
+    $values = Get-ItemProperty -LiteralPath $runKey
+    $values.PSObject.Properties |
+        Where-Object { $_.Name -like "WGDot.*" } |
+        ForEach-Object {
+            Remove-ItemProperty -LiteralPath $runKey -Name $_.Name -ErrorAction SilentlyContinue
+            Write-Host "Disabled startup: $($_.Name)"
+        }
+}
+```
+
+This does not remove vendor/user startup entries and does not uninstall software.
