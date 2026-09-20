@@ -11,11 +11,10 @@ bars:
 
     alignment:
       position: "top"
-      center: false
+      align: "center"
 
     blur_effect:
       enabled: false
-      acrylic: false
       dark_mode: false
       round_corners: false
       border_color: None
