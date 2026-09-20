@@ -169,6 +169,7 @@ Assert-Equal "firefox-managed" ([string]$firefoxBrowser.mode) "Firefox uses mana
 $firefoxOptionIds = @($firefoxBrowser.options | ForEach-Object { [string]$_.id })
 $firefoxDefaultOn = @(
     "betterfox",
+    "duckduckgo-no-ai",
     "canvasblocker",
     "clearurls",
     "ctrl-number",
@@ -190,9 +191,11 @@ foreach ($id in $firefoxDefaultOff) {
     Assert-True (-not [bool]$option.defaultNormal) "Firefox $id defaults off for Normal"
     Assert-True (-not [bool]$option.defaultWork) "Firefox $id defaults off for Work"
 }
-Assert-Equal 10 $firefoxOptionIds.Count "Firefox exposes only the researched WGDot option set"
+Assert-Equal 11 $firefoxOptionIds.Count "Firefox exposes only the researched WGDot option set"
 $betterfox = $firefoxBrowser.options | Where-Object { [string]$_.id -eq "betterfox" } | Select-Object -First 1
 Assert-Equal "https://raw.githubusercontent.com/yokoffing/Betterfox/main/user.js" ([string]$betterfox.sourceUrl) "Betterfox uses official upstream user.js"
+$duckDuckGoNoAi = $firefoxBrowser.options | Where-Object { [string]$_.id -eq "duckduckgo-no-ai" } | Select-Object -First 1
+Assert-Equal "https://addons.mozilla.org/firefox/downloads/latest/duckduckgo-no-ai-search/latest.xpi" ([string]$duckDuckGoNoAi.installUrl) "Firefox DuckDuckGo No-AI uses DuckDuckGo's signed AMO extension"
 foreach ($option in @($firefoxBrowser.options | Where-Object { [string]$_.kind -eq "firefox-extension" })) {
     Assert-True (([string]$option.installUrl) -match '^https://addons\.mozilla\.org/firefox/downloads/latest/.+/latest\.xpi$') "Firefox extension uses signed AMO latest XPI: $($option.id)"
 }
