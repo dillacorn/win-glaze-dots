@@ -119,6 +119,19 @@ Assert-Equal "dillacorn/MicLockTray" ([string]$micLockTrayPackage.fallbackGitHub
 Assert-Equal "MicLockTray.exe" ([string]$micLockTrayPackage.installedFile) "MicLockTray installs the published standalone executable"
 Assert-Equal $true ([bool]$micLockTrayPackage.launchAfterInstall) "MicLockTray launches after its user-level portable install"
 
+$startupExpectations = @{
+    "glzr-io.glazewm" = "glazewm"
+    "AltSnap.AltSnap" = "altsnap"
+    "File-New-Project.EarTrumpet" = "eartrumpet"
+    "dillacorn.MicLockTray" = "miclocktray"
+}
+foreach ($entry in $startupExpectations.GetEnumerator()) {
+    $package = Get-ManifestPackage -Id $entry.Key
+    Assert-True ($null -ne $package) "startup package exists: $($entry.Key)"
+    Assert-Equal $entry.Value ([string]$package.startupHandler) "$($entry.Key) has the expected WGDot startup handler"
+    Assert-Equal $true ([bool]$package.startupDefault) "$($entry.Key) defaults to startup when selected"
+}
+
 $expectedDefaultOnPackages = @(
     "Git.Git",
     "Microsoft.WindowsTerminal",
@@ -323,6 +336,16 @@ Assert-True ($nativeSourceText -match 'Select remote branch') "native Git UI exp
 Assert-True ($nativeSourceText -match 'Use selected branch head') "native Git UI defaults to branch head without commit typing"
 Assert-True ($nativeSourceText -match 'ReadMultiChoice') "native runtime contains keyboard multi-select UI"
 Assert-True ($nativeSourceText -match 'SoftwareReconcile') "native runtime includes software reconciliation"
+Assert-True ($nativeSourceText -match 'SoftwareManager') "native runtime exposes a software/startup management surface"
+Assert-True ($nativeSourceText -match 'StartupManager') "native runtime exposes individual startup management"
+Assert-True ($nativeSourceText -match 'SoftwareUninstallManager') "native runtime exposes explicit individual uninstall management"
+Assert-True ($nativeSourceText -match 'Disable all WGDot-managed startup') "software manager exposes a non-uninstall startup back-out path"
+Assert-True ($nativeSourceText -match 'Software\\Microsoft\\Windows\\CurrentVersion\\Run') "startup manager uses per-user Windows startup registration"
+Assert-True ($nativeSourceText -match '"WGDot\." \+ handler') "startup entries are namespaced to WGDot ownership"
+Assert-True ($nativeSourceText -match 'ApplyStartupDefaultsForSelection') "software reconciliation applies remembered/default WGDot startup policy"
+Assert-True ($nativeSourceText -match 'uninstall --id ') "standard catalog applications use exact WinGet uninstall"
+Assert-True ($nativeSourceText -match 'Uninstall exactly these applications\?') "software removal requires a dedicated confirmation"
+Assert-True ($nativeSourceText -match 'selection\.Packages\.RemoveAll') "successfully uninstalled software is removed from WGDot desired state"
 Assert-True ($nativeSourceText -match 'Install/reconcile this software selection\? \[y/N\]') "software mutation requires confirmation"
 Assert-True ($nativeSourceText -match 'if \(command == "software-elevated"\) return SoftwareElevatedFromArgs') "native runtime exposes the internal elevated software worker command"
 Assert-True ($nativeSourceText -match 'RunElevatedSelfWithExitCode\("software-elevated --plan "') "software reconciliation elevates one WGDot worker rather than each package"
@@ -332,6 +355,11 @@ Assert-True ($nativeSourceText -match 'Elevated software plans must stay inside 
 Assert-True ($nativeSourceText -match 'sourceRevision') "elevated software worker checks the selected source revision"
 Assert-True ($nativeSourceText -match 'TweakNeedsAdministrator') "software batching separates administrator-only tweaks from normal user-level tweaks"
 Assert-True ($nativeSourceText -match 'WingetPreflightTimeoutMs = 30000') "WinGet preflight has a finite timeout"
+Assert-True ($nativeSourceText -match 'EnsureWingetAvailable') "native runtime can bootstrap required WinGet automatically"
+Assert-True ($nativeSourceText -match 'Microsoft\.WinGet\.Client') "WinGet bootstrap uses Microsoft's supported PowerShell module"
+Assert-True ($nativeSourceText -match 'Repair-WinGetPackageManager -AllUsers') "WinGet bootstrap uses Microsoft's repair/bootstrap cmdlet"
+Assert-True ($nativeSourceText -match 'Add-AppxPackage -RegisterByFamilyName') "WinGet bootstrap requests current-user App Installer registration"
+Assert-True ($nativeBootstrapText -match '"%OUT%" ensure-winget') "native bootstrap enforces WinGet as a WGDot prerequisite"
 Assert-True ($nativeSourceText -match 'Reading installed WinGet package state') "software reconciliation snapshots installed packages once before per-package network validation"
 Assert-True ($nativeSourceText -match 'RunWithTimeout') "native process runner supports bounded preflight calls"
 Assert-True ($nativeSourceText -match 'BeginOutputReadLine') "captured stdout is drained asynchronously"
@@ -410,7 +438,7 @@ $rustDeskPackage = @($manifest.packages | Where-Object { $_.id -eq 'RustDesk.Rus
 Assert-True ($null -ne $rustDeskPackage) "RustDesk catalog entry exists"
 Assert-Equal ([string]$rustDeskPackage.installMode) 'official-github' "RustDesk uses its verified official GitHub source instead of a missing WinGet ID"
 Assert-Equal ([string]$rustDeskPackage.fallbackGitHubRepo) 'rustdesk/rustdesk' "RustDesk official GitHub source remains publisher-owned"
-Assert-True ($nativeSourceText -match 'const string Version = "native-preview-46"') "native runtime version tracks live YASB theme support"
+Assert-True ($nativeSourceText -match 'const string Version = "native-preview-47"') "native runtime version tracks live YASB theme support"
 Assert-True ($nativeSourceText -match 'if \(command == "theme"\) return ThemeManagerFromArgs') "native runtime exposes direct YASB theme selection"
 Assert-True ($nativeSourceText -match 'String\.Equals\(command, "theme"') "theme command refreshes the WGDot runtime before dispatch"
 Assert-True ($nativeSourceText -match 'BuildYasbThemeCss') "native runtime generates a variable-only YASB theme override"
@@ -563,7 +591,10 @@ Assert-True ($nativeSourceText -match '/set \{current\} safeboot minimal') "DDU 
 Assert-True ($nativeSourceText -match '/deletevalue \{current\} safeboot') "DDU workflow removes forced Safe Mode before launching DDU"
 Assert-True ($nativeSourceText -match 'drivers\.amd\.com') "AMD installer resolver is restricted to the official AMD driver host"
 Assert-True ($nativeSourceText -match 'HttpRequestHeader\.Referer') "AMD installer download sends AMD's required support-page referrer"
-Assert-True ($nativeSourceText -match 'AMD did not return a valid installer') "AMD payload is validated before Process.Start and falls back safely"
+Assert-True ($nativeSourceText -match 'minimalsetup\|installer') "AMD resolver targets the current official auto-detect web installer shape"
+Assert-True ($nativeSourceText -match 'DownloadVendorPageText') "GPU installer resolver has a bounded curl/browser fallback for vendor page changes"
+Assert-True ($nativeSourceText -match 'No third-party fallback was used') "invalid GPU payloads fail closed instead of opening an unverified fallback"
+Assert-True ($nativeSourceText -match 'foreach \(string vendor in physical\.OrderBy\(GpuVendorLabel\)\)') "GPU maintenance automatically runs the vendor assistant for every detected physical GPU vendor"
 Assert-True ($nativeSourceText -match 'us\.download\.nvidia\.com') "NVIDIA installer resolver is restricted to NVIDIA's official download host"
 Assert-True ($nativeSourceText -match 'dsadata\.intel\.com') "Intel installer uses Intel's official Driver & Support Assistant endpoint"
 Assert-True ($nativeSourceText -match 'GPU DRIVER ACTION REQUIRED') "pending GPU cleanup is surfaced on the next WGDot run"
