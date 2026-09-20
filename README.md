@@ -1,4 +1,7 @@
 # `windows dilla.glaze.dots`
+
+#### [Installation guide](INSTALL.md) · [Updating guide](UPDATE.md) · [Releases](https://github.com/dillacorn/win-glaze-dots/releases)
+
 > Windows is no longer my main operating system of choice.
 
 > Thinking about swapping to Linux? — **Check out [awtarchy](https://github.com/dillacorn/awtarchy)!**
@@ -10,7 +13,18 @@
 Windows Terminal is the default terminal. Yazi is the terminal file manager; text/code opens in Micro while all other files use normal Windows file associations.
 
 ---
-## Guides in Specific Order Of Installation and Configuration (some optional)
+
+## Install and maintenance
+
+- **Fresh installation:** [INSTALL.md](INSTALL.md)
+- **Stable managed-dot updates, review/reset, software reconciliation, state, and Git testing:** [UPDATE.md](UPDATE.md)
+- **Published release notes:** [Releases](https://github.com/dillacorn/win-glaze-dots/releases)
+
+Run `wgdot` with no arguments for the interactive maintenance menu after installation.
+
+WGDot's native runtime can refresh independently from `main`, while normal managed configuration operations use published stable releases.
+
+## Additional manual/reference guides (some optional)
 - ### [**windows_settings**](https://github.com/dillacorn/win-glaze-dots/blob/main/windows_settings.md)
 - ### [**fix blurry fonts**](https://www.youtube.com/watch?v=YRqoVG-ApSI)
 - ### [**enable classic right-click context menus**](https://winaero.com/how-to-enable-full-context-menus-in-windows-11/#Enable_the_classic_context_menus_manually_in_Windows_11)
