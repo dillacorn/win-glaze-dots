@@ -3051,6 +3051,7 @@ internal static class WgdotNative
             "AltSnap.exe",
             new[]
             {
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "AltSnap", "AltSnap.exe"),
                 Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "AltSnap", "AltSnap.exe"),
                 Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "AltSnap", "AltSnap.exe"),
                 Path.Combine(local, "Programs", "AltSnap", "AltSnap.exe")
