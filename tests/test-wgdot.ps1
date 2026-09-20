@@ -243,6 +243,7 @@ foreach ($id in @(
     "micro-text-defaults",
     "flow-launcher-alt-p",
     "eartrumpet-mixer-alt-v",
+    "disable-windows-shell-hotkeys",
     "clean-taskbar-items",
     "disable-printscreen-snipping",
     "disable-enhanced-pointer-precision",
@@ -265,7 +266,8 @@ foreach ($id in @(
     "privacy-sexy",
     "disable-remote-assistance",
     "enable-windows-sudo",
-    "reduce-visual-effects"
+    "reduce-visual-effects",
+    "disable-windows-shell-hotkeys"
 )) {
     $t = $manifest.tweaks | Where-Object { $_.id -eq $id } | Select-Object -First 1
     Assert-True (-not [bool]$t.defaultNormal) "$id defaults off"
@@ -522,6 +524,9 @@ Assert-True ($nativeSourceText -match 'ApplyEarTrumpetMixerAltV') "native runtim
 Assert-True ($nativeSourceText -match 'OpenEarTrumpetMixer') "native runtime exposes the EarTrumpet bar helper"
 Assert-True ($nativeSourceText -match 'keybd_event\(VkMenu') "EarTrumpet helper triggers its configured Alt+V mixer hotkey"
 Assert-True ($nativeSourceText -match 'command == "clipboard-history"') "native runtime exposes Windows Clipboard History"
+Assert-True ($nativeSourceText -match 'ApplyWindowsShellHotkeysPolicy') "native runtime implements reversible NoWinKeys policy"
+Assert-True ($nativeSourceText -match 'NoWinKeys') "native runtime writes the documented Explorer NoWinKeys value"
+Assert-True ($nativeSourceText -match 'RestoreRegistryOriginals\(id\)') "NoWinKeys tweak participates in registry rollback"
 Assert-True ($nativeSourceText -match 'command == "glazewm-pause-status"') "native runtime exposes GlazeWM paused state"
 Assert-True ($nativeSourceText -match 'command == "glazewm-pause-toggle"') "native runtime exposes real GlazeWM pause toggle"
 Assert-True ($nativeSourceText -match 'command == "theme-toggle"') "native runtime exposes the single-instance theme selector"
@@ -581,7 +586,7 @@ foreach ($text in @($glazeNormalText, $glazeWorkText)) {
     Assert-True ($flameshotIndex -gt $globalIndex) "Win+Shift+S Flameshot bind is global, not trapped inside a binding mode"
     Assert-True (-not (($bindingModesIndex -ge 0) -and ($flameshotIndex -gt $bindingModesIndex) -and ($flameshotIndex -lt $globalIndex))) "Flameshot bind is not trapped inside a binding mode"
     Assert-True ($text -notmatch 'win\+shift\+f') "old Win+Shift+F Flameshot bind is removed"
-    Assert-True ($text -notmatch 'bindings:\s*\["lwin\+d",\s*"rwin\+d"\]') "GlazeWM does not intercept Super+D for Flow Launcher"
+    Assert-True ($text -match 'bindings:\s*\["lwin\+d",\s*"rwin\+d"\]') "GlazeWM owns Super+D for Flow Launcher during NoWinKeys testing"
     Assert-True ($text -notmatch 'bindings:\s*\["lwin\+v",\s*"rwin\+v"\]') "GlazeWM leaves Win+V to Windows Clipboard History"
     Assert-True ($text -match 'bindings:\s*\["lwin\+c",\s*"rwin\+c"\]') "GlazeWM adds Super+C for Windows Clipboard History"
     Assert-True ($text -match 'clipboard-history') "Super+C routes through the WGDot Clipboard History helper"
@@ -590,20 +595,23 @@ foreach ($text in @($glazeNormalText, $glazeWorkText)) {
     Assert-True ($text -match 'theme-toggle') "theme shortcut uses the single-instance WGDot selector"
     Assert-True ($text -match 'window_title:\s*\{ equals: "WGDot Themes" \}') "WGDot theme selector has a dedicated floating title rule"
     Assert-True ($text -notmatch 'wgdot theme.*wm-reload-config|wm-reload-config.*wgdot theme') "theme shortcut does not reload GlazeWM"
-    Assert-True ($text -notmatch 'name:\s*"noalt"') "broken noalt binding mode is removed"
-    Assert-True ($text -notmatch 'wm-enable-binding-mode --name noalt') "noalt mode cannot be enabled"
+    Assert-True ($text -match 'name:\s*"noalt"') "GlazeWM noalt mode is restored for NoWinKeys testing"
+    Assert-True ($text -match 'wm-enable-binding-mode --name noalt') "noalt mode can be enabled"
     Assert-True ($text -match 'commands:\s*\["wm-toggle-pause"\]') "GlazeWM uses its real pause command"
-    Assert-True ($text -match 'bindings:\s*\["alt\+shift\+p"\]') "Alt+Shift+P toggles real GlazeWM pause"
+    Assert-True ($text -match 'bindings:\s*\["lwin\+alt\+p",\s*"rwin\+alt\+p"\]') "Alt+Super+P toggles real GlazeWM pause"
     Assert-True ($text -match 'name:\s*"vm"') "GlazeWM has a VM binding mode"
     Assert-True ($text -match 'wm-enable-binding-mode --name vm') "VM mode can be entered from global bindings"
     Assert-True ($text -match 'wm-disable-binding-mode --name vm') "VM mode can be exited"
     Assert-True ($text -match 'bindings:\s*\["lwin\+alt\+v",\s*"rwin\+alt\+v"\]') "Win+Alt+V toggles/switches VM mode"
-    Assert-True ($text -match 'bindings:\s*\["lwin\+alt\+p",\s*"rwin\+alt\+p"\]') "VM mode retains host Flow Launcher on Win+Alt+P"
+    Assert-True ($text -match 'bindings:\s*\["lwin\+alt\+d",\s*"rwin\+alt\+d"\]') "VM mode retains host Flow Launcher on Win+Alt+D because Win+Alt+P is pause"
     Assert-True ($text -match 'bindings:\s*\["lwin\+alt\+ctrl\+v",\s*"rwin\+alt\+ctrl\+v"\]') "VM mode retains host EarTrumpet on Win+Alt+Ctrl+V"
     Assert-True ($text -match 'bindings:\s*\["lwin\+alt\+s",\s*"rwin\+alt\+s"\]') "VM mode retains host Flameshot on Win+Alt+S"
     Assert-True ($text -match 'bindings:\s*\["lwin\+alt\+1",\s*"rwin\+alt\+1"\]') "VM mode keeps host workspace switching on Win+Alt+number"
     Assert-True ($text -match 'bindings:\s*\["lwin\+alt\+shift\+1",\s*"rwin\+alt\+shift\+1"\]') "VM mode keeps host move-to-workspace on Win+Alt+Shift+number"
     Assert-True ($text -match 'bindings:\s*\["lwin\+shift\+e",\s*"rwin\+shift\+e"\]') "Yazi uses both Windows keys for Win+Shift+E"
+    Assert-True ($text -match 'bindings:\s*\["lwin",\s*"rwin"\]') "normal/noalt/resize consume standalone Super experimentally"
+    Assert-True ($text -match 'bindings:\s*\["lwin\+1",\s*"rwin\+1"\]') "noalt/global Super+number workspace switching is present"
+    Assert-True ($text -match 'bindings:\s*\["lwin\+shift\+1",\s*"rwin\+shift\+1"\]') "noalt/global Super+Shift+number move-to-workspace is present"
     Assert-True ($text -notmatch 'bindings:\s*\["alt\+shift\+e"\]') "Yazi no longer uses Alt+Shift+E"
     Assert-True ($text -notmatch '(?i)-ExecutionPolicy\s+Bypass') "GlazeWM managed configs do not bypass execution policy"
 }
@@ -820,22 +828,25 @@ foreach ($text in @($glazeNormalText, $glazeWorkText)) {
     Assert-True ($flameshotIndex -gt $globalIndex) "Win+Shift+S Flameshot bind is global, not trapped inside a binding mode"
     Assert-True (-not (($bindingModesIndex -ge 0) -and ($flameshotIndex -gt $bindingModesIndex) -and ($flameshotIndex -lt $globalIndex))) "Flameshot bind is not trapped inside a binding mode"
     Assert-True ($text -notmatch 'win\+shift\+f') "old Win+Shift+F Flameshot bind is removed"
-    Assert-True ($text -notmatch 'bindings:\s*\["lwin\+d",\s*"rwin\+d"\]') "GlazeWM does not intercept Super+D"
+    Assert-True ($text -match 'bindings:\s*\["lwin\+d",\s*"rwin\+d"\]') "GlazeWM owns Super+D during NoWinKeys testing"
     Assert-True ($text -notmatch 'bindings:\s*\["lwin\+v",\s*"rwin\+v"\]') "GlazeWM leaves Win+V native"
     Assert-True ($text -match 'bindings:\s*\["lwin\+c",\s*"rwin\+c"\]') "Super+C opens Windows Clipboard History"
-    Assert-True ($text -notmatch 'name:\s*"noalt"') "GlazeWM noalt mode is removed"
-    Assert-True ($text -notmatch 'wm-enable-binding-mode --name noalt') "noalt mode cannot be enabled"
+    Assert-True ($text -match 'name:\s*"noalt"') "GlazeWM noalt mode is restored"
+    Assert-True ($text -match 'wm-enable-binding-mode --name noalt') "noalt mode can be enabled"
     Assert-True ($text -match 'commands:\s*\["wm-toggle-pause"\]') "GlazeWM real pause command is present"
     Assert-True ($text -match 'name:\s*"vm"') "GlazeWM has a VM binding mode"
     Assert-True ($text -match 'wm-enable-binding-mode --name vm') "VM mode can be entered from global bindings"
     Assert-True ($text -match 'wm-disable-binding-mode --name vm') "VM mode can be exited"
     Assert-True ($text -match 'bindings:\s*\["lwin\+alt\+v",\s*"rwin\+alt\+v"\]') "Win+Alt+V toggles/switches VM mode"
-    Assert-True ($text -match 'bindings:\s*\["lwin\+alt\+p",\s*"rwin\+alt\+p"\]') "VM mode retains host Flow Launcher on Win+Alt+P"
+    Assert-True ($text -match 'bindings:\s*\["lwin\+alt\+d",\s*"rwin\+alt\+d"\]') "VM mode retains host Flow Launcher on Win+Alt+D because Win+Alt+P is pause"
     Assert-True ($text -match 'bindings:\s*\["lwin\+alt\+ctrl\+v",\s*"rwin\+alt\+ctrl\+v"\]') "VM mode retains host EarTrumpet on Win+Alt+Ctrl+V"
     Assert-True ($text -match 'bindings:\s*\["lwin\+alt\+s",\s*"rwin\+alt\+s"\]') "VM mode retains host Flameshot on Win+Alt+S"
     Assert-True ($text -match 'bindings:\s*\["lwin\+alt\+1",\s*"rwin\+alt\+1"\]') "VM mode keeps host workspace switching on Win+Alt+number"
     Assert-True ($text -match 'bindings:\s*\["lwin\+alt\+shift\+1",\s*"rwin\+alt\+shift\+1"\]') "VM mode keeps host move-to-workspace on Win+Alt+Shift+number"
     Assert-True ($text -match 'bindings:\s*\["lwin\+shift\+e",\s*"rwin\+shift\+e"\]') "Yazi uses both Windows keys for Win+Shift+E"
+    Assert-True ($text -match 'bindings:\s*\["lwin",\s*"rwin"\]') "normal/noalt/resize consume standalone Super experimentally"
+    Assert-True ($text -match 'bindings:\s*\["lwin\+1",\s*"rwin\+1"\]') "noalt/global Super+number workspace switching is present"
+    Assert-True ($text -match 'bindings:\s*\["lwin\+shift\+1",\s*"rwin\+shift\+1"\]') "noalt/global Super+Shift+number move-to-workspace is present"
     Assert-True ($text -notmatch 'bindings:\s*\["alt\+shift\+e"\]') "Yazi no longer uses Alt+Shift+E"
     Assert-True ($text -notmatch '(?i)-ExecutionPolicy\s+Bypass') "GlazeWM managed configs do not bypass execution policy"
 }
