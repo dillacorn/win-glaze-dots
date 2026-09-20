@@ -49,6 +49,7 @@ from core.validation.widgets.yasb.bluetooth import BluetoothConfig
 from core.validation.widgets.yasb.brightness import BrightnessConfig
 from core.validation.widgets.yasb.clock import ClockConfig
 from core.validation.widgets.yasb.cpu import CpuConfig
+from core.validation.widgets.yasb.custom import CustomConfig
 from core.validation.widgets.yasb.dnd import DndConfig
 from core.validation.widgets.yasb.grouper import GrouperWidgetConfig
 from core.validation.widgets.yasb.memory import MemoryConfig
@@ -72,6 +73,7 @@ SCHEMAS = {
     "yasb.brightness.BrightnessWidget": BrightnessConfig,
     "yasb.clock.ClockWidget": ClockConfig,
     "yasb.cpu.CpuWidget": CpuConfig,
+    "yasb.custom.CustomWidget": CustomConfig,
     "yasb.dnd.DndWidget": DndConfig,
     "yasb.grouper.GrouperWidget": GrouperWidgetConfig,
     "yasb.memory.MemoryWidget": MemoryConfig,
@@ -93,6 +95,7 @@ WIDGET_SOURCE = {
     "yasb.brightness.BrightnessWidget": "core/widgets/yasb/brightness.py",
     "yasb.clock.ClockWidget": "core/widgets/yasb/clock.py",
     "yasb.cpu.CpuWidget": "core/widgets/yasb/cpu.py",
+    "yasb.custom.CustomWidget": "core/widgets/yasb/custom.py",
     "yasb.dnd.DndWidget": "core/widgets/yasb/dnd.py",
     "yasb.memory.MemoryWidget": "core/widgets/yasb/memory.py",
     "yasb.microphone.MicrophoneWidget": "core/widgets/yasb/microphone.py",
