@@ -143,7 +143,7 @@ widgets:
       callbacks:
         on_left: "toggle_window"
         on_middle: "close_app"
-        on_right: "context_menu"
+        on_right: "toggle_window"
       animation:
         enabled: false
         duration: 0
