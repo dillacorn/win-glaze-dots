@@ -281,8 +281,8 @@
       "name": "Flow Launcher",
       "id": "Flow-Launcher.Flow-Launcher",
       "category": "desktop",
-      "defaultNormal": true,
-      "defaultWork": true,
+      "defaultNormal": false,
+      "defaultWork": false,
       "fallbackGitHubRepo": "Flow-Launcher/Flow.Launcher",
       "fallbackAssetRegex": "^Flow-Launcher-Setup\\.exe$",
       "wingetInstallTimeoutSeconds": 180
@@ -833,11 +833,11 @@
     },
     {
       "id": "flow-launcher-alt-p",
-      "name": "Flow Launcher: Alt+P",
+      "name": "Flow Launcher: Alt+P (legacy optional; conflicts with YASB Quick Launch)",
       "category": "keybinds",
       "type": "flow-launcher-alt-p",
-      "defaultNormal": true,
-      "defaultWork": true
+      "defaultNormal": false,
+      "defaultWork": false
     },
     {
       "id": "eartrumpet-mixer-alt-v",
