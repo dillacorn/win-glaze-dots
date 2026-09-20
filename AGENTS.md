@@ -236,13 +236,13 @@ Use `powershell.exe -NoProfile` for Windows PowerShell validation and `pwsh` as 
 
 Software management is separate from managed-dot updates.
 
-- Package IDs live in `wgdot/manifest.json`.
-- Verify a package with exact-ID WinGet lookup before installation or upgrade.
+- Package IDs live in `wgdot/manifest.json`. For WinGet-backed entries they are exact WinGet IDs; explicit non-WinGet install modes may use a stable WGDot selection identity that still follows the manifest ID shape.
+- Verify every WinGet-backed package with exact-ID WinGet lookup before installation or upgrade. Do not send explicit direct-source packages through a fake WinGet probe.
 - Never silently run `winget upgrade --all`.
 - Updates may detect available software upgrades and ask for explicit user consent.
 - Deselecting a package must not uninstall it.
 - Removal/retirement of software requires explicit project behavior and ownership tracking.
-- Normal software reconciliation keeps the interactive WGDot UI unelevated. After the user approves the selection, missing package installs, explicitly approved package upgrades, and selected administrator-only tweaks are grouped into one internal elevated WGDot worker so normal installs do not trigger one UAC prompt per package.
+- Normal software reconciliation keeps the interactive WGDot UI unelevated. After the user approves the selection, missing WinGet/installer/driver package installs, explicitly approved package upgrades, and selected administrator-only tweaks are grouped into one internal elevated WGDot worker so normal installs do not trigger one UAC prompt per package. Explicit user-level portable packages stay in the normal process and must not be launched from that elevated worker.
 - The elevated software worker may consume only a WGDot-created plan under the WGDot state directory, must validate package/tweak IDs against the active manifest/source revision, and must not launch browser configuration or ordinary user-level post-install configuration while elevated.
 - Protected registry-only setup may run inside that bounded elevated worker. This includes Firefox extension policy registry mutation and registry-heavy Windows tweaks; Betterfox profile work, Brave/Mullvad browser interaction, Flow Launcher/EarTrumpet app configuration, and browser/app launches stay unelevated.
 - If a later standalone tweak unexpectedly gets `UnauthorizedAccessException` under the normal token, retry only that explicit tweak through the existing elevation path and label the retry. Do not let an unlabeled access-denied exception abort the whole menu.
@@ -263,7 +263,11 @@ Software management is separate from managed-dot updates.
 - Packages intentionally unavailable from WinGet may declare `installMode: official-page` with an HTTPS publisher download page and installed display name. The audit validates the official page without downloading an installer. Reconcile may offer to open that publisher page, but must not invent a third-party mirror or silently scrape/execute an unverified changing binary.
 - FileZilla Client is an `official-page` package because Microsoft's WinGet repository flags FileZilla Client/Server as blocked from the community repository for redistribution/licensing reasons. Keep its historical ID only as WGDot selection identity; do not attempt `winget install` for it.
 - RustDesk is an `official-github` package backed by `rustdesk/rustdesk`. Current WinGet community data does not expose the historical `RustDesk.RustDesk` package, so audit/reconcile must not report or probe that dead WinGet path as its primary source. Use the verified publisher GitHub release asset resolver directly.
-- Do not invent package IDs. Verify changed or questionable IDs against current WinGet data before committing them.
+- `official-github-portable` is for a publisher-owned standalone executable that WGDot copies into the current user's LocalAppData Programs tree and launches only from the normal process. Validate downloaded executable payloads before use.
+- `official-github-archive-driver` is for a publisher-owned ZIP that contains a driver installer. Extract through path-traversal-safe logic, run the upstream installer from its extracted release directory inside the bounded elevated worker, and verify concrete driver/service markers because an upstream installer exit code alone may be unreliable.
+- Raw Accel uses `RawAccelOfficial/rawaccel` and verifies the `rawaccel` kernel-driver service plus driver/application files after installation. It requires a Windows restart but WGDot must not reboot automatically.
+- MicLockTray uses the publisher-owned `dillacorn/MicLockTray` standalone release executable and remains a user-level portable install.
+- Do not invent WinGet package IDs. Verify changed or questionable WinGet IDs against current WinGet data before committing them. Stable direct-source selection identities must map to an explicit verified source mode.
 
 ## Browser configuration
 
