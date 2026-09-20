@@ -210,6 +210,7 @@ The `feat/awtarchy-yasb-bar` work treats the current Awtarchy Quickshell bar as 
 - Verify a current upstream YASB/GlazeWM capability before translating an Awtarchy bar feature. Do not infer widget options from old YASB themes or invent unsupported config keys.
 - Prefer direct native widgets and commands over helper scripts. A missing feature should remain documented as missing rather than be simulated solely for visual parity.
 - Keep the Windows bar flat and compact around Awtarchy's current defaults: 28 px horizontal height, `#353535` background, `#d0d0d0` foreground, square controls, subtle hover/active fills, no decorative taskbar/bar animations.
+- With YASB `windows_app_bar: true`, keep GlazeWM's top `outer_gap` as an ordinary window gap (currently 8 px), not the legacy 38 px manual bar allowance. The AppBar itself reserves the 28 px bar area; retaining both reservations creates a double top gap.
 - Preserve JetBrainsMono NFP on Windows unless the project explicitly decides to add a different font package.
 - Use YASB's native DDC/CI brightness support rather than a translated Awtarchy DDC script.
 - Keep YASB systray `use_hook: false`. Upstream documents `use_hook: true` as an `explorer.exe` DLL-injection path. Do not introduce that extra hook for cosmetic parity, especially on a gaming-oriented setup.
