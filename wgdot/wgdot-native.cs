@@ -4674,6 +4674,8 @@ internal static class WgdotNative
             ApplyFlowLauncherAltP(enable);
         else if (String.Equals(id, "eartrumpet-mixer-alt-v", StringComparison.OrdinalIgnoreCase))
             ApplyEarTrumpetMixerAltV(enable);
+        else if (String.Equals(id, "disable-windows-shell-hotkeys", StringComparison.OrdinalIgnoreCase))
+            ApplyWindowsShellHotkeysPolicy(enable);
         else if (String.Equals(id, "clean-taskbar-items", StringComparison.OrdinalIgnoreCase))
             ApplyCleanTaskbar(enable);
         else if (String.Equals(id, "disable-printscreen-snipping", StringComparison.OrdinalIgnoreCase))
@@ -6076,6 +6078,30 @@ public static class Program
         SetRegistryValueWithSnapshot(id, "HKCU",
             @"Software\Microsoft\Multimedia\Audio",
             "UserDuckingPreference", 3, RegistryValueKind.DWord);
+    }
+
+    static void ApplyWindowsShellHotkeysPolicy(bool enable)
+    {
+        const string id = "disable-windows-shell-hotkeys";
+        const string path = @"Software\Microsoft\Windows\CurrentVersion\Policies\Explorer";
+
+        if (!enable)
+        {
+            RestoreRegistryOriginals(id);
+            Console.WriteLine("Windows shell Windows-key hotkey policy restored to its pre-WGDot value.");
+            return;
+        }
+
+        SetRegistryValueWithSnapshot(
+            id,
+            "HKCU",
+            path,
+            "NoWinKeys",
+            1,
+            RegistryValueKind.DWord);
+
+        Console.WriteLine("NoWinKeys enabled for the current user.");
+        Console.WriteLine("A sign-out or Explorer restart may be required before every Windows shell shortcut reflects the policy.");
     }
 
     static void ApplySnapAssist(bool enable)

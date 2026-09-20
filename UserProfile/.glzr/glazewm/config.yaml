@@ -193,6 +193,111 @@ binding_modes:
         bindings: ["j", "down"]
       - commands: ["wm-disable-binding-mode --name resize"]
         bindings: ["escape", "enter"]
+      # Experimental standalone-Super suppression. GlazeWM accepts one-key
+      # bindings and consumes matched key-down events before Windows.
+      - commands: ["wm-redraw"]
+        bindings: ["lwin", "rwin"]
+      - commands: ["wm-toggle-pause"]
+        bindings: ["lwin+alt+p", "rwin+alt+p"]
+
+  # Gaming-friendly mode based on Awtarchy's noalt submap.
+  # Normal Alt-heavy bindings are replaced with Super equivalents while active.
+  # Workspace focus/move is explicitly duplicated because GlazeWM binding modes
+  # do not inherit global bindings.
+  - name: "noalt"
+    keybindings:
+      - commands: ["wm-disable-binding-mode --name noalt"]
+        bindings: ["lwin+alt+n", "rwin+alt+n"]
+      - commands: ["wm-enable-binding-mode --name vm"]
+        bindings: ["lwin+alt+v", "rwin+alt+v"]
+      - commands: ["wm-toggle-pause"]
+        bindings: ["lwin+alt+p", "rwin+alt+p"]
+      - commands: ["wm-redraw"]
+        bindings: ["lwin", "rwin"]
+
+      - commands: ['shell-exec --hide-window "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" flow-open']
+        bindings: ["lwin+d", "rwin+d"]
+      - commands: ['shell-exec --hide-window "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" theme-toggle']
+        bindings: ["lwin+t", "rwin+t"]
+      - commands: ['shell-exec --hide-window "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" clipboard-history']
+        bindings: ["lwin+c", "rwin+c"]
+      - commands: ["shell-exec flameshot gui"]
+        bindings: ["lwin+shift+s", "rwin+shift+s"]
+      - commands: ["shell-exec wt.exe -w new"]
+        bindings: ["lwin+enter", "rwin+enter", "lwin+shift+enter", "rwin+shift+enter"]
+      - commands: ["shell-exec wt.exe -w new new-tab --title \"Yazi\" --suppressApplicationTitle powershell.exe -NoProfile -NoLogo -NoExit -Command yazi"]
+        bindings: ["lwin+shift+e", "rwin+shift+e"]
+      - commands: ["shell-exec explorer.exe http:"]
+        bindings: ["lwin+b", "rwin+b"]
+      - commands: ["shell-exec C:\\Program Files (x86)\\SpeedCrunch\\speedcrunch.exe"]
+        bindings: ["lwin+shift+c", "rwin+shift+c"]
+
+      - commands: ["close"]
+        bindings: ["lwin+q", "rwin+q", "lwin+shift+q", "rwin+shift+q"]
+      - commands: ["toggle-floating --centered"]
+        bindings: ["lwin+f", "rwin+f"]
+      - commands: ["toggle-fullscreen"]
+        bindings: ["lwin+ctrl+f", "rwin+ctrl+f"]
+
+      - commands: ["focus --direction left"]
+        bindings: ["lwin+h", "rwin+h", "lwin+left", "rwin+left"]
+      - commands: ["focus --direction right"]
+        bindings: ["lwin+l", "rwin+l", "lwin+right", "rwin+right"]
+      - commands: ["focus --direction up"]
+        bindings: ["lwin+k", "rwin+k", "lwin+up", "rwin+up"]
+      - commands: ["focus --direction down"]
+        bindings: ["lwin+j", "rwin+j", "lwin+down", "rwin+down"]
+
+      - commands: ["move --direction left"]
+        bindings: ["lwin+shift+h", "rwin+shift+h", "lwin+shift+left", "rwin+shift+left"]
+      - commands: ["move --direction right"]
+        bindings: ["lwin+shift+l", "rwin+shift+l", "lwin+shift+right", "rwin+shift+right"]
+      - commands: ["move --direction up"]
+        bindings: ["lwin+shift+k", "rwin+shift+k", "lwin+shift+up", "rwin+shift+up"]
+      - commands: ["move --direction down"]
+        bindings: ["lwin+shift+j", "rwin+shift+j", "lwin+shift+down", "rwin+shift+down"]
+
+      - commands: ["focus --workspace 1"]
+        bindings: ["lwin+1", "rwin+1"]
+      - commands: ["focus --workspace 2"]
+        bindings: ["lwin+2", "rwin+2"]
+      - commands: ["focus --workspace 3"]
+        bindings: ["lwin+3", "rwin+3"]
+      - commands: ["focus --workspace 4"]
+        bindings: ["lwin+4", "rwin+4"]
+      - commands: ["focus --workspace 5"]
+        bindings: ["lwin+5", "rwin+5"]
+      - commands: ["focus --workspace 6"]
+        bindings: ["lwin+6", "rwin+6"]
+      - commands: ["focus --workspace 7"]
+        bindings: ["lwin+7", "rwin+7"]
+      - commands: ["focus --workspace 8"]
+        bindings: ["lwin+8", "rwin+8"]
+      - commands: ["focus --workspace 9"]
+        bindings: ["lwin+9", "rwin+9"]
+      - commands: ["focus --workspace 10"]
+        bindings: ["lwin+0", "rwin+0"]
+
+      - commands: ["move --workspace 1"]
+        bindings: ["lwin+shift+1", "rwin+shift+1"]
+      - commands: ["move --workspace 2"]
+        bindings: ["lwin+shift+2", "rwin+shift+2"]
+      - commands: ["move --workspace 3"]
+        bindings: ["lwin+shift+3", "rwin+shift+3"]
+      - commands: ["move --workspace 4"]
+        bindings: ["lwin+shift+4", "rwin+shift+4"]
+      - commands: ["move --workspace 5"]
+        bindings: ["lwin+shift+5", "rwin+shift+5"]
+      - commands: ["move --workspace 6"]
+        bindings: ["lwin+shift+6", "rwin+shift+6"]
+      - commands: ["move --workspace 7"]
+        bindings: ["lwin+shift+7", "rwin+shift+7"]
+      - commands: ["move --workspace 8"]
+        bindings: ["lwin+shift+8", "rwin+shift+8"]
+      - commands: ["move --workspace 9"]
+        bindings: ["lwin+shift+9", "rwin+shift+9"]
+      - commands: ["move --workspace 10"]
+        bindings: ["lwin+shift+0", "rwin+shift+0"]
 
   # VM mode based on Awtarchy's vm submap.
   # Normal host keybindings are replaced while active so the guest receives
@@ -201,6 +306,10 @@ binding_modes:
     keybindings:
       - commands: ["wm-disable-binding-mode --name vm"]
         bindings: ["lwin+alt+v", "rwin+alt+v"]
+      - commands: ["wm-enable-binding-mode --name noalt"]
+        bindings: ["lwin+alt+n", "rwin+alt+n"]
+      - commands: ["wm-toggle-pause"]
+        bindings: ["lwin+alt+p", "rwin+alt+p"]
 
       - commands: ["close"]
         bindings: ["lwin+alt+q", "rwin+alt+q"]
@@ -209,7 +318,7 @@ binding_modes:
         bindings: ["lwin+alt+f", "rwin+alt+f"]
 
       - commands: ['shell-exec --hide-window "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" flow-open']
-        bindings: ["lwin+alt+p", "rwin+alt+p"]
+        bindings: ["lwin+alt+d", "rwin+alt+d"]
 
       - commands: ["shell-exec calc.exe"]
         bindings: ["lwin+alt+c", "rwin+alt+c"]
@@ -267,10 +376,18 @@ binding_modes:
 
 
 keybindings:
+  # Consume a lone Windows key so Start does not open while GlazeWM is active.
+  # This is intentionally absent from VM mode so guest applications can receive
+  # their normal Windows key. Real Windows behavior still needs runtime testing.
+  - commands: ["wm-redraw"]
+    bindings: ["lwin", "rwin"]
+
   - commands: ["shell-exec flameshot gui"]
     bindings: ["lwin+shift+s", "rwin+shift+s"]
 
-  # Flow Launcher keeps its own Alt+P hotkey; GlazeWM does not intercept Super+D.
+  # NoWinKeys frees this shell chord so GlazeWM can mirror Awtarchy.
+  - commands: ['shell-exec --hide-window "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" flow-open']
+    bindings: ["lwin+d", "rwin+d"]
 
   # Windows Clipboard History stays native on Win+V. Super+C is the WGDot alias.
   - commands: ['shell-exec --hide-window "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" clipboard-history']
@@ -292,23 +409,29 @@ keybindings:
   - commands: ["shell-exec explorer.exe http:"]
     bindings: ["win+b"]
 
+  - commands: ["shell-exec C:\\Program Files (x86)\\SpeedCrunch\\speedcrunch.exe"]
+    bindings: ["lwin+shift+c", "rwin+shift+c"]
+
+  - commands: ["shell-exec wt.exe -w new"]
+    bindings: ["lwin+enter", "rwin+enter"]
+
   - commands: ["focus --direction left"]
-    bindings: ["alt+h", "alt+left"]
+    bindings: ["alt+h", "alt+left", "lwin+h", "rwin+h", "lwin+left", "rwin+left"]
   - commands: ["focus --direction right"]
-    bindings: ["alt+l", "alt+right"]
+    bindings: ["alt+l", "alt+right", "lwin+l", "rwin+l", "lwin+right", "rwin+right"]
   - commands: ["focus --direction up"]
-    bindings: ["alt+k", "alt+up"]
+    bindings: ["alt+k", "alt+up", "lwin+k", "rwin+k", "lwin+up", "rwin+up"]
   - commands: ["focus --direction down"]
-    bindings: ["alt+j", "alt+down"]
+    bindings: ["alt+j", "alt+down", "lwin+j", "rwin+j", "lwin+down", "rwin+down"]
 
   - commands: ["move --direction left"]
-    bindings: ["alt+shift+h", "alt+shift+left"]
+    bindings: ["alt+shift+h", "alt+shift+left", "lwin+shift+h", "rwin+shift+h", "lwin+shift+left", "rwin+shift+left"]
   - commands: ["move --direction right"]
-    bindings: ["alt+shift+l", "alt+shift+right"]
+    bindings: ["alt+shift+l", "alt+shift+right", "lwin+shift+l", "rwin+shift+l", "lwin+shift+right", "rwin+shift+right"]
   - commands: ["move --direction up"]
-    bindings: ["alt+shift+k", "alt+shift+up"]
+    bindings: ["alt+shift+k", "alt+shift+up", "lwin+shift+k", "rwin+shift+k", "lwin+shift+up", "rwin+shift+up"]
   - commands: ["move --direction down"]
-    bindings: ["alt+shift+j", "alt+shift+down"]
+    bindings: ["alt+shift+j", "alt+shift+down", "lwin+shift+j", "rwin+shift+j", "lwin+shift+down", "rwin+shift+down"]
 
   - commands: ["resize --width -2%"]
     bindings: ["alt+y", "alt+ctrl+left"]
@@ -319,19 +442,22 @@ keybindings:
   - commands: ["resize --height -2%"]
     bindings: ["alt+u", "alt+ctrl+down"]
 
+  - commands: ["wm-enable-binding-mode --name noalt"]
+    bindings: ["lwin+alt+n", "rwin+alt+n"]
+
   - commands: ["wm-enable-binding-mode --name vm"]
     bindings: ["lwin+alt+v", "rwin+alt+v"]
 
   # Real GlazeWM pause. While paused, GlazeWM intentionally keeps only
   # wm-toggle-pause bindings active, so this same key always unpauses.
   - commands: ["wm-toggle-pause"]
-    bindings: ["alt+shift+p"]
+    bindings: ["lwin+alt+p", "rwin+alt+p"]
 
   - commands: ["toggle-tiling-direction"]
     bindings: ["alt+shift+r"]
 
   - commands: ["toggle-floating --centered"]
-    bindings: ["alt+f"]
+    bindings: ["alt+f", "lwin+f", "rwin+f"]
 
   - commands: ["toggle-tiling"]
     bindings: ["alt+t"]
@@ -339,13 +465,13 @@ keybindings:
   - commands:
       - "toggle-fullscreen"
       - "shell-exec --hide-window powershell -NoProfile -WindowStyle Hidden -Command \"Start-Sleep -Milliseconds 70; Start-Process -WindowStyle Hidden glazewm -ArgumentList 'command wm-redraw'\""
-    bindings: ["alt+ctrl+f"]
+    bindings: ["alt+ctrl+f", "lwin+ctrl+f", "rwin+ctrl+f"]
 
   - commands: ["toggle-minimized"]
     bindings: ["alt+m"]
 
   - commands: ["close"]
-    bindings: ["alt+shift+q"]
+    bindings: ["alt+shift+q", "lwin+q", "rwin+q", "lwin+shift+q", "rwin+shift+q"]
 
   - commands: ["wm-exit"]
     bindings: ["alt+ctrl+shift+k"]
@@ -373,25 +499,25 @@ keybindings:
     bindings: ["alt+ctrl+c"]
 
   - commands: ["focus --workspace 1"]
-    bindings: ["alt+1"]
+    bindings: ["alt+1", "lwin+1", "rwin+1"]
   - commands: ["focus --workspace 2"]
-    bindings: ["alt+2"]
+    bindings: ["alt+2", "lwin+2", "rwin+2"]
   - commands: ["focus --workspace 3"]
-    bindings: ["alt+3"]
+    bindings: ["alt+3", "lwin+3", "rwin+3"]
   - commands: ["focus --workspace 4"]
-    bindings: ["alt+4"]
+    bindings: ["alt+4", "lwin+4", "rwin+4"]
   - commands: ["focus --workspace 5"]
-    bindings: ["alt+5"]
+    bindings: ["alt+5", "lwin+5", "rwin+5"]
   - commands: ["focus --workspace 6"]
-    bindings: ["alt+6"]
+    bindings: ["alt+6", "lwin+6", "rwin+6"]
   - commands: ["focus --workspace 7"]
-    bindings: ["alt+7"]
+    bindings: ["alt+7", "lwin+7", "rwin+7"]
   - commands: ["focus --workspace 8"]
-    bindings: ["alt+8"]
+    bindings: ["alt+8", "lwin+8", "rwin+8"]
   - commands: ["focus --workspace 9"]
-    bindings: ["alt+9"]
+    bindings: ["alt+9", "lwin+9", "rwin+9"]
   - commands: ["focus --workspace 10"]
-    bindings: ["alt+0"]
+    bindings: ["alt+0", "lwin+0", "rwin+0"]
 
   - commands: ["move-workspace --direction left"]
     bindings: ["alt+ctrl+shift+left"]
@@ -403,25 +529,25 @@ keybindings:
     bindings: ["alt+ctrl+shift+down"]
 
   - commands: ["move --workspace 1"]
-    bindings: ["alt+shift+1"]
+    bindings: ["alt+shift+1", "lwin+shift+1", "rwin+shift+1"]
   - commands: ["move --workspace 2"]
-    bindings: ["alt+shift+2"]
+    bindings: ["alt+shift+2", "lwin+shift+2", "rwin+shift+2"]
   - commands: ["move --workspace 3"]
-    bindings: ["alt+shift+3"]
+    bindings: ["alt+shift+3", "lwin+shift+3", "rwin+shift+3"]
   - commands: ["move --workspace 4"]
-    bindings: ["alt+shift+4"]
+    bindings: ["alt+shift+4", "lwin+shift+4", "rwin+shift+4"]
   - commands: ["move --workspace 5"]
-    bindings: ["alt+shift+5"]
+    bindings: ["alt+shift+5", "lwin+shift+5", "rwin+shift+5"]
   - commands: ["move --workspace 6"]
-    bindings: ["alt+shift+6"]
+    bindings: ["alt+shift+6", "lwin+shift+6", "rwin+shift+6"]
   - commands: ["move --workspace 7"]
-    bindings: ["alt+shift+7"]
+    bindings: ["alt+shift+7", "lwin+shift+7", "rwin+shift+7"]
   - commands: ["move --workspace 8"]
-    bindings: ["alt+shift+8"]
+    bindings: ["alt+shift+8", "lwin+shift+8", "rwin+shift+8"]
   - commands: ["move --workspace 9"]
-    bindings: ["alt+shift+9"]
+    bindings: ["alt+shift+9", "lwin+shift+9", "rwin+shift+9"]
   - commands: ["move --workspace 10"]
-    bindings: ["alt+shift+0"]
+    bindings: ["alt+shift+0", "lwin+shift+0", "rwin+shift+0"]
 
   # Launch the user's scripts menu in Windows Terminal.
   - commands: ["shell-exec wt.exe -w new new-tab --title \"Scripts\" --suppressApplicationTitle -d \"%USERPROFILE%\\scripts\" cmd.exe /k menu.bat"]

@@ -833,7 +833,7 @@
     },
     {
       "id": "flow-launcher-alt-p",
-      "name": "Flow Launcher: Alt+P / Win+D",
+      "name": "Flow Launcher: Alt+P",
       "category": "keybinds",
       "type": "flow-launcher-alt-p",
       "defaultNormal": true,
@@ -841,11 +841,19 @@
     },
     {
       "id": "eartrumpet-mixer-alt-v",
-      "name": "EarTrumpet mixer: Alt+V / Win+V",
+      "name": "EarTrumpet mixer: Alt+V",
       "category": "keybinds",
       "type": "eartrumpet-mixer-alt-v",
       "defaultNormal": true,
       "defaultWork": true
+    },
+    {
+      "id": "disable-windows-shell-hotkeys",
+      "name": "Let GlazeWM own Windows-key shell shortcuts (NoWinKeys, experimental)",
+      "category": "keybinds",
+      "type": "disable-windows-shell-hotkeys",
+      "defaultNormal": false,
+      "defaultWork": false
     },
     {
       "id": "clean-taskbar-items",

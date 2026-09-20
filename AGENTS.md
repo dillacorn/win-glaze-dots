@@ -180,17 +180,19 @@ Backup deletion must support review/dry-run behavior and explicit confirmation.
 
 ## GlazeWM profile model
 
-- The managed GlazeWM profiles include a `noalt` binding mode toggled with `Win+Alt+N`, modeled after Awtarchy's noalt submap. It suppresses the normal Alt-heavy GlazeWM bindings while preserving Windows-key app/screenshot alternatives.
-- The managed GlazeWM profiles include a `vm` binding mode toggled with `Win+Alt+V`, modeled after Awtarchy's VM submap. While active, ordinary global host bindings are replaced so the guest receives normal Alt/Windows shortcuts; required host controls live on `Win+Alt` combinations.
-- VM mode host controls include close (`Win+Alt+Q`), float (`Win+Alt+F`), Flow Launcher (`Win+Alt+P`), Calculator (`Win+Alt+C`), EarTrumpet (`Win+Alt+Ctrl+V`), Flameshot (`Win+Alt+S`), Terminal (`Win+Alt+Enter`), workspace focus (`Win+Alt+0..9`), and move-to-workspace (`Win+Alt+Shift+0..9`).
-- `Win+Alt+N` switches from VM mode to noalt; `Win+Alt+V` switches from noalt to VM mode. GlazeWM replaces the active binding mode when another mode is enabled.
-- Flow Launcher keeps native `Alt+P`; GlazeWM maps `Win+D` to WGDot's `flow-open` helper.
-- EarTrumpet keeps native mixer `Alt+V`; GlazeWM maps `Win+V` to WGDot's `eartrumpet-mixer` helper so both reach the same mixer action.
-- Flameshot selection capture is `Win+Shift+S` in both managed GlazeWM profiles; do not restore the old `Win+Shift+F` binding.
-- Theme switching must not reload GlazeWM. Keep the focused-window border theme-neutral at `#a1a1a1` in both managed profiles so palette changes can stay entirely on the YASB side. `Win+T` opens the WGDot theme selector in normal and `noalt` modes; do not add it to `vm`, where Windows-key input belongs to the guest.
+- The managed GlazeWM profiles include a `noalt` binding mode toggled with `Win+Alt+N`, modeled after Awtarchy's noalt submap. Because GlazeWM binding modes replace rather than inherit global bindings, noalt must explicitly retain Super-based workspace focus/move, focus-direction, move-direction, launcher, terminal, theme, clipboard, close, float, and fullscreen controls that should remain available in the mode.
+- The managed profiles include a `vm` binding mode toggled with `Win+Alt+V`. Ordinary Windows/Alt chords are intentionally not captured there so a focused guest can receive them. Host escape controls use `Win+Alt`; do not add the standalone-Windows-key consumer to VM mode.
+- Real GlazeWM pause is independent of binding modes and uses both `LWin+Alt+P` and `RWin+Alt+P`. Duplicate that `wm-toggle-pause` binding inside modes where necessary so pause remains reachable. YASB displays the actual paused state separately as `PAUSED`.
+- WGDot contains a reversible, default-off `disable-windows-shell-hotkeys` tweak for testing Microsoft's per-user `NoWinKeys` Explorer policy. It snapshots/restores `HKCU\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer\NoWinKeys`. Do not make it default-on until real Windows testing confirms the desired shortcuts and regressions.
+- `NoWinKeys` does not disable a lone Windows-key press. Normal/noalt/resize configs therefore experimentally bind bare `lwin` / `rwin` to the harmless internal `wm-redraw` command so GlazeWM's keyboard hook consumes the key-down before Start can open. VM mode intentionally omits this. Treat standalone-Super suppression as runtime-unproven until tested on Windows.
+- Flow Launcher keeps native `Alt+P`; with NoWinKeys testing enabled, GlazeWM maps `Win+D` to WGDot's `flow-open` helper.
+- Clipboard History uses `Win+C` / `Super+C` through WGDot's Windows Clipboard History helper. Do not depend on native `Win+V` while NoWinKeys is under test because the policy may also suppress that Windows shell chord.
+- EarTrumpet keeps its own native `Alt+V` mixer hotkey; do not claim WGDot owns `Win+V`.
+- Flameshot selection capture is `Win+Shift+S` in both managed profiles.
+- Theme switching must not reload GlazeWM. Keep the focused-window border theme-neutral at `#a1a1a1`; `Win+T` uses WGDot's single-instance theme-toggle path.
+- Current GlazeWM does not expose mouse-button bindings in binding modes. Do not create or document a fake Awtarchy mouse submap. The YASB workspace-move drawer may remain a supported click-based directional mover.
 - The managed YASB component must ensure `~/.config/yasb/theme.css` exists after apply by regenerating the remembered WGDot theme (Carbon Night when no valid state exists). Keep this as a component post-action; do not add `theme.css` as a normal managed/baselined user file.
-
-- Yazi launcher binding uses both `lwin+shift+e` and `rwin+shift+e`. Keep both Windows-key variants together and do not restore the old `alt+shift+e` launcher bind.
+- Yazi launcher binding uses both `lwin+shift+e` and `rwin+shift+e`.
 
 There are two maintained GlazeWM source profiles:
 
@@ -219,7 +221,7 @@ The `feat/awtarchy-yasb-bar` work treats the current Awtarchy Quickshell bar as 
 - Do not substitute GPU temperature for Awtarchy's CPU-temperature module. Do not require Libre Hardware Monitor solely to make the bar look equivalent.
 - Do not fake Awtarchy's idle inhibitor, Hyprland scratchpad count, global new-window floating state, privacy/capture state, vertical bar layouts, or urgent-workspace state unless a direct supported equivalent is first verified.
 - Keep Flow Launcher as WGDot's primary app launcher. The bar launcher uses a static native YASB `CustomWidget` so both left and right click can call the existing `wgdot flow-open` helper like Awtarchy; do not replace this with a polling helper.
-- Awtarchy's clipboard button maps to a dedicated native YASB `QuickLaunchWidget` configured with only the Windows Clipboard History provider enabled and `prefix: "*"` so an empty popup opens directly to history. Keep Flow Launcher as WGDot's primary app launcher. Before adding another Quick Launch instance, re-check YASB's singleton QuickLaunchService/provider configuration so one instance cannot overwrite another instance's provider set.
+- Awtarchy's clipboard button maps to Windows Clipboard History through WGDot's helper and the bar's simple CustomWidget; do not restore the buggy duplicate QuickLaunch clipboard surface.
 - Awtarchy's single notification/mute control maps to one native YASB `DndWidget`: left click uses BaseWidget's native `exec notification_center` system-function mapping to open Windows Notification Center, middle click does nothing, and right click uses the widget's native `toggle_status` callback for Windows Do Not Disturb. Use bell/muted-bell state styling on that one control; do not reintroduce a separate Notifications widget or cross-widget hook. YASB documents its DND backend as the Windows QuietHoursSettings COM API, which is undocumented by Windows and may change.
 - Match Awtarchy task controls with native YASB callbacks where possible: middle-click closes and right-click uses `toggle_window` for minimize/restore. Keep the documented left-click mismatch because YASB has no activate-only task callback.
 - Awtarchy's horizontal bars show the globally focused active-window title on every monitor. Keep YASB ActiveWindow `monitor_exclusive: false` for that behavior; task icons and workspaces remain monitor-local.
@@ -231,7 +233,7 @@ The `feat/awtarchy-yasb-bar` work treats the current Awtarchy Quickshell bar as 
 - Keep the bar palette button and `Win+T` on the same Windows Terminal `wgdot theme` selector so WGDot apply/runtime errors remain visible. Do not replace it with direct YASB `ApplicationsWidget` theme entries merely to imitate Awtarchy's visual picker: upstream Applications launches arbitrary commands through a shell with stdout/stderr discarded and exposes no WGDot active-theme state.
 - Launch the theme selector in a compact Windows Terminal window titled `WGDot Themes` with `--suppressApplicationTitle`, and keep a matching GlazeWM `set-floating --centered` rule in both managed profiles. This is the Windows-side overlay approximation and avoids deliberately inserting the selector into the tiling tree. Theme application itself still must not reload GlazeWM.
 - The workspace mover may use YASB's native Grouper + Applications widgets because GlazeWM already exposes native `move-workspace --direction` commands. Keep the documented difference that expansion is click-based rather than Awtarchy's hover drawer.
-- The visible GlazeWM binding-mode widget is the supported equivalent for Awtarchy's submap indicator and should reflect WGDot's existing `noalt` / `vm` modes.
+- The visible GlazeWM binding-mode widget should reflect `noalt` / `vm`. Real pause is not a binding mode and is displayed separately by the PAUSED widget.
 - Do not add AutoHotkey, whkd, keyboard hooks, DLL injection, or a custom background input daemon as part of bar parity work.
 
 ## Work-PC constraints

@@ -182,7 +182,7 @@ widgets:
       label: "{data}"
       class_name: "awtarchy-pause"
       tooltip: true
-      tooltip_label: "GlazeWM pause (Alt+Shift+P)"
+      tooltip_label: "GlazeWM pause (Alt+Super+P)"
       exec_options:
         run_cmd: "wgdot glazewm-pause-status"
         run_once: false
@@ -204,8 +204,9 @@ widgets:
       default_icon: ""
       icons:
         none: ""
+        noalt: ""
         vm: ""
-      binding_modes_to_cycle_through: ["none", "vm"]
+      binding_modes_to_cycle_through: ["none", "noalt", "vm"]
       callbacks:
         # Match Awtarchy's visible submap label: either primary mouse button
         # clears the active binding mode.
