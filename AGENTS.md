@@ -188,6 +188,7 @@ Backup deletion must support review/dry-run behavior and explicit confirmation.
 - EarTrumpet keeps native mixer `Alt+V`; GlazeWM maps `Win+V` to WGDot's `eartrumpet-mixer` helper so both reach the same mixer action.
 - Flameshot selection capture is `Win+Shift+S` in both managed GlazeWM profiles; do not restore the old `Win+Shift+F` binding.
 - Theme switching must not reload GlazeWM. Keep the focused-window border theme-neutral at `#a1a1a1` in both managed profiles so palette changes can stay entirely on the YASB side. `Win+T` opens the WGDot theme selector in normal and `noalt` modes; do not add it to `vm`, where Windows-key input belongs to the guest.
+- The managed YASB component must ensure `~/.config/yasb/theme.css` exists after apply by regenerating the remembered WGDot theme (Carbon Night when no valid state exists). Keep this as a component post-action; do not add `theme.css` as a normal managed/baselined user file.
 
 - Yazi launcher binding uses both `lwin+shift+e` and `rwin+shift+e`. Keep both Windows-key variants together and do not restore the old `alt+shift+e` launcher bind.
 

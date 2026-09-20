@@ -57,6 +57,11 @@
           "destination": "%USERPROFILE%\\.config\\yasb\\README.md",
           "merge": false
         }
+      ],
+      "postActions": [
+        {
+          "type": "ensure-yasb-theme"
+        }
       ]
     },
     {

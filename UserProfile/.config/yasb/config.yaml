@@ -190,7 +190,9 @@ widgets:
         vm: ""
       binding_modes_to_cycle_through: ["none", "noalt", "vm"]
       callbacks:
-        on_left: "do_nothing"
+        # Match Awtarchy's visible submap label: either primary mouse button
+        # clears the active binding mode.
+        on_left: "disable_binding_mode"
         on_middle: "do_nothing"
         on_right: "disable_binding_mode"
 

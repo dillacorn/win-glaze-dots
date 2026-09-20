@@ -8,6 +8,7 @@ $readmePath = Join-Path $repoRoot "UserProfile\.config\yasb\README.md"
 $glazeNormalPath = Join-Path $repoRoot "UserProfile\.glzr\glazewm\config.yaml"
 $glazeWorkPath = Join-Path $repoRoot "UserProfile\.glzr\glazewm\custom_work_config.yaml"
 $nativePath = Join-Path $repoRoot "wgdot\wgdot-native.cs"
+$manifestPath = Join-Path $repoRoot "wgdot\manifest.json"
 
 function Assert-Contains {
     param([string]$Text, [string]$Needle, [string]$Message)
@@ -19,7 +20,7 @@ function Assert-NotContains {
     if ($Text.Contains($Needle)) { throw "ASSERTION FAILED: $Message" }
 }
 
-foreach ($path in @($configPath, $stylePath, $readmePath, $glazeNormalPath, $glazeWorkPath, $nativePath)) {
+foreach ($path in @($configPath, $stylePath, $readmePath, $glazeNormalPath, $glazeWorkPath, $nativePath, $manifestPath)) {
     if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
         throw "ASSERTION FAILED: missing YASB parity file: $path"
     }
@@ -31,6 +32,7 @@ $readme = Get-Content -LiteralPath $readmePath -Raw
 $glazeNormal = Get-Content -LiteralPath $glazeNormalPath -Raw
 $glazeWork = Get-Content -LiteralPath $glazeWorkPath -Raw
 $native = Get-Content -LiteralPath $nativePath -Raw
+$manifest = Get-Content -LiteralPath $manifestPath -Raw
 
 Assert-Contains $config 'height: 28' "bar height stays at Awtarchy horizontal default"
 Assert-Contains $config 'always_on_top: true' "YASB remains above normal windows without changing reservation models"
@@ -52,6 +54,9 @@ Assert-Contains $config 'enable_scroll_switching: true' "workspace wheel switchi
 Assert-Contains $config 'yasb.grouper.GrouperWidget' "workspace mover uses native YASB Grouper"
 Assert-Contains $config 'glazewm.exe command move-workspace --direction left' "workspace mover uses native GlazeWM commands"
 Assert-Contains $config 'glazewm.binding_mode.GlazewmBindingModeWidget' "binding mode is used as the Windows submap equivalent"
+$bindingModeBlock = [regex]::Match($config, '(?ms)^  glazewm_binding_mode:\r?\n.*?(?=^  active_window:)').Value
+Assert-Contains $bindingModeBlock 'on_left: "disable_binding_mode"' "binding-mode left click resets like Awtarchy's submap label"
+Assert-Contains $bindingModeBlock 'on_right: "disable_binding_mode"' "binding-mode right click resets like Awtarchy's submap label"
 Assert-Contains $config 'on_right: "toggle_window"' "taskbar right click uses YASB minimize/restore behavior"
 Assert-Contains $config 'label: "{info[percent][total]} <span></span>"' "CPU label matches Awtarchy's unitless integer plus glyph"
 Assert-Contains $config 'label: "{virtual_mem_percent} <span></span>"' "memory label matches Awtarchy's unitless integer plus glyph"
@@ -116,6 +121,10 @@ Assert-Contains $mutedMicBlock 'padding: 0 8px;' "muted microphone keeps Awtarch
 Assert-Contains $style '.microphone-widget .icon.muted' "muted microphone state has dedicated styling"
 Assert-Contains $style '--muted: #5c5c5c;' "fallback palette matches Awtarchy Carbon Night"
 Assert-Contains $style '@import "theme.css";' "YASB imports the generated live theme palette"
+Assert-Contains $manifest '"type": "ensure-yasb-theme"' "YASB managed component generates theme.css after apply"
+Assert-Contains $native 'String.Equals(type, "ensure-yasb-theme", StringComparison.OrdinalIgnoreCase)' "native runtime handles the YASB theme post-action"
+Assert-Contains $native 'string themeId = CurrentYasbThemeId();' "theme post-action preserves the remembered palette"
+Assert-Contains $native 'YASB theme post-action self-test failed.' "native maintenance self-test exercises post-apply theme generation"
 Assert-Contains $config 'theme_picker:' "bar exposes a YASB theme entrypoint"
 Assert-Contains $config 'tooltip_label: "Themes (Win+T)"' "theme button documents the Awtarchy-style shortcut"
 Assert-Contains $config 'wt.exe -w new --size 72,22 nt --title "WGDot Themes" --suppressApplicationTitle wgdot theme' "theme button keeps WGDot errors visible in a stable titled Windows Terminal"
@@ -218,6 +227,7 @@ Assert-Contains $readme 'Power & battery' "Windows-native battery details mappin
 Assert-Contains $readme 'PowerPlanWidget' "native Windows power-plan option was evaluated instead of blindly scripted"
 Assert-Contains $readme 'no wheel callback' "clock wheel limitation is documented from current YASB source"
 Assert-Contains $readme 'exactly 15%' "shared YASB battery threshold edge is documented"
+Assert-Contains $readme 'plugged-in-but-not-charging' "YASB AC-only battery color limitation is documented"
 Assert-Contains $readme 'trailing `%`' "native YASB volume percent limitation is documented"
 Assert-Contains $readme 'conditional label expression' "Bluetooth connected-name/count limitation is documented"
 Assert-Contains $readme 'no connectivity CSS class' "network disconnected-color limitation is documented"

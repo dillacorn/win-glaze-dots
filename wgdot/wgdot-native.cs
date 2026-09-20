@@ -1038,6 +1038,9 @@ internal static class WgdotNative
             component["id"] = "selftest";
             component["name"] = "Self Test";
             component["files"] = new object[] { file };
+            var themePostAction = new Dictionary<string, object>();
+            themePostAction["type"] = "ensure-yasb-theme";
+            component["postActions"] = new object[] { themePostAction };
 
             var manifest = new Dictionary<string, object>();
             manifest["schemaVersion"] = 1;
@@ -1064,6 +1067,12 @@ internal static class WgdotNative
             };
 
             ApplyPlan(resetPlan, manifest, selection, context);
+
+            string postApplyThemeCss = YasbThemeCssPath();
+            if (!File.Exists(postApplyThemeCss) ||
+                File.ReadAllText(postApplyThemeCss).IndexOf("--background: #353535;", StringComparison.OrdinalIgnoreCase) < 0 ||
+                !String.Equals(CurrentYasbThemeId(), "carbon-night", StringComparison.OrdinalIgnoreCase))
+                throw new Exception("YASB theme post-action self-test failed.");
 
             if (File.ReadAllText(live) != "release-two")
                 throw new Exception("Apply self-test did not replace the live file.");
@@ -6683,6 +6692,15 @@ public static class Program
                         Console.WriteLine("Yazi package helper 'ya' not found; run 'ya pkg install' manually after Yazi is installed.");
                         Console.ResetColor();
                     }
+                }
+                else if (String.Equals(type, "ensure-yasb-theme", StringComparison.OrdinalIgnoreCase))
+                {
+                    // styles.css imports theme.css. Generate the remembered palette
+                    // during every YASB apply so a fresh install never starts with
+                    // a missing import, while preserving the user's selected theme.
+                    string themeId = CurrentYasbThemeId();
+                    if (ApplyYasbTheme(themeId) != 0)
+                        throw new Exception("Failed to generate the YASB theme stylesheet.");
                 }
             }
         }
