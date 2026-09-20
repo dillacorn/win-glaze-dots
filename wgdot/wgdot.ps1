@@ -186,6 +186,31 @@ function Set-WgdotYasbTheme {
     Write-Host "GlazeWM was not reloaded; window tiling/layout state is untouched."
 }
 
+
+function Get-WgdotYasbThemeManualPowerShell {
+    param([string]$Id = (Get-WgdotCurrentYasbThemeId))
+
+    $theme = Get-WgdotYasbTheme -Id $Id
+    if ($null -eq $theme) { $theme = Get-WgdotYasbTheme -Id "carbon-night" }
+
+    $css = (Get-WgdotYasbThemeCss -Id ([string]$theme.id)) + [Environment]::NewLine
+    $encoded = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($css))
+    $safeId = ([string]$theme.id).Replace("'", "''")
+    $safeLabel = ([string]$theme.label).Replace("'", "''")
+
+    return @(
+        "# YASB generated theme post-action",
+        '$themePath = Join-Path $env:USERPROFILE ''.config\yasb\theme.css''',
+        'New-Item -ItemType Directory -Force -Path (Split-Path -Parent $themePath) | Out-Null',
+        "[IO.File]::WriteAllBytes(`$themePath, [Convert]::FromBase64String('$encoded'))",
+        '$themeStatePath = Join-Path $env:LOCALAPPDATA ''wgdot\state\theme.json''',
+        'New-Item -ItemType Directory -Force -Path (Split-Path -Parent $themeStatePath) | Out-Null',
+        "`$themeState = [pscustomobject]@{ id = '$safeId'; label = '$safeLabel'; appliedAt = (Get-Date).ToUniversalTime().ToString('o'); cssPath = `$themePath; glazewmReloaded = `$false }",
+        '$themeState | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $themeStatePath -Encoding UTF8',
+        'Write-Host "YASB theme generated: $themePath"'
+    )
+}
+
 function Invoke-WgdotApi {
     param([Parameter(Mandatory = $true)][string]$Uri)
 
@@ -1177,6 +1202,13 @@ function Show-WgdotManualCommands {
     $mode = if ($null -eq (Read-WgdotJson -Path $script:ConfigStatePath)) { "reset" } else { "update" }
     $plan = @(Get-WgdotPlan -Manifest $resolved.Manifest -SourceRoot $resolved.Source -Installation $installation -Mode $mode)
     Convert-WgdotPlanToPowerShell -Plan $plan
+
+    if (@($installation.components) -contains "yasb") {
+        Write-Host ""
+        foreach ($line in @(Get-WgdotYasbThemeManualPowerShell)) {
+            Write-Host $line
+        }
+    }
 }
 
 function Show-WgdotBackupManager {

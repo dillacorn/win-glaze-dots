@@ -422,6 +422,31 @@ Assert-True ($nativeSourceText -match '"maintenance-self-test"') "native runtime
 Assert-True ($nativeSourceText -match 'ensure-yasb-theme') "native runtime supports generated YASB theme post-action"
 Assert-True ((Get-Command Get-WgdotYasbThemeCss -ErrorAction SilentlyContinue) -ne $null) "PowerShell fallback exposes YASB theme CSS generator"
 Assert-True ((Get-Command Set-WgdotYasbTheme -ErrorAction SilentlyContinue) -ne $null) "PowerShell fallback exposes YASB theme writer"
+Assert-True ((Get-Command Get-WgdotYasbThemeManualPowerShell -ErrorAction SilentlyContinue) -ne $null) "PowerShell fallback can emit standalone theme recovery commands"
+
+$expectedThemeRows = @(
+    "carbon-night|Carbon Night|#353535|#d0d0d0|#404040|#4a4a4a|#2b2b2b|#ff5555|#1a1a1a|#6a9955|#ff5555|#5c5c5c",
+    "catppuccin-frappe|Catppuccin Frappe|#303446|#c6d0f5|#414559|#535970|#383c4d|#e78284|#232634|#a6d189|#ef9f76|#a5adce",
+    "crimson-red|Crimson Red|#1e1e2e|#f38ba8|#352630|#5a3442|#292330|#f38ba8|#1e1e2e|#fab387|#f38ba8|#9f8994",
+    "electric-blue|Electric Blue|#1e1e2e|#89b4fa|#293448|#34445e|#252938|#f38ba8|#1e1e2e|#a6e3a1|#fab387|#8993a8",
+    "gruvbox|Gruvbox|#282828|#ebdbb2|#4a423c|#665c4e|#3c3836|#b16286|#fbf1c7|#98971a|#cc241d|#a89984",
+    "iron-forge|Iron Forge|#0f1113|#bcd2d2|#1f2328|#242a32|#0d0f12|#a31717|#ffffff|#1f6f6f|#a31717|#6a7b86",
+    "obsidian-night|Obsidian Night|#0f0f0f|#cdd6f4|#1e1e2e|#313244|#1a1a1a|#ff5555|#1e1e2e|#6a9955|#ff5555|#4b4b4b",
+    "pink|Pink|#D297A1|#2E2E2E|#B77F91|#C0AFC0|#C0AFC0|#B04155|#FFFFFF|#D3D3D3|#B04155|#7A7A7A",
+    "pipboy|Pip-Boy|#050805|#a4ff47|#1f301f|#1b281b|#101810|#263826|#050805|#a4ff47|#3c1b1b|#2a3d2a"
+)
+$actualThemes = @(Get-WgdotYasbThemes)
+Assert-Equal 9 $actualThemes.Count "PowerShell fallback theme count"
+$actualThemeRows = @($actualThemes | ForEach-Object {
+    @(
+        [string]$_.id, [string]$_.label, [string]$_.background, [string]$_.foreground,
+        [string]$_.hover, [string]$_.focus, [string]$_.active, [string]$_.urgent,
+        [string]$_.dark, [string]$_.charging, [string]$_.critical, [string]$_.muted
+    ) -join "|"
+})
+foreach ($row in $expectedThemeRows) {
+    Assert-True ($actualThemeRows -contains $row) "PowerShell fallback palette matches current Awtarchy: $row"
+}
 Assert-True ($nativeSourceText -match 'WGDOT_TEST_ROOT') "native maintenance self-test redirects state away from normal WGDot state"
 
 $themeTestRoot = Join-Path $env:TEMP ("wgdot-ps-theme-test-" + [guid]::NewGuid().ToString("N"))
@@ -440,6 +465,13 @@ try {
     Assert-True ($themeCss -match '--subtle-hover: rgba\(137, 180, 250, 20\);') "PowerShell fallback derives Awtarchy subtle-hover alpha"
     Assert-Equal "electric-blue" ([string]$themeState.id) "PowerShell fallback preserves theme id in state"
     Assert-Equal $false ([bool]$themeState.glazewmReloaded) "PowerShell fallback records that GlazeWM was not reloaded"
+
+    $manualThemeLines = @(Get-WgdotYasbThemeManualPowerShell -Id "electric-blue")
+    $manualThemeText = $manualThemeLines -join [Environment]::NewLine
+    Assert-True ($manualThemeText -match 'theme\.css') "generated manual recovery includes theme.css"
+    Assert-True ($manualThemeText -match 'theme\.json') "generated manual recovery includes theme state"
+    Assert-True ($manualThemeText -match 'electric-blue') "generated manual recovery preserves selected theme id"
+    Assert-True ($manualThemeText -match 'glazewmReloaded = \$false') "generated manual recovery never reloads GlazeWM"
 } finally {
     if (Test-Path -LiteralPath $themeTestRoot) { Remove-Item -LiteralPath $themeTestRoot -Recurse -Force }
 }
