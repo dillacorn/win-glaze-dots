@@ -68,7 +68,7 @@ Assert-Contains $style '--muted: #5c5c5c;' "fallback palette matches Awtarchy Ca
 Assert-Contains $style '@import "theme.css";' "YASB imports the generated live theme palette"
 Assert-Contains $config 'theme_picker:' "bar exposes a YASB theme entrypoint"
 Assert-Contains $config 'tooltip_label: "Themes (Win+T)"' "theme button documents the Awtarchy-style shortcut"
-Assert-Contains $config 'exec wt.exe -w new wgdot theme' "theme button keeps WGDot errors visible in Windows Terminal"
+Assert-Contains $config 'wt.exe -w new --size 72,22 nt --title "WGDot Themes" --suppressApplicationTitle wgdot theme' "theme button keeps WGDot errors visible in a stable titled Windows Terminal"
 
 foreach ($glaze in @($glazeNormal, $glazeWork)) {
     Assert-Contains $glaze 'top: "8px"' "GlazeWM keeps a normal top outer gap when YASB reserves the AppBar area"
@@ -76,7 +76,9 @@ foreach ($glaze in @($glazeNormal, $glazeWork)) {
     Assert-Contains $glaze 'shell-exec yasb' "GlazeWM starts YASB"
     Assert-Contains $glaze 'color: "#a1a1a1"' "focused GlazeWM border stays theme-neutral"
     Assert-Contains $glaze 'bindings: ["lwin+t", "rwin+t"]' "Win+T opens themes in normal/noalt contexts"
-    Assert-Contains $glaze 'shell-exec wt.exe -w new wgdot theme' "GlazeWM theme hotkey opens WGDot without WM reload"
+    Assert-Contains $glaze 'shell-exec wt.exe -w new --size 72,22 nt --title "WGDot Themes" --suppressApplicationTitle wgdot theme' "GlazeWM theme hotkey opens the stable WGDot terminal selector"
+    Assert-Contains $glaze 'window_title: { equals: "WGDot Themes" }' "theme selector has a dedicated GlazeWM title rule"
+    Assert-Contains $glaze 'window_process: { regex: "^WindowsTerminal(\\.exe)?$" }' "theme selector floating rule is scoped to Windows Terminal"
     Assert-NotContains $glaze 'wm-reload-config wgdot theme' "theme hotkey never chains a GlazeWM reload"
     Assert-Contains $glaze 'yasbc toggle-bar' "legacy hard visibility uses YASB's supported CLI"
     Assert-Contains $glaze 'bindings: ["alt+ctrl+b"]' "legacy WGDot hard-visibility hotkey is preserved"
