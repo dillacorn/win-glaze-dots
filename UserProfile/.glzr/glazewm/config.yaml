@@ -213,6 +213,8 @@ binding_modes:
         bindings: ["lwin+alt+v", "rwin+alt+v"]
       - commands: ["wm-toggle-pause"]
         bindings: ["lwin+alt+p", "rwin+alt+p"]
+      - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe bar-autohide-toggle']
+        bindings: ["alt+ctrl+b"]
       - commands: ["wm-redraw"]
         bindings: ["lwin", "rwin"]
 
@@ -418,8 +420,10 @@ keybindings:
   - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe theme-toggle']
     bindings: ["lwin+t", "rwin+t"]
 
-  # No hard bar-hide hotkey: stock YASB can auto-hide/reveal safely from
-  # its blank-bar context menu, while toggle-bar can strand an invisible bar.
+  # Awtarchy-style bar auto-hide. WGDot switches YASB native auto-hide and
+  # the live GlazeWM top gap together, then reloads both configs.
+  - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe bar-autohide-toggle']
+    bindings: ["alt+ctrl+b"]
 
   - commands: ['shell-exec C:\Program Files (x86)\SpeedCrunch\speedcrunch.exe']
     bindings: ["alt+shift+c"]
