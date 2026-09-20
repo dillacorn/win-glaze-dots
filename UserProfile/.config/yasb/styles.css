@@ -184,9 +184,12 @@ QToolTip {
     background-color: transparent;
     border: none;
     border-radius: 0;
-    min-width: 26px;
+    /* QSS min/max width target the content rect. A 14 px task icon plus
+       6 px padding on each side gives Awtarchy's exact 26 px task slot. */
+    min-width: 14px;
+    max-width: 14px;
     margin: 0;
-    padding: 0 5px;
+    padding: 0 6px;
 }
 
 .taskbar-widget .app-container.foreground {
