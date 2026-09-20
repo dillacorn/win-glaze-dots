@@ -446,7 +446,8 @@ widgets:
   clipboard_history:
     type: "yasb.quick_launch.QuickLaunchWidget"
     options:
-      label: "<span></span>"
+      # Awtarchy BarButton translates its legacy  token to  before rendering.
+      label: "<span></span>"
       search_placeholder: "Search clipboard history..."
       remember_last_query: false
       max_results: 30

@@ -141,7 +141,7 @@ QToolTip {
     background-color: transparent;
     border: none;
     border-radius: 0;
-    min-width: 28px;
+    font-size: 14px;
     margin: 0;
     padding: 0 8px;
 }
@@ -164,7 +164,7 @@ QToolTip {
     background-color: transparent;
     border: none;
     border-radius: 0;
-    min-width: 24px;
+    font-size: 14px;
     margin: 0;
     padding: 0 8px;
 }
@@ -345,7 +345,7 @@ QToolTip {
 .microphone-widget .label.muted,
 .microphone-widget .icon.muted {
     color: var(--critical);
-    padding: 0 5px;
+    padding: 0 8px;
 }
 
 .microphone-widget .label.no-device,

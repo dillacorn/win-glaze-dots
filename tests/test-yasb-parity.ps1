@@ -100,7 +100,8 @@ Assert-Contains $wifiBlock 'ethernet_icon: "󰈀"' "active Ethernet glyph matche
 Assert-Contains $bluetoothBlock 'bluetooth_on: ""' "Bluetooth enabled glyph matches Awtarchy"
 Assert-Contains $bluetoothBlock 'bluetooth_off: ""' "Bluetooth disabled keeps Awtarchy's single glyph"
 Assert-Contains $bluetoothBlock 'bluetooth_connected: ""' "Bluetooth connected keeps Awtarchy's single glyph"
-Assert-Contains $clipboardBlock 'label: "<span></span>"' "clipboard glyph matches current Awtarchy"
+Assert-Contains $clipboardBlock 'label: "<span></span>"' "clipboard glyph matches what current Awtarchy actually renders after BarButton translation"
+Assert-NotContains $clipboardBlock 'label: "<span></span>"' "legacy Awtarchy clipboard token is not rendered directly in YASB"
 Assert-Contains $config 'yasb.quick_launch.QuickLaunchWidget' "clipboard history uses native YASB Quick Launch"
 Assert-Contains $config 'search_placeholder: "Search clipboard history..."' "clipboard Quick Launch is dedicated to history"
 Assert-Contains $config 'prefix: "*"' "clipboard provider handles an empty popup query directly"
@@ -110,6 +111,8 @@ Assert-Contains $config 'on_left: "exec notification_center"' "unified DND left 
 Assert-Contains $config 'on_right: "toggle_status"' "unified DND right click uses its native DND toggle callback"
 Assert-Contains $config 'on_right: "exec wgdot eartrumpet-mixer"' "audio right click opens the existing EarTrumpet mixer helper"
 Assert-Contains $config 'normal: ""' "unmuted microphone glyph is collapsed like Awtarchy"
+$mutedMicBlock = [regex]::Match($style, '(?ms)^\.microphone-widget \.label\.muted,\r?\n\.microphone-widget \.icon\.muted \{\r?\n.*?^\}').Value
+Assert-Contains $mutedMicBlock 'padding: 0 8px;' "muted microphone keeps Awtarchy's 8 px horizontal control padding"
 Assert-Contains $style '.microphone-widget .icon.muted' "muted microphone state has dedicated styling"
 Assert-Contains $style '--muted: #5c5c5c;' "fallback palette matches Awtarchy Carbon Night"
 Assert-Contains $style '@import "theme.css";' "YASB imports the generated live theme palette"
@@ -171,6 +174,14 @@ $taskContainerBlock = [regex]::Match($style, '(?ms)^\.taskbar-widget \.app-conta
 Assert-Contains $taskContainerBlock 'min-width: 14px;' "task content width matches its 14 px Awtarchy icon"
 Assert-Contains $taskContainerBlock 'max-width: 14px;' "task content width is fixed so the padded slot remains 26 px"
 Assert-Contains $taskContainerBlock 'padding: 0 6px;' "task slot totals Awtarchy's 26 px width"
+$moverHubBlock = [regex]::Match($style, '(?ms)^\.workspace-move-grouper \.grouper-button \{\r?\n.*?^\}').Value
+$moverButtonBlock = [regex]::Match($style, '(?ms)^\.workspace-move-buttons \.label \{\r?\n.*?^\}').Value
+Assert-Contains $moverHubBlock 'font-size: 14px;' "workspace mover hub matches Awtarchy's 14 px symbol size"
+Assert-Contains $moverHubBlock 'padding: 0 8px;' "workspace mover hub keeps Awtarchy's default 8 px side padding"
+Assert-NotContains $moverHubBlock 'min-width:' "workspace mover hub is content-sized instead of Qt-padding-inflated"
+Assert-Contains $moverButtonBlock 'font-size: 14px;' "workspace mover arrows match Awtarchy's 14 px symbol size"
+Assert-Contains $moverButtonBlock 'padding: 0 8px;' "workspace mover arrows keep Awtarchy's default 8 px side padding"
+Assert-NotContains $moverButtonBlock 'min-width:' "workspace mover arrows are content-sized instead of Qt-padding-inflated"
 Assert-Contains $style '.workspace-move-grouper' "workspace mover has dedicated flat styling"
 Assert-Contains $style '.awtarchy-launcher .icon' "launcher span is styled through YASB's native icon class"
 Assert-Contains $style '.awtarchy-launcher:hover' "launcher uses Awtarchy's strong hover treatment"
