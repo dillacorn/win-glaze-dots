@@ -211,6 +211,8 @@ binding_modes:
         bindings: ["lwin+alt+n", "rwin+alt+n"]
       - commands: ["wm-enable-binding-mode --name vm"]
         bindings: ["lwin+alt+v", "rwin+alt+v"]
+      - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe mouse-mode-toggle']
+        bindings: ["lwin+alt+m", "rwin+alt+m"]
       - commands: ["wm-toggle-pause"]
         bindings: ["lwin+alt+p", "rwin+alt+p"]
       - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe bar-autohide-toggle']
@@ -310,6 +312,17 @@ binding_modes:
       - commands: ["move --workspace 10"]
         bindings: ["lwin+shift+0", "rwin+shift+0"]
 
+  # Pointer-only mode matching Awtarchy's mouse submap. GlazeWM owns the
+  # keyboard-mode state; WGDot owns the temporary low-level mouse hook.
+  - name: "mouse"
+    keybindings:
+      - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe mouse-mode-toggle']
+        bindings: ["lwin+alt+m", "rwin+alt+m"]
+      - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe mouse-mode-switch noalt']
+        bindings: ["lwin+alt+n", "rwin+alt+n"]
+      - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe mouse-mode-switch vm']
+        bindings: ["lwin+alt+v", "rwin+alt+v"]
+
   # VM mode based on Awtarchy's vm submap.
   # Normal host keybindings are replaced while active so the guest receives
   # ordinary Alt/Windows shortcuts. Host escape controls live on Win+Alt.
@@ -319,6 +332,8 @@ binding_modes:
         bindings: ["lwin+alt+v", "rwin+alt+v"]
       - commands: ["wm-enable-binding-mode --name noalt"]
         bindings: ["lwin+alt+n", "rwin+alt+n"]
+      - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe mouse-mode-toggle']
+        bindings: ["lwin+alt+m", "rwin+alt+m"]
       - commands: ["wm-toggle-pause"]
         bindings: ["lwin+alt+p", "rwin+alt+p"]
 
@@ -469,6 +484,9 @@ keybindings:
 
   - commands: ["wm-enable-binding-mode --name vm"]
     bindings: ["lwin+alt+v", "rwin+alt+v"]
+
+  - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe mouse-mode-toggle']
+    bindings: ["lwin+alt+m", "rwin+alt+m"]
 
   # Real GlazeWM pause. While paused, GlazeWM intentionally keeps only
   # wm-toggle-pause bindings active, so this same key always unpauses.
