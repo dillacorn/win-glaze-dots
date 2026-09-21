@@ -531,6 +531,7 @@ internal static class WgdotNative
             if (command == "mouse-mode-disable") return MouseModeDisable();
             if (command == "mouse-mode-hook") return MouseModeHook();
             if (command == "theme") return ThemeManagerFromArgs(args.Skip(1).ToArray());
+            if (command == "rawaccel-toggle") return RawAccelToggle();
             if (command == "gpu-driver") return GpuDriverMaintenance();
             if (command == "gpu-stage-safe") return GpuStageSafeFromArgs(args.Skip(1).ToArray());
             if (command == "gpu-safe-resume") return GpuSafeResume();
@@ -7282,6 +7283,67 @@ class WgdotHidden
             "YASB auto-hide " + (enableAutoHide ? "enabled" : "disabled") +
             "; GlazeWM top gap set to " + (enableAutoHide ? "5px" : "35px") + ".");
         Console.WriteLine("YASB and GlazeWM reloaded.");
+        return 0;
+    }
+
+    static int RawAccelToggle()
+    {
+        Process[] running = Process.GetProcessesByName("rawaccel");
+        if (running.Length > 0)
+        {
+            var failures = new List<string>();
+            foreach (Process process in running)
+            {
+                try
+                {
+                    process.Kill();
+                }
+                catch (Exception ex)
+                {
+                    failures.Add(process.Id.ToString(CultureInfo.InvariantCulture) + ": " + ex.Message);
+                }
+            }
+
+            if (failures.Count > 0)
+                throw new Exception("Failed to close RawAccel GUI process(es): " + String.Join("; ", failures.ToArray()));
+
+            return 0;
+        }
+
+        var candidates = new List<string>();
+
+        ProcResult where = Run("where.exe", "rawaccel.exe", null);
+        if (where.ExitCode == 0)
+        {
+            foreach (string line in (where.StdOut ?? "").Replace("\r", "").Split('\n'))
+            {
+                string candidate = line.Trim();
+                if (!String.IsNullOrWhiteSpace(candidate))
+                    candidates.Add(candidate);
+            }
+        }
+
+        string localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        string programFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
+
+        candidates.Add(Path.Combine(localAppData, "RawAccel", "rawaccel.exe"));
+        candidates.Add(Path.Combine(localAppData, "Programs", "RawAccel", "rawaccel.exe"));
+        if (!String.IsNullOrWhiteSpace(programFiles))
+            candidates.Add(Path.Combine(programFiles, "RawAccel", "rawaccel.exe"));
+
+        string exe = candidates.FirstOrDefault(path =>
+            !String.IsNullOrWhiteSpace(path) && File.Exists(path));
+        if (String.IsNullOrWhiteSpace(exe))
+            throw new Exception("RawAccel GUI executable was not found.");
+
+        var psi = new ProcessStartInfo();
+        psi.FileName = exe;
+        psi.WorkingDirectory = Path.GetDirectoryName(exe);
+        psi.UseShellExecute = true;
+        Process started = Process.Start(psi);
+        if (started == null)
+            throw new Exception("RawAccel GUI did not start.");
+
         return 0;
     }
 
