@@ -8,6 +8,7 @@ APPROVED_WGDOT_RUNTIME = (
     "wgdotw.exe mouse-mode-toggle",
     "wgdotw.exe glazewm-binding-mode-toggle",
     "wgdotw.exe bar-autohide-toggle",
+    "wgdotw.exe rawaccel-toggle",
     "wgdot.exe theme",
 )
 
@@ -22,7 +23,10 @@ FORBIDDEN_WGDOT_RUNTIME = (
 )
 
 for yasb_name in ("config.yaml", "custom_work_config.yaml"):
-    yasb = yaml.safe_load((root / "UserProfile/.config/yasb" / yasb_name).read_text())
+    yasb_path = root / "UserProfile/.config/yasb" / yasb_name
+    yasb_text = yasb_path.read_text()
+    assert ".ps1" not in yasb_text.lower(), (yasb_name, "YASB runtime must not depend on .ps1 files")
+    yasb = yaml.safe_load(yasb_text)
     keybindings = yasb["widgets"]["launcher"]["options"].get("keybindings", [])
     assert not keybindings, (yasb_name, "YASB Quick Launch must not own a synthetic/global launcher relay", keybindings)
 
@@ -37,6 +41,16 @@ for yasb_name in ("config.yaml", "custom_work_config.yaml"):
         "active binding-mode label right click must disable the current mode",
         mode_callbacks,
     )
+    assert mode_callbacks["on_middle"] == "do_nothing", (
+        yasb_name,
+        "active binding-mode label middle click must do nothing",
+        mode_callbacks,
+    )
+    assert "next_binding_mode" not in mode_callbacks.values(), (
+        yasb_name,
+        "active binding-mode label must never cycle modes",
+        mode_callbacks,
+    )
 
     mouse_callbacks = yasb["widgets"]["workspace_mouse"]["options"]["callbacks"]
     assert "wgdotw.exe mouse-mode-toggle" in mouse_callbacks["on_left"], (
@@ -47,13 +61,25 @@ for yasb_name in ("config.yaml", "custom_work_config.yaml"):
 
     power = yasb["widgets"]["power_menu"]
     assert power["type"] == "yasb.power_menu.PowerMenuWidget", (yasb_name, "power menu must remain native YASB")
+    assert power["options"]["menu_style"] == "popup", (yasb_name, "power menu must use native popup style")
     assert power["options"]["callbacks"]["on_left"] == "toggle_power_menu", (
         yasb_name,
         "power icon must use YASB's native toggle callback",
     )
+    assert power["options"]["callbacks"]["on_right"] == "toggle_power_menu", (
+        yasb_name,
+        "power icon right click must use YASB's native toggle callback",
+    )
+    assert any(
+        binding.get("keys") == "win+p" and binding.get("action") == "toggle_power_menu"
+        for binding in power["options"].get("keybindings", [])
+    ), (yasb_name, "Win+P must use the native YASB power menu")
 
 for name in ("config.yaml", "custom_work_config.yaml"):
-    config = yaml.safe_load((root / "UserProfile/.glzr/glazewm" / name).read_text())
+    glaze_path = root / "UserProfile/.glzr/glazewm" / name
+    glaze_text = glaze_path.read_text()
+    assert ".ps1" not in glaze_text.lower(), (name, "GlazeWM runtime must not depend on .ps1 files")
+    config = yaml.safe_load(glaze_text)
     modes = {m["name"]: m["keybindings"] for m in config["binding_modes"]}
     is_work = name == "custom_work_config.yaml"
 
@@ -92,6 +118,20 @@ for name in ("config.yaml", "custom_work_config.yaml"):
                         command,
                     )
 
+        rawaccel_keys = {
+            key
+            for binding in bindings
+            if any("wgdotw.exe rawaccel-toggle" in command for command in binding["commands"])
+            for key in binding["bindings"]
+        }
+        assert {"lwin+shift+m", "rwin+shift+m"} <= rawaccel_keys, (
+            name,
+            mode,
+            "Super+Shift+M must use the scoped compiled RawAccel toggle",
+            rawaccel_keys,
+        )
+        assert "alt+shift+m" not in rawaccel_keys, (name, mode, "RawAccel must not capture Alt+Shift+M")
+
         if is_work:
             assert "alt+p" in flow_direct_keys, (name, mode, "Work Alt+P must launch Flow directly", flow_direct_keys)
         else:
@@ -106,7 +146,15 @@ for name in ("config.yaml", "custom_work_config.yaml"):
         "VM guest shortcuts intercepted",
     )
 
-work_text = (root / "UserProfile/.glzr/glazewm/custom_work_config.yaml").read_text()
-assert ".ps1" not in work_text.lower(), "Work GlazeWM must not depend on .ps1 runtime files"
+for runtime_path in (
+    root / "UserProfile/.glzr/glazewm/config.yaml",
+    root / "UserProfile/.glzr/glazewm/custom_work_config.yaml",
+    root / "UserProfile/.config/yasb/config.yaml",
+    root / "UserProfile/.config/yasb/custom_work_config.yaml",
+):
+    assert ".ps1" not in runtime_path.read_text().lower(), (
+        runtime_path,
+        "desktop runtime configs must contain zero .ps1 references",
+    )
 
 print("Desktop launcher/binding-mode hybrid ownership checks passed.")
