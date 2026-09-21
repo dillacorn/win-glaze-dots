@@ -65,6 +65,18 @@
       ]
     },
     {
+      "id": "cursor",
+      "name": "Cursor theme",
+      "defaultNormal": true,
+      "defaultWork": true,
+      "files": [],
+      "postActions": [
+        {
+          "type": "ensure-cursor-theme"
+        }
+      ]
+    },
+    {
       "id": "yazi",
       "name": "Yazi",
       "defaultNormal": true,
@@ -857,7 +869,7 @@
     },
     {
       "id": "disable-windows-shell-hotkeys",
-      "name": "Let GlazeWM own Windows-key shell shortcuts (NoWinKeys, experimental)",
+      "name": "Let GlazeWM own Windows-key shell shortcuts (selective; preserves Win+V/Win+N)",
       "category": "keybinds",
       "type": "disable-windows-shell-hotkeys",
       "defaultNormal": false,
@@ -945,7 +957,7 @@
     },
     {
       "id": "oops-all-links-cursor",
-      "name": "Install and apply Oops-all-links cursor theme",
+      "name": "Oops-all-links cursor theme (legacy option; also in Cursor themes)",
       "category": "appearance",
       "type": "oops-all-links-cursor",
       "defaultNormal": false,

@@ -61,6 +61,7 @@ bars:
       center: ["active_window"]
       right:
         [
+          "idle_inhibitor",
           "cpu",
           "memory",
           "control_center",
@@ -323,6 +324,24 @@ widgets:
         on_left: "toggle_label"
         on_middle: "do_nothing"
         on_right: "toggle_label"
+
+  idle_inhibitor:
+    type: "yasb.custom.CustomWidget"
+    options:
+      label: "{data}"
+      class_name: "awtarchy-idle"
+      tooltip: true
+      tooltip_label: "Idle inhibitor / Keep Awake"
+      exec_options:
+        run_cmd: "wgdot idle-inhibitor-status"
+        run_once: false
+        run_interval: 1000
+        return_format: "string"
+        hide_empty: false
+      callbacks:
+        on_left: "exec wgdot idle-inhibitor-toggle"
+        on_middle: "do_nothing"
+        on_right: "exec wgdot idle-inhibitor-toggle"
 
   cpu:
     type: "yasb.cpu.CpuWidget"

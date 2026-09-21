@@ -19,7 +19,7 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-48";
+    const string Version = "native-preview-49";
     const int WingetPreflightTimeoutMs = 30000;
     const string RepoFullName = "dillacorn/win-glaze-dots";
     const string RepoUrl = "https://github.com/dillacorn/win-glaze-dots.git";
@@ -46,6 +46,7 @@ internal static class WgdotNative
     static readonly string ThemeStatePath = Path.Combine(StateRoot, "theme.json");
     static readonly string AppearanceStatePath = Path.Combine(StateRoot, "yasb-appearance.json");
     static readonly string StartupStatePath = Path.Combine(StateRoot, "startup.json");
+    static readonly string CursorStatePath = Path.Combine(StateRoot, "cursor.json");
     static readonly JavaScriptSerializer Json = new JavaScriptSerializer { MaxJsonLength = int.MaxValue, RecursionLimit = 100 };
 
     static readonly IntPtr HwndBroadcast = new IntPtr(0xffff);
@@ -212,6 +213,9 @@ internal static class WgdotNative
     [DllImport("powrprof.dll", SetLastError = true)]
     static extern bool SetSuspendState(bool hibernate, bool forceCritical, bool disableWakeEvent);
 
+    [DllImport("kernel32.dll", SetLastError = true)]
+    static extern uint SetThreadExecutionState(uint esFlags);
+
     const uint WmClose = 0x0010;
     const uint WmNcLButtonDown = 0x00A1;
     const uint WmLButtonUp = 0x0202;
@@ -235,6 +239,12 @@ internal static class WgdotNative
     const int HtBottomRight = 17;
     const uint MonitorDefaultToNearest = 0x00000002;
     const int DwmwaCloaked = 14;
+
+    const uint EsSystemRequired = 0x00000001;
+    const uint EsDisplayRequired = 0x00000002;
+    const uint EsContinuous = 0x80000000;
+    const string IdleInhibitorMutexName = @"Local\WGDot.IdleInhibitor";
+    const string IdleInhibitorStopEventName = @"Local\WGDot.IdleInhibitorStop";
 
     const string MouseModeMutexName = @"Local\WGDot.MouseModeHook";
     const string MouseModeStopEventName = @"Local\WGDot.MouseModeStop";
@@ -450,6 +460,51 @@ internal static class WgdotNative
         new YasbTheme("pipboy", "Pip-Boy", "#050805", "#a4ff47", "#1f301f", "#1b281b", "#101810", "#263826", "#050805", "#a4ff47", "#3c1b1b", "#2a3d2a")
     };
 
+    static readonly string[] CursorThemeIds = new[]
+    {
+        "bibata-modern-ice", "bibata-modern-classic", "bibata-modern-amber",
+        "bibata-original-ice", "bibata-original-classic", "bibata-original-amber",
+        "bibata-modern-ice-right", "bibata-modern-classic-right", "bibata-modern-amber-right",
+        "bibata-original-ice-right", "bibata-original-classic-right", "bibata-original-amber-right",
+        "oops-all-links", "windows-default"
+    };
+
+    static readonly Dictionary<string, string> CursorThemeLabels =
+        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            { "bibata-modern-ice", "Bibata Modern Ice - rounded / normal" },
+            { "bibata-modern-classic", "Bibata Modern Classic - rounded / normal" },
+            { "bibata-modern-amber", "Bibata Modern Amber - rounded / normal" },
+            { "bibata-original-ice", "Bibata Original Ice - sharp / normal" },
+            { "bibata-original-classic", "Bibata Original Classic - sharp / normal" },
+            { "bibata-original-amber", "Bibata Original Amber - sharp / normal" },
+            { "bibata-modern-ice-right", "Bibata Modern Ice - rounded / right hand" },
+            { "bibata-modern-classic-right", "Bibata Modern Classic - rounded / right hand" },
+            { "bibata-modern-amber-right", "Bibata Modern Amber - rounded / right hand" },
+            { "bibata-original-ice-right", "Bibata Original Ice - sharp / right hand" },
+            { "bibata-original-classic-right", "Bibata Original Classic - sharp / right hand" },
+            { "bibata-original-amber-right", "Bibata Original Amber - sharp / right hand" },
+            { "oops-all-links", "Oops all links" },
+            { "windows-default", "Windows default / restore pre-WGDot cursor" }
+        };
+
+    static readonly Dictionary<string, string> BibataCursorAssets =
+        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            { "bibata-modern-ice", "Bibata-Modern-Ice" },
+            { "bibata-modern-classic", "Bibata-Modern-Classic" },
+            { "bibata-modern-amber", "Bibata-Modern-Amber" },
+            { "bibata-original-ice", "Bibata-Original-Ice" },
+            { "bibata-original-classic", "Bibata-Original-Classic" },
+            { "bibata-original-amber", "Bibata-Original-Amber" },
+            { "bibata-modern-ice-right", "Bibata-Modern-Ice-Right" },
+            { "bibata-modern-classic-right", "Bibata-Modern-Classic-Right" },
+            { "bibata-modern-amber-right", "Bibata-Modern-Amber-Right" },
+            { "bibata-original-ice-right", "Bibata-Original-Ice-Right" },
+            { "bibata-original-classic-right", "Bibata-Original-Classic-Right" },
+            { "bibata-original-amber-right", "Bibata-Original-Amber-Right" }
+        };
+
     [STAThread]
     static int Main(string[] args)
     {
@@ -504,6 +559,10 @@ internal static class WgdotNative
             if (command == "flow-open") return OpenFlowLauncher();
             if (command == "eartrumpet-mixer") return OpenEarTrumpetMixer();
             if (command == "clipboard-history") return OpenWindowsClipboardHistory();
+            if (command == "idle-inhibitor-status") return IdleInhibitorStatus();
+            if (command == "idle-inhibitor-toggle") return IdleInhibitorToggle();
+            if (command == "idle-inhibitor-worker") return IdleInhibitorWorker();
+            if (command == "cursor") return CursorManagerFromArgs(args.Skip(1).ToArray());
             if (command == "flameshot-gui") return OpenFlameshotGui();
             if (command == "rawaccel-open") return OpenRawAccel();
             if (command == "display-settings") return OpenDisplaySettings();
@@ -573,6 +632,7 @@ internal static class WgdotNative
             String.Equals(command, "software-audit", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "acceptance-audit", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "theme", StringComparison.OrdinalIgnoreCase) ||
+            String.Equals(command, "cursor", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "gpu-driver", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "update", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "reset", StringComparison.OrdinalIgnoreCase) ||
@@ -674,7 +734,9 @@ internal static class WgdotNative
         Console.WriteLine("Managed selection: " + (File.Exists(InstallStatePath) ? "configured" : "not configured"));
         Console.WriteLine("Baseline: " + (File.Exists(BaselineIndexPath) ? "present" : "not initialized"));
         Console.WriteLine("Recorded backups: " + CountRecordedBackups().ToString(CultureInfo.InvariantCulture));
-        Console.WriteLine("YASB theme: " + CurrentYasbThemeId());
+        Console.WriteLine("YASB / Terminal theme: " + CurrentYasbThemeId());
+        Console.WriteLine("Cursor theme: " + CurrentCursorThemeId());
+        Console.WriteLine("Idle inhibitor: " + (NamedMutexExists(IdleInhibitorMutexName) ? "active" : "inactive"));
         Dictionary<string, object> appearance = ReadYasbAppearanceState();
         Console.WriteLine(
             "YASB running apps: " +
@@ -701,24 +763,23 @@ internal static class WgdotNative
         {
             "Update managed dots",
             "Software / startup manager",
-            "Audit all software (no install)",
-            "Automated acceptance audit (safe)",
             "GPU driver maintenance",
-            "YASB theme switcher",
+            "YASB / Windows Terminal theme switcher",
+            "Cursor theme switcher",
             "Windows tweaks / integrations",
             "Reset / reconfigure managed dots",
             "Review changes without applying",
             "Backup manager",
             "Manual PowerShell fallback",
             "Version / status",
-            "Advanced / Git testing",
+            "Development / testing",
             "Exit"
         };
 
         while (true)
         {
             int choice = ReadSingleChoice("Maintenance", items, 0);
-            if (choice < 0 || choice == 13) return 0;
+            if (choice < 0 || choice == 12) return 0;
 
             try
             {
@@ -727,61 +788,34 @@ internal static class WgdotNative
                     ManagedOperation("update", ResolveDefaultSource());
                     Pause();
                 }
-                else if (choice == 1)
-                {
-                    SoftwareManager();
-                }
-                else if (choice == 2)
-                {
-                    SoftwareCatalogAudit();
-                    Pause();
-                }
-                else if (choice == 3)
-                {
-                    AcceptanceAudit();
-                    Pause();
-                }
-                else if (choice == 4)
-                {
-                    GpuDriverMaintenance();
-                }
-                else if (choice == 5)
-                {
-                    ThemeManager();
-                }
+                else if (choice == 1) SoftwareManager();
+                else if (choice == 2) GpuDriverMaintenance();
+                else if (choice == 3) ThemeManager();
+                else if (choice == 4) CursorManager();
+                else if (choice == 5) TweakManager();
                 else if (choice == 6)
-                {
-                    TweakManager();
-                }
-                else if (choice == 7)
                 {
                     ManagedOperation("reset", ResolveDefaultSource());
                     Pause();
                 }
-                else if (choice == 8)
+                else if (choice == 7)
                 {
                     ManagedOperation("review", ResolveDefaultSource());
                     Pause();
                 }
+                else if (choice == 8) BackupManager();
                 else if (choice == 9)
-                {
-                    BackupManager();
-                }
-                else if (choice == 10)
                 {
                     ShowManualFallback();
                     Pause();
                 }
-                else if (choice == 11)
+                else if (choice == 10)
                 {
                     WriteTitle("Version / status");
                     Status();
                     Pause();
                 }
-                else if (choice == 12)
-                {
-                    ShowGitMenu();
-                }
+                else if (choice == 11) ShowDevelopmentMenu();
             }
             catch (Exception ex)
             {
@@ -791,6 +825,38 @@ internal static class WgdotNative
                 Console.ResetColor();
                 Pause();
             }
+        }
+    }
+
+    static void ShowDevelopmentMenu()
+    {
+        var items = new List<string>
+        {
+            "Audit all software (no install)",
+            "Automated acceptance audit (safe)",
+            "Advanced / Git testing",
+            "Back"
+        };
+
+        while (true)
+        {
+            int choice = ReadSingleChoice(
+                "Development / testing - maintainer tools",
+                items,
+                0);
+            if (choice < 0 || choice == 3) return;
+
+            if (choice == 0)
+            {
+                SoftwareCatalogAudit();
+                Pause();
+            }
+            else if (choice == 1)
+            {
+                AcceptanceAudit();
+                Pause();
+            }
+            else if (choice == 2) ShowGitMenu();
         }
     }
 
@@ -1304,7 +1370,23 @@ internal static class WgdotNative
                 Manifest = manifest
             };
 
+            string terminalSelfTestPath = WindowsTerminalSettingsPath();
+            Directory.CreateDirectory(Path.GetDirectoryName(terminalSelfTestPath));
+            File.WriteAllText(
+                terminalSelfTestPath,
+                "{\"profiles\":{\"defaults\":{}},\"schemes\":[{\"name\":\"External\"}],\"themes\":[{\"name\":\"External UI\"}],\"theme\":\"External UI\"}",
+                new UTF8Encoding(false));
+
             ApplyPlan(resetPlan, manifest, selection, context);
+
+            Dictionary<string, object> terminalSelfTest = ReadJson(terminalSelfTestPath);
+            if (terminalSelfTest == null ||
+                !String.Equals(GetString(terminalSelfTest, "theme"), "WGDot Carbon Night UI", StringComparison.OrdinalIgnoreCase) ||
+                !GetList(terminalSelfTest, "schemes").Select(AsDictionary).Any(
+                    x => String.Equals(GetString(x, "name"), "External", StringComparison.OrdinalIgnoreCase)) ||
+                !GetList(terminalSelfTest, "schemes").Select(AsDictionary).Any(
+                    x => String.Equals(GetString(x, "name"), "WGDot Carbon Night", StringComparison.OrdinalIgnoreCase)))
+                throw new Exception("Windows Terminal theme synchronization self-test failed.");
 
             string postApplyThemeCss = YasbThemeCssPath();
             if (!File.Exists(postApplyThemeCss) ||
@@ -6163,7 +6245,7 @@ internal static class WgdotNative
             if (currentIndex < 0) currentIndex = 0;
 
             int choice = ReadSingleChoice(
-                "YASB Themes - live palette only; GlazeWM is not reloaded",
+                "Themes - YASB + Windows Terminal; GlazeWM is not reloaded",
                 items,
                 currentIndex);
 
@@ -6194,15 +6276,22 @@ internal static class WgdotNative
         // live stylesheet watcher sees a modification event.
         File.AppendAllText(cssPath, Environment.NewLine, new UTF8Encoding(false));
 
+        bool terminalSynced = ApplyWindowsTerminalTheme(theme);
+
         var state = new Dictionary<string, object>();
         state["id"] = theme.Id;
         state["label"] = theme.Label;
         state["appliedAt"] = DateTime.UtcNow.ToString("o");
         state["cssPath"] = cssPath;
+        state["terminalSynced"] = terminalSynced;
+        state["terminalSettingsPath"] = WindowsTerminalSettingsPath();
         state["glazewmReloaded"] = false;
         WriteJson(ThemeStatePath, state);
 
         Console.WriteLine("YASB theme applied: " + theme.Label);
+        Console.WriteLine(terminalSynced
+            ? "Windows Terminal theme applied: " + theme.Label
+            : "Windows Terminal settings were not found; terminal theme sync was skipped.");
         Console.WriteLine("GlazeWM was not reloaded; window tiling/layout state is untouched.");
         return 0;
     }
@@ -6238,6 +6327,427 @@ internal static class WgdotNative
         lines.Add("}");
         lines.Add("");
         return String.Join("\r\n", lines.ToArray());
+    }
+
+
+    static string WindowsTerminalSettingsPath()
+    {
+        string localAppData = !String.IsNullOrWhiteSpace(TestRootOverride)
+            ? Path.Combine(TestRootOverride, "localappdata")
+            : Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+
+        return Path.Combine(
+            localAppData,
+            "Packages",
+            "Microsoft.WindowsTerminal_8wekyb3d8bbwe",
+            "LocalState",
+            "settings.json");
+    }
+
+    static bool IsLightHexColor(string hex)
+    {
+        if (String.IsNullOrWhiteSpace(hex) ||
+            !Regex.IsMatch(hex, "^#[0-9A-Fa-f]{6}$"))
+            return false;
+
+        int r = Int32.Parse(hex.Substring(1, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture);
+        int g = Int32.Parse(hex.Substring(3, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture);
+        int b = Int32.Parse(hex.Substring(5, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture);
+        return ((0.2126 * r) + (0.7152 * g) + (0.0722 * b)) >= 155.0;
+    }
+
+    static bool ApplyWindowsTerminalTheme(YasbTheme theme)
+    {
+        string path = WindowsTerminalSettingsPath();
+        if (!File.Exists(path)) return false;
+
+        Dictionary<string, object> root;
+        try
+        {
+            root = Json.Deserialize<Dictionary<string, object>>(
+                File.ReadAllText(path, Encoding.UTF8));
+        }
+        catch (Exception ex)
+        {
+            throw new Exception("Windows Terminal settings.json could not be parsed: " + ex.Message);
+        }
+        if (root == null) throw new Exception("Windows Terminal settings.json is empty.");
+
+        string schemeName = "WGDot " + theme.Label;
+        string uiThemeName = schemeName + " UI";
+
+        Dictionary<string, object> profiles = GetDictionary(root, "profiles");
+        Dictionary<string, object> defaults = GetDictionary(profiles, "defaults");
+        defaults["colorScheme"] = schemeName;
+        profiles["defaults"] = defaults;
+        root["profiles"] = profiles;
+
+        List<object> schemes = GetList(root, "schemes")
+            .Where(raw => !GetString(AsDictionary(raw), "name")
+                .StartsWith("WGDot ", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        var scheme = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+        scheme["name"] = schemeName;
+        scheme["background"] = theme.Background;
+        scheme["foreground"] = theme.Foreground;
+        scheme["cursorColor"] = theme.Foreground;
+        scheme["selectionBackground"] = theme.Focus;
+        scheme["black"] = theme.Dark;
+        scheme["red"] = theme.Urgent;
+        scheme["green"] = theme.Charging;
+        scheme["yellow"] = theme.Critical;
+        scheme["blue"] = theme.Focus;
+        scheme["purple"] = theme.Active;
+        scheme["cyan"] = theme.Hover;
+        scheme["white"] = theme.Foreground;
+        scheme["brightBlack"] = theme.Muted;
+        scheme["brightRed"] = theme.Urgent;
+        scheme["brightGreen"] = theme.Charging;
+        scheme["brightYellow"] = theme.Critical;
+        scheme["brightBlue"] = theme.Focus;
+        scheme["brightPurple"] = theme.Active;
+        scheme["brightCyan"] = theme.Hover;
+        scheme["brightWhite"] = theme.Foreground;
+        schemes.Add(scheme);
+        root["schemes"] = schemes.ToArray();
+
+        List<object> uiThemes = GetList(root, "themes")
+            .Where(raw => !GetString(AsDictionary(raw), "name")
+                .StartsWith("WGDot ", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        var window = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+        window["applicationTheme"] = IsLightHexColor(theme.Background) ? "light" : "dark";
+        window["useMica"] = false;
+        var tab = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+        tab["background"] = "terminalBackground";
+        tab["unfocusedBackground"] = theme.Background;
+        var tabRow = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+        tabRow["background"] = theme.Background;
+        tabRow["unfocusedBackground"] = theme.Background;
+        var uiTheme = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+        uiTheme["name"] = uiThemeName;
+        uiTheme["window"] = window;
+        uiTheme["tab"] = tab;
+        uiTheme["tabRow"] = tabRow;
+        uiThemes.Add(uiTheme);
+        root["themes"] = uiThemes.ToArray();
+        root["theme"] = uiThemeName;
+
+        WriteTextAtomic(path, Json.Serialize(root) + Environment.NewLine);
+        return true;
+    }
+
+    static int IdleInhibitorStatus()
+    {
+        Console.Write(NamedMutexExists(IdleInhibitorMutexName) ? "" : "");
+        return 0;
+    }
+
+    static void SignalIdleInhibitorStop()
+    {
+        try
+        {
+            using (var stop = System.Threading.EventWaitHandle.OpenExisting(IdleInhibitorStopEventName))
+                stop.Set();
+        }
+        catch (System.Threading.WaitHandleCannotBeOpenedException) { }
+    }
+
+    static void StartIdleInhibitorWorker()
+    {
+        string exe = Process.GetCurrentProcess().MainModule.FileName;
+        var psi = new ProcessStartInfo();
+        psi.FileName = exe;
+        psi.Arguments = "idle-inhibitor-worker";
+        psi.UseShellExecute = false;
+        psi.CreateNoWindow = true;
+        psi.WindowStyle = ProcessWindowStyle.Hidden;
+        psi.EnvironmentVariables["WGDOT_SKIP_RUNTIME_REFRESH"] = "1";
+        Process process = Process.Start(psi);
+        if (process == null) throw new Exception("Failed to start the WGDot idle inhibitor worker.");
+    }
+
+    static int IdleInhibitorToggle()
+    {
+        if (NamedMutexExists(IdleInhibitorMutexName))
+        {
+            SignalIdleInhibitorStop();
+            for (int i = 0; i < 40 && NamedMutexExists(IdleInhibitorMutexName); i++)
+                System.Threading.Thread.Sleep(50);
+            if (NamedMutexExists(IdleInhibitorMutexName))
+                throw new Exception("Idle inhibitor did not stop.");
+            Console.WriteLine("Idle inhibitor disabled.");
+            return 0;
+        }
+
+        StartIdleInhibitorWorker();
+        for (int i = 0; i < 40 && !NamedMutexExists(IdleInhibitorMutexName); i++)
+            System.Threading.Thread.Sleep(50);
+        if (!NamedMutexExists(IdleInhibitorMutexName))
+            throw new Exception("Idle inhibitor did not start.");
+
+        Console.WriteLine("Idle inhibitor enabled. Windows sleep and display idle timeouts are blocked while it is active.");
+        return 0;
+    }
+
+    static int IdleInhibitorWorker()
+    {
+        bool createdNew;
+        using (var mutex = new System.Threading.Mutex(true, IdleInhibitorMutexName, out createdNew))
+        {
+            if (!createdNew) return 0;
+            using (var stop = new System.Threading.EventWaitHandle(
+                false,
+                System.Threading.EventResetMode.ManualReset,
+                IdleInhibitorStopEventName))
+            {
+                stop.Reset();
+                uint state = SetThreadExecutionState(EsContinuous | EsSystemRequired | EsDisplayRequired);
+                if (state == 0)
+                    throw new System.ComponentModel.Win32Exception(
+                        Marshal.GetLastWin32Error(),
+                        "Windows rejected the WGDot idle inhibitor request.");
+                try { stop.WaitOne(); }
+                finally { SetThreadExecutionState(EsContinuous); }
+            }
+        }
+        return 0;
+    }
+
+    static string CurrentCursorThemeId()
+    {
+        Dictionary<string, object> state = ReadJson(CursorStatePath);
+        string id = state == null ? "" : GetString(state, "id");
+        if (CursorThemeLabels.ContainsKey(id)) return id;
+
+        InstallationSelection selection = ReadInstallationSelection();
+        if (selection != null && selection.Tweaks != null &&
+            selection.Tweaks.Contains("oops-all-links-cursor", StringComparer.OrdinalIgnoreCase))
+            return "oops-all-links";
+
+        return "bibata-modern-ice";
+    }
+
+    static void WriteCursorState(string id)
+    {
+        var state = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+        state["id"] = id;
+        state["label"] = CursorThemeLabels.ContainsKey(id) ? CursorThemeLabels[id] : id;
+        state["appliedAt"] = DateTime.UtcNow.ToString("o");
+        WriteJson(CursorStatePath, state);
+    }
+
+    static int CursorManagerFromArgs(string[] args)
+    {
+        if (args == null || args.Length == 0) return CursorManager();
+        if (args.Length != 1)
+        {
+            Console.Error.WriteLine("Usage: wgdot cursor [cursor-id]");
+            return 2;
+        }
+        return ApplyCursorTheme(args[0]);
+    }
+
+    static int CursorManager()
+    {
+        while (true)
+        {
+            string current = CurrentCursorThemeId();
+            var items = new List<string>();
+            foreach (string id in CursorThemeIds)
+            {
+                bool active = String.Equals(id, current, StringComparison.OrdinalIgnoreCase);
+                items.Add((active ? "* " : "  ") + CursorThemeLabels[id]);
+            }
+            items.Add("Back");
+
+            int currentIndex = Array.FindIndex(
+                CursorThemeIds,
+                x => String.Equals(x, current, StringComparison.OrdinalIgnoreCase));
+            if (currentIndex < 0) currentIndex = 0;
+
+            int choice = ReadSingleChoice(
+                "Cursor themes - Awtarchy Bibata variants + Oops",
+                items,
+                currentIndex);
+            if (choice < 0 || choice >= CursorThemeIds.Length) return 0;
+            ApplyCursorTheme(CursorThemeIds[choice]);
+        }
+    }
+
+    static Dictionary<string, string> ParseCursorInfStrings(string infPath)
+    {
+        var values = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        bool inStrings = false;
+        foreach (string rawLine in File.ReadAllLines(infPath))
+        {
+            string line = rawLine.Trim();
+            if (line.StartsWith("[", StringComparison.Ordinal) &&
+                line.EndsWith("]", StringComparison.Ordinal))
+            {
+                inStrings = String.Equals(line, "[Strings]", StringComparison.OrdinalIgnoreCase);
+                continue;
+            }
+            if (!inStrings || line.Length == 0 || line.StartsWith(";", StringComparison.Ordinal))
+                continue;
+
+            int equals = line.IndexOf('=');
+            if (equals <= 0) continue;
+            string key = line.Substring(0, equals).Trim();
+            string value = line.Substring(equals + 1).Trim();
+            if (value.Length >= 2 && value[0] == '"' && value[value.Length - 1] == '"')
+                value = value.Substring(1, value.Length - 2);
+            if (!String.IsNullOrWhiteSpace(key) && !String.IsNullOrWhiteSpace(value))
+                values[key] = value;
+        }
+        return values;
+    }
+
+    static string EnsureBibataCursorFiles(string cursorId)
+    {
+        string assetStem;
+        if (!BibataCursorAssets.TryGetValue(cursorId, out assetStem))
+            throw new Exception("Unknown Bibata cursor id: " + cursorId);
+
+        string regularDirectoryName = assetStem + "-Regular-Windows";
+        string cursorRoot = Path.Combine(InstallRoot, "cursors");
+        string destination = Path.Combine(cursorRoot, regularDirectoryName);
+        if (File.Exists(Path.Combine(destination, "install.inf"))) return destination;
+
+        Directory.CreateDirectory(cursorRoot);
+        var package = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+        package["name"] = assetStem + " cursor";
+        package["fallbackGitHubRepo"] = "ful1e5/Bibata_Cursor";
+        package["fallbackAssetRegex"] = "^" + Regex.Escape(assetStem + "-Windows.zip") + "$";
+
+        string assetName;
+        string zipPath = DownloadOfficialGitHubPackageAsset(package, out assetName);
+        using (FileStream stream = File.OpenRead(zipPath))
+        {
+            if (stream.ReadByte() != 0x50 || stream.ReadByte() != 0x4B)
+                throw new Exception("Bibata release asset was not a valid ZIP archive.");
+        }
+
+        string extractRoot = Path.Combine(CacheRoot, "bibata-cursor-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(extractRoot);
+        try
+        {
+            ExtractZipToDirectorySafe(zipPath, extractRoot);
+            string extracted = Path.Combine(extractRoot, regularDirectoryName);
+            if (!Directory.Exists(extracted) ||
+                !File.Exists(Path.Combine(extracted, "install.inf")))
+                throw new Exception("Bibata archive is missing the expected regular Windows cursor directory.");
+            if (Directory.Exists(destination)) Directory.Delete(destination, true);
+            Directory.Move(extracted, destination);
+        }
+        finally { SafeDeleteDirectory(extractRoot); }
+
+        return destination;
+    }
+
+    static int ApplyBibataCursor(string cursorId)
+    {
+        const string snapshotId = "bibata-cursor-theme";
+        RestoreRegistryOriginals("oops-all-links-cursor");
+        RestoreRegistryOriginals(snapshotId);
+
+        string themeDir = EnsureBibataCursorFiles(cursorId);
+        Dictionary<string, string> inf =
+            ParseCursorInfStrings(Path.Combine(themeDir, "install.inf"));
+
+        string[,] mappings = new string[,]
+        {
+            { "Arrow", "pointer" }, { "Help", "help" }, { "AppStarting", "work" },
+            { "Wait", "busy" }, { "Crosshair", "cross" }, { "precisionhair", "cross" },
+            { "IBeam", "text" }, { "NWPen", "handwriting" }, { "No", "unavailable" },
+            { "SizeNS", "vert" }, { "SizeWE", "horz" }, { "SizeNWSE", "dgn1" },
+            { "SizeNESW", "dgn2" }, { "Grab", "move" }, { "SizeAll", "move" },
+            { "UpArrow", "alternate" }, { "Hand", "link" }, { "Pin", "pin" },
+            { "Person", "person" }, { "Pan", "pan" }, { "Grabbing", "grabbing" },
+            { "Zoom-in", "zoom-in" }, { "Zoom-out", "zoom-out" }
+        };
+
+        var variables = new[]
+        {
+            "pointer", "help", "work", "busy", "cross", "text", "handwriting",
+            "unavailable", "vert", "horz", "dgn1", "dgn2", "move", "alternate",
+            "link", "pin", "person", "pan", "grabbing", "zoom-in", "zoom-out"
+        };
+
+        for (int i = 0; i < mappings.GetLength(0); i++)
+        {
+            string fileName;
+            if (!inf.TryGetValue(mappings[i, 1], out fileName) ||
+                String.IsNullOrWhiteSpace(fileName))
+                throw new Exception("Bibata install.inf is missing cursor mapping '" + mappings[i, 1] + "'.");
+            string path = Path.Combine(themeDir, fileName);
+            if (!File.Exists(path))
+                throw new Exception("Bibata cursor archive is missing expected file: " + fileName);
+            SetRegistryValueWithSnapshot(
+                snapshotId, "HKCU", @"Control Panel\Cursors",
+                mappings[i, 0], path, RegistryValueKind.String);
+        }
+
+        var schemePaths = new List<string>();
+        foreach (string variable in variables)
+        {
+            string fileName;
+            if (!inf.TryGetValue(variable, out fileName) || String.IsNullOrWhiteSpace(fileName))
+                throw new Exception("Bibata install.inf is missing scheme mapping '" + variable + "'.");
+            schemePaths.Add(Path.Combine(themeDir, fileName));
+        }
+
+        string schemeName;
+        if (!inf.TryGetValue("SCHEME_NAME", out schemeName) || String.IsNullOrWhiteSpace(schemeName))
+            schemeName = CursorThemeLabels[cursorId];
+
+        SetRegistryValueWithSnapshot(
+            snapshotId, "HKCU", @"Control Panel\Cursors",
+            "", schemeName, RegistryValueKind.String);
+        SetRegistryValueWithSnapshot(
+            snapshotId, "HKCU", @"Control Panel\Cursors\Schemes",
+            schemeName, String.Join(",", schemePaths.ToArray()), RegistryValueKind.String);
+
+        SystemParametersInfo(0x0057, 0, IntPtr.Zero, 0x01 | 0x02);
+        WriteCursorState(cursorId);
+        Console.WriteLine("Cursor theme applied: " + CursorThemeLabels[cursorId]);
+        return 0;
+    }
+
+    static int ApplyCursorTheme(string requestedId)
+    {
+        string id = (requestedId ?? "").Trim().Replace("_", "-").ToLowerInvariant();
+        if (id == "default") id = "windows-default";
+        if (!CursorThemeLabels.ContainsKey(id))
+        {
+            Console.Error.WriteLine("Unknown cursor theme: " + requestedId);
+            Console.Error.WriteLine("Run 'wgdot cursor' to choose a supported cursor theme.");
+            return 2;
+        }
+
+        if (id == "windows-default")
+        {
+            RestoreRegistryOriginals("bibata-cursor-theme");
+            RestoreRegistryOriginals("oops-all-links-cursor");
+            SystemParametersInfo(0x0057, 0, IntPtr.Zero, 0x01 | 0x02);
+            WriteCursorState(id);
+            Console.WriteLine("Cursor registry values restored to their pre-WGDot state.");
+            return 0;
+        }
+        if (id == "oops-all-links")
+        {
+            ApplyOopsCursor(true);
+            return 0;
+        }
+        return ApplyBibataCursor(id);
+    }
+
+    static void EnsureCursorTheme()
+    {
+        if (ApplyCursorTheme(CurrentCursorThemeId()) != 0)
+            throw new Exception("Failed to apply the remembered cursor theme.");
     }
 
     static int OpenFlowLauncher()
@@ -7902,25 +8412,30 @@ public static class Program
     static void ApplyWindowsShellHotkeysPolicy(bool enable)
     {
         const string id = "disable-windows-shell-hotkeys";
-        const string path = @"Software\Microsoft\Windows\CurrentVersion\Policies\Explorer";
+        const string advancedPath =
+            @"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced";
 
         if (!enable)
         {
             RestoreRegistryOriginals(id);
-            Console.WriteLine("Windows shell Windows-key hotkey policy restored to its pre-WGDot value.");
+            Console.WriteLine("Windows shell hotkey filtering restored to its pre-WGDot values.");
             return;
         }
 
+        // NoWinKeys also disables native Win+V and Win+N, which WGDot reuses
+        // for Clipboard History and notification-center helpers.
+        RestoreRegistryOriginals(id);
         SetRegistryValueWithSnapshot(
             id,
             "HKCU",
-            path,
-            "NoWinKeys",
-            1,
-            RegistryValueKind.DWord);
+            advancedPath,
+            "DisabledHotkeys",
+            "ABCDEFGHIJKLMOPQRSTUWXYZ0123456789",
+            RegistryValueKind.String);
 
-        Console.WriteLine("NoWinKeys enabled for the current user.");
-        Console.WriteLine("A sign-out or Explorer restart may be required before every Windows shell shortcut reflects the policy.");
+        Console.WriteLine("Selective Windows shell hotkey filtering enabled for the current user.");
+        Console.WriteLine("Win+V and Win+N remain available for WGDot helper surfaces.");
+        Console.WriteLine("This remains experimental; some Windows shell shortcuts may ignore DisabledHotkeys.");
     }
 
     static void ApplySnapAssist(bool enable)
@@ -8193,6 +8708,8 @@ public static class Program
             return;
         }
 
+        RestoreRegistryOriginals("bibata-cursor-theme");
+
         string tempDir = Path.Combine(CacheRoot, "oops-all-links");
         string zipPath = Path.Combine(tempDir, "OopsAllLinkSelects.zip");
         string cursorDir = Path.Combine(
@@ -8271,6 +8788,7 @@ public static class Program
             RegistryValueKind.String);
 
         SystemParametersInfo(0x0057, 0, IntPtr.Zero, 0x01 | 0x02);
+        WriteCursorState("oops-all-links");
         Console.WriteLine("Oops-all-links cursor theme installed and applied.");
     }
 
@@ -8933,6 +9451,10 @@ public static class Program
                     if (ApplyYasbTheme(themeId) != 0)
                         throw new Exception("Failed to generate the YASB theme stylesheet.");
                     EnsureYasbAppearance();
+                }
+                else if (String.Equals(type, "ensure-cursor-theme", StringComparison.OrdinalIgnoreCase))
+                {
+                    EnsureCursorTheme();
                 }
             }
         }
