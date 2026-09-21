@@ -4044,6 +4044,7 @@ internal static class WgdotNative
             "git-review",
             "git-update",
             "git-reset",
+            "dots-only",
             "software",
             "software-reconcile",
             "software-uninstall",
