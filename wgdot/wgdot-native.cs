@@ -9578,6 +9578,81 @@ public static class Program
         try { SHChangeNotify(0x08000000, 0, IntPtr.Zero, IntPtr.Zero); } catch { }
     }
 
+
+    static string PrepareGitRuntimeSync(SourceContext source)
+    {
+        if (source == null ||
+            !String.Equals(source.Mode, "git", StringComparison.OrdinalIgnoreCase))
+            return "";
+
+        ValidateBranchName(source.Branch);
+        if (!Regex.IsMatch(source.Revision ?? "", "^[0-9a-fA-F]{40}$"))
+            throw new Exception("Git-testing runtime sync requires an exact 40-character revision.");
+
+        var bootstrap = ReadJson(BootstrapStatePath);
+        string installedRef = bootstrap == null ? "" : GetString(bootstrap, "sourceRef");
+        string installedRevision = bootstrap == null ? "" : GetString(bootstrap, "sourceRevision");
+        if (String.Equals(installedRef, source.Branch, StringComparison.OrdinalIgnoreCase) &&
+            String.Equals(installedRevision, source.Revision, StringComparison.OrdinalIgnoreCase))
+            return "";
+
+        string sourcePath = Path.Combine(
+            source.SourceRoot,
+            "wgdot",
+            "wgdot-native.cs");
+        if (!File.Exists(sourcePath))
+            throw new Exception("Git-testing runtime source missing: wgdot/wgdot-native.cs");
+
+        string nextExe = Path.Combine(
+            CacheRoot,
+            "wgdot-next-" + source.Revision.ToLowerInvariant() + ".exe");
+        SafeDeleteFile(nextExe);
+        CompileNativeSource(sourcePath, nextExe);
+
+        ProcResult test = Run(nextExe, "self-test", null);
+        if (test.ExitCode != 0)
+            throw new Exception(
+                "Git-testing runtime self-test failed: " +
+                LastUsefulLine((test.StdErr ?? "") + "\n" + (test.StdOut ?? "")));
+
+        return nextExe;
+    }
+
+    static void ScheduleGitRuntimeSync(SourceContext source, string nextExe)
+    {
+        if (source == null || String.IsNullOrWhiteSpace(nextExe))
+            return;
+
+        var bootstrap = ReadJson(BootstrapStatePath) ?? new Dictionary<string, object>();
+        bootstrap["sourceRef"] = source.Branch;
+        bootstrap["sourceExplicit"] = true;
+        bootstrap["runtimeSyncPendingRevision"] = source.Revision;
+        bootstrap["runtimeSyncScheduledAt"] = DateTime.UtcNow.ToString("o");
+        WriteJson(BootstrapStatePath, bootstrap);
+
+        string installedExe = Path.Combine(BinRoot, "wgdot.exe");
+        string workerState = Path.Combine(
+            Path.GetTempPath(),
+            "wgdot-worker-state-" + Guid.NewGuid().ToString("N") + ".json");
+        string helper = CreateRuntimeSwapHelper(
+            nextExe,
+            installedExe,
+            source.Branch,
+            source.Revision,
+            workerState);
+
+        var helperInfo = new ProcessStartInfo();
+        helperInfo.FileName = "cmd.exe";
+        helperInfo.Arguments = "/d /c " + Q(helper);
+        helperInfo.UseShellExecute = false;
+        helperInfo.CreateNoWindow = true;
+        Process.Start(helperInfo);
+
+        Console.WriteLine(
+            "WGDot runtime sync scheduled: " +
+            source.Branch + " @ " + source.Revision);
+    }
+
     static int ManagedOperation(string mode, SourceContext source)
     {
         if (source == null) throw new Exception("No source was resolved.");
@@ -9626,12 +9701,14 @@ public static class Program
             return 0;
         }
 
+        string pendingGitRuntime = PrepareGitRuntimeSync(source);
         ApplyPlan(plan, source.Manifest, selection, source);
 
         if (selectionChanged)
             WriteInstallationSelection(selection);
 
         UpdateSourceStateAfterApply(source);
+        ScheduleGitRuntimeSync(source, pendingGitRuntime);
         Console.ForegroundColor = ConsoleColor.Green;
         Console.WriteLine("WGDot managed configuration applied.");
         Console.ResetColor();
