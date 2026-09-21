@@ -214,7 +214,8 @@ binding_modes:
         bindings: ["lwin+alt+p", "rwin+alt+p"]
       - commands: ['shell-exec --hide-window powershell.exe -NoLogo -NoProfile -WindowStyle Hidden -File "%USERPROFILE%\.config\win-glaze\scripts\bar-autohide.ps1" toggle']
         bindings: ["alt+ctrl+b"]
-      # to YASB's private hotkey listener without pausing GlazeWM.
+      - commands: ['shell-exec --hide-window powershell.exe -NoLogo -NoProfile -WindowStyle Hidden -File "%USERPROFILE%\.config\win-glaze\scripts\yasb-quick-launch.ps1"']
+        bindings: ["alt+p", "lwin+d", "rwin+d"]
 
       - commands: ['shell-exec wt.exe -w new new-tab --title "Win Glaze Themes" --suppressApplicationTitle powershell.exe -NoLogo -NoProfile -File "%USERPROFILE%\.config\win-glaze\scripts\theme-switcher.ps1"']
         bindings: ["lwin+t", "rwin+t"]
@@ -375,15 +376,9 @@ binding_modes:
 
 
 keybindings:
-  # so Start stays closed while preserving normal Super chords. VM mode is
-  # tracked separately and bypasses that suppression for guest input.
-
-  # directly to YASB's private hotkey listener; no temporary Glaze pause is used.
 
   - commands: ["shell-exec flameshot.exe gui"]
     bindings: ["lwin+shift+s", "rwin+shift+s"]
-
-  # Match Awtarchy: Super+C opens Clipboard History and Super+V opens the mixer.
 
   - commands: ["shell-exec explorer.exe ms-settings:display"]
     bindings: ["lwin+ctrl+m", "rwin+ctrl+m"]
@@ -393,10 +388,11 @@ keybindings:
 
   - commands: ['shell-exec wt.exe -w new new-tab --title "Win Glaze Themes" --suppressApplicationTitle powershell.exe -NoLogo -NoProfile -File "%USERPROFILE%\.config\win-glaze\scripts\theme-switcher.ps1"']
     bindings: ["lwin+t", "rwin+t"]
-
-  # the live GlazeWM top gap together, then reloads both configs.
+  # Standalone script coordinates YASB auto-hide with the GlazeWM top gap.
   - commands: ['shell-exec --hide-window powershell.exe -NoLogo -NoProfile -WindowStyle Hidden -File "%USERPROFILE%\.config\win-glaze\scripts\bar-autohide.ps1" toggle']
     bindings: ["alt+ctrl+b"]
+  - commands: ['shell-exec --hide-window powershell.exe -NoLogo -NoProfile -WindowStyle Hidden -File "%USERPROFILE%\.config\win-glaze\scripts\yasb-quick-launch.ps1"']
+    bindings: ["alt+p", "lwin+d", "rwin+d"]
 
   - commands: ['shell-exec C:\Program Files (x86)\SpeedCrunch\speedcrunch.exe']
     bindings: ["alt+shift+c"]
