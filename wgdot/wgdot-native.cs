@@ -1136,6 +1136,8 @@ internal static class WgdotNative
         state["sourceRef"] = sourceRef;
         state["sourceRevision"] = revision.ToLowerInvariant();
         state["refreshedAt"] = DateTime.UtcNow.ToString("o");
+        state.Remove("runtimeSyncPendingRevision");
+        state.Remove("runtimeSyncScheduledAt");
         WriteJson(BootstrapStatePath, state);
         return 0;
     }
