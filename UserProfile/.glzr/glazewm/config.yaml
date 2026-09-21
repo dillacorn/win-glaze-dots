@@ -331,9 +331,6 @@ binding_modes:
   # ordinary Alt/Windows shortcuts. Host escape controls live on Win+Alt.
   - name: "vm"
     keybindings:
-
-  - commands: ["wm-enable-binding-mode --name mouse"]
-    bindings: ["lwin+alt+m", "rwin+alt+m"]
       - commands: ["wm-disable-binding-mode --name vm"]
         bindings: ["lwin+alt+v", "rwin+alt+v"]
       - commands:
@@ -407,6 +404,9 @@ binding_modes:
 
 
 keybindings:
+
+  - commands: ["wm-enable-binding-mode --name mouse"]
+    bindings: ["lwin+alt+m", "rwin+alt+m"]
 
   - commands: ["shell-exec flameshot.exe gui"]
     bindings: ["lwin+shift+s", "rwin+shift+s"]
