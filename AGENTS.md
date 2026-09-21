@@ -141,6 +141,8 @@ Git testing is explicit maintainer/developer behavior.
 - An optional exact revision must be a full 40-character commit SHA.
 - The exact commit must belong to the selected branch.
 - Git-testing state remains separate from the remembered stable release.
+- Git-testing Update/Reset must keep the installed native WGDot runtime aligned with the exact selected branch revision. Compile and self-test that revision's `wgdot/wgdot-native.cs` before applying managed changes, then schedule the installed runtime swap only after the managed apply succeeds. Git-testing Review must remain non-mutating and must not retarget runtime.
+- Do not record the selected Git-testing revision as the installed runtime revision until the post-exit swap succeeds. A failed swap must leave the previous installed revision visible so normal runtime refresh can retry.
 - Stable update/reset returns to the published release stream.
 - Never accept a hidden branch/commit override in normal stable update paths.
 
