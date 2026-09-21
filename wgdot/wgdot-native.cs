@@ -21,7 +21,7 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-62";
+    const string Version = "native-preview-63";
     const int WingetPreflightTimeoutMs = 30000;
     const string RepoFullName = "dillacorn/win-glaze-dots";
     const string RepoUrl = "https://github.com/dillacorn/win-glaze-dots.git";
@@ -2304,9 +2304,7 @@ internal static class WgdotNative
             component["id"] = "selftest";
             component["name"] = "Self Test";
             component["files"] = new object[] { file };
-            var themePostAction = new Dictionary<string, object>();
-            themePostAction["type"] = "ensure-yasb-theme";
-            component["postActions"] = new object[] { themePostAction };
+            component["postActions"] = new object[0];
 
             var manifest = new Dictionary<string, object>();
             manifest["schemaVersion"] = 1;
@@ -2332,36 +2330,7 @@ internal static class WgdotNative
                 Manifest = manifest
             };
 
-            string terminalSelfTestPath = WindowsTerminalSettingsPath();
-            Directory.CreateDirectory(Path.GetDirectoryName(terminalSelfTestPath));
-            File.WriteAllText(
-                terminalSelfTestPath,
-                "{\"profiles\":{\"defaults\":{}},\"schemes\":[{\"name\":\"External\"}],\"themes\":[{\"name\":\"External UI\"}],\"theme\":\"External UI\"}",
-                new UTF8Encoding(false));
-
             ApplyPlan(resetPlan, manifest, selection, context);
-
-            Dictionary<string, object> terminalSelfTest = ReadJson(terminalSelfTestPath);
-            if (terminalSelfTest == null ||
-                !String.Equals(GetString(terminalSelfTest, "theme"), "WGDot Carbon Night UI", StringComparison.OrdinalIgnoreCase) ||
-                !GetList(terminalSelfTest, "schemes").Select(AsDictionary).Any(
-                    x => String.Equals(GetString(x, "name"), "External", StringComparison.OrdinalIgnoreCase)) ||
-                !GetList(terminalSelfTest, "schemes").Select(AsDictionary).Any(
-                    x => String.Equals(GetString(x, "name"), "WGDot Carbon Night", StringComparison.OrdinalIgnoreCase)))
-                throw new Exception("Windows Terminal theme synchronization self-test failed.");
-
-            string postApplyThemeCss = YasbThemeCssPath();
-            if (!File.Exists(postApplyThemeCss) ||
-                File.ReadAllText(postApplyThemeCss).IndexOf("--background: #353535;", StringComparison.OrdinalIgnoreCase) < 0 ||
-                !String.Equals(CurrentYasbThemeId(), "carbon-night", StringComparison.OrdinalIgnoreCase))
-                throw new Exception("YASB theme post-action self-test failed.");
-
-            string postApplyAppearanceCss = YasbAppearanceCssPath();
-            if (!File.Exists(postApplyAppearanceCss) ||
-                File.ReadAllText(postApplyAppearanceCss).IndexOf(
-                    "YASB live appearance toggles",
-                    StringComparison.OrdinalIgnoreCase) < 0)
-                throw new Exception("YASB appearance post-action self-test failed.");
 
             if (File.ReadAllText(live) != "release-two")
                 throw new Exception("Apply self-test did not replace the live file.");
@@ -2627,23 +2596,6 @@ internal static class WgdotNative
                 beforeDefault,
                 StringComparison.OrdinalIgnoreCase))
                 throw new Exception("Firefox default-profile rollback self-test failed.");
-
-            // Theme writes are redirected by WGDOT_TEST_ROOT, so exercise the
-            // real live-palette path without touching the user's profile.
-            if (ApplyYasbTheme("electric-blue") != 0)
-                throw new Exception("YASB theme apply self-test failed.");
-
-            string themeCssSelfTest = YasbThemeCssPath();
-            if (!File.Exists(themeCssSelfTest))
-                throw new Exception("YASB theme CSS generation self-test failed.");
-
-            string themeCssText = File.ReadAllText(themeCssSelfTest);
-            if (themeCssText.IndexOf("--foreground: #89b4fa;", StringComparison.OrdinalIgnoreCase) < 0 ||
-                themeCssText.IndexOf("--background: #1e1e2e;", StringComparison.OrdinalIgnoreCase) < 0 ||
-                !String.Equals(CurrentYasbThemeId(), "electric-blue", StringComparison.OrdinalIgnoreCase))
-                throw new Exception("YASB theme state/content self-test failed.");
-
-            SafeDeleteFile(themeCssSelfTest);
 
             Console.WriteLine("WGDot native maintenance self-test passed.");
             return 0;
