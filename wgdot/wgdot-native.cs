@@ -2,6 +2,8 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Drawing;
+using System.Drawing.Imaging;
 using System.Globalization;
 using System.IO;
 using System.IO.Compression;
@@ -47,6 +49,10 @@ internal static class WgdotNative
     static readonly string AppearanceStatePath = Path.Combine(StateRoot, "yasb-appearance.json");
     static readonly string StartupStatePath = Path.Combine(StateRoot, "startup.json");
     static readonly string CursorStatePath = Path.Combine(StateRoot, "cursor.json");
+    static readonly string ClipboardHistoryStatePath = Path.Combine(StateRoot, "clipboard-history.json");
+    static readonly string ClipboardHistoryImageRoot = Path.Combine(StateRoot, "clipboard-history-images");
+    static readonly string GlazeBindingModeStatePath = Path.Combine(StateRoot, "glazewm-binding-mode.json");
+    static readonly string RawAccelStatePath = Path.Combine(StateRoot, "rawaccel.json");
     static readonly JavaScriptSerializer Json = new JavaScriptSerializer { MaxJsonLength = int.MaxValue, RecursionLimit = 100 };
 
     static readonly IntPtr HwndBroadcast = new IntPtr(0xffff);
@@ -258,6 +264,15 @@ internal static class WgdotNative
     [DllImport("user32.dll", SetLastError = true)]
     static extern bool PostThreadMessage(uint idThread, uint msg, UIntPtr wParam, IntPtr lParam);
 
+    [DllImport("user32.dll", SetLastError = true)]
+    static extern bool AddClipboardFormatListener(IntPtr hwnd);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    static extern bool RemoveClipboardFormatListener(IntPtr hwnd);
+
+    [DllImport("user32.dll")]
+    static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
     [DllImport("user32.dll")]
     static extern bool IsWindow(IntPtr hWnd);
 
@@ -284,6 +299,9 @@ internal static class WgdotNative
     const int WmKeyUp = 0x0101;
     const int WmSysKeyDown = 0x0104;
     const int WmSysKeyUp = 0x0105;
+    const int WmClipboardUpdate = 0x031D;
+    const int WmHotkey = 0x0312;
+    const int SwRestore = 9;
     const int WhKeyboardLl = 13;
     const int WhMouseLl = 14;
     const uint GaRoot = 2;
@@ -308,6 +326,11 @@ internal static class WgdotNative
     const string SuperLTestMutexName = @"Local\WGDot.SuperLTestHook";
     const string SuperLTestStopEventName = @"Local\WGDot.SuperLTestStop";
 
+    const string DesktopWorkerMutexName = @"Local\WGDot.DesktopWorker";
+    const string DesktopWorkerStopEventName = @"Local\WGDot.DesktopWorkerStop";
+    const string ClipboardHistoryDataMutexName = @"Local\WGDot.ClipboardHistoryData";
+    const string ClipboardHistoryWindowTitle = "WGDot Clipboard History";
+
     static LowLevelMouseProc MouseModeHookProc;
     static IntPtr MouseModeHookHandle = IntPtr.Zero;
     static IntPtr MouseModeResizeTarget = IntPtr.Zero;
@@ -316,7 +339,14 @@ internal static class WgdotNative
     static bool SuperLLeftWinDown;
     static bool SuperLRightWinDown;
     static bool SuperLSuppressKeyUp;
+    static LowLevelKeyboardProc DesktopWorkerKeyboardProc;
+    static IntPtr DesktopWorkerKeyboardHookHandle = IntPtr.Zero;
+    static bool DesktopWorkerLeftWinDown;
+    static bool DesktopWorkerRightWinDown;
+    static bool DesktopWorkerSuperChordUsed;
 
+    const byte VkShift = 0x10;
+    const byte VkControl = 0x11;
     const byte VkMenu = 0x12;
     const byte VkD = 0x44;
     const byte VkL = 0x4C;
@@ -431,6 +461,368 @@ internal static class WgdotNative
         public string Branch;
         public string SourceRoot;
         public Dictionary<string, object> Manifest;
+    }
+
+    sealed class ClipboardHistoryEntry
+    {
+        public string Id { get; set; }
+        public string Kind { get; set; }
+        public string Text { get; set; }
+        public string ImageFile { get; set; }
+        public string CreatedAt { get; set; }
+        public string Preview { get; set; }
+    }
+
+    sealed class DesktopWorkerForm : System.Windows.Forms.Form
+    {
+        protected override void SetVisibleCore(bool value)
+        {
+            base.SetVisibleCore(false);
+        }
+
+        protected override void OnHandleCreated(EventArgs e)
+        {
+            base.OnHandleCreated(e);
+            if (!AddClipboardFormatListener(Handle))
+                throw new System.ComponentModel.Win32Exception(
+                    Marshal.GetLastWin32Error(),
+                    "Failed to register WGDot clipboard listener.");
+        }
+
+        protected override void OnHandleDestroyed(EventArgs e)
+        {
+            if (Handle != IntPtr.Zero)
+                RemoveClipboardFormatListener(Handle);
+            base.OnHandleDestroyed(e);
+        }
+
+        protected override void WndProc(ref System.Windows.Forms.Message message)
+        {
+            if (message.Msg == WmClipboardUpdate)
+                CaptureClipboardHistorySnapshot();
+            base.WndProc(ref message);
+        }
+    }
+
+    sealed class ClipboardHistoryForm : System.Windows.Forms.Form
+    {
+        readonly System.Windows.Forms.ListBox _list;
+        readonly System.Windows.Forms.TextBox _editor;
+        readonly System.Windows.Forms.PictureBox _image;
+        readonly System.Windows.Forms.Button _copy;
+        readonly System.Windows.Forms.Button _save;
+        readonly System.Windows.Forms.Button _delete;
+        List<ClipboardHistoryEntry> _entries = new List<ClipboardHistoryEntry>();
+
+        public ClipboardHistoryForm()
+        {
+            YasbTheme theme = FindYasbTheme(CurrentYasbThemeId()) ?? FindYasbTheme("carbon-night");
+            Color background = ParseThemeColor(theme == null ? "#353535" : theme.Background, Color.FromArgb(53, 53, 53));
+            Color foreground = ParseThemeColor(theme == null ? "#d0d0d0" : theme.Foreground, Color.Gainsboro);
+            Color hover = ParseThemeColor(theme == null ? "#404040" : theme.Hover, Color.FromArgb(64, 64, 64));
+            Color active = ParseThemeColor(theme == null ? "#2b2b2b" : theme.Active, Color.FromArgb(43, 43, 43));
+
+            Text = ClipboardHistoryWindowTitle;
+            ClientSize = new Size(860, 520);
+            MinimumSize = new Size(680, 420);
+            StartPosition = System.Windows.Forms.FormStartPosition.Manual;
+            FormBorderStyle = System.Windows.Forms.FormBorderStyle.Sizable;
+            MaximizeBox = false;
+            ShowInTaskbar = false;
+            TopMost = true;
+            BackColor = background;
+            ForeColor = foreground;
+            KeyPreview = true;
+            Font = new Font("JetBrainsMono Nerd Font Mono", 9.5f, FontStyle.Regular, GraphicsUnit.Point);
+
+            System.Windows.Forms.Screen screen =
+                System.Windows.Forms.Screen.FromHandle(GetForegroundWindow());
+            Rectangle area = screen.WorkingArea;
+            Location = new Point(
+                area.Left + Math.Max(0, (area.Width - Width) / 2),
+                area.Top + Math.Max(0, (area.Height - Height) / 2));
+
+            _list = new System.Windows.Forms.ListBox();
+            _list.Dock = System.Windows.Forms.DockStyle.Left;
+            _list.Width = 330;
+            _list.DrawMode = System.Windows.Forms.DrawMode.OwnerDrawFixed;
+            _list.ItemHeight = 52;
+            _list.IntegralHeight = false;
+            _list.BorderStyle = System.Windows.Forms.BorderStyle.None;
+            _list.BackColor = active;
+            _list.ForeColor = foreground;
+            _list.DrawItem += delegate(object sender, System.Windows.Forms.DrawItemEventArgs e)
+            {
+                if (e.Index < 0 || e.Index >= _list.Items.Count)
+                    return;
+
+                ClipboardHistoryEntry entry = (ClipboardHistoryEntry)_list.Items[e.Index];
+                bool selected = (e.State & System.Windows.Forms.DrawItemState.Selected) != 0;
+                using (var bg = new SolidBrush(selected ? hover : active))
+                    e.Graphics.FillRectangle(bg, e.Bounds);
+
+                string title = entry.Kind == "image" ? "[IMAGE] " + (entry.Preview ?? "") : (entry.Preview ?? "");
+                string stamp = ClipboardHistoryTimestampLabel(entry.CreatedAt);
+                Rectangle titleRect = new Rectangle(e.Bounds.Left + 10, e.Bounds.Top + 6, e.Bounds.Width - 20, 22);
+                Rectangle stampRect = new Rectangle(e.Bounds.Left + 10, e.Bounds.Top + 29, e.Bounds.Width - 20, 18);
+                using (var fg = new SolidBrush(foreground))
+                    e.Graphics.DrawString(title, Font, fg, titleRect);
+                using (var muted = new SolidBrush(Color.FromArgb(160, foreground)))
+                    e.Graphics.DrawString(stamp, new Font(Font.FontFamily, 8.0f), muted, stampRect);
+                e.DrawFocusRectangle();
+            };
+            _list.SelectedIndexChanged += delegate { LoadSelectedEntry(); };
+            _list.DoubleClick += delegate { CopySelectedEntry(); };
+
+            var right = new System.Windows.Forms.Panel();
+            right.Dock = System.Windows.Forms.DockStyle.Fill;
+            right.Padding = new System.Windows.Forms.Padding(10);
+            right.BackColor = background;
+
+            _editor = new System.Windows.Forms.TextBox();
+            _editor.Dock = System.Windows.Forms.DockStyle.Fill;
+            _editor.Multiline = true;
+            _editor.AcceptsReturn = true;
+            _editor.AcceptsTab = true;
+            _editor.ScrollBars = System.Windows.Forms.ScrollBars.Both;
+            _editor.WordWrap = true;
+            _editor.BackColor = active;
+            _editor.ForeColor = foreground;
+            _editor.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
+            _editor.Font = Font;
+
+            _image = new System.Windows.Forms.PictureBox();
+            _image.Dock = System.Windows.Forms.DockStyle.Fill;
+            _image.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
+            _image.BackColor = active;
+            _image.Visible = false;
+
+            var buttons = new System.Windows.Forms.FlowLayoutPanel();
+            buttons.Dock = System.Windows.Forms.DockStyle.Bottom;
+            buttons.Height = 42;
+            buttons.Padding = new System.Windows.Forms.Padding(0, 7, 0, 0);
+            buttons.FlowDirection = System.Windows.Forms.FlowDirection.LeftToRight;
+            buttons.WrapContents = false;
+            buttons.BackColor = background;
+
+            _copy = MakeClipboardButton("Copy", background, foreground, hover);
+            _save = MakeClipboardButton("Save edit", background, foreground, hover);
+            _delete = MakeClipboardButton("Delete", background, foreground, hover);
+            var clear = MakeClipboardButton("Clear all", background, foreground, hover);
+            var close = MakeClipboardButton("Close", background, foreground, hover);
+
+            _copy.Click += delegate { CopySelectedEntry(); };
+            _save.Click += delegate { SaveSelectedEdit(); };
+            _delete.Click += delegate { DeleteSelectedEntry(); };
+            clear.Click += delegate
+            {
+                if (System.Windows.Forms.MessageBox.Show(
+                        this,
+                        "Delete all WGDot clipboard history?",
+                        ClipboardHistoryWindowTitle,
+                        System.Windows.Forms.MessageBoxButtons.YesNo,
+                        System.Windows.Forms.MessageBoxIcon.Warning) ==
+                    System.Windows.Forms.DialogResult.Yes)
+                {
+                    ClearClipboardHistory();
+                    RefreshEntries();
+                }
+            };
+            close.Click += delegate { Close(); };
+
+            buttons.Controls.Add(_copy);
+            buttons.Controls.Add(_save);
+            buttons.Controls.Add(_delete);
+            buttons.Controls.Add(clear);
+            buttons.Controls.Add(close);
+
+            right.Controls.Add(_editor);
+            right.Controls.Add(_image);
+            right.Controls.Add(buttons);
+            Controls.Add(right);
+            Controls.Add(_list);
+
+            KeyDown += delegate(object sender, System.Windows.Forms.KeyEventArgs e)
+            {
+                if (e.KeyCode == System.Windows.Forms.Keys.Escape)
+                {
+                    Close();
+                    e.Handled = true;
+                }
+                else if (e.Control && e.KeyCode == System.Windows.Forms.Keys.Enter)
+                {
+                    CopySelectedEntry();
+                    e.Handled = true;
+                }
+            };
+
+            FormClosed += delegate
+            {
+                if (_image.Image != null)
+                {
+                    Image old = _image.Image;
+                    _image.Image = null;
+                    old.Dispose();
+                }
+            };
+
+            RefreshEntries();
+        }
+
+        static System.Windows.Forms.Button MakeClipboardButton(
+            string textValue,
+            Color background,
+            Color foreground,
+            Color hover)
+        {
+            var button = new System.Windows.Forms.Button();
+            button.Text = textValue;
+            button.AutoSize = true;
+            button.Height = 28;
+            button.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            button.FlatAppearance.BorderSize = 1;
+            button.FlatAppearance.BorderColor = hover;
+            button.FlatAppearance.MouseOverBackColor = hover;
+            button.FlatAppearance.MouseDownBackColor = hover;
+            button.BackColor = background;
+            button.ForeColor = foreground;
+            button.TabStop = false;
+            return button;
+        }
+
+        void RefreshEntries()
+        {
+            string selectedId = CurrentEntry() == null ? "" : CurrentEntry().Id;
+            _entries = ReadClipboardHistoryEntries();
+            _list.BeginUpdate();
+            try
+            {
+                _list.Items.Clear();
+                foreach (ClipboardHistoryEntry entry in _entries)
+                    _list.Items.Add(entry);
+            }
+            finally
+            {
+                _list.EndUpdate();
+            }
+
+            int selectedIndex = -1;
+            for (int i = 0; i < _entries.Count; i++)
+            {
+                if (String.Equals(_entries[i].Id, selectedId, StringComparison.OrdinalIgnoreCase))
+                {
+                    selectedIndex = i;
+                    break;
+                }
+            }
+            if (selectedIndex < 0 && _entries.Count > 0)
+                selectedIndex = 0;
+            _list.SelectedIndex = selectedIndex;
+            LoadSelectedEntry();
+        }
+
+        ClipboardHistoryEntry CurrentEntry()
+        {
+            return _list.SelectedItem as ClipboardHistoryEntry;
+        }
+
+        void LoadSelectedEntry()
+        {
+            ClipboardHistoryEntry entry = CurrentEntry();
+            if (_image.Image != null)
+            {
+                Image old = _image.Image;
+                _image.Image = null;
+                old.Dispose();
+            }
+
+            bool isText = entry != null && entry.Kind == "text";
+            _editor.Visible = isText;
+            _image.Visible = entry != null && entry.Kind == "image";
+            _copy.Enabled = entry != null;
+            _save.Enabled = isText;
+            _delete.Enabled = entry != null;
+
+            if (entry == null)
+            {
+                _editor.Text = "";
+                return;
+            }
+
+            if (isText)
+            {
+                _editor.Text = entry.Text ?? "";
+                _editor.SelectionStart = 0;
+                _editor.SelectionLength = 0;
+            }
+            else
+            {
+                string path = ClipboardHistoryImagePath(entry);
+                if (File.Exists(path))
+                {
+                    try
+                    {
+                        using (Image source = Image.FromFile(path))
+                            _image.Image = new Bitmap(source);
+                    }
+                    catch
+                    {
+                    }
+                }
+            }
+        }
+
+        void CopySelectedEntry()
+        {
+            ClipboardHistoryEntry entry = CurrentEntry();
+            if (entry == null)
+                return;
+
+            try
+            {
+                if (entry.Kind == "text")
+                {
+                    System.Windows.Forms.Clipboard.SetText(_editor.Text ?? "");
+                }
+                else if (entry.Kind == "image")
+                {
+                    string path = ClipboardHistoryImagePath(entry);
+                    if (File.Exists(path))
+                    {
+                        using (Image source = Image.FromFile(path))
+                        using (var copy = new Bitmap(source))
+                            System.Windows.Forms.Clipboard.SetImage(copy);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Windows.Forms.MessageBox.Show(
+                    this,
+                    "Could not copy clipboard entry: " + ex.Message,
+                    ClipboardHistoryWindowTitle,
+                    System.Windows.Forms.MessageBoxButtons.OK,
+                    System.Windows.Forms.MessageBoxIcon.Error);
+            }
+        }
+
+        void SaveSelectedEdit()
+        {
+            ClipboardHistoryEntry entry = CurrentEntry();
+            if (entry == null || entry.Kind != "text")
+                return;
+            UpdateClipboardHistoryText(entry.Id, _editor.Text ?? "");
+            RefreshEntries();
+        }
+
+        void DeleteSelectedEntry()
+        {
+            ClipboardHistoryEntry entry = CurrentEntry();
+            if (entry == null)
+                return;
+            DeleteClipboardHistoryEntry(entry.Id);
+            RefreshEntries();
+        }
     }
 
     sealed class GpuAdapterInfo
@@ -620,6 +1012,8 @@ internal static class WgdotNative
             if (command == "flow-open") return OpenFlowLauncher();
             if (command == "eartrumpet-mixer") return OpenEarTrumpetMixer();
             if (command == "clipboard-history") return OpenWindowsClipboardHistory();
+            if (command == "desktop-worker") return DesktopWorker();
+            if (command == "desktop-worker-stop") return StopDesktopWorker();
             if (command == "idle-inhibitor-status") return IdleInhibitorStatus();
             if (command == "idle-inhibitor-toggle") return IdleInhibitorToggle();
             if (command == "idle-inhibitor-worker") return IdleInhibitorWorker();
