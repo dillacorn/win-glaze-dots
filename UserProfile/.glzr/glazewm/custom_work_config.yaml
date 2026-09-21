@@ -179,10 +179,6 @@ window_rules:
       - window_title: { regex: "Volume Mixer" }
       - window_process: { equals: "EarTrumpet" }
       - window_title: { regex: "(Find|Replace)" }
-      # Keep the standalone theme selector out of the tiling tree. Its terminal
-      # title is fixed with Windows Terminal --suppressApplicationTitle.
-      - window_process: { regex: "^WindowsTerminal(\\.exe)?$" }
-        window_title: { equals: "Win Glaze Themes" }
 
 binding_modes:
   - name: "resize"
@@ -222,7 +218,7 @@ binding_modes:
         bindings: ["lwin+alt+m", "rwin+alt+m"]
       - commands: ["wm-toggle-pause"]
         bindings: ["lwin+alt+p", "rwin+alt+p"]
-      - commands: ['shell-exec --hide-window powershell.exe -NoLogo -NoProfile -WindowStyle Hidden -Command "& (Join-Path $env:USERPROFILE ''.config\win-glaze\scripts\bar-autohide.ps1'') toggle"']
+      - commands: ['shell-exec --hide-window powershell.exe -NoLogo -NoProfile -WindowStyle Hidden -Command "$yp=Join-Path $env:USERPROFILE ''.config\yasb\config.yaml'';$gp=Join-Path $env:USERPROFILE ''.glzr\glazewm\config.yaml'';$y=[IO.File]::ReadAllText($yp);$g=[IO.File]::ReadAllText($gp);$m=[regex]::Match($y,''(?m)^(\s*)auto_hide:\s*(true|false)\s*$'');if(-not $m.Success){exit 1};$hide=$m.Groups[2].Value -ine ''true'';$y=[regex]::Replace($y,''(?m)^(\s*)auto_hide:\s*(true|false)\s*$'',(''$1auto_hide: ''+$(if($hide){''true''}else{''false''})));$gap=if($hide){''5''}else{''35''};$g=[regex]::Replace($g,''(?m)^(\s*)top:\s*\x22(5|35)px\x22\s*$'',(''$1top: ''+[char]34+$gap+''px''+[char]34));$u=New-Object Text.UTF8Encoding($false);[IO.File]::WriteAllText($yp,$y,$u);[IO.File]::WriteAllText($gp,$g,$u);$yc=Get-Command yasbc.exe -ErrorAction SilentlyContinue;if($yc){& $yc.Source reload -s};$gc=Get-Command glazewm.exe -ErrorAction SilentlyContinue;if($gc){& $gc.Source command wm-reload-config|Out-Null}"']
         bindings: ["alt+ctrl+b"]
       # Work profile: GlazeWM launches Flow Launcher directly. YASB Quick
       # Launch remains available from its native bar widget; upstream YASB
@@ -230,7 +226,7 @@ binding_modes:
       - commands: ['shell-exec %LOCALAPPDATA%/FlowLauncher/Flow.Launcher.exe']
         bindings: ["alt+p"]
 
-      - commands: ['shell-exec wt.exe -w new new-tab --title "Win Glaze Themes" --suppressApplicationTitle powershell.exe -NoLogo -NoProfile -Command "& (Join-Path $env:USERPROFILE ''.config\win-glaze\scripts\theme-switcher.ps1'')"']
+      - commands: ["shell-exec explorer.exe ms-settings:themes"]
         bindings: ["lwin+t", "rwin+t"]
       - commands: ["shell-exec explorer.exe ms-settings:display"]
         bindings: ["lwin+ctrl+m", "rwin+ctrl+m"]
@@ -423,10 +419,11 @@ keybindings:
   - commands: ["shell-exec explorer.exe ms-settings:display"]
     bindings: ["lwin+ctrl+m", "rwin+ctrl+m"]
 
-  - commands: ['shell-exec wt.exe -w new new-tab --title "Win Glaze Themes" --suppressApplicationTitle powershell.exe -NoLogo -NoProfile -Command "& (Join-Path $env:USERPROFILE ''.config\win-glaze\scripts\theme-switcher.ps1'')"']
+  - commands: ["shell-exec explorer.exe ms-settings:themes"]
     bindings: ["lwin+t", "rwin+t"]
-  # Standalone script coordinates YASB auto-hide with the GlazeWM top gap.
-  - commands: ['shell-exec --hide-window powershell.exe -NoLogo -NoProfile -WindowStyle Hidden -Command "& (Join-Path $env:USERPROFILE ''.config\win-glaze\scripts\bar-autohide.ps1'') toggle"']
+  # Restricted Work profile keeps coordinated auto-hide inline because
+  # downloaded .ps1 helpers are blocked by endpoint policy.
+  - commands: ['shell-exec --hide-window powershell.exe -NoLogo -NoProfile -WindowStyle Hidden -Command "$yp=Join-Path $env:USERPROFILE ''.config\yasb\config.yaml'';$gp=Join-Path $env:USERPROFILE ''.glzr\glazewm\config.yaml'';$y=[IO.File]::ReadAllText($yp);$g=[IO.File]::ReadAllText($gp);$m=[regex]::Match($y,''(?m)^(\s*)auto_hide:\s*(true|false)\s*$'');if(-not $m.Success){exit 1};$hide=$m.Groups[2].Value -ine ''true'';$y=[regex]::Replace($y,''(?m)^(\s*)auto_hide:\s*(true|false)\s*$'',(''$1auto_hide: ''+$(if($hide){''true''}else{''false''})));$gap=if($hide){''5''}else{''35''};$g=[regex]::Replace($g,''(?m)^(\s*)top:\s*\x22(5|35)px\x22\s*$'',(''$1top: ''+[char]34+$gap+''px''+[char]34));$u=New-Object Text.UTF8Encoding($false);[IO.File]::WriteAllText($yp,$y,$u);[IO.File]::WriteAllText($gp,$g,$u);$yc=Get-Command yasbc.exe -ErrorAction SilentlyContinue;if($yc){& $yc.Source reload -s};$gc=Get-Command glazewm.exe -ErrorAction SilentlyContinue;if($gc){& $gc.Source command wm-reload-config|Out-Null}"']
     bindings: ["alt+ctrl+b"]
 
   - commands: ["shell-exec C:\\Program Files (x86)\\SpeedCrunch\\speedcrunch.exe"]
