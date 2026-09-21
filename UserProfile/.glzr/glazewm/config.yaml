@@ -197,6 +197,10 @@ binding_modes:
         bindings: ["escape", "enter"]
       - commands: ["wm-toggle-pause"]
         bindings: ["lwin+alt+p", "rwin+alt+p"]
+      - commands:
+          - "wm-disable-binding-mode --name resize"
+          - "wm-enable-binding-mode --name mouse"
+        bindings: ["lwin+alt+m", "rwin+alt+m"]
 
   # Gaming-friendly mode based on Awtarchy's noalt submap.
   # Normal Alt-heavy bindings are replaced with Super equivalents while active.
@@ -210,16 +214,20 @@ binding_modes:
           - "wm-disable-binding-mode --name noalt"
           - "wm-enable-binding-mode --name vm"
         bindings: ["lwin+alt+v", "rwin+alt+v"]
+      - commands:
+          - "wm-disable-binding-mode --name noalt"
+          - "wm-enable-binding-mode --name mouse"
+        bindings: ["lwin+alt+m", "rwin+alt+m"]
       - commands: ["wm-toggle-pause"]
         bindings: ["lwin+alt+p", "rwin+alt+p"]
-      - commands: ['shell-exec --hide-window powershell.exe -NoLogo -NoProfile -WindowStyle Hidden -File "%USERPROFILE%\.config\win-glaze\scripts\bar-autohide.ps1" toggle']
+      - commands: ['shell-exec --hide-window powershell.exe -NoLogo -NoProfile -WindowStyle Hidden -Command "& (Join-Path $env:USERPROFILE ''.config\win-glaze\scripts\bar-autohide.ps1'') toggle"']
         bindings: ["alt+ctrl+b"]
 
-      - commands: ['shell-exec wt.exe -w new new-tab --title "Win Glaze Themes" --suppressApplicationTitle powershell.exe -NoLogo -NoProfile -File "%USERPROFILE%\.config\win-glaze\scripts\theme-switcher.ps1"']
+      - commands: ['shell-exec wt.exe -w new new-tab --title "Win Glaze Themes" --suppressApplicationTitle powershell.exe -NoLogo -NoProfile -Command "& (Join-Path $env:USERPROFILE ''.config\win-glaze\scripts\theme-switcher.ps1'')"']
         bindings: ["lwin+t", "rwin+t"]
       - commands: ["shell-exec explorer.exe ms-settings:display"]
         bindings: ["lwin+ctrl+m", "rwin+ctrl+m"]
-      - commands: ['shell-exec --hide-window powershell.exe -NoLogo -NoProfile -WindowStyle Hidden -File "%USERPROFILE%\.config\win-glaze\scripts\rawaccel-toggle.ps1"']
+      - commands: ['shell-exec --hide-window powershell.exe -NoLogo -NoProfile -WindowStyle Hidden -Command "& (Join-Path $env:USERPROFILE ''.config\win-glaze\scripts\rawaccel-toggle.ps1'')"']
         bindings: ["lwin+shift+m", "rwin+shift+m"]
       - commands: ["shell-exec flameshot.exe gui"]
         bindings: ["lwin+shift+s", "rwin+shift+s"]
@@ -300,17 +308,42 @@ binding_modes:
         bindings: ["lwin+shift+0", "rwin+shift+0"]
 
 
+  # Native GlazeWM mouse binding mode. Super+Alt+M enters it; the same chord
+  # exits it from inside the mode. GlazeWM 3.10.x still does not expose mouse
+  # buttons themselves, so this restores mode state/visibility without a hook.
+  - name: "mouse"
+    keybindings:
+      - commands: ["wm-disable-binding-mode --name mouse"]
+        bindings: ["lwin+alt+m", "rwin+alt+m"]
+      - commands:
+          - "wm-disable-binding-mode --name mouse"
+          - "wm-enable-binding-mode --name noalt"
+        bindings: ["lwin+alt+n", "rwin+alt+n"]
+      - commands:
+          - "wm-disable-binding-mode --name mouse"
+          - "wm-enable-binding-mode --name vm"
+        bindings: ["lwin+alt+v", "rwin+alt+v"]
+      - commands: ["wm-toggle-pause"]
+        bindings: ["lwin+alt+p", "rwin+alt+p"]
+
   # VM mode based on Awtarchy's vm submap.
   # Normal host keybindings are replaced while active so the guest receives
   # ordinary Alt/Windows shortcuts. Host escape controls live on Win+Alt.
   - name: "vm"
     keybindings:
+
+  - commands: ["wm-enable-binding-mode --name mouse"]
+    bindings: ["lwin+alt+m", "rwin+alt+m"]
       - commands: ["wm-disable-binding-mode --name vm"]
         bindings: ["lwin+alt+v", "rwin+alt+v"]
       - commands:
           - "wm-disable-binding-mode --name vm"
           - "wm-enable-binding-mode --name noalt"
         bindings: ["lwin+alt+n", "rwin+alt+n"]
+      - commands:
+          - "wm-disable-binding-mode --name vm"
+          - "wm-enable-binding-mode --name mouse"
+        bindings: ["lwin+alt+m", "rwin+alt+m"]
       - commands: ["wm-toggle-pause"]
         bindings: ["lwin+alt+p", "rwin+alt+p"]
 
@@ -381,13 +414,13 @@ keybindings:
   - commands: ["shell-exec explorer.exe ms-settings:display"]
     bindings: ["lwin+ctrl+m", "rwin+ctrl+m"]
 
-  - commands: ['shell-exec --hide-window powershell.exe -NoLogo -NoProfile -WindowStyle Hidden -File "%USERPROFILE%\.config\win-glaze\scripts\rawaccel-toggle.ps1"']
+  - commands: ['shell-exec --hide-window powershell.exe -NoLogo -NoProfile -WindowStyle Hidden -Command "& (Join-Path $env:USERPROFILE ''.config\win-glaze\scripts\rawaccel-toggle.ps1'')"']
     bindings: ["lwin+shift+m", "rwin+shift+m"]
 
-  - commands: ['shell-exec wt.exe -w new new-tab --title "Win Glaze Themes" --suppressApplicationTitle powershell.exe -NoLogo -NoProfile -File "%USERPROFILE%\.config\win-glaze\scripts\theme-switcher.ps1"']
+  - commands: ['shell-exec wt.exe -w new new-tab --title "Win Glaze Themes" --suppressApplicationTitle powershell.exe -NoLogo -NoProfile -Command "& (Join-Path $env:USERPROFILE ''.config\win-glaze\scripts\theme-switcher.ps1'')"']
     bindings: ["lwin+t", "rwin+t"]
   # Standalone script coordinates YASB auto-hide with the GlazeWM top gap.
-  - commands: ['shell-exec --hide-window powershell.exe -NoLogo -NoProfile -WindowStyle Hidden -File "%USERPROFILE%\.config\win-glaze\scripts\bar-autohide.ps1" toggle']
+  - commands: ['shell-exec --hide-window powershell.exe -NoLogo -NoProfile -WindowStyle Hidden -Command "& (Join-Path $env:USERPROFILE ''.config\win-glaze\scripts\bar-autohide.ps1'') toggle"']
     bindings: ["alt+ctrl+b"]
 
   - commands: ['shell-exec C:\Program Files (x86)\SpeedCrunch\speedcrunch.exe']
