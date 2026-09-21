@@ -12404,6 +12404,17 @@ public static class Program
             if (String.IsNullOrWhiteSpace(expanded) || expanded.IndexOf("wgdot", StringComparison.OrdinalIgnoreCase) < 0)
                 throw new Exception("Environment expansion self-test failed.");
 
+            string runtimeCopySource = Path.Combine(temp, "runtime-copy-source.bin");
+            string runtimeCopyDestination = Path.Combine(temp, "runtime-copy-destination.bin");
+            File.WriteAllText(runtimeCopySource, "new-runtime", Encoding.ASCII);
+            File.WriteAllText(runtimeCopyDestination, "old-runtime", Encoding.ASCII);
+            CopyRuntimeWithRetry(runtimeCopySource, runtimeCopyDestination);
+            if (!String.Equals(
+                    File.ReadAllText(runtimeCopyDestination, Encoding.ASCII),
+                    "new-runtime",
+                    StringComparison.Ordinal))
+                throw new Exception("Runtime replacement helper self-test failed.");
+
             string earHelper = EnsureEarTrumpetStorageHelper();
             ProcResult earTest = Run(earHelper, "self-test", null);
             if (earTest.ExitCode != 0)
