@@ -649,14 +649,14 @@ foreach ($desktopCommand in @(
     "yasb-running-apps-toggle", "yasb-running-apps-shade-toggle",
     "mouse-mode-switch", "glazewm-binding-mode-set",
     "glazewm-reload-config", "glazewm-pause-status", "glazewm-pause-toggle",
-    "theme-toggle", "power-menu"
+    "theme-toggle"
 )) {
     Assert-True ($nativeSourceText -notmatch ('command == "' + [regex]::Escape($desktopCommand) + '"')) "WGDot does not dispatch unapproved desktop helper command: $desktopCommand"
 }
 foreach ($approvedDesktopCommand in @(
     "idle-inhibitor-status", "idle-inhibitor-toggle", "idle-inhibitor-worker",
     "bar-autohide-toggle", "mouse-mode-toggle", "mouse-mode-disable", "mouse-mode-hook",
-    "glazewm-binding-mode-toggle", "theme", "rawaccel-toggle"
+    "glazewm-binding-mode-toggle", "theme", "power-menu", "rawaccel-toggle"
 )) {
     Assert-True ($nativeSourceText -match ('command == "' + [regex]::Escape($approvedDesktopCommand) + '"')) "WGDot exposes approved scoped runtime helper: $approvedDesktopCommand"
 }
@@ -672,6 +672,10 @@ Assert-True ($nativeSourceText -match 'BibataCursorAssets') "native runtime expo
 Assert-True ($nativeSourceText -match 'ful1e5/Bibata_Cursor') "Bibata cursor assets resolve only from the official upstream repository"
 Assert-True ($nativeSourceText -match 'ExtractZipToDirectorySafe\(zipPath, extractRoot\)') "Bibata cursor extraction uses the safe archive extractor"
 Assert-True ($nativeSourceText -match 'if \(command == "cursor"\) return CursorManagerFromArgs') "native runtime exposes cursor selection"
+Assert-True ($nativeSourceText -match 'if \(command == "power-menu"\) return PowerMenu\(\)') "native runtime exposes the approved compiled power surface"
+Assert-True ($nativeSourceText -match 'form\.Opacity = 0\.0') "power surface starts fully transparent to avoid first-frame flash"
+Assert-True ($nativeSourceText -match 'StartPowerMenuFadeIn') "power surface implements fade-in"
+Assert-True ($nativeSourceText -match 'BeginPowerMenuFadeOut') "power surface implements fade-out"
 Assert-True ($nativeSourceText -match 'undergroundwires/privacy\.sexy/releases/latest') "privacy.sexy uses official latest GitHub release"
 Assert-True ($nativeSourceText -match 'privacy\.sexy download did not return a valid Windows executable') "privacy.sexy installer payload is validated before execution"
 Assert-True ($nativeSourceText -match 'GAC_MSIL') "EarTrumpet helper can find framework facades on normal Windows without developer reference assemblies"
@@ -732,13 +736,13 @@ Assert-True ($glazeNormalText -notmatch 'flow-launcher\.ps1|yasb-quick-launch\.p
 Assert-True ($glazeWorkText -notmatch 'flow-launcher\.ps1|yasb-quick-launch\.ps1') "Work GlazeWM contains no launcher relay script"
 Assert-True ($glazeWorkText -match 'shell-exec %LOCALAPPDATA%/FlowLauncher/Flow\.Launcher\.exe') "Work GlazeWM launches Flow directly from Alt+P"
 
-Assert-True ($yasbConfigText -match 'PowerMenuWidget') "YASB uses its native power menu"
-Assert-True ($yasbConfigText -match 'menu_style:\s*"popup"') "YASB power menu uses its native popup mode"
-Assert-True ($yasbConfigText -notmatch 'wgdotw?\.exe power-menu') "YASB power menu is never routed through WGDot"
+Assert-True ($yasbConfigText -match 'yasb\.custom\.CustomWidget') "YASB uses a lightweight custom power button"
+Assert-True ($yasbConfigText -match 'on_left:\s*"exec wgdotw\.exe power-menu"') "YASB power button opens the compiled Awtarchy-style surface"
+Assert-True ($yasbWorkConfigText -match 'on_left:\s*"exec wgdotw\.exe power-menu"') "Work YASB power button opens the compiled Awtarchy-style surface"
 Assert-True ($yasbConfigText -match 'wgdot\.exe theme') "YASB theme action uses the approved compiled theme helper"
 Assert-True ($yasbConfigText -match 'wgdotw\.exe bar-autohide-toggle') "YASB auto-hide uses the approved compiled coordination helper"
-Assert-True ($yasbConfigText -notmatch '(?i)(quick-launch|flow-open|eartrumpet-mixer|clipboard-history|flameshot-gui|display-settings|power-menu)') "Normal YASB does not route native-capable actions through WGDot"
-Assert-True ($yasbWorkConfigText -notmatch '(?i)(quick-launch|flow-open|eartrumpet-mixer|clipboard-history|flameshot-gui|display-settings|power-menu)') "Work YASB does not route native-capable actions through WGDot"
+Assert-True ($yasbConfigText -notmatch '(?i)(quick-launch|flow-open|eartrumpet-mixer|clipboard-history|flameshot-gui|display-settings)') "Normal YASB does not route native-capable actions through WGDot"
+Assert-True ($yasbWorkConfigText -notmatch '(?i)(quick-launch|flow-open|eartrumpet-mixer|clipboard-history|flameshot-gui|display-settings)') "Work YASB does not route native-capable actions through WGDot"
 Assert-True ($yasbConfigText -notmatch '\.ps1') "Normal YASB has no PowerShell script-file runtime dependency"
 Assert-True ($yasbWorkConfigText -notmatch '\.ps1') "Work YASB has no PowerShell script-file runtime dependency"
 Assert-True ($yasbConfigText -notmatch 'border_color:\s*None') "YASB popup border colors are not invalid YAML nulls"
@@ -803,10 +807,11 @@ foreach ($text in @($glazeNormalText, $glazeWorkText)) {
     Assert-True ($flameshotIndex -gt $globalIndex) "Win+Shift+S Flameshot bind is global, not trapped inside a binding mode"
     Assert-True (-not (($bindingModesIndex -ge 0) -and ($flameshotIndex -gt $bindingModesIndex) -and ($flameshotIndex -lt $globalIndex))) "Flameshot bind is not trapped inside a binding mode"
     Assert-True ($text -notmatch 'win\+shift\+f') "old Win+Shift+F Flameshot bind is removed"
-    Assert-True ($text -notmatch '(?i)wgdotw?\.exe\s+(?:quick-launch|flow-open|eartrumpet-mixer|clipboard-history|flameshot-gui|display-settings|power-menu)') "GlazeWM does not route native-capable actions through WGDot"
+    Assert-True ($text -notmatch '(?i)wgdotw?\.exe\s+(?:quick-launch|flow-open|eartrumpet-mixer|clipboard-history|flameshot-gui|display-settings)') "GlazeWM does not route native-capable actions through WGDot"
     Assert-True ($text -notmatch 'bindings:\s*\["lwin\+v",\s*"rwin\+v"\]') "GlazeWM leaves Super+V to EarTrumpet"
     Assert-True ($text -notmatch 'bindings:\s*\["lwin\+c",\s*"rwin\+c"\]') "GlazeWM no longer depends on WGDot clipboard runtime"
-    Assert-True ($text -notmatch 'bindings:\s*\["lwin\+p",\s*"rwin\+p"\]') "GlazeWM leaves Super+P to YASB power menu"
+    Assert-True ($text -match 'bindings:\s*\["lwin\+p",\s*"rwin\+p"\]') "GlazeWM owns Super+P for the compiled Awtarchy-style power surface"
+    Assert-True ($text -match 'wgdotw\.exe power-menu') "GlazeWM routes Super+P through the approved windowless compiled power helper"
     Assert-True ($text -match 'name:\s*"mouse"') "GlazeWM owns a native mouse binding mode without WGDot runtime"
     Assert-True ($text -match 'bindings:\s*\["lwin\+alt\+m",\s*"rwin\+alt\+m"\]') "Win+Alt+M enters/exits the native mouse binding mode"
     Assert-True ($text -match 'wgdotw\.exe mouse-mode-toggle') "GlazeWM mouse mode uses the approved scoped mouse helper"
@@ -966,7 +971,7 @@ $managedDesktopRuntimeFiles = @(
 foreach ($managedDesktopRuntimeFile in $managedDesktopRuntimeFiles) {
     $managedDesktopRuntimeText = Get-Content -Raw -LiteralPath $managedDesktopRuntimeFile
     Assert-True ($managedDesktopRuntimeText -notmatch '\.ps1') "managed desktop runtime config contains no PowerShell script-file dependency: $managedDesktopRuntimeFile"
-    Assert-True ($managedDesktopRuntimeText -notmatch '(?i)wgdotw?\.exe\s+(?:quick-launch|flow-open|eartrumpet-mixer|clipboard-history|flameshot-gui|display-settings|power-menu)') "managed desktop config does not route native-capable actions through WGDot: $managedDesktopRuntimeFile"
+    Assert-True ($managedDesktopRuntimeText -notmatch '(?i)wgdotw?\.exe\s+(?:quick-launch|flow-open|eartrumpet-mixer|clipboard-history|flameshot-gui|display-settings)') "managed desktop config does not route native-capable actions through WGDot: $managedDesktopRuntimeFile"
 }
 
 Write-Host "WGDot tests passed." -ForegroundColor Green
@@ -1068,7 +1073,7 @@ foreach ($text in @($glazeNormalText, $glazeWorkText)) {
     Assert-True ($flameshotIndex -gt $globalIndex) "Win+Shift+S Flameshot bind is global, not trapped inside a binding mode"
     Assert-True (-not (($bindingModesIndex -ge 0) -and ($flameshotIndex -gt $bindingModesIndex) -and ($flameshotIndex -lt $globalIndex))) "Flameshot bind is not trapped inside a binding mode"
     Assert-True ($text -notmatch 'win\+shift\+f') "old Win+Shift+F Flameshot bind is removed"
-    Assert-True ($text -notmatch '(?i)wgdotw?\.exe\s+(?:quick-launch|flow-open|eartrumpet-mixer|clipboard-history|flameshot-gui|display-settings|power-menu)') "GlazeWM does not route native-capable actions through WGDot"
+    Assert-True ($text -notmatch '(?i)wgdotw?\.exe\s+(?:quick-launch|flow-open|eartrumpet-mixer|clipboard-history|flameshot-gui|display-settings)') "GlazeWM does not route native-capable actions through WGDot"
     Assert-True ($text -notmatch 'bindings:\s*\["lwin\+v",\s*"rwin\+v"\]') "GlazeWM leaves Super+V to EarTrumpet"
     Assert-True ($text -notmatch 'bindings:\s*\["lwin\+c",\s*"rwin\+c"\]') "GlazeWM has no WGDot clipboard binding"
     Assert-True ($text -match 'name:\s*"noalt"') "GlazeWM noalt mode is restored"
