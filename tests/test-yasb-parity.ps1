@@ -98,8 +98,8 @@ $brightnessBlock = [regex]::Match($config, '(?ms)^  brightness:\r?\n.*?(?=^  bat
 $batteryBlock = [regex]::Match($config, '(?ms)^  battery:\r?\n.*?(?=^  microphone:)').Value
 Assert-Contains $brightnessBlock 'yasb.brightness.BrightnessWidget' "brightness widget block is discoverable"
 Assert-Contains $brightnessBlock 'label: "<span>{icon}</span> {percent}%"' "brightness retains Awtarchy's explicit percent suffix"
-if (([regex]::Matches($brightnessBlock, '')).Count -ne 4) {
-    throw "ASSERTION FAILED: brightness uses Awtarchy's fixed gear glyph in all four native YASB slots"
+if (([regex]::Matches($brightnessBlock, '')).Count -ne 4) {
+    throw "ASSERTION FAILED: brightness uses the fixed sun glyph in all four native YASB slots"
 }
 Assert-Contains $brightnessBlock 'ddc_poll_interval: 60' "brightness uses native YASB DDC polling"
 Assert-Contains $batteryBlock 'yasb.battery.BatteryWidget' "battery widget block is discoverable"
