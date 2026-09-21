@@ -31,7 +31,8 @@ Assert-True (Test-Path -LiteralPath $nativeSourcePath -PathType Leaf) "native bo
 $env:WGDOT_TEST_MODE = "1"
 . $runtimePath
 
-$manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+$manifestText = Get-Content -LiteralPath $manifestPath -Raw
+$manifest = $manifestText | ConvertFrom-Json
 Assert-Equal 1 ([int]$manifest.schemaVersion) "manifest schema"
 Assert-Equal "dillacorn/win-glaze-dots" ([string]$manifest.runtime.repository) "repository identity"
 
