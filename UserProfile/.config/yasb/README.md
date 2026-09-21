@@ -7,17 +7,17 @@ WGDot manages installation, updates, backups, and deployment. Runtime ownership 
 ## Runtime ownership
 
 - **GlazeWM** owns window-manager keybindings, binding modes, pause, workspace actions, screenshots, and direct Windows/application launches.
-- **YASB** owns bar widgets, native widget callbacks, its native power menu, DND, and Quick Launch.
-- **Installed applications** own their supported native hotkeys where possible. EarTrumpet is configured to own `Super+V` directly.
+- **YASB** owns ordinary bar widgets and native callbacks; for the custom application launcher it owns only the visible bar button.
+- **Installed applications** are launched directly where practical. GlazeWM opens EarTrumpet directly on `Super+V` / global `Alt+V`; WGDot's EarTrumpet packaged-hotkey configuration remains only a management-time fallback.
 - **Neither Normal nor Work has any `.ps1` runtime dependencies.** Desktop-session behavior uses native GlazeWM/YASB/Windows/application interfaces first.
-- **Compiled WGDot is used at runtime only for approved custom primitives:** the mouse hook, idle inhibition, coordinated auto-hide, theme application, invisible GlazeWM mode dispatch where a console would otherwise flash, and the narrow RawAccel GUI toggle.
+- **Compiled WGDot is used at runtime only for approved custom primitives:** the application launcher, power surface, mouse hook, idle inhibition, coordinated auto-hide, theme application, invisible GlazeWM mode dispatch where a console would otherwise flash, and the narrow RawAccel GUI toggle.
 - Runtime actions that must stay invisible use the windowless `wgdotw.exe` frontend; the interactive theme selector uses `wgdot.exe theme` inside Windows Terminal.
 
 ## Bar layout
 
 Left:
 
-- YASB Quick Launch
+- Awtarchy-style application launcher
 - GlazeWM workspaces
 - hover-revealed workspace-move controls
 - running-window task icons
@@ -48,12 +48,16 @@ The system tray definition remains available but is not rendered in the bar. `us
 
 ## Launcher ownership
 
-YASB Quick Launch is opened from its native bar widget. It does not register a private synthetic hotkey and GlazeWM does not inject a key to open it.
+The application button is a lightweight YASB `CustomWidget` that opens `wgdotw.exe launcher bar`. GlazeWM opens the same single-purpose compiled surface with `wgdotw.exe launcher hotkey`.
 
-- Normal profile: no external Quick Launch chord is advertised until YASB exposes a documented direct command/interface that GlazeWM can invoke.
-- Work profile: `Alt+P` launches Flow Launcher directly from GlazeWM for the current work-PC test.
-- `Super+D` is not faked through YASB, PowerShell, SendKeys, or WGDot.
-- VM mode therefore has no launcher relay that can steal guest shortcuts.
+- Global `Alt+P` and `Super+D` open the launcher.
+- `noalt` retains `Super+D` but intentionally leaves plain `Alt+P` uncaptured.
+- Bar click opens below/adjacent to the application button while the bar is visible.
+- Keyboard activation opens horizontally centered just below the top bar during ordinary desktop use.
+- If YASB auto-hide is enabled, or the foreground window fills the active monitor, the launcher opens centered on that monitor.
+- The first implementation is intentionally application-focused: it indexes Start Menu shortcuts and avoids Flow Launcher-style provider/scaling complexity.
+- Flow Launcher remains optional and is not the default hotkey surface.
+- VM mode has no ordinary launcher binding that steals guest shortcuts.
 
 ## Binding modes
 
@@ -155,7 +159,7 @@ There is currently no rendered clipboard-history bar button and no managed `Supe
 | network / Bluetooth | native WiFi and Bluetooth widgets |
 | notifications / mute | native `DndWidget` |
 | power controls | compiled Awtarchy-style `wgdotw.exe power-menu` surface |
-| launcher | native `QuickLaunchWidget`; Work `Alt+P` launches Flow directly during testing |
+| launcher | compiled context-aware `wgdotw.exe launcher` application search surface |
 | theme switching | compiled `wgdot.exe theme` manager in both profiles |
 | bar auto-hide | compiled `wgdotw.exe bar-autohide-toggle` coordinator in both profiles |
 | keep awake | compiled WGDot execution-state helper in both profiles |
