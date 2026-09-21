@@ -18,7 +18,15 @@ function Require([bool]$condition, [string]$message) { if (-not $condition) { th
 function Invoke-Native([string]$name, [object[]]$arguments = @()) {
     $method = $script:native.GetMethod($name, [Reflection.BindingFlags]'Static,NonPublic')
     if ($null -eq $method) { throw ('Missing native method: ' + $name) }
-    try { return $method.Invoke($null, $arguments) }
+
+    $invokeArguments = @(
+        foreach ($argument in $arguments) {
+            if ($null -eq $argument) { $null }
+            else { $argument.PSObject.BaseObject }
+        }
+    )
+
+    try { return $method.Invoke($null, [object[]]$invokeArguments) }
     catch [Reflection.TargetInvocationException] { throw $_.Exception.InnerException }
 }
 function Expect-Failure([scriptblock]$action, [string]$expected) {
