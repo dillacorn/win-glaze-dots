@@ -123,6 +123,8 @@ The native YASB Volume widget retains Awtarchy-like mute glyphs, thresholds, and
 
 Right-click launches EarTrumpet directly through its packaged AppsFolder identity.
 
+GlazeWM also launches EarTrumpet directly on `Super+V` and global `Alt+V`. In `noalt`, `Super+V` remains available while plain `Alt+V` is intentionally left uncaptured.
+
 WGDot may configure EarTrumpet's own mixer hotkey to `Super+V` during explicit environment management. After configuration, EarTrumpet owns the chord itself; no WGDot helper or synthetic Alt+V bridge is used.
 
 ## Clipboard
