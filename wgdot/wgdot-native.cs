@@ -21,7 +21,7 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-61";
+    const string Version = "native-preview-62";
     const int WingetPreflightTimeoutMs = 30000;
     const string RepoFullName = "dillacorn/win-glaze-dots";
     const string RepoUrl = "https://github.com/dillacorn/win-glaze-dots.git";
@@ -1013,37 +1013,10 @@ internal static class WgdotNative
             if (command == "ensure-winget") return EnsureWingetAvailable();
             if (command == "acceptance-audit") return AcceptanceAudit();
             if (command == "software-elevated") return SoftwareElevatedFromArgs(args.Skip(1).ToArray());
-            if (command == "quick-launch") return OpenYasbQuickLaunch();
-            if (command == "flow-open") return OpenFlowLauncher();
-            if (command == "eartrumpet-mixer") return OpenEarTrumpetMixer();
-            if (command == "clipboard-history") return OpenWindowsClipboardHistory();
-            if (command == "desktop-worker") return DesktopWorker();
-            if (command == "desktop-worker-stop") return StopDesktopWorker();
-            if (command == "idle-inhibitor-status") return IdleInhibitorStatus();
-            if (command == "idle-inhibitor-toggle") return IdleInhibitorToggle();
-            if (command == "idle-inhibitor-worker") return IdleInhibitorWorker();
             if (command == "cursor") return CursorManagerFromArgs(args.Skip(1).ToArray());
-            if (command == "flameshot-gui") return OpenFlameshotGui();
-            if (command == "rawaccel-open") return OpenRawAccel();
-            if (command == "display-settings") return OpenDisplaySettings();
-            if (command == "bar-autohide-toggle") return BarAutoHideToggle();
-            if (command == "yasb-running-apps-toggle") return ToggleYasbRunningApps();
-            if (command == "yasb-running-apps-shade-toggle") return ToggleYasbRunningAppsShade();
             if (command == "window-audit") return WindowAudit();
             if (command == "super-l-test") return SuperLTestFromArgs(args.Skip(1).ToArray());
             if (command == "super-l-hook") return SuperLHookWorker();
-            if (command == "mouse-mode-toggle") return MouseModeToggle();
-            if (command == "mouse-mode-disable") return MouseModeDisable();
-            if (command == "mouse-mode-switch") return MouseModeSwitchFromArgs(args.Skip(1).ToArray());
-            if (command == "mouse-mode-hook") return MouseModeHook();
-            if (command == "glazewm-binding-mode-toggle") return GlazeWmBindingModeToggleFromArgs(args.Skip(1).ToArray());
-            if (command == "glazewm-binding-mode-set") return GlazeWmBindingModeSetFromArgs(args.Skip(1).ToArray());
-            if (command == "glazewm-reload-config") return GlazeWmReloadConfig();
-            if (command == "glazewm-pause-status") return GlazeWmPauseStatus();
-            if (command == "glazewm-pause-toggle") return GlazeWmPauseToggle();
-            if (command == "theme-toggle") return ThemeToggle();
-            if (command == "power-menu") return PowerMenu();
-            if (command == "theme") return ThemeManagerFromArgs(args.Skip(1).ToArray());
             if (command == "gpu-driver") return GpuDriverMaintenance();
             if (command == "gpu-stage-safe") return GpuStageSafeFromArgs(args.Skip(1).ToArray());
             if (command == "gpu-safe-resume") return GpuSafeResume();
@@ -1154,7 +1127,6 @@ internal static class WgdotNative
             String.Equals(command, "startup-disable-all", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "software-audit", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "acceptance-audit", StringComparison.OrdinalIgnoreCase) ||
-            String.Equals(command, "theme", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "cursor", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "gpu-driver", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "update", StringComparison.OrdinalIgnoreCase) ||
@@ -1388,18 +1360,7 @@ internal static class WgdotNative
         Console.WriteLine("Managed selection: " + (File.Exists(InstallStatePath) ? "configured" : "not configured"));
         Console.WriteLine("Baseline: " + (File.Exists(BaselineIndexPath) ? "present" : "not initialized"));
         Console.WriteLine("Recorded backups: " + CountRecordedBackups().ToString(CultureInfo.InvariantCulture));
-        Console.WriteLine("YASB / Terminal theme: " + CurrentYasbThemeId());
         Console.WriteLine("Cursor theme: " + CurrentCursorThemeId());
-        Console.WriteLine("Idle inhibitor: " + (NamedMutexExists(IdleInhibitorMutexName) ? "active" : "inactive"));
-        Console.WriteLine("Desktop worker: " + (NamedMutexExists(DesktopWorkerMutexName) ? "active" : "inactive"));
-        Console.WriteLine("Clipboard history items: " + ReadClipboardHistoryEntries().Count.ToString(CultureInfo.InvariantCulture));
-        Console.WriteLine("Tracked GlazeWM mode: " + (String.IsNullOrWhiteSpace(ReadTrackedGlazeBindingMode()) ? "normal" : ReadTrackedGlazeBindingMode()));
-        Dictionary<string, object> appearance = ReadYasbAppearanceState();
-        Console.WriteLine(
-            "YASB running apps: " +
-            (GetBool(appearance, "runningAppsVisible") ? "shown" : "hidden") +
-            ", shading " +
-            (GetBool(appearance, "shadeRunningApps") ? "on" : "off"));
 
         var gpuState = ReadJson(GpuStatePath);
         if (gpuState != null)
@@ -1421,7 +1382,6 @@ internal static class WgdotNative
             "Update managed dots",
             "Software / startup manager",
             "GPU driver maintenance",
-            "YASB / Windows Terminal theme switcher",
             "Cursor theme switcher",
             "Windows tweaks / integrations",
             "Reset / reconfigure managed dots",
@@ -1436,7 +1396,7 @@ internal static class WgdotNative
         while (true)
         {
             int choice = ReadSingleChoice("Maintenance", items, 0);
-            if (choice < 0 || choice == 12) return 0;
+            if (choice < 0 || choice == 11) return 0;
 
             try
             {
@@ -1447,32 +1407,31 @@ internal static class WgdotNative
                 }
                 else if (choice == 1) SoftwareManager();
                 else if (choice == 2) GpuDriverMaintenance();
-                else if (choice == 3) ThemeManager();
-                else if (choice == 4) CursorManager();
-                else if (choice == 5) TweakManager();
-                else if (choice == 6)
+                else if (choice == 3) CursorManager();
+                else if (choice == 4) TweakManager();
+                else if (choice == 5)
                 {
                     ManagedOperation("reset", ResolveDefaultSource());
                     Pause();
                 }
-                else if (choice == 7)
+                else if (choice == 6)
                 {
                     ManagedOperation("review", ResolveDefaultSource());
                     Pause();
                 }
-                else if (choice == 8) BackupManager();
-                else if (choice == 9)
+                else if (choice == 7) BackupManager();
+                else if (choice == 8)
                 {
                     ShowManualFallback();
                     Pause();
                 }
-                else if (choice == 10)
+                else if (choice == 9)
                 {
                     WriteTitle("Version / status");
                     Status();
                     Pause();
                 }
-                else if (choice == 11) ShowDevelopmentMenu();
+                else if (choice == 10) ShowDevelopmentMenu();
             }
             catch (Exception ex)
             {
@@ -4052,7 +4011,6 @@ internal static class WgdotNative
             "startup-disable-all",
             "software-audit",
             "acceptance-audit",
-            "theme",
             "cursor",
             "gpu-driver",
             "update",
@@ -11726,10 +11684,9 @@ public static class Program
 
     static bool IsDotsOnlyPostAction(string type)
     {
-        return
-            String.Equals(type, "ensure-desktop-worker", StringComparison.OrdinalIgnoreCase) ||
-            String.Equals(type, "ensure-hidden-launcher", StringComparison.OrdinalIgnoreCase) ||
-            String.Equals(type, "ensure-yasb-theme", StringComparison.OrdinalIgnoreCase);
+        // Strict config-only migration copies managed files only. Desktop runtime
+        // behavior is implemented by the copied configs/scripts, not WGDot post-actions.
+        return false;
     }
 
     static void RunPostActions(
