@@ -220,6 +220,8 @@ binding_modes:
         bindings: ["lwin+alt+p", "rwin+alt+p"]
       - commands: ["shell-exec wgdotw.exe power-menu"]
         bindings: ["lwin+p", "rwin+p"]
+      - commands: ['shell-exec explorer.exe shell:AppsFolder\40459File-New-Project.EarTrumpet_725pr5jq8wr8a!EarTrumpet']
+        bindings: ["lwin+v", "rwin+v"]
       - commands: ["shell-exec wgdotw.exe bar-autohide-toggle"]
         bindings: ["alt+ctrl+b"]
       # Work profile: GlazeWM launches Flow Launcher directly. YASB Quick
@@ -475,6 +477,9 @@ keybindings:
 
   - commands: ["wm-enable-binding-mode --name vm"]
     bindings: ["lwin+alt+v", "rwin+alt+v"]
+
+  - commands: ['shell-exec explorer.exe shell:AppsFolder\40459File-New-Project.EarTrumpet_725pr5jq8wr8a!EarTrumpet']
+    bindings: ["alt+v", "lwin+v", "rwin+v"]
 
   # Real GlazeWM pause. While paused, GlazeWM intentionally keeps only
   # wm-toggle-pause bindings active, so this same key always unpauses.
