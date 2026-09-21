@@ -236,7 +236,7 @@ binding_modes:
       - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe display-settings']
         bindings: ["lwin+ctrl+m", "rwin+ctrl+m"]
       - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe rawaccel-open']
-        bindings: ["alt+shift+m", "lwin+shift+m", "rwin+shift+m"]
+        bindings: ["lwin+shift+m", "rwin+shift+m"]
       - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe flameshot-gui']
         bindings: ["lwin+shift+s", "rwin+shift+s"]
       - commands: ["shell-exec wt.exe -w new"]
@@ -432,7 +432,7 @@ keybindings:
     bindings: ["lwin+ctrl+m", "rwin+ctrl+m"]
 
   - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe rawaccel-open']
-    bindings: ["alt+shift+m", "lwin+shift+m", "rwin+shift+m"]
+    bindings: ["lwin+shift+m", "rwin+shift+m"]
 
   # Single-instance WGDot theme selector. No GlazeWM reload.
   - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe theme-toggle']
