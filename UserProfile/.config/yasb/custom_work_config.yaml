@@ -68,6 +68,7 @@ bars:
           "clock",
           "wifi",
           "bluetooth",
+          "clipboard_history",
           "dnd",
           "power_menu",
         ]
@@ -318,7 +319,7 @@ widgets:
             - id: "themes"
               label: "Themes"
               icon: ""
-              command: 'wt.exe -w new new-tab --title "Win Glaze Themes" --suppressApplicationTitle wgdot.exe theme'
+              command: "wgdotw.exe theme-window-toggle"
             - id: "bar_autohide"
               label: "Auto Hide"
               icon: "󰘖"
@@ -474,7 +475,7 @@ widgets:
       callbacks:
         on_left: "toggle_mute"
         on_middle: "toggle_label"
-        on_right: 'exec explorer.exe shell:AppsFolder\40459File-New-Project.EarTrumpet_725pr5jq8wr8a!EarTrumpet'
+        on_right: 'exec explorer.exe shell:AppsFolder\40459File-New-Project.EarTrumpet_1sdd7yawvg6ne!EarTrumpet'
 
   clock:
     type: "yasb.clock.ClockWidget"
@@ -507,9 +508,9 @@ widgets:
       update_interval: 5000
       get_exact_wifi_strength: false
       callbacks:
-        on_left: "exec explorer.exe ms-settings:network-status"
-        on_middle: "exec explorer.exe ms-settings:network-status"
-        on_right: "exec explorer.exe ms-settings:network-status"
+        on_left: "toggle_menu"
+        on_middle: "toggle_menu"
+        on_right: "toggle_menu"
       ethernet_label: "<span>{wifi_icon}</span>"
       ethernet_label_alt: "<span>{wifi_icon}</span> {ip_addr}"
       ethernet_icon: "󰈀"
@@ -540,9 +541,9 @@ widgets:
         bluetooth_off: ""
         bluetooth_connected: ""
       callbacks:
-        on_left: "exec explorer.exe ms-settings:bluetooth"
-        on_middle: "exec explorer.exe ms-settings:bluetooth"
-        on_right: "exec explorer.exe ms-settings:bluetooth"
+        on_left: "toggle_menu"
+        on_middle: "toggle_menu"
+        on_right: "toggle_menu"
       menu_config:
         blur: false
         round_corners: false
@@ -564,6 +565,21 @@ widgets:
       show_network: false
       use_hook: false
       hide_icons: []
+
+  clipboard_history:
+    type: "yasb.custom.CustomWidget"
+    options:
+      label: "<span></span>"
+      class_name: "awtarchy-clipboard"
+      tooltip: true
+      tooltip_label: "Windows Clipboard History (Super+C)"
+      exec_options:
+        run_once: true
+        return_format: "string"
+      callbacks:
+        on_left: "exec wgdotw.exe clipboard-anchor bar"
+        on_middle: "do_nothing"
+        on_right: "exec wgdotw.exe clipboard-anchor bar"
 
   dnd:
     type: "yasb.dnd.DndWidget"

@@ -21,7 +21,7 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-65";
+    const string Version = "native-preview-66";
     const int WingetPreflightTimeoutMs = 30000;
     const string RepoFullName = "dillacorn/win-glaze-dots";
     const string RepoUrl = "https://github.com/dillacorn/win-glaze-dots.git";
@@ -220,6 +220,12 @@ internal static class WgdotNative
     const int HtBottomLeft = 16;
     const int HtBottomRight = 17;
     const int DwmwaCloaked = 14;
+    const int SwShowNormal = 1;
+    const uint SwpNoSize = 0x0001;
+    const uint SwpNoZOrder = 0x0004;
+    const uint SwpShowWindow = 0x0040;
+    const uint ShgfiIcon = 0x00000100;
+    const uint KeyeventfKeyup = 0x0002;
 
     const uint EsSystemRequired = 0x00000001;
     const uint EsDisplayRequired = 0x00000002;
@@ -248,11 +254,56 @@ internal static class WgdotNative
     static bool SuperLSuppressKeyUp;
 
     const byte VkL = 0x4C;
+    const byte VkV = 0x56;
     const byte VkLwin = 0x5B;
     const byte VkRwin = 0x5C;
 
     [DllImport("shell32.dll")]
     static extern void SHChangeNotify(uint wEventId, uint uFlags, IntPtr dwItem1, IntPtr dwItem2);
+
+    [DllImport("shell32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    static extern IntPtr ShellExecute(
+        IntPtr hwnd,
+        string operation,
+        string file,
+        string parameters,
+        string directory,
+        int showCommand);
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    struct SHFILEINFO
+    {
+        public IntPtr hIcon;
+        public int iIcon;
+        public uint dwAttributes;
+
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 260)]
+        public string szDisplayName;
+
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 80)]
+        public string szTypeName;
+    }
+
+    [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
+    static extern IntPtr SHGetFileInfo(
+        string path,
+        uint fileAttributes,
+        out SHFILEINFO fileInfo,
+        uint fileInfoSize,
+        uint flags);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    static extern bool DestroyIcon(IntPtr icon);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    static extern bool SetWindowPos(
+        IntPtr hWnd,
+        IntPtr insertAfter,
+        int x,
+        int y,
+        int width,
+        int height,
+        uint flags);
 
     [StructLayout(LayoutKind.Sequential)]
     struct SP_DEVINFO_DATA
@@ -398,6 +449,8 @@ internal static class WgdotNative
     {
         public string Name;
         public string Path;
+        public System.Drawing.Image IconImage;
+        public bool IconLoaded;
 
         public override string ToString()
         {
@@ -579,6 +632,8 @@ internal static class WgdotNative
             if (command == "mouse-mode-disable") return MouseModeDisable();
             if (command == "mouse-mode-hook") return MouseModeHook();
             if (command == "theme") return ThemeManagerFromArgs(args.Skip(1).ToArray());
+            if (command == "theme-window-toggle") return ThemeWindowToggle();
+            if (command == "clipboard-anchor") return ClipboardAnchorFromArgs(args.Skip(1).ToArray());
             if (command == "launcher") return LauncherFromArgs(args.Skip(1).ToArray());
             if (command == "power-menu") return PowerMenu();
             if (command == "rawaccel-toggle") return RawAccelToggle();
@@ -3762,7 +3817,7 @@ class WgdotHidden
         }
 
         if (String.Equals(handler, "eartrumpet", StringComparison.OrdinalIgnoreCase))
-            return "explorer.exe shell:AppsFolder\\40459File-New-Project.EarTrumpet_725pr5jq8wr8a!EarTrumpet";
+            return "explorer.exe shell:AppsFolder\\40459File-New-Project.EarTrumpet_1sdd7yawvg6ne!EarTrumpet";
 
         if (String.Equals(handler, "miclocktray", StringComparison.OrdinalIgnoreCase))
         {
@@ -6752,6 +6807,276 @@ class WgdotHidden
 
 
 
+
+    static System.Windows.Forms.Screen CurrentInteractionScreen()
+    {
+        IntPtr foreground = GetForegroundWindow();
+        if (foreground != IntPtr.Zero)
+            return System.Windows.Forms.Screen.FromHandle(foreground);
+
+        POINT cursor;
+        if (GetCursorPos(out cursor))
+            return System.Windows.Forms.Screen.FromPoint(
+                new System.Drawing.Point(cursor.X, cursor.Y));
+
+        return System.Windows.Forms.Screen.PrimaryScreen;
+    }
+
+    static void CenterWindowOnScreen(
+        IntPtr window,
+        System.Windows.Forms.Screen screen)
+    {
+        if (window == IntPtr.Zero || screen == null)
+            return;
+
+        RECT rect;
+        if (!GetWindowRect(window, out rect))
+            return;
+
+        int width = Math.Max(1, rect.Right - rect.Left);
+        int height = Math.Max(1, rect.Bottom - rect.Top);
+        System.Drawing.Rectangle work = screen.WorkingArea;
+        int x = work.Left + Math.Max(0, (work.Width - width) / 2);
+        int y = work.Top + Math.Max(0, (work.Height - height) / 2);
+
+        SetWindowPos(
+            window,
+            IntPtr.Zero,
+            x,
+            y,
+            0,
+            0,
+            SwpNoSize | SwpNoZOrder | SwpShowWindow);
+    }
+
+    static int LaunchThemeWindow(System.Windows.Forms.Screen targetScreen)
+    {
+        var psi = new ProcessStartInfo();
+        psi.FileName = "wt.exe";
+        psi.Arguments =
+            "-w new new-tab --title \"Win Glaze Themes\" " +
+            "--suppressApplicationTitle wgdot.exe theme";
+        psi.UseShellExecute = true;
+        Process.Start(psi);
+
+        if (targetScreen != null)
+        {
+            for (int i = 0; i < 80; i++)
+            {
+                IntPtr window = FindTopLevelWindowByExactTitle("Win Glaze Themes");
+                if (window != IntPtr.Zero)
+                {
+                    CenterWindowOnScreen(window, targetScreen);
+                    SetForegroundWindow(window);
+                    break;
+                }
+
+                System.Threading.Thread.Sleep(25);
+            }
+        }
+
+        return 0;
+    }
+
+    static int ThemeWindowToggle()
+    {
+        System.Windows.Forms.Screen targetScreen = CurrentInteractionScreen();
+        IntPtr existing = FindTopLevelWindowByExactTitle("Win Glaze Themes");
+        if (existing == IntPtr.Zero)
+            return LaunchThemeWindow(targetScreen);
+
+        System.Windows.Forms.Screen existingScreen =
+            System.Windows.Forms.Screen.FromHandle(existing);
+
+        bool sameVisibleContext =
+            targetScreen != null &&
+            existingScreen != null &&
+            String.Equals(
+                targetScreen.DeviceName,
+                existingScreen.DeviceName,
+                StringComparison.OrdinalIgnoreCase) &&
+            IsWindowVisible(existing) &&
+            !IsDwmCloaked(existing);
+
+        PostMessage(existing, WmClose, IntPtr.Zero, IntPtr.Zero);
+
+        if (sameVisibleContext)
+            return 0;
+
+        for (int i = 0; i < 20 && IsWindow(existing); i++)
+            System.Threading.Thread.Sleep(25);
+
+        return LaunchThemeWindow(targetScreen);
+    }
+
+    static bool GlazeWmPausedForClipboard()
+    {
+        ProcResult result = Run(RequireGlazeWmExe(), "query paused", null);
+        Dictionary<string, object> response =
+            RequireGlazeWmSuccess(result, "GlazeWM pause query");
+
+        object data;
+        if (!response.TryGetValue("data", out data) || !(data is bool))
+            throw new Exception("GlazeWM pause query returned invalid pause data.");
+
+        return (bool)data;
+    }
+
+    static void ToggleGlazeWmPauseForClipboard()
+    {
+        ProcResult result = Run(
+            RequireGlazeWmExe(),
+            "command wm-toggle-pause",
+            null);
+        RequireGlazeWmSuccess(result, "GlazeWM pause toggle");
+    }
+
+    static void WaitForWindowsModifierRelease()
+    {
+        for (int i = 0; i < 200; i++)
+        {
+            bool leftDown = (GetAsyncKeyState(VkLwin) & 0x8000) != 0;
+            bool rightDown = (GetAsyncKeyState(VkRwin) & 0x8000) != 0;
+            if (!leftDown && !rightDown)
+                return;
+
+            System.Threading.Thread.Sleep(10);
+        }
+
+        throw new Exception(
+            "Windows key is still held; release it and retry Clipboard History.");
+    }
+
+    static void SendNativeClipboardHistoryChord()
+    {
+        keybd_event(VkLwin, 0, 0, UIntPtr.Zero);
+        keybd_event(VkV, 0, 0, UIntPtr.Zero);
+        keybd_event(VkV, 0, KeyeventfKeyup, UIntPtr.Zero);
+        keybd_event(VkLwin, 0, KeyeventfKeyup, UIntPtr.Zero);
+    }
+
+    static System.Drawing.Point ClipboardAnchorLocation(
+        string source,
+        System.Windows.Forms.Screen screen,
+        int width,
+        int height)
+    {
+        if (screen == null)
+            screen = System.Windows.Forms.Screen.PrimaryScreen;
+
+        int x;
+        if (String.Equals(source, "bar", StringComparison.OrdinalIgnoreCase))
+        {
+            POINT cursor;
+            if (GetCursorPos(out cursor))
+                x = cursor.X - (width / 2);
+            else
+                x = screen.Bounds.Left + 8;
+        }
+        else
+        {
+            x = screen.Bounds.Left + ((screen.Bounds.Width - width) / 2);
+        }
+
+        return ClampLauncherLocation(
+            screen,
+            x,
+            screen.Bounds.Top + 35,
+            width,
+            height);
+    }
+
+    static int ClipboardAnchorFromArgs(string[] args)
+    {
+        string source = args != null && args.Length > 0
+            ? (args[0] ?? "").Trim().ToLowerInvariant()
+            : "hotkey";
+
+        if (!(String.Equals(source, "bar", StringComparison.OrdinalIgnoreCase) ||
+              String.Equals(source, "hotkey", StringComparison.OrdinalIgnoreCase)))
+            throw new Exception("Usage: wgdot clipboard-anchor [bar|hotkey]");
+
+        const int width = 180;
+        const int height = 28;
+
+        IntPtr foreground = GetForegroundWindow();
+        POINT cursor;
+        bool haveCursor = GetCursorPos(out cursor);
+        System.Windows.Forms.Screen screen =
+            String.Equals(source, "bar", StringComparison.OrdinalIgnoreCase) && haveCursor
+                ? System.Windows.Forms.Screen.FromPoint(
+                    new System.Drawing.Point(cursor.X, cursor.Y))
+                : (foreground != IntPtr.Zero
+                    ? System.Windows.Forms.Screen.FromHandle(foreground)
+                    : (haveCursor
+                        ? System.Windows.Forms.Screen.FromPoint(
+                            new System.Drawing.Point(cursor.X, cursor.Y))
+                        : System.Windows.Forms.Screen.PrimaryScreen));
+
+        var form = new System.Windows.Forms.Form();
+        form.Text = "WGDot Clipboard Anchor";
+        form.FormBorderStyle = System.Windows.Forms.FormBorderStyle.None;
+        form.StartPosition = System.Windows.Forms.FormStartPosition.Manual;
+        form.Size = new System.Drawing.Size(width, height);
+        form.Location = ClipboardAnchorLocation(source, screen, width, height);
+        form.ShowInTaskbar = false;
+        form.TopMost = true;
+        form.Opacity = 0.01;
+
+        var input = new System.Windows.Forms.TextBox();
+        input.Dock = System.Windows.Forms.DockStyle.Fill;
+        input.BorderStyle = System.Windows.Forms.BorderStyle.None;
+        form.Controls.Add(input);
+
+        Exception failure = null;
+        form.Shown += delegate
+        {
+            bool restorePause = false;
+            try
+            {
+                form.Activate();
+                input.Focus();
+                WaitForWindowsModifierRelease();
+
+                if (Process.GetProcessesByName("glazewm").Length > 0)
+                {
+                    bool wasPaused = GlazeWmPausedForClipboard();
+                    if (!wasPaused)
+                    {
+                        ToggleGlazeWmPauseForClipboard();
+                        restorePause = true;
+                    }
+                }
+
+                SendNativeClipboardHistoryChord();
+                System.Threading.Thread.Sleep(180);
+            }
+            catch (Exception ex)
+            {
+                failure = ex;
+            }
+            finally
+            {
+                if (restorePause)
+                {
+                    try { ToggleGlazeWmPauseForClipboard(); }
+                    catch (Exception ex)
+                    {
+                        if (failure == null) failure = ex;
+                    }
+                }
+
+                form.Close();
+            }
+        };
+
+        System.Windows.Forms.Application.Run(form);
+        if (failure != null)
+            throw failure;
+
+        return 0;
+    }
+
     static int LauncherFromArgs(string[] args)
     {
         string source = args != null && args.Length > 0
@@ -6854,16 +7179,9 @@ class WgdotHidden
 
         if (String.Equals(source, "bar", StringComparison.OrdinalIgnoreCase))
         {
-            POINT cursor;
-            if (!GetCursorPos(out cursor))
-            {
-                cursor.X = screen.Bounds.Left + 12;
-                cursor.Y = screen.Bounds.Top + 12;
-            }
-
             return ClampLauncherLocation(
                 screen,
-                cursor.X - 18,
+                screen.Bounds.Left + 8,
                 screen.Bounds.Top + 40,
                 width,
                 height);
@@ -6984,6 +7302,42 @@ class WgdotHidden
             .ToList();
     }
 
+    static System.Drawing.Image GetLauncherAppIcon(LauncherApp app)
+    {
+        if (app == null)
+            return null;
+
+        if (app.IconLoaded)
+            return app.IconImage;
+
+        app.IconLoaded = true;
+        SHFILEINFO info;
+        IntPtr result = SHGetFileInfo(
+            app.Path,
+            0,
+            out info,
+            (uint)Marshal.SizeOf(typeof(SHFILEINFO)),
+            ShgfiIcon);
+
+        if (result == IntPtr.Zero || info.hIcon == IntPtr.Zero)
+            return null;
+
+        try
+        {
+            using (System.Drawing.Icon icon =
+                (System.Drawing.Icon)System.Drawing.Icon.FromHandle(info.hIcon).Clone())
+            {
+                app.IconImage = icon.ToBitmap();
+            }
+        }
+        finally
+        {
+            DestroyIcon(info.hIcon);
+        }
+
+        return app.IconImage;
+    }
+
     static void LaunchLauncherApp(
         System.Windows.Forms.Form form,
         LauncherApp app)
@@ -6991,12 +7345,25 @@ class WgdotHidden
         if (app == null || String.IsNullOrWhiteSpace(app.Path))
             return;
 
-        form.Close();
+        IntPtr result = ShellExecute(
+            IntPtr.Zero,
+            "open",
+            app.Path,
+            null,
+            Path.GetDirectoryName(app.Path),
+            SwShowNormal);
 
-        var psi = new ProcessStartInfo();
-        psi.FileName = app.Path;
-        psi.UseShellExecute = true;
-        Process.Start(psi);
+        if (result.ToInt64() <= 32)
+        {
+            var fallback = new ProcessStartInfo();
+            fallback.FileName = "explorer.exe";
+            fallback.Arguments = Q(app.Path);
+            fallback.UseShellExecute = false;
+            fallback.CreateNoWindow = true;
+            Process.Start(fallback);
+        }
+
+        form.Close();
     }
 
     static int Launcher(string source)
@@ -7009,7 +7376,7 @@ class WgdotHidden
             return 0;
         }
 
-        List<LauncherApp> apps = GetLauncherApps();
+        List<LauncherApp> apps = new List<LauncherApp>();
 
         IntPtr foreground = GetForegroundWindow();
         POINT cursor;
@@ -7088,7 +7455,7 @@ class WgdotHidden
             System.Drawing.FontStyle.Regular,
             System.Drawing.GraphicsUnit.Pixel);
         results.DrawMode = System.Windows.Forms.DrawMode.OwnerDrawFixed;
-        results.ItemHeight = 36;
+        results.ItemHeight = 40;
         results.IntegralHeight = false;
 
         Action refresh = delegate
@@ -7123,10 +7490,26 @@ class WgdotHidden
 
             LauncherApp app = results.Items[e.Index] as LauncherApp;
             string label = app == null ? "" : app.Name;
+            System.Drawing.Image icon = GetLauncherAppIcon(app);
+            int textLeft = e.Bounds.Left + 12;
+            if (icon != null)
+            {
+                const int iconSize = 24;
+                int iconY = e.Bounds.Top + Math.Max(0, (e.Bounds.Height - iconSize) / 2);
+                e.Graphics.DrawImage(
+                    icon,
+                    new System.Drawing.Rectangle(
+                        e.Bounds.Left + 10,
+                        iconY,
+                        iconSize,
+                        iconSize));
+                textLeft = e.Bounds.Left + 44;
+            }
+
             System.Drawing.Rectangle textBounds = new System.Drawing.Rectangle(
-                e.Bounds.Left + 12,
+                textLeft,
                 e.Bounds.Top,
-                Math.Max(1, e.Bounds.Width - 24),
+                Math.Max(1, e.Bounds.Right - textLeft - 12),
                 e.Bounds.Height);
 
             System.Windows.Forms.TextRenderer.DrawText(
@@ -7210,8 +7593,26 @@ class WgdotHidden
 
         form.Shown += delegate
         {
-            refresh();
             search.Focus();
+
+            System.Threading.ThreadPool.QueueUserWorkItem(delegate
+            {
+                List<LauncherApp> loadedApps = GetLauncherApps();
+                if (form.IsDisposed)
+                    return;
+
+                try
+                {
+                    form.BeginInvoke((Action)delegate
+                    {
+                        apps = loadedApps;
+                        refresh();
+                    });
+                }
+                catch
+                {
+                }
+            });
 
             var fade = new System.Windows.Forms.Timer();
             fade.Interval = 15;
@@ -9135,7 +9536,7 @@ public class HotkeyData
 
 public static class Program
 {
-    const string Family = ""40459File-New-Project.EarTrumpet_725pr5jq8wr8a"";
+    const string Family = ""40459File-New-Project.EarTrumpet_1sdd7yawvg6ne"";
     const string Setting = ""MixerHotkey"";
 
     public static int Main(string[] args)
@@ -9313,7 +9714,7 @@ public static class Program
     {
         var psi = new ProcessStartInfo();
         psi.FileName = "explorer.exe";
-        psi.Arguments = "shell:AppsFolder\\40459File-New-Project.EarTrumpet_725pr5jq8wr8a!EarTrumpet";
+        psi.Arguments = "shell:AppsFolder\\40459File-New-Project.EarTrumpet_1sdd7yawvg6ne!EarTrumpet";
         psi.UseShellExecute = true;
         Process.Start(psi);
     }

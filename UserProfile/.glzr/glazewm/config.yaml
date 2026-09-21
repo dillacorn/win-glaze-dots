@@ -218,14 +218,16 @@ binding_modes:
         bindings: ["lwin+alt+p", "rwin+alt+p"]
       - commands: ["shell-exec wgdotw.exe power-menu"]
         bindings: ["lwin+p", "rwin+p"]
-      - commands: ['shell-exec explorer.exe shell:AppsFolder\40459File-New-Project.EarTrumpet_725pr5jq8wr8a!EarTrumpet']
+      - commands: ['shell-exec explorer.exe shell:AppsFolder\40459File-New-Project.EarTrumpet_1sdd7yawvg6ne!EarTrumpet']
         bindings: ["lwin+v", "rwin+v"]
+      - commands: ["shell-exec wgdotw.exe clipboard-anchor hotkey"]
+        bindings: ["lwin+c", "rwin+c"]
       - commands: ["shell-exec wgdotw.exe bar-autohide-toggle"]
         bindings: ["alt+ctrl+b"]
       - commands: ["shell-exec wgdotw.exe launcher hotkey"]
         bindings: ["lwin+d", "rwin+d"]
 
-      - commands: ['shell-exec wt.exe -w new new-tab --title "Win Glaze Themes" --suppressApplicationTitle wgdot.exe theme']
+      - commands: ["shell-exec wgdotw.exe theme-window-toggle"]
         bindings: ["lwin+alt+t", "rwin+alt+t"]
       - commands: ["toggle-tiling"]
         bindings: ["lwin+t", "rwin+t"]
@@ -419,7 +421,7 @@ keybindings:
   - commands: ["shell-exec wgdotw.exe rawaccel-toggle"]
     bindings: ["lwin+shift+m", "rwin+shift+m"]
 
-  - commands: ['shell-exec wt.exe -w new new-tab --title "Win Glaze Themes" --suppressApplicationTitle wgdot.exe theme']
+  - commands: ["shell-exec wgdotw.exe theme-window-toggle"]
     bindings: ["lwin+alt+t", "rwin+alt+t"]
 
   - commands: ["shell-exec wgdotw.exe power-menu"]
@@ -473,8 +475,11 @@ keybindings:
   - commands: ["wm-enable-binding-mode --name vm"]
     bindings: ["lwin+alt+v", "rwin+alt+v"]
 
-  - commands: ['shell-exec explorer.exe shell:AppsFolder\40459File-New-Project.EarTrumpet_725pr5jq8wr8a!EarTrumpet']
+  - commands: ['shell-exec explorer.exe shell:AppsFolder\40459File-New-Project.EarTrumpet_1sdd7yawvg6ne!EarTrumpet']
     bindings: ["alt+v", "lwin+v", "rwin+v"]
+
+  - commands: ["shell-exec wgdotw.exe clipboard-anchor hotkey"]
+    bindings: ["lwin+c", "rwin+c"]
 
   # Real GlazeWM pause. While paused, GlazeWM intentionally keeps only
   # wm-toggle-pause bindings active, so this same key always unpauses.
