@@ -326,7 +326,7 @@ Assert-Contains -Text $style -Needle "margin: 0 5px;" -Message "tray buttons pre
 
 Assert-Contains -Text $readme -Needle "WGDot manages installation, updates, backups, and deployment" -Message "management/runtime boundary is documented"
 Assert-Contains -Text $readme -Needle "WGDot is never required when a bar button or window-manager keybinding is used." -Message "desktop runtime independence is explicit"
-Assert-Contains -Text $readme -Needle "yasb-quick-launch.ps1" -Message "portable Quick Launch bridge is documented"
+Assert-Contains -Text $readme -Needle "does not register a private synthetic hotkey" -Message "synthetic Quick Launch bridge retirement is documented"
 Assert-Contains -Text $readme -Needle "Flow Launcher" -Message "Work launcher A/B split is documented"
 Assert-Contains -Text $readme -Needle "theme-switcher.ps1" -Message "standalone theme switching is documented"
 Assert-Contains -Text $readme -Needle "bar-autohide.ps1" -Message "standalone coordinated auto-hide is documented"
