@@ -462,7 +462,9 @@ Assert-Equal ([string]$rustDeskPackage.installMode) 'official-github' "RustDesk 
 Assert-Equal ([string]$rustDeskPackage.fallbackGitHubRepo) 'rustdesk/rustdesk' "RustDesk official GitHub source remains publisher-owned"
 Assert-True ($nativeSourceText -match 'const string Version = "native-preview-62"') "native runtime version tracks current WGDot maintenance changes"
 Assert-True ($nativeSourceText -notmatch 'if \(command == "theme"\) return ThemeManagerFromArgs') "WGDot no longer exposes live theme switching"
-Assert-True ($nativeSourceText -notmatch '(?s)requiredRefreshCommands.*?"theme"') "theme switching is not part of WGDot runtime refresh policy"
+$requiredRefreshBlock = [regex]::Match($nativeSourceText, '(?s)string\[\] requiredRefreshCommands\s*=\s*\{.*?\};').Value
+Assert-True (-not [string]::IsNullOrWhiteSpace($requiredRefreshBlock)) "acceptance audit refresh-policy block is present"
+Assert-True ($requiredRefreshBlock -notmatch '"theme"') "theme switching is not part of WGDot runtime refresh policy"
 Assert-True ($manifestText -match 'script-theme-switcher') "standalone theme switcher is managed as a dotfile"
 Assert-True ($manifestText -match 'yasb-theme') "YASB theme CSS is a tracked managed dotfile"
 Assert-True ($nativeSourceText -match '(?s)requiredRefreshCommands.*?"cursor"') "acceptance audit requires cursor runtime auto-refresh"
