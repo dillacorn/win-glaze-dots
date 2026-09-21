@@ -19,7 +19,7 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-50";
+    const string Version = "native-preview-51";
     const int WingetPreflightTimeoutMs = 30000;
     const string RepoFullName = "dillacorn/win-glaze-dots";
     const string RepoUrl = "https://github.com/dillacorn/win-glaze-dots.git";
@@ -6870,15 +6870,29 @@ internal static class WgdotNative
 
         // YASB v2.0.7 exposes widget hotkeys through Win32 RegisterHotKey but
         // has no CLI/IPC command for invoking an individual widget callback.
-        // Keep one YASB-owned host chord and synthesize that exact registered
-        // shortcut rather than inventing an unsupported YASB command.
-        keybd_event(VkLwin, 0, 0, UIntPtr.Zero);
-        keybd_event(VkMenu, 0, 0, UIntPtr.Zero);
-        keybd_event(VkD, 0, 0, UIntPtr.Zero);
-        keybd_event(VkD, 0, KeyeventfKeyup, UIntPtr.Zero);
-        keybd_event(VkMenu, 0, KeyeventfKeyup, UIntPtr.Zero);
-        keybd_event(VkLwin, 0, KeyeventfKeyup, UIntPtr.Zero);
-        System.Threading.Thread.Sleep(80);
+        // GlazeWM's low-level keyboard hook also sees injected input, so mirror
+        // the Clipboard History helper: preserve the pause state and pause the
+        // WM while synthesizing the one YASB-owned Win+Alt+D host chord.
+        bool wasPaused = GlazeWmIsPaused();
+        if (!wasPaused)
+            GlazeWmPauseToggle();
+
+        try
+        {
+            keybd_event(VkLwin, 0, 0, UIntPtr.Zero);
+            keybd_event(VkMenu, 0, 0, UIntPtr.Zero);
+            keybd_event(VkD, 0, 0, UIntPtr.Zero);
+            keybd_event(VkD, 0, KeyeventfKeyup, UIntPtr.Zero);
+            keybd_event(VkMenu, 0, KeyeventfKeyup, UIntPtr.Zero);
+            keybd_event(VkLwin, 0, KeyeventfKeyup, UIntPtr.Zero);
+            System.Threading.Thread.Sleep(80);
+        }
+        finally
+        {
+            if (!wasPaused)
+                GlazeWmPauseToggle();
+        }
+
         return 0;
     }
 
