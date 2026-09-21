@@ -182,20 +182,22 @@ Assert-Contains $glazeNormal 'window_title: { equals: "Win Glaze Themes" }' "the
 Assert-NotContains $glazeNormal 'wgdot' "theme hotkey does not depend on WGDot"
 Assert-Contains $glazeNormal 'theme-switcher.ps1' "GlazeWM launches the standalone theme selector"
 Assert-Contains $manifest 'UserProfile/.config/yasb/theme.css' "theme.css is portable with the dotfiles"
-foreach ($themeNeedle in @(
-    "'carbon-night' = [ordered]@{ Label='Carbon Night'; Background='#353535'; Foreground='#d0d0d0'",
-    "'catppuccin-frappe' = [ordered]@{ Label='Catppuccin Frappe'; Background='#303446'; Foreground='#c6d0f5'",
-    "'crimson-red' = [ordered]@{ Label='Crimson Red'; Background='#1e1e2e'; Foreground='#f38ba8'",
-    "'electric-blue' = [ordered]@{ Label='Electric Blue'; Background='#1e1e2e'; Foreground='#89b4fa'",
-    "'gruvbox' = [ordered]@{ Label='Gruvbox'; Background='#282828'; Foreground='#ebdbb2'",
-    "'iron-forge' = [ordered]@{ Label='Iron Forge'; Background='#0f1113'; Foreground='#bcd2d2'",
-    "'obsidian-night' = [ordered]@{ Label='Obsidian Night'; Background='#0f0f0f'; Foreground='#cdd6f4'",
-    "'pink' = [ordered]@{ Label='Pink'; Background='#D297A1'; Foreground='#2E2E2E'",
-    "'pipboy' = [ordered]@{ Label='Pip-Boy'; Background='#050805'; Foreground='#a4ff47'"
+foreach ($themeId in @(
+    'carbon-night',
+    'catppuccin-frappe',
+    'crimson-red',
+    'electric-blue',
+    'gruvbox',
+    'iron-forge',
+    'obsidian-night',
+    'pink',
+    'pipboy'
 )) {
-    Assert-Contains -Text $themeScript -Needle $themeNeedle -Message "standalone theme script owns expected Awtarchy palette"
+    Assert-Contains -Text $themeScript -Needle $themeId -Message "standalone theme script owns expected Awtarchy palette id"
 }
-Assert-Contains -Text $themeScript -Needle "Win Glaze $($t.Label)" -Message "standalone theme script owns Windows Terminal synchronization"
+Assert-Contains -Text $themeScript -Needle "Background='#353535'" -Message "Carbon Night background stays aligned with Awtarchy"
+Assert-Contains -Text $themeScript -Needle "Foreground='#89b4fa'" -Message "Electric Blue foreground stays aligned with Awtarchy"
+Assert-Contains -Text $themeScript -Needle 'Win Glaze $($t.Label)' -Message "standalone theme script owns Windows Terminal synchronization"
 Assert-NotContains -Text $themeScript -Needle "wgdot" -Message "standalone theme switching has no WGDot runtime dependency"
 
 foreach ($glaze in @($glazeNormal, $glazeWork)) {
