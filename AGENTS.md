@@ -81,6 +81,18 @@ Validation
     +--> .github/workflows/validate-wgdot.yml
 ```
 
+## Desktop runtime independence
+
+WGDot is a management/configuration tool, not a required desktop-session helper.
+
+- Managed GlazeWM and YASB configuration must remain usable when copied manually without installing or running WGDot.
+- Do not route ordinary window-manager or bar interactions through `wgdot.exe` or `wgdotw.exe`. This includes application launchers, binding-mode transitions, pause, screenshots, Windows Settings, audio mixer launch, YASB Quick Launch, and other actions already supported by GlazeWM, YASB, Windows, or the target application.
+- GlazeWM owns GlazeWM keybindings and binding modes. YASB owns its native widgets, callbacks, and global widget keybindings. Installed applications should be launched directly when practical.
+- Custom desktop behavior that genuinely needs logic may live in ordinary non-elevated scripts shipped with the dots. WGDot may install/update those scripts, but must not be required each time the user presses a key or clicks a widget.
+- Theme switching belongs in a non-elevated dotfile-owned script. WGDot may deploy/reset/update the script and theme assets, but must not be the live theme-switching process.
+- WGDot remains responsible for installation, software management, source/version selection, managed-file planning, backups, updates, resets, migrations, audits, and other explicit maintenance operations.
+- Tests must reject new runtime `wgdot`/`wgdotw` invocations inside managed GlazeWM or YASB configs.
+
 ## Runtime vs managed configuration
 
 WGDot runtime and managed configuration intentionally have different lifecycles.
