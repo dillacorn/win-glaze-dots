@@ -216,14 +216,14 @@ binding_modes:
         bindings: ["lwin+alt+m", "rwin+alt+m"]
       - commands: ["wm-toggle-pause"]
         bindings: ["lwin+alt+p", "rwin+alt+p"]
-      - commands: ['shell-exec --hide-window powershell.exe -NoLogo -NoProfile -WindowStyle Hidden -Command "& (Join-Path $env:USERPROFILE ''.config\win-glaze\scripts\bar-autohide.ps1'') toggle"']
+      - commands: ["shell-exec wgdotw.exe bar-autohide-toggle"]
         bindings: ["alt+ctrl+b"]
 
-      - commands: ['shell-exec wt.exe -w new new-tab --title "Win Glaze Themes" --suppressApplicationTitle powershell.exe -NoLogo -NoProfile -Command "& (Join-Path $env:USERPROFILE ''.config\win-glaze\scripts\theme-switcher.ps1'')"']
+      - commands: ['shell-exec wt.exe -w new new-tab --title "Win Glaze Themes" --suppressApplicationTitle wgdot.exe theme']
         bindings: ["lwin+t", "rwin+t"]
       - commands: ["shell-exec explorer.exe ms-settings:display"]
         bindings: ["lwin+ctrl+m", "rwin+ctrl+m"]
-      - commands: ['shell-exec --hide-window powershell.exe -NoLogo -NoProfile -WindowStyle Hidden -Command "& (Join-Path $env:USERPROFILE ''.config\win-glaze\scripts\rawaccel-toggle.ps1'')"']
+      - commands: ["shell-exec wgdotw.exe rawaccel-toggle"]
         bindings: ["lwin+shift+m", "rwin+shift+m"]
       - commands: ["shell-exec flameshot.exe gui"]
         bindings: ["lwin+shift+s", "rwin+shift+s"]
@@ -404,13 +404,13 @@ keybindings:
   - commands: ["shell-exec explorer.exe ms-settings:display"]
     bindings: ["lwin+ctrl+m", "rwin+ctrl+m"]
 
-  - commands: ['shell-exec --hide-window powershell.exe -NoLogo -NoProfile -WindowStyle Hidden -Command "& (Join-Path $env:USERPROFILE ''.config\win-glaze\scripts\rawaccel-toggle.ps1'')"']
+  - commands: ["shell-exec wgdotw.exe rawaccel-toggle"]
     bindings: ["lwin+shift+m", "rwin+shift+m"]
 
-  - commands: ['shell-exec wt.exe -w new new-tab --title "Win Glaze Themes" --suppressApplicationTitle powershell.exe -NoLogo -NoProfile -Command "& (Join-Path $env:USERPROFILE ''.config\win-glaze\scripts\theme-switcher.ps1'')"']
+  - commands: ['shell-exec wt.exe -w new new-tab --title "Win Glaze Themes" --suppressApplicationTitle wgdot.exe theme']
     bindings: ["lwin+t", "rwin+t"]
   # Standalone script coordinates YASB auto-hide with the GlazeWM top gap.
-  - commands: ['shell-exec --hide-window powershell.exe -NoLogo -NoProfile -WindowStyle Hidden -Command "& (Join-Path $env:USERPROFILE ''.config\win-glaze\scripts\bar-autohide.ps1'') toggle"']
+  - commands: ["shell-exec wgdotw.exe bar-autohide-toggle"]
     bindings: ["alt+ctrl+b"]
 
   - commands: ['shell-exec C:\Program Files (x86)\SpeedCrunch\speedcrunch.exe']
