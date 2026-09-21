@@ -229,6 +229,8 @@ binding_modes:
         bindings: ["alt+p"]
 
       - commands: ['shell-exec wt.exe -w new new-tab --title "Win Glaze Themes" --suppressApplicationTitle wgdot.exe theme']
+        bindings: ["lwin+alt+t", "rwin+alt+t"]
+      - commands: ["toggle-tiling"]
         bindings: ["lwin+t", "rwin+t"]
       - commands: ["shell-exec explorer.exe ms-settings:display"]
         bindings: ["lwin+ctrl+m", "rwin+ctrl+m"]
@@ -421,7 +423,7 @@ keybindings:
     bindings: ["lwin+ctrl+m", "rwin+ctrl+m"]
 
   - commands: ['shell-exec wt.exe -w new new-tab --title "Win Glaze Themes" --suppressApplicationTitle wgdot.exe theme']
-    bindings: ["lwin+t", "rwin+t"]
+    bindings: ["lwin+alt+t", "rwin+alt+t"]
 
   - commands: ["shell-exec wgdotw.exe power-menu"]
     bindings: ["lwin+p", "rwin+p"]
@@ -486,7 +488,7 @@ keybindings:
     bindings: ["alt+f", "lwin+f", "rwin+f"]
 
   - commands: ["toggle-tiling"]
-    bindings: ["alt+t"]
+    bindings: ["alt+t", "lwin+t", "rwin+t"]
 
   - commands:
       - "toggle-fullscreen"
