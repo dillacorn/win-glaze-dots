@@ -19,7 +19,7 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-53";
+    const string Version = "native-preview-54";
     const int WingetPreflightTimeoutMs = 30000;
     const string RepoFullName = "dillacorn/win-glaze-dots";
     const string RepoUrl = "https://github.com/dillacorn/win-glaze-dots.git";
@@ -545,6 +545,7 @@ internal static class WgdotNative
             if (command == "git-update") return GitManagedFromArgs("update", args.Skip(1).ToArray());
             if (command == "git-reset") return GitManagedFromArgs("reset", args.Skip(1).ToArray());
             if (command == "apply-tweak") return ApplyTweakFromArgs(args.Skip(1).ToArray());
+            if (command == "migrate-legacy-hotkeys") return MigrateLegacyWindowsShellHotkeys(true);
             if (command == "mark-runtime") return MarkRuntimeFromArgs(args.Skip(1).ToArray());
             if (command == "maintenance-self-test") return MaintenanceSelfTest();
             if (command == "software") return SoftwareManager();
@@ -8695,11 +8696,135 @@ public static class Program
             "UserDuckingPreference", 3, RegistryValueKind.DWord);
     }
 
+    static int MigrateLegacyWindowsShellHotkeys(bool allowElevation)
+    {
+        const string id = "disable-windows-shell-hotkeys";
+        const string legacyPath =
+            @"Software\Microsoft\Windows\CurrentVersion\Policies\Explorer";
+        const string legacyName = "NoWinKeys";
+
+        Dictionary<string, object> original =
+            GetRegistryOriginal(id, "HKCU", legacyPath, legacyName);
+        if (original == null)
+            return 0;
+
+        object currentValue = null;
+        bool currentExists = false;
+        using (RegistryKey key = Registry.CurrentUser.OpenSubKey(legacyPath, false))
+        {
+            if (key != null)
+            {
+                currentExists = key.GetValueNames()
+                    .Any(x => String.Equals(x, legacyName, StringComparison.OrdinalIgnoreCase));
+                if (currentExists)
+                    currentValue = key.GetValue(
+                        legacyName,
+                        null,
+                        RegistryValueOptions.DoNotExpandEnvironmentNames);
+            }
+        }
+
+        // WGDot's retired implementation wrote exactly DWORD 1. If the value
+        // is already gone, just retire the stale ownership snapshot. If it was
+        // changed to anything else, preserve the user's newer value and also
+        // relinquish WGDot's old ownership instead of overwriting it.
+        int currentDword = -1;
+        bool isOldManagedValue =
+            currentExists &&
+            currentValue != null &&
+            Int32.TryParse(
+                Convert.ToString(currentValue, CultureInfo.InvariantCulture),
+                NumberStyles.Integer,
+                CultureInfo.InvariantCulture,
+                out currentDword) &&
+            currentDword == 1;
+
+        if (!isOldManagedValue)
+        {
+            DiscardRegistryOriginalSnapshot(id, "HKCU", legacyPath, legacyName);
+            if (currentExists)
+                Console.WriteLine("Preserved user-modified legacy NoWinKeys value and retired old WGDot ownership.");
+            return 0;
+        }
+
+        try
+        {
+            using (RegistryKey key = OpenRegistryKeyForValueWrite("HKCU", legacyPath))
+            {
+                if (key == null)
+                    throw new UnauthorizedAccessException(
+                        "Registry access denied: HKCU\" + legacyPath + "\" + legacyName);
+
+                if (!GetBool(original, "exists"))
+                {
+                    key.DeleteValue(legacyName, false);
+                }
+                else
+                {
+                    RegistryValueKind kind;
+                    if (!Enum.TryParse(GetString(original, "kind"), out kind))
+                        kind = RegistryValueKind.DWord;
+
+                    string text = GetString(original, "value");
+                    object value = text;
+                    if (kind == RegistryValueKind.DWord)
+                    {
+                        int number;
+                        if (!Int32.TryParse(
+                            text,
+                            NumberStyles.Integer,
+                            CultureInfo.InvariantCulture,
+                            out number))
+                            throw new Exception("Legacy NoWinKeys snapshot contains an invalid DWORD value.");
+                        value = number;
+                    }
+                    else if (kind == RegistryValueKind.QWord)
+                    {
+                        long number;
+                        if (!Int64.TryParse(
+                            text,
+                            NumberStyles.Integer,
+                            CultureInfo.InvariantCulture,
+                            out number))
+                            throw new Exception("Legacy NoWinKeys snapshot contains an invalid QWORD value.");
+                        value = number;
+                    }
+
+                    key.SetValue(legacyName, value, kind);
+                }
+            }
+        }
+        catch (UnauthorizedAccessException)
+        {
+            if (!allowElevation || IsAdministrator())
+                throw;
+
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine("Removing WGDot's retired NoWinKeys policy requires administrator approval.");
+            Console.ResetColor();
+            RunElevatedSelf("migrate-legacy-hotkeys");
+            return 0;
+        }
+
+        if (original.ContainsKey("keyExists") && !GetBool(original, "keyExists"))
+            DeleteRegistryKeyIfEmpty("HKCU", legacyPath);
+
+        DiscardRegistryOriginalSnapshot(id, "HKCU", legacyPath, legacyName);
+        RefreshShellSettings();
+        Console.WriteLine("Restored the pre-WGDot NoWinKeys value and retired the legacy policy ownership.");
+        Console.WriteLine("Sign out and sign back in if Windows shell shortcuts still reflect the old policy.");
+        return 0;
+    }
+
     static void ApplyWindowsShellHotkeysPolicy(bool enable)
     {
         const string id = "disable-windows-shell-hotkeys";
         const string advancedPath =
             @"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced";
+
+        // Before applying the current selective policy, clean up the exact
+        // retired NoWinKeys value only when WGDot has an ownership snapshot.
+        MigrateLegacyWindowsShellHotkeys(true);
 
         if (!enable)
         {
@@ -9736,6 +9861,10 @@ public static class Program
                         Console.WriteLine("Yazi package helper 'ya' not found; run 'ya pkg install' manually after Yazi is installed.");
                         Console.ResetColor();
                     }
+                }
+                else if (String.Equals(type, "migrate-legacy-windows-hotkeys", StringComparison.OrdinalIgnoreCase))
+                {
+                    MigrateLegacyWindowsShellHotkeys(true);
                 }
                 else if (String.Equals(type, "ensure-yasb-theme", StringComparison.OrdinalIgnoreCase))
                 {
