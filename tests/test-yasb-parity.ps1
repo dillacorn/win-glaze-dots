@@ -218,7 +218,7 @@ foreach ($glaze in @($glazeNormal, $glazeWork)) {
     Assert-Contains $glaze 'bindings: ["lwin+alt+p", "rwin+alt+p"]' "real pause uses Alt+Super+P"
     Assert-Contains $glaze 'theme-switcher.ps1' "theme hotkey uses the standalone theme script"
     Assert-Contains $glaze 'window_title: { equals: "Win Glaze Themes" }' "theme selector has a dedicated floating title"
-    Assert-Contains $glaze 'window_process: { regex: "^WindowsTerminal(\.exe)?$" }' "theme selector floating rule is scoped to Windows Terminal"
+    Assert-Contains $glaze 'window_process: { regex: "^WindowsTerminal(\\.exe)?$" }' "theme selector floating rule is scoped to Windows Terminal"
     Assert-NotContains $glaze 'wgdot' "GlazeWM runtime is independent of WGDot"
     Assert-NotContains $glaze 'yasbc toggle-bar' "unsafe hard-hide command is not bound from GlazeWM"
     Assert-Contains $glaze 'bar-autohide.ps1' "GlazeWM uses the standalone coordinated auto-hide script"
@@ -308,7 +308,7 @@ $systrayBlock = $systrayBlocks[$systrayBlocks.Count - 1].Value
 Assert-Contains -Text $systrayBlock -Needle "padding: 0;" -Message "tray outer padding is removed"
 Assert-Contains -Text $style -Needle "margin: 0 5px;" -Message "tray buttons preserve inter-icon spacing"
 
-Assert-Contains $readme 'WGDot manages installation, updates, backups, and deployment' "management/runtime boundary is documented"
+Assert-Contains -Text $readme -Needle "WGDot manages installation, updates, backups, and deployment" -Message "management/runtime boundary is documented"
 Assert-Contains $readme 'WGDot is never required when a bar button or window-manager keybinding is used.' "desktop runtime independence is explicit"
 Assert-Contains $readme 'yasb-quick-launch.ps1' "portable Quick Launch bridge is documented"
 Assert-Contains $readme 'Flow Launcher' "Work launcher A/B split is documented"
