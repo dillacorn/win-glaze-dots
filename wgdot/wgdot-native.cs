@@ -344,6 +344,7 @@ internal static class WgdotNative
     static bool DesktopWorkerLeftWinDown;
     static bool DesktopWorkerRightWinDown;
     static bool DesktopWorkerSuperChordUsed;
+    static bool DesktopWorkerVmMode;
 
     const byte VkShift = 0x10;
     const byte VkControl = 0x11;
@@ -7682,30 +7683,504 @@ class WgdotHidden
         throw new Exception("Windows key is still held; release it and retry the shortcut.");
     }
 
-    static int OpenWindowsClipboardHistory()
+    static Color ParseThemeColor(string value, Color fallback)
     {
-        // Awtarchy parity: Super+C invokes the native Windows Clipboard History
-        // flyout. GlazeWM also owns Super+V for EarTrumpet, and its low-level
-        // keyboard hook receives injected key events. Preserve the existing
-        // pause state while temporarily pausing GlazeWM around native Win+V so
-        // the injected shortcut reaches Windows instead of the Super+V binding.
-        WaitForWindowsModifierRelease();
+        try
+        {
+            return ColorTranslator.FromHtml(value ?? "");
+        }
+        catch
+        {
+            return fallback;
+        }
+    }
 
-        bool wasPaused = GlazeWmIsPaused();
-        if (!wasPaused)
-            GlazeWmPauseToggle();
+    static string ClipboardHistoryTimestampLabel(string value)
+    {
+        DateTime timestamp;
+        if (DateTime.TryParse(
+                value ?? "",
+                CultureInfo.InvariantCulture,
+                DateTimeStyles.RoundtripKind,
+                out timestamp))
+            return timestamp.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
+        return "";
+    }
+
+    static string Sha256Bytes(byte[] bytes)
+    {
+        using (var sha = SHA256.Create())
+        {
+            byte[] hash = sha.ComputeHash(bytes ?? new byte[0]);
+            var builder = new StringBuilder(hash.Length * 2);
+            foreach (byte b in hash)
+                builder.Append(b.ToString("x2", CultureInfo.InvariantCulture));
+            return builder.ToString();
+        }
+    }
+
+    static T WithClipboardHistoryLock<T>(Func<T> action)
+    {
+        bool entered = false;
+        using (var mutex = new System.Threading.Mutex(false, ClipboardHistoryDataMutexName))
+        {
+            try
+            {
+                try
+                {
+                    entered = mutex.WaitOne(3000);
+                }
+                catch (System.Threading.AbandonedMutexException)
+                {
+                    entered = true;
+                }
+
+                if (!entered)
+                    throw new Exception("Timed out waiting for WGDot clipboard history storage.");
+
+                return action();
+            }
+            finally
+            {
+                if (entered)
+                    mutex.ReleaseMutex();
+            }
+        }
+    }
+
+    static List<ClipboardHistoryEntry> LoadClipboardHistoryEntriesUnlocked()
+    {
+        if (!File.Exists(ClipboardHistoryStatePath))
+            return new List<ClipboardHistoryEntry>();
 
         try
         {
-            SendKeyChord(VkLwin, VkV);
-            System.Threading.Thread.Sleep(150);
+            string raw = File.ReadAllText(ClipboardHistoryStatePath, Encoding.UTF8);
+            List<ClipboardHistoryEntry> entries =
+                Json.Deserialize<List<ClipboardHistoryEntry>>(raw);
+            return entries ?? new List<ClipboardHistoryEntry>();
         }
-        finally
+        catch
         {
-            if (!wasPaused)
-                GlazeWmPauseToggle();
+            return new List<ClipboardHistoryEntry>();
+        }
+    }
+
+    static string ClipboardHistoryImagePath(ClipboardHistoryEntry entry)
+    {
+        if (entry == null || String.IsNullOrWhiteSpace(entry.ImageFile))
+            return "";
+        return Path.Combine(ClipboardHistoryImageRoot, Path.GetFileName(entry.ImageFile));
+    }
+
+    static void SaveClipboardHistoryEntriesUnlocked(List<ClipboardHistoryEntry> entries)
+    {
+        Directory.CreateDirectory(StateRoot);
+        Directory.CreateDirectory(ClipboardHistoryImageRoot);
+
+        entries = (entries ?? new List<ClipboardHistoryEntry>())
+            .Where(x => x != null)
+            .Take(60)
+            .ToList();
+
+        var keepImages = new HashSet<string>(
+            entries
+                .Where(x => x.Kind == "image" && !String.IsNullOrWhiteSpace(x.ImageFile))
+                .Select(x => Path.GetFileName(x.ImageFile)),
+            StringComparer.OrdinalIgnoreCase);
+
+        foreach (string image in Directory.GetFiles(ClipboardHistoryImageRoot, "*.png"))
+        {
+            if (!keepImages.Contains(Path.GetFileName(image)))
+                SafeDeleteFile(image);
         }
 
+        string temp = ClipboardHistoryStatePath + ".tmp-" + Guid.NewGuid().ToString("N");
+        File.WriteAllText(temp, Json.Serialize(entries), new UTF8Encoding(false));
+        File.Copy(temp, ClipboardHistoryStatePath, true);
+        SafeDeleteFile(temp);
+    }
+
+    static List<ClipboardHistoryEntry> ReadClipboardHistoryEntries()
+    {
+        return WithClipboardHistoryLock(
+            delegate
+            {
+                return LoadClipboardHistoryEntriesUnlocked();
+            });
+    }
+
+    static void AddClipboardHistoryEntry(ClipboardHistoryEntry entry, byte[] imageBytes)
+    {
+        if (entry == null || String.IsNullOrWhiteSpace(entry.Id))
+            return;
+
+        WithClipboardHistoryLock(
+            delegate
+            {
+                List<ClipboardHistoryEntry> entries = LoadClipboardHistoryEntriesUnlocked();
+                entries.RemoveAll(x => String.Equals(x.Id, entry.Id, StringComparison.OrdinalIgnoreCase));
+
+                if (entry.Kind == "image" && imageBytes != null && imageBytes.Length > 0)
+                {
+                    Directory.CreateDirectory(ClipboardHistoryImageRoot);
+                    entry.ImageFile = entry.Id + ".png";
+                    File.WriteAllBytes(Path.Combine(ClipboardHistoryImageRoot, entry.ImageFile), imageBytes);
+                }
+
+                entries.Insert(0, entry);
+                SaveClipboardHistoryEntriesUnlocked(entries);
+                return true;
+            });
+    }
+
+    static void CaptureClipboardHistorySnapshot()
+    {
+        try
+        {
+            if (System.Windows.Forms.Clipboard.ContainsImage())
+            {
+                using (Image image = System.Windows.Forms.Clipboard.GetImage())
+                {
+                    if (image == null)
+                        return;
+
+                    byte[] bytes;
+                    using (var stream = new MemoryStream())
+                    {
+                        image.Save(stream, ImageFormat.Png);
+                        bytes = stream.ToArray();
+                    }
+
+                    string hash = Sha256Bytes(bytes);
+                    AddClipboardHistoryEntry(
+                        new ClipboardHistoryEntry
+                        {
+                            Id = "image-" + hash,
+                            Kind = "image",
+                            Text = "",
+                            CreatedAt = DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture),
+                            Preview = image.Width.ToString(CultureInfo.InvariantCulture) +
+                                " x " + image.Height.ToString(CultureInfo.InvariantCulture)
+                        },
+                        bytes);
+                }
+                return;
+            }
+
+            if (System.Windows.Forms.Clipboard.ContainsText(
+                    System.Windows.Forms.TextDataFormat.UnicodeText))
+            {
+                string textValue = System.Windows.Forms.Clipboard.GetText(
+                    System.Windows.Forms.TextDataFormat.UnicodeText) ?? "";
+                if (textValue.Length == 0)
+                    return;
+                if (textValue.Length > 1000000)
+                    textValue = textValue.Substring(0, 1000000);
+
+                string preview = textValue
+                    .Replace("\r", " ")
+                    .Replace("\n", " ")
+                    .Replace("\t", " ")
+                    .Trim();
+                if (preview.Length > 90)
+                    preview = preview.Substring(0, 87) + "...";
+
+                byte[] bytes = Encoding.UTF8.GetBytes(textValue);
+                AddClipboardHistoryEntry(
+                    new ClipboardHistoryEntry
+                    {
+                        Id = "text-" + Sha256Bytes(bytes),
+                        Kind = "text",
+                        Text = textValue,
+                        CreatedAt = DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture),
+                        Preview = preview
+                    },
+                    null);
+            }
+        }
+        catch (System.Runtime.InteropServices.ExternalException)
+        {
+            // Clipboard ownership can be transient while another application is
+            // still publishing formats. A later WM_CLIPBOARDUPDATE will retry.
+        }
+        catch
+        {
+        }
+    }
+
+    static void UpdateClipboardHistoryText(string id, string textValue)
+    {
+        WithClipboardHistoryLock(
+            delegate
+            {
+                List<ClipboardHistoryEntry> entries = LoadClipboardHistoryEntriesUnlocked();
+                ClipboardHistoryEntry entry = entries.FirstOrDefault(
+                    x => String.Equals(x.Id, id, StringComparison.OrdinalIgnoreCase));
+                if (entry == null || entry.Kind != "text")
+                    return false;
+
+                entry.Text = textValue ?? "";
+                string preview = entry.Text
+                    .Replace("\r", " ")
+                    .Replace("\n", " ")
+                    .Replace("\t", " ")
+                    .Trim();
+                if (preview.Length > 90)
+                    preview = preview.Substring(0, 87) + "...";
+                entry.Preview = preview;
+                entry.CreatedAt = DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture);
+                SaveClipboardHistoryEntriesUnlocked(entries);
+                return true;
+            });
+    }
+
+    static void DeleteClipboardHistoryEntry(string id)
+    {
+        WithClipboardHistoryLock(
+            delegate
+            {
+                List<ClipboardHistoryEntry> entries = LoadClipboardHistoryEntriesUnlocked();
+                ClipboardHistoryEntry entry = entries.FirstOrDefault(
+                    x => String.Equals(x.Id, id, StringComparison.OrdinalIgnoreCase));
+                if (entry != null && entry.Kind == "image")
+                    SafeDeleteFile(ClipboardHistoryImagePath(entry));
+                entries.RemoveAll(x => String.Equals(x.Id, id, StringComparison.OrdinalIgnoreCase));
+                SaveClipboardHistoryEntriesUnlocked(entries);
+                return true;
+            });
+    }
+
+    static void ClearClipboardHistory()
+    {
+        WithClipboardHistoryLock(
+            delegate
+            {
+                SafeDeleteDirectory(ClipboardHistoryImageRoot);
+                Directory.CreateDirectory(ClipboardHistoryImageRoot);
+                SaveClipboardHistoryEntriesUnlocked(new List<ClipboardHistoryEntry>());
+                return true;
+            });
+    }
+
+    static void WriteTrackedGlazeBindingMode(string mode)
+    {
+        var state = new Dictionary<string, object>();
+        state["mode"] = (mode ?? "").Trim().ToLowerInvariant();
+        state["updatedAt"] = DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture);
+        WriteJson(GlazeBindingModeStatePath, state);
+    }
+
+    static string ReadTrackedGlazeBindingMode()
+    {
+        Dictionary<string, object> state = ReadJson(GlazeBindingModeStatePath);
+        return state == null ? "" : GetString(state, "mode").Trim().ToLowerInvariant();
+    }
+
+    static void SendSuppressedSuperRelease(byte winKey)
+    {
+        var batch = new INPUT[3];
+
+        batch[0].type = InputKeyboard;
+        batch[0].data.keyboard.wVk = VkControl;
+
+        batch[1].type = InputKeyboard;
+        batch[1].data.keyboard.wVk = winKey;
+        batch[1].data.keyboard.dwFlags = KeyeventfKeyup;
+
+        batch[2].type = InputKeyboard;
+        batch[2].data.keyboard.wVk = VkControl;
+        batch[2].data.keyboard.dwFlags = KeyeventfKeyup;
+
+        SendInput((uint)batch.Length, batch, Marshal.SizeOf(typeof(INPUT)));
+    }
+
+    static IntPtr DesktopWorkerKeyboardCallback(int nCode, IntPtr wParam, IntPtr lParam)
+    {
+        if (nCode < 0)
+            return CallNextHookEx(DesktopWorkerKeyboardHookHandle, nCode, wParam, lParam);
+
+        KBDLLHOOKSTRUCT data =
+            (KBDLLHOOKSTRUCT)Marshal.PtrToStructure(lParam, typeof(KBDLLHOOKSTRUCT));
+
+        if ((data.flags & LlKhfInjected) != 0)
+            return CallNextHookEx(DesktopWorkerKeyboardHookHandle, nCode, wParam, lParam);
+
+        int message = unchecked((int)wParam.ToInt64());
+        bool down = message == WmKeyDown || message == WmSysKeyDown;
+        bool up = message == WmKeyUp || message == WmSysKeyUp;
+
+        if (data.vkCode == VkLwin || data.vkCode == VkRwin)
+        {
+            if (down)
+            {
+                if (data.vkCode == VkLwin) DesktopWorkerLeftWinDown = true;
+                if (data.vkCode == VkRwin) DesktopWorkerRightWinDown = true;
+
+                DesktopWorkerSuperChordUsed =
+                    (GetAsyncKeyState(VkControl) & 0x8000) != 0 ||
+                    (GetAsyncKeyState(VkShift) & 0x8000) != 0 ||
+                    (GetAsyncKeyState(VkMenu) & 0x8000) != 0;
+            }
+            else if (up)
+            {
+                bool suppressStart =
+                    !DesktopWorkerVmMode &&
+                    !DesktopWorkerSuperChordUsed;
+
+                if (data.vkCode == VkLwin) DesktopWorkerLeftWinDown = false;
+                if (data.vkCode == VkRwin) DesktopWorkerRightWinDown = false;
+
+                if (suppressStart)
+                {
+                    try { SendSuppressedSuperRelease((byte)data.vkCode); }
+                    catch { }
+                    DesktopWorkerSuperChordUsed = false;
+                    return new IntPtr(1);
+                }
+
+                if (!DesktopWorkerLeftWinDown && !DesktopWorkerRightWinDown)
+                    DesktopWorkerSuperChordUsed = false;
+            }
+
+            return CallNextHookEx(DesktopWorkerKeyboardHookHandle, nCode, wParam, lParam);
+        }
+
+        if (down && (DesktopWorkerLeftWinDown || DesktopWorkerRightWinDown))
+            DesktopWorkerSuperChordUsed = true;
+
+        return CallNextHookEx(DesktopWorkerKeyboardHookHandle, nCode, wParam, lParam);
+    }
+
+    static void SignalDesktopWorkerStop()
+    {
+        try
+        {
+            using (var stop = System.Threading.EventWaitHandle.OpenExisting(DesktopWorkerStopEventName))
+                stop.Set();
+        }
+        catch (System.Threading.WaitHandleCannotBeOpenedException)
+        {
+        }
+    }
+
+    static void StartDesktopWorkerIfNeeded()
+    {
+        if (NamedMutexExists(DesktopWorkerMutexName))
+            return;
+
+        string exe = Process.GetCurrentProcess().MainModule.FileName;
+        StartRuntimeWorkerFrom(exe, "desktop-worker");
+        WaitForRuntimeWorkerState(DesktopWorkerMutexName, true, "desktop");
+    }
+
+    static int StopDesktopWorker()
+    {
+        SignalDesktopWorkerStop();
+        if (NamedMutexExists(DesktopWorkerMutexName))
+            WaitForRuntimeWorkerState(DesktopWorkerMutexName, false, "desktop");
+        return 0;
+    }
+
+    static int DesktopWorker()
+    {
+        bool createdNew;
+        using (var mutex = new System.Threading.Mutex(true, DesktopWorkerMutexName, out createdNew))
+        {
+            if (!createdNew)
+                return 0;
+
+            using (var stop = new System.Threading.EventWaitHandle(
+                false,
+                System.Threading.EventResetMode.ManualReset,
+                DesktopWorkerStopEventName))
+            {
+                stop.Reset();
+
+                try
+                {
+                    string activeMode = GetActiveGlazeWmBindingMode();
+                    WriteTrackedGlazeBindingMode(activeMode);
+                }
+                catch
+                {
+                }
+
+                DesktopWorkerVmMode =
+                    String.Equals(ReadTrackedGlazeBindingMode(), "vm", StringComparison.OrdinalIgnoreCase);
+                DesktopWorkerLeftWinDown = false;
+                DesktopWorkerRightWinDown = false;
+                DesktopWorkerSuperChordUsed = false;
+
+                DesktopWorkerKeyboardProc = DesktopWorkerKeyboardCallback;
+                DesktopWorkerKeyboardHookHandle = SetWindowsHookExKeyboard(
+                    WhKeyboardLl,
+                    DesktopWorkerKeyboardProc,
+                    GetModuleHandle(null),
+                    0);
+                if (DesktopWorkerKeyboardHookHandle == IntPtr.Zero)
+                    throw new System.ComponentModel.Win32Exception(
+                        Marshal.GetLastWin32Error(),
+                        "Failed to install WGDot standalone-Super filter.");
+
+                var form = new DesktopWorkerForm();
+                IntPtr workerHandle = form.Handle;
+                var timer = new System.Windows.Forms.Timer();
+                timer.Interval = 250;
+                timer.Tick += delegate
+                {
+                    DesktopWorkerVmMode =
+                        String.Equals(ReadTrackedGlazeBindingMode(), "vm", StringComparison.OrdinalIgnoreCase);
+                    if (stop.WaitOne(0))
+                        System.Windows.Forms.Application.ExitThread();
+                };
+
+                try
+                {
+                    CaptureClipboardHistorySnapshot();
+                    timer.Start();
+                    System.Windows.Forms.Application.Run(form);
+                }
+                finally
+                {
+                    timer.Stop();
+                    timer.Dispose();
+                    form.Dispose();
+                    if (DesktopWorkerKeyboardHookHandle != IntPtr.Zero)
+                    {
+                        UnhookWindowsHookEx(DesktopWorkerKeyboardHookHandle);
+                        DesktopWorkerKeyboardHookHandle = IntPtr.Zero;
+                    }
+                    DesktopWorkerKeyboardProc = null;
+                    DesktopWorkerLeftWinDown = false;
+                    DesktopWorkerRightWinDown = false;
+                    DesktopWorkerSuperChordUsed = false;
+                    DesktopWorkerVmMode = false;
+                }
+            }
+        }
+
+        return 0;
+    }
+
+    static int OpenWindowsClipboardHistory()
+    {
+        // Windows' native Win+V history proved unreliable on the maintainer's
+        // Windows 11 / IoT Enterprise LTSC build even with its package, policy,
+        // and clipboard service healthy. WGDot now owns history capture and UI.
+        StartDesktopWorkerIfNeeded();
+
+        IntPtr existing = FindTopLevelWindowByExactTitle(ClipboardHistoryWindowTitle);
+        if (existing != IntPtr.Zero)
+        {
+            ShowWindow(existing, SwRestore);
+            SetForegroundWindow(existing);
+            return 0;
+        }
+
+        System.Windows.Forms.Application.EnableVisualStyles();
+        System.Windows.Forms.Application.SetCompatibleTextRenderingDefault(false);
+        System.Windows.Forms.Application.Run(new ClipboardHistoryForm());
         return 0;
     }
 
