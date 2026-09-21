@@ -2,7 +2,7 @@
 
 This YASB configuration mirrors the current Awtarchy bar where Windows, YASB, and GlazeWM have direct supported equivalents.
 
-WGDot manages installation, updates, backups, and deployment of these files. It is not part of the running desktop. The copied GlazeWM/YASB configs and the scripts under `~/.config/win-glaze/scripts` are the runtime environment.
+WGDot manages installation, updates, backups, and deployment. Runtime ownership is hybrid: GlazeWM, YASB, Windows, and applications own behavior they can provide natively, while a small compiled WGDot runtime handles only custom Windows behavior that genuinely needs code or low-level APIs.
 
 ## Runtime ownership
 
@@ -14,7 +14,7 @@ WGDot manages installation, updates, backups, and deployment of these files. It 
   - `bar-autohide.ps1`
   - `idle-inhibitor.ps1`
   - `rawaccel-toggle.ps1`
-- **WGDot is never required when a bar button or window-manager keybinding is used.**
+- **WGDot is used at runtime only for the approved custom primitives: mouse hook, idle inhibition, coordinated auto-hide, theme application, and invisible GlazeWM mode dispatch where YASB would otherwise flash a console.**
 
 ## Bar layout
 
@@ -64,11 +64,11 @@ GlazeWM owns `noalt`, `mouse`, and `vm` modes directly with `wm-enable-binding-m
 
 `Win+Alt+N`, `Win+Alt+M`, and `Win+Alt+V` enter the corresponding mode. The same mode chord exits that mode, and mode-to-mode transitions explicitly disable the current mode first.
 
-YASB's native `GlazewmBindingModeWidget` displays and cycles those modes. No WGDot-tracked mode state is required.
+YASB's native `GlazewmBindingModeWidget` displays those modes. Clicking the visible active mode disables that mode; it does not cycle to another mode. GlazeWM remains the source of truth for mode state.
 
 Real GlazeWM pause remains `Win+Alt+P` and uses `wm-toggle-pause`.
 
-GlazeWM 3.10.x still does not expose mouse buttons through its keybinding parser. The `mouse` mode therefore restores native mode state/visibility only; it does not pretend to provide the old low-level mouse move/resize hook.
+GlazeWM 3.10.x still does not expose mouse buttons through its keybinding parser. GlazeWM owns `mouse` mode state, while the scoped compiled WGDot mouse hook supplies the actual left-drag move, right-drag resize, and middle-click floating behavior and exits automatically when mouse mode ends.
 
 ## Themes
 
@@ -87,7 +87,7 @@ GlazeWM focused borders stay neutral `#a1a1a1` so a theme change never requires 
 
 ## Coordinated bar auto-hide
 
-`Alt+Ctrl+B` invokes `bar-autohide.ps1`.
+`Alt+Ctrl+B` invokes coordinated auto-hide. Normal may use the standalone script; restricted Work uses the compiled WGDot helper because `.ps1` files are blocked there.
 
 The script coordinates:
 
@@ -100,9 +100,9 @@ The blank-bar context menu stays disabled so there is no second unsynchronized a
 
 ## Idle inhibitor
 
-The eye control invokes `idle-inhibitor.ps1`.
+The eye control uses the compiled WGDot idle helper on the managed bar. Restricted Work therefore has no `.ps1` dependency for Keep Awake.
 
-The script uses Windows `SetThreadExecutionState(ES_CONTINUOUS | ES_SYSTEM_REQUIRED | ES_DISPLAY_REQUIRED)` in a hidden user-session PowerShell worker. It changes no power-plan values and requires no WGDot process.
+The helper uses Windows `SetThreadExecutionState(ES_CONTINUOUS | ES_SYSTEM_REQUIRED | ES_DISPLAY_REQUIRED)` in a scoped hidden user-session worker. It changes no power-plan values.
 
 ## Power controls
 
@@ -131,7 +131,7 @@ There is currently no rendered clipboard-history bar button and no managed `Supe
 | Awtarchy behavior | Windows mapping |
 | --- | --- |
 | monitor-local workspaces + wheel switching | native `GlazewmWorkspacesWidget` |
-| visible submap state | native `GlazewmBindingModeWidget` for `noalt` / `vm` |
+| visible submap state | native `GlazewmBindingModeWidget` for `noalt` / `mouse` / `vm`; click disables active mode |
 | tiling direction | native `GlazewmTilingDirectionWidget` |
 | active title | `ActiveWindowWidget` with `monitor_exclusive: false` |
 | task icons | native `TaskbarWidget`, 14 px icons in Awtarchy-sized slots |
@@ -147,9 +147,9 @@ There is currently no rendered clipboard-history bar button and no managed `Supe
 | notifications / mute | native `DndWidget` |
 | power controls | native `PowerMenuWidget` |
 | launcher | native `QuickLaunchWidget`; Work `Alt+P` launches Flow directly during testing |
-| theme switching | standalone non-elevated `theme-switcher.ps1` |
-| bar auto-hide | standalone non-elevated `bar-autohide.ps1` |
-| keep awake | standalone non-elevated `idle-inhibitor.ps1` |
+| theme switching | standalone script on Normal; compiled WGDot helper on restricted Work |
+| bar auto-hide | standalone script on Normal; compiled WGDot helper on restricted Work |
+| keep awake | compiled WGDot execution-state helper on managed bar |
 
 ## Deliberate differences and omissions
 
@@ -159,7 +159,7 @@ There is currently no rendered clipboard-history bar button and no managed `Supe
 - A dedicated privacy/screen-capture indicator has no verified native YASB equivalent.
 - Current YASB bar placement is top/bottom; left/right vertical bars are not faked.
 - Workspace urgent-state coloring and Awtarchy's static number+glyph mappings do not have exact YASB equivalents.
-- The native `mouse` binding mode exists and toggles with `Win+Alt+M`, but actual mouse-button move/resize behavior remains absent because GlazeWM 3.10.x does not expose mouse buttons.
+- The native `mouse` binding mode exists and toggles with `Win+Alt+M`; the scoped WGDot hook supplies mouse-button move/resize because GlazeWM 3.10.x does not expose mouse buttons.
 - Custom clipboard history is omitted until it has a portable implementation independent of WGDot.
 - Awtarchy can retint task/tray image pixels; stock YASB does not expose an equivalent image-tint option.
 - At exactly 15% battery, YASB's shared threshold controls both critical styling and glyph selection, so the exact Awtarchy glyph boundary cannot be reproduced independently.
@@ -177,4 +177,4 @@ Windows still reserves `Win+L`, and the selective Explorer hotkey policy does no
 
 - YASB systray stays `use_hook: false`.
 - No AutoHotkey, whkd, Explorer DLL injection, or third-party general-purpose input daemon is added.
-- Portable helpers are narrowly scoped PowerShell scripts shipped with the dots, not WGDot background services.
+- Runtime helpers are narrowly scoped. Restricted Work uses compiled WGDot helpers instead of `.ps1` files; native-capable actions remain outside WGDot.
