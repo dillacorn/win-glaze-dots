@@ -296,9 +296,9 @@ widgets:
         return_format: "string"
         hide_empty: true
       callbacks:
-        on_left: "exec wgdot glazewm-pause-toggle"
+        on_left: "exec wgdotw glazewm-pause-toggle"
         on_middle: "do_nothing"
-        on_right: "exec wgdot glazewm-pause-toggle"
+        on_right: "exec wgdotw glazewm-pause-toggle"
 
   glazewm_binding_mode:
     type: "glazewm.binding_mode.GlazewmBindingModeWidget"
@@ -316,10 +316,11 @@ widgets:
       binding_modes_to_cycle_through: ["none", "noalt", "vm", "mouse"]
       callbacks:
         # Match Awtarchy's visible submap label: either primary mouse button
-        # clears the active binding mode.
-        on_left: "disable_binding_mode"
+        # clears the active binding mode through WGDot so VM/Super tracking
+        # stays synchronized with the real GlazeWM mode.
+        on_left: "exec wgdotw glazewm-binding-mode-set normal"
         on_middle: "do_nothing"
-        on_right: "disable_binding_mode"
+        on_right: "exec wgdotw glazewm-binding-mode-set normal"
 
   active_window:
     type: "yasb.active_window.ActiveWindowWidget"
