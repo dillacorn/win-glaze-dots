@@ -8,7 +8,7 @@ $stylePath = Join-Path $repoRoot "UserProfile\.config\yasb\styles.css"
 $readmePath = Join-Path $repoRoot "UserProfile\.config\yasb\README.md"
 $glazeNormalPath = Join-Path $repoRoot "UserProfile\.glzr\glazewm\config.yaml"
 $glazeWorkPath = Join-Path $repoRoot "UserProfile\.glzr\glazewm\custom_work_config.yaml"
-$themeScriptPath = Join-Path $repoRoot "UserProfile\.config\win-glaze\scripts\theme-switcher.ps1"
+$nativeSourcePath = Join-Path $repoRoot "wgdot\wgdot-native.cs"
 $manifestPath = Join-Path $repoRoot "wgdot\manifest.json"
 
 function Assert-Contains {
@@ -21,7 +21,7 @@ function Assert-NotContains {
     if ($Text.Contains($Needle)) { throw "ASSERTION FAILED: $Message" }
 }
 
-foreach ($path in @($configPath, $workConfigPath, $stylePath, $readmePath, $glazeNormalPath, $glazeWorkPath, $themeScriptPath, $manifestPath)) {
+foreach ($path in @($configPath, $workConfigPath, $stylePath, $readmePath, $glazeNormalPath, $glazeWorkPath, $nativeSourcePath, $manifestPath)) {
     if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
         throw "ASSERTION FAILED: missing YASB parity file: $path"
     }
@@ -33,7 +33,7 @@ $style = Get-Content -LiteralPath $stylePath -Raw -Encoding UTF8
 $readme = Get-Content -LiteralPath $readmePath -Raw -Encoding UTF8
 $glazeNormal = Get-Content -LiteralPath $glazeNormalPath -Raw -Encoding UTF8
 $glazeWork = Get-Content -LiteralPath $glazeWorkPath -Raw -Encoding UTF8
-$themeScript = Get-Content -LiteralPath $themeScriptPath -Raw -Encoding UTF8
+$nativeSource = Get-Content -LiteralPath $nativeSourcePath -Raw -Encoding UTF8
 $manifest = Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8
 
 Assert-Contains $config "height: 28" "bar height stays at Awtarchy horizontal default"
@@ -165,7 +165,8 @@ Assert-Contains $launcherBlock "clipboard_history:" "Quick Launch clipboard prov
 Assert-Contains $launcherBlock "enabled: false" "Quick Launch clipboard provider remains disabled while no standalone history surface is configured"
 Assert-NotContains $config "wgdotw.exe power-menu" "normal YASB power remains native"
 Assert-NotContains $workConfig "wgdotw.exe power-menu" "Work YASB power remains native"
-Assert-NotContains $workConfig ".ps1" "Work YASB has no blocked script-file runtime dependency"
+Assert-NotContains $config ".ps1" "Normal YASB has no script-file runtime dependency"
+Assert-NotContains $workConfig ".ps1" "Work YASB has no script-file runtime dependency"
 Assert-Contains $config 'on_left: "disable_binding_mode"' "binding-mode label disables the active mode instead of cycling"
 Assert-NotContains $config "next_binding_mode" "binding-mode label does not cycle NoAlt to Mouse to VM"
 
@@ -181,8 +182,11 @@ Assert-Contains $style ".microphone-widget .icon.muted" "muted microphone state 
 Assert-Contains $style "--muted: #5c5c5c;" "fallback palette matches Awtarchy Carbon Night"
 Assert-Contains $style "@import `"theme.css`";" "YASB imports the managed live theme palette"
 Assert-Contains $manifest "`"id`": `"yasb-theme`"" "theme.css is a normal managed dotfile"
-Assert-Contains $manifest "`"id`": `"script-theme-switcher`"" "theme switcher is a managed standalone script"
-Assert-Contains $manifest "theme-switcher.ps1" "managed theme script is deployed with the dots"
+Assert-NotContains $manifest "`"id`": `"desktop-scripts`"" "obsolete desktop script component is not deployed"
+Assert-NotContains $manifest "theme-switcher.ps1" "manifest does not deploy the retired theme script"
+Assert-NotContains $manifest "bar-autohide.ps1" "manifest does not deploy the retired auto-hide script"
+Assert-NotContains $manifest "idle-inhibitor.ps1" "manifest does not deploy the retired idle script"
+Assert-NotContains $manifest "rawaccel-toggle.ps1" "manifest does not deploy the retired RawAccel script"
 Assert-NotContains $manifest "`"type`": `"ensure-yasb-theme`"" "theme lifecycle no longer requires a WGDot post-action"
 $powerBlock = [regex]::Match($config, '(?ms)^  power_menu:\r?\n.*$').Value
 Assert-Contains $powerBlock "yasb.power_menu.PowerMenuWidget" "power button uses YASB's native power menu"
@@ -196,9 +200,9 @@ Assert-Contains $powerBlock "signout: [`"󰗽`", `"Sign out`"]" "native power me
 Assert-Contains $powerBlock "sleep: [`"󰒲`", `"Sleep`"]" "native power menu includes Sleep"
 Assert-Contains $powerBlock "keys: `"win+p`"" "YASB owns the Super+P power-menu hotkey"
 Assert-NotContains $config "theme_picker:" "themes live in quick settings instead of a standalone bar button"
-Assert-Contains $manifest "`"id`": `"script-theme-switcher`"" "theme toggle is provided by a dotfile-owned script"
+Assert-NotContains $manifest "`"id`": `"script-theme-switcher`"" "theme toggle is no longer provided by a runtime script"
 Assert-Contains $glazeNormal "window_title: { equals: `"Win Glaze Themes`" }" "theme selector has a stable floating title"
-Assert-Contains $glazeNormal "theme-switcher.ps1" "Normal GlazeWM may retain the standalone theme selector"
+Assert-Contains $glazeNormal "wgdot.exe theme" "Normal GlazeWM uses the compiled theme selector"
 Assert-NotContains $glazeNormal "wgdotw.exe power-menu" "GlazeWM does not own the power menu"
 Assert-Contains $manifest "UserProfile/.config/yasb/theme.css" "theme.css is portable with the dotfiles"
 foreach ($themeId in @(
@@ -212,19 +216,19 @@ foreach ($themeId in @(
     'pink',
     'pipboy'
 )) {
-    Assert-Contains -Text $themeScript -Needle $themeId -Message "standalone theme script owns expected Awtarchy palette id"
+    Assert-Contains -Text $nativeSource -Needle $themeId -Message "compiled WGDot owns expected Awtarchy palette id"
 }
-Assert-Contains -Text $themeScript -Needle "Background='#353535'" -Message "Carbon Night background stays aligned with Awtarchy"
-Assert-Contains -Text $themeScript -Needle "Foreground='#89b4fa'" -Message "Electric Blue foreground stays aligned with Awtarchy"
-Assert-Contains -Text $themeScript -Needle "Win Glaze `$(`$t.Label)" -Message "standalone theme script owns Windows Terminal synchronization"
-Assert-NotContains -Text $themeScript -Needle "wgdot" -Message "standalone theme switching has no WGDot runtime dependency"
+Assert-Contains -Text $nativeSource -Needle '"#353535", "#d0d0d0"' -Message "Carbon Night palette stays aligned with Awtarchy"
+Assert-Contains -Text $nativeSource -Needle '"#1e1e2e", "#89b4fa"' -Message "Electric Blue palette stays aligned with Awtarchy"
+Assert-Contains -Text $nativeSource -Needle "ApplyWindowsTerminalTheme" -Message "compiled theme manager owns Windows Terminal synchronization"
+Assert-Contains -Text $nativeSource -Needle "GlazeWM was not reloaded" -Message "compiled theme manager explicitly avoids GlazeWM reload"
 
 foreach ($glaze in @($glazeNormal, $glazeWork)) {
     Assert-Contains $glaze "top: `"35px`"" "GlazeWM uses the requested 35 px top reservation"
     Assert-NotContains $glaze "top: `"8px`"" "bar redesign does not require live GlazeWM gap migration"
     Assert-Contains $glaze "shell-exec yasb" "GlazeWM starts YASB"
     Assert-Contains $glaze "color: `"#a1a1a1`"" "focused GlazeWM border stays theme-neutral"
-    Assert-Contains $glaze "bindings: [`"lwin+t`", `"rwin+t`"]" "Win+T opens the standalone theme selector"
+    Assert-Contains $glaze "bindings: [`"lwin+t`", `"rwin+t`"]" "Win+T opens the compiled theme selector"
     Assert-NotContains $glaze "bindings: [`"lwin+c`", `"rwin+c`"]" "GlazeWM does not require WGDot Clipboard History"
     Assert-NotContains $glaze "bindings: [`"lwin+v`", `"rwin+v`"]" "GlazeWM leaves Super+V available for EarTrumpet"
     Assert-NotContains $glaze "bindings: [`"lwin+p`", `"rwin+p`"]" "GlazeWM leaves Super+P to YASB's native power menu"
@@ -260,7 +264,10 @@ Assert-NotContains $glazeNormal "bindings: [`"alt+p`", `"lwin+d`", `"rwin+d`"]" 
 
 Assert-Contains $glazeWork "shell-exec %LOCALAPPDATA%/FlowLauncher/Flow.Launcher.exe" "Work GlazeWM launches Flow Launcher directly"
 Assert-Contains $glazeWork "bindings: [`"alt+p`"]" "Work GlazeWM maps Alt+P directly to Flow Launcher"
-Assert-NotContains $glazeWork ".ps1" "Work GlazeWM has no blocked script-file runtime dependency"
+Assert-NotContains $glazeNormal ".ps1" "Normal GlazeWM has no script-file runtime dependency"
+Assert-NotContains $glazeWork ".ps1" "Work GlazeWM has no script-file runtime dependency"
+Assert-Contains $glazeNormal "wgdotw.exe rawaccel-toggle" "Normal RawAccel uses the scoped compiled helper"
+Assert-Contains $glazeWork "wgdotw.exe rawaccel-toggle" "Work RawAccel uses the scoped compiled helper"
 Assert-Contains $glazeWork "wgdotw.exe mouse-mode-toggle" "Work mouse mode uses the scoped compiled helper"
 Assert-Contains $glazeWork "wgdotw.exe bar-autohide-toggle" "Work auto-hide uses the compiled helper"
 Assert-Contains $glazeWork "wgdot.exe theme" "Work theme selection uses the compiled helper"
@@ -339,9 +346,10 @@ Assert-Contains -Text $readme -Needle "WGDot manages installation, updates, back
 Assert-Contains -Text $readme -Needle "hybrid" -Message "hybrid runtime ownership is documented"
 Assert-Contains -Text $readme -Needle "does not register a private synthetic hotkey" -Message "synthetic Quick Launch bridge retirement is documented"
 Assert-Contains -Text $readme -Needle "Flow Launcher" -Message "Work launcher A/B split is documented"
-Assert-Contains -Text $readme -Needle "theme-switcher.ps1" -Message "standalone theme switching is documented"
-Assert-Contains -Text $readme -Needle "bar-autohide.ps1" -Message "standalone coordinated auto-hide is documented"
-Assert-Contains -Text $readme -Needle "idle-inhibitor.ps1" -Message "standalone idle inhibitor is documented"
+Assert-Contains -Text $readme -Needle "no `.ps1` runtime dependencies" -Message "script-free Normal and Work runtime is documented"
+Assert-Contains -Text $readme -Needle "wgdot.exe theme" -Message "compiled theme selector is documented"
+Assert-Contains -Text $readme -Needle "wgdotw.exe bar-autohide-toggle" -Message "compiled coordinated auto-hide is documented"
+Assert-Contains -Text $readme -Needle "wgdotw.exe rawaccel-toggle" -Message "compiled RawAccel toggle is documented"
 Assert-Contains -Text $readme -Needle "PowerMenuWidget" -Message "native YASB power ownership is documented"
 Assert-Contains -Text $readme -Needle "EarTrumpet owns the chord itself" -Message "EarTrumpet direct Super+V ownership is documented"
 Assert-Contains -Text $readme -Needle "no managed ``Super+C`` custom history shortcut" -Message "clipboard omission is explicit instead of claiming a dead helper"
