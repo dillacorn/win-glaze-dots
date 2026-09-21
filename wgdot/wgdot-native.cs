@@ -3623,6 +3623,14 @@ class WgdotHidden
             });
     }
 
+    static string RequireGlazeWmExe()
+    {
+        string exe = FindGlazeWmExe();
+        if (String.IsNullOrWhiteSpace(exe))
+            throw new Exception("GlazeWM executable could not be found.");
+        return exe;
+    }
+
     static string FindAltSnapExe()
     {
         string local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
@@ -7684,7 +7692,7 @@ class WgdotHidden
                     "YASB reload failed: " +
                     LastUsefulLine(yasbReload.StdErr + "\n" + yasbReload.StdOut));
 
-            ProcResult glazeReload = Run("glazewm.exe", "command wm-reload-config", null);
+            ProcResult glazeReload = Run(RequireGlazeWmExe(), "command wm-reload-config", null);
             if (glazeReload.ExitCode != 0)
                 throw new Exception(
                     "GlazeWM reload failed: " +
@@ -7897,7 +7905,7 @@ class WgdotHidden
 
     static string GetActiveGlazeWmBindingMode()
     {
-        ProcResult result = Run("glazewm.exe", "query binding-modes", null);
+        ProcResult result = Run(RequireGlazeWmExe(), "query binding-modes", null);
         Dictionary<string, object> response =
             RequireGlazeWmSuccess(result, "GlazeWM binding-mode query");
 
@@ -7962,7 +7970,7 @@ class WgdotHidden
     {
         string verb = enabled ? "wm-enable-binding-mode" : "wm-disable-binding-mode";
         ProcResult result = Run(
-            "glazewm.exe",
+            RequireGlazeWmExe(),
             "command " + verb + " --name " + Q(name),
             null);
         RequireGlazeWmSuccess(
@@ -8201,7 +8209,7 @@ class WgdotHidden
         SetForegroundWindow(window);
         System.Threading.Thread.Sleep(35);
 
-        ProcResult result = Run("glazewm.exe", "command toggle-floating", null);
+        ProcResult result = Run(RequireGlazeWmExe(), "command toggle-floating", null);
         if (result.ExitCode != 0)
             Console.Error.WriteLine(
                 "WGDot mouse mode floating toggle failed: " +
@@ -8453,7 +8461,7 @@ class WgdotHidden
 
     static void FocusRightFromSuperL()
     {
-        ProcResult result = Run("glazewm.exe", "command focus --direction right", null);
+        ProcResult result = Run(RequireGlazeWmExe(), "command focus --direction right", null);
         if (result.ExitCode != 0)
             Console.Error.WriteLine(
                 "Super+L focus-right command failed: " +
