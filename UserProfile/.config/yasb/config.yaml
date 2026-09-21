@@ -20,7 +20,7 @@ bars:
       enabled: false
       dark_mode: false
       round_corners: false
-      border_color: None
+      border_color: "None"
 
     window_flags:
       always_on_top: true
@@ -284,7 +284,7 @@ widgets:
         none: ""
         noalt: ""
         vm: ""
-      binding_modes_to_cycle_through: ["none", "noalt", "vm"]
+      binding_modes_to_cycle_through: ["none", "noalt", "mouse", "vm"]
       callbacks:
         on_left: "next_binding_mode"
         on_middle: "toggle_label"
@@ -316,15 +316,15 @@ widgets:
       tooltip: true
       tooltip_label: "{data[tooltip]}"
       exec_options:
-        run_cmd: 'powershell.exe -NoLogo -NoProfile -File "%USERPROFILE%\.config\win-glaze\scripts\idle-inhibitor.ps1" status'
+        run_cmd: 'powershell.exe -NoLogo -NoProfile -Command "& (Join-Path $env:USERPROFILE ''.config\win-glaze\scripts\idle-inhibitor.ps1'') status"'
         run_once: false
-        run_interval: 250
+        run_interval: 1000
         return_format: "json"
         hide_empty: false
       callbacks:
-        on_left: 'exec powershell.exe -NoLogo -NoProfile -WindowStyle Hidden -File "%USERPROFILE%\.config\win-glaze\scripts\idle-inhibitor.ps1" toggle'
+        on_left: 'exec powershell.exe -NoLogo -NoProfile -WindowStyle Hidden -Command "& (Join-Path $env:USERPROFILE ''.config\win-glaze\scripts\idle-inhibitor.ps1'') toggle"'
         on_middle: "do_nothing"
-        on_right: 'exec powershell.exe -NoLogo -NoProfile -WindowStyle Hidden -File "%USERPROFILE%\.config\win-glaze\scripts\idle-inhibitor.ps1" toggle'
+        on_right: 'exec powershell.exe -NoLogo -NoProfile -WindowStyle Hidden -Command "& (Join-Path $env:USERPROFILE ''.config\win-glaze\scripts\idle-inhibitor.ps1'') toggle"'
 
   cpu:
     type: "yasb.cpu.CpuWidget"
@@ -341,7 +341,7 @@ widgets:
         enabled: true
         blur: false
         round_corners: false
-        border_color: None
+        border_color: "None"
         alignment: "right"
         direction: "down"
         show_graph: true
@@ -363,7 +363,7 @@ widgets:
         enabled: true
         blur: false
         round_corners: false
-        border_color: None
+        border_color: "None"
         alignment: "right"
         direction: "down"
         show_graph: true
@@ -401,19 +401,19 @@ widgets:
             - id: "themes"
               label: "Themes"
               icon: ""
-              command: 'wt.exe -w new new-tab --title "Win Glaze Themes" --suppressApplicationTitle powershell.exe -NoLogo -NoProfile -File "%USERPROFILE%\.config\win-glaze\scripts\theme-switcher.ps1"'
+              command: 'wt.exe -w new new-tab --title "Win Glaze Themes" --suppressApplicationTitle powershell.exe -NoLogo -NoProfile -Command "& (Join-Path $env:USERPROFILE ''.config\win-glaze\scripts\theme-switcher.ps1'')"'
             - id: "bar_autohide"
               label: "Auto Hide"
               icon: "󰘖"
-              command: 'powershell.exe -NoLogo -NoProfile -WindowStyle Hidden -File "%USERPROFILE%\.config\win-glaze\scripts\bar-autohide.ps1" toggle'
+              command: 'powershell.exe -NoLogo -NoProfile -WindowStyle Hidden -Command "& (Join-Path $env:USERPROFILE ''.config\win-glaze\scripts\bar-autohide.ps1'') toggle"'
             - id: "noalt_mode"
               label: "NoAlt Mode"
               icon: "󰌌"
-              command: "glazewm.exe command wm-enable-binding-mode --name noalt"
+              command: 'powershell.exe -NoLogo -NoProfile -WindowStyle Hidden -Command "Start-Process -WindowStyle Hidden -FilePath glazewm.exe -ArgumentList ''command wm-enable-binding-mode --name noalt''"'
             - id: "vm_mode"
               label: "VM Mode"
               icon: "󰢹"
-              command: "glazewm.exe command wm-enable-binding-mode --name vm"
+              command: 'powershell.exe -NoLogo -NoProfile -WindowStyle Hidden -Command "Start-Process -WindowStyle Hidden -FilePath glazewm.exe -ArgumentList ''command wm-enable-binding-mode --name vm''"'
             - id: "display_settings"
               label: "Displays"
               icon: "󰍹"
@@ -470,7 +470,7 @@ widgets:
       brightness_menu:
         blur: false
         round_corners: false
-        border_color: None
+        border_color: "None"
         alignment: "right"
         direction: "down"
       callbacks:
@@ -501,9 +501,9 @@ widgets:
         # YASB has no native battery details popup. Open Windows' own
         # Power & battery surface on either primary mouse button; keep
         # middle-click for the compact alternate label.
-        on_left: "exec cmd.exe /c start ms-settings:powersleep"
+        on_left: "exec explorer.exe ms-settings:powersleep"
         on_middle: "toggle_label"
-        on_right: "exec cmd.exe /c start ms-settings:powersleep"
+        on_right: "exec explorer.exe ms-settings:powersleep"
 
   microphone:
     type: "yasb.microphone.MicrophoneWidget"
@@ -521,7 +521,7 @@ widgets:
       mic_menu:
         blur: false
         round_corners: false
-        border_color: None
+        border_color: "None"
         alignment: "right"
         direction: "down"
       callbacks:
@@ -547,7 +547,7 @@ widgets:
       audio_menu:
         blur: false
         round_corners: false
-        border_color: None
+        border_color: "None"
         alignment: "right"
         direction: "down"
         show_apps: true
@@ -570,7 +570,7 @@ widgets:
       calendar:
         blur: false
         round_corners: false
-        border_color: None
+        border_color: "None"
         alignment: "right"
         direction: "down"
         show_holidays: false
@@ -590,9 +590,9 @@ widgets:
       update_interval: 5000
       get_exact_wifi_strength: false
       callbacks:
-        on_left: "toggle_menu"
-        on_middle: "exec cmd.exe /c start ms-settings:network"
-        on_right: "toggle_menu"
+        on_left: "exec explorer.exe ms-settings:network-status"
+        on_middle: "exec explorer.exe ms-settings:network-status"
+        on_right: "exec explorer.exe ms-settings:network-status"
       ethernet_label: "<span>{wifi_icon}</span>"
       ethernet_label_alt: "<span>{wifi_icon}</span> {ip_addr}"
       ethernet_icon: "󰈀"
@@ -607,7 +607,7 @@ widgets:
       menu_config:
         blur: false
         round_corners: false
-        border_color: None
+        border_color: "None"
         alignment: "right"
         direction: "down"
 
@@ -623,13 +623,13 @@ widgets:
         bluetooth_off: ""
         bluetooth_connected: ""
       callbacks:
-        on_left: "toggle_menu"
-        on_middle: "do_nothing"
-        on_right: "toggle_menu"
+        on_left: "exec explorer.exe ms-settings:bluetooth"
+        on_middle: "exec explorer.exe ms-settings:bluetooth"
+        on_right: "exec explorer.exe ms-settings:bluetooth"
       menu_config:
         blur: false
         round_corners: false
-        border_color: None
+        border_color: "None"
         alignment: "right"
         direction: "down"
 
