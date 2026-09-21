@@ -52,7 +52,11 @@ class FakeGlaze {
             command != "query binding-modes" &&
             command != "command wm-toggle-pause" &&
             command != "command wm-disable-binding-mode --name mouse" &&
-            command != "command wm-enable-binding-mode --name mouse") return 64;
+            command != "command wm-enable-binding-mode --name mouse" &&
+            command != "command wm-disable-binding-mode --name noalt" &&
+            command != "command wm-enable-binding-mode --name noalt" &&
+            command != "command wm-disable-binding-mode --name vm" &&
+            command != "command wm-enable-binding-mode --name vm") return 64;
         Console.WriteLine(Environment.GetEnvironmentVariable("WGDOT_FIXTURE_RESPONSE"));
         return 0;
     }
@@ -97,6 +101,10 @@ class FakeGlaze {
         Expect-Failure { Invoke-Native 'GlazeWmBindingModeActive' @('mouse') } 'fixture mode query denied'
         $env:WGDOT_FIXTURE_RESPONSE = '{"clientMessage":"command wm-disable-binding-mode --name mouse","data":null,"error":"fixture mode disable denied","success":false}'
         Expect-Failure { Invoke-Native 'MouseModeDisable' } 'fixture mode disable denied'
+    }
+    Check 'quick-settings binding-mode toggle is exposed' {
+        $method = $script:native.GetMethod('GlazeWmBindingModeToggleFromArgs', [Reflection.BindingFlags]'Static,NonPublic')
+        Require ($null -ne $method) 'Binding-mode toggle helper is missing'
     }
     Check 'Flow migration restores only WGDot-owned Alt+P and preserves unrelated settings' {
         $settings = New-Object 'System.Collections.Generic.Dictionary[string,object]'
