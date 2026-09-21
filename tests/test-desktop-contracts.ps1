@@ -68,6 +68,26 @@ class FakeGlaze {
         $env:WGDOT_FIXTURE_RESPONSE = '{"clientMessage":"query paused","data":false,"error":null,"success":true}'
         Require (-not [bool](Invoke-Native 'GlazeWmIsPaused')) 'Running was lost'
     }
+    Check 'Flow migration restores only WGDot-owned Alt+P and preserves unrelated settings' {
+        $settings = New-Object 'System.Collections.Generic.Dictionary[string,object]'
+        $settings['Hotkey'] = 'Alt + P'; $settings['Theme'] = 'keep-me'
+        $original = New-Object 'System.Collections.Generic.Dictionary[string,object]'
+        $original['exists'] = $true; $original['value'] = 'Ctrl + Space'
+        Require ([bool](Invoke-Native 'RestoreLegacyFlowHotkey' @($settings, $original))) 'Owned shortcut was not retired'
+        Require ($settings['Hotkey'] -eq 'Ctrl + Space' -and $settings['Theme'] -eq 'keep-me') 'Settings were not preserved'
+        $settings['Hotkey'] = 'Ctrl + K'
+        Require (-not [bool](Invoke-Native 'RestoreLegacyFlowHotkey' @($settings, $original))) 'User-edited shortcut changed'
+        $settings['Hotkey'] = 'Alt + P'
+        Require (-not [bool](Invoke-Native 'RestoreLegacyFlowHotkey' @($settings, $null))) 'Unowned shortcut changed'
+        $original['value'] = 'Alt + P'
+        Require (-not [bool](Invoke-Native 'RestoreLegacyFlowHotkey' @($settings, $original))) 'Conflicting original was accepted'
+    }
+    Check 'legacy YASB startup cleanup recognizes only the old direct executable command' {
+        Require ([bool](Invoke-Native 'IsLegacyYasbStartupCommand' @('"C:\Program Files\YASB\yasb.exe"'))) 'Old WGDot command was missed'
+        Require (-not [bool](Invoke-Native 'IsLegacyYasbStartupCommand' @('cmd.exe /c yasb.exe'))) 'Custom command was accepted'
+        Require (-not [bool](Invoke-Native 'IsLegacyYasbStartupCommand' @('"C:\YASB\yasb.exe" --custom'))) 'User arguments were accepted'
+        Require (-not [bool](Invoke-Native 'IsLegacyYasbStartupCommand' @('yasb.exe'))) 'Unidentified relative command was accepted'
+    }
     Check 'bootstrap propagates failure of required WinGet setup' {
         $fakeWindows = Join-Path $temp 'windows'
         $compilerDir = Join-Path $fakeWindows 'Microsoft.NET\Framework64\v4.0.30319'
