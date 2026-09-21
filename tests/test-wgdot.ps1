@@ -47,6 +47,7 @@ $cursorComponent = $manifest.components | Where-Object { $_.id -eq "cursor" } | 
 Assert-True (@($cursorComponent.postActions | Where-Object { $_.type -eq "ensure-cursor-theme" }).Count -eq 1) "cursor component has exactly one cursor post-action"
 
 $glaze = $manifest.components | Where-Object { $_.id -eq "glazewm" } | Select-Object -First 1
+Assert-True (@($glaze.postActions | Where-Object { $_.type -eq "ensure-desktop-worker" }).Count -eq 1) "GlazeWM apply starts the WGDot desktop worker immediately"
 Assert-Equal "UserProfile/.glzr/glazewm/config.yaml" ([string]$glaze.files[0].sourceByGlazeProfile.normal) "normal GlazeWM source"
 Assert-Equal "UserProfile/.glzr/glazewm/custom_work_config.yaml" ([string]$glaze.files[0].sourceByGlazeProfile.work) "work GlazeWM source"
 Assert-Equal "%USERPROFILE%\.glzr\glazewm\config.yaml" ([string]$glaze.files[0].destination) "GlazeWM variants share destination"
@@ -488,6 +489,10 @@ Assert-True ($nativeSourceText -match 'wgdot-next-') "native runtime stages a re
 Assert-True ($nativeSourceText -match 'ScheduleStagedRuntimeInstall') "staged runtime installs itself after the requested operation exits"
 Assert-True ($nativeSourceText -match 'CreateRuntimeSwapHelper') "native runtime defers replacing the running executable"
 Assert-True ($nativeSourceText -match 'CopyRuntimeWithRetry') "runtime install retries replacement across transient executable locks"
+Assert-True ($nativeSourceText -match 'runtime-swap-stop') "runtime self-refresh stops WGDot-owned workers before replacing the installed executable"
+Assert-True ($nativeSourceText -match 'runtime-swap-restore') "runtime self-refresh restores WGDot-owned workers after replacement"
+Assert-True ($nativeSourceText -match 'wgdot-worker-state-') "runtime self-refresh persists transient worker state outside the installed executable"
+Assert-True ($nativeSourceText -match 'IsRuntimeSwapInternalCommand') "runtime-swap internals cannot recursively schedule another staged replacement"
 Assert-True ($nativeSourceText -match 'idleInhibitorWasActive = NamedMutexExists\(IdleInhibitorMutexName\)') "runtime install preserves active idle inhibitor state"
 Assert-True ($nativeSourceText -match 'mouseModeHookWasActive = NamedMutexExists\(MouseModeMutexName\)') "runtime install preserves active mouse-mode worker state"
 Assert-True ($nativeSourceText -match 'superLTestHookWasActive = NamedMutexExists\(SuperLTestMutexName\)') "runtime install preserves active Super+L test hook state"
@@ -679,6 +684,7 @@ Assert-True ($nativeSourceText -match 'command == "idle-inhibitor-toggle"') "nat
 Assert-True ($nativeSourceText -match 'SetThreadExecutionState') "idle inhibitor uses the native Windows execution-state API"
 Assert-True ($nativeSourceText -match 'EsContinuous \| EsSystemRequired \| EsDisplayRequired') "idle inhibitor blocks system and display idle timeout while active"
 Assert-True ($nativeSourceText -match 'command == "desktop-worker"') "native runtime exposes the persistent desktop worker"
+Assert-True ($nativeSourceText -match 'String.Equals\(type, "ensure-desktop-worker"') "managed GlazeWM apply can activate the desktop worker without a reboot"
 Assert-True ($nativeSourceText -match 'AddClipboardFormatListener') "WGDot clipboard history listens for native clipboard updates"
 Assert-True ($nativeSourceText -match 'class ClipboardHistoryForm') "WGDot owns a native clipboard history window instead of Win+V"
 Assert-True ($nativeSourceText -match 'Clipboard\.ContainsImage') "WGDot clipboard history captures image content"
