@@ -824,7 +824,12 @@ foreach ($text in @($glazeNormalText, $glazeWorkText)) {
     Assert-True ($text -match 'inner_gap:\s*"5px"') "GlazeWM uses the requested 5px inner gap"
     Assert-True ($text -match 'top:\s*"35px"') "GlazeWM reserves the requested 35px top gap"
     Assert-True ($text -match 'color:\s*"#a1a1a1"') "GlazeWM focused border is theme-neutral"
-    Assert-True (($text -split 'bindings:\s*\["lwin\+t",\s*"rwin\+t"\]').Count - 1 -ge 1) "Win+T theme picker exists globally"
+    Assert-True ($text -match 'bindings:\s*\["lwin\+alt\+t",\s*"rwin\+alt\+t"\]') "Super+Alt+T theme picker exists"
+    Assert-True ($text -match 'bindings:\s*\["alt\+t",\s*"lwin\+t",\s*"rwin\+t"\]') "global Alt+T and Super+T toggle tiling"
+    $noaltBlock = [regex]::Match($text, '(?ms)^  - name: "noalt"\r?\n.*?(?=^  - name: "mouse")').Value
+    Assert-True ($noaltBlock -match 'bindings:\s*\["lwin\+t",\s*"rwin\+t"\]') "noalt keeps Super+T tiling"
+    Assert-True ($noaltBlock -match 'bindings:\s*\["lwin\+alt\+t",\s*"rwin\+alt\+t"\]') "noalt keeps Super+Alt+T themes"
+    Assert-True ($noaltBlock -notmatch 'bindings:\s*\["alt\+t"\]') "noalt does not capture plain Alt+T"
     Assert-True ($text -match 'wgdot\.exe theme') "theme shortcut uses the compiled theme manager"
     Assert-True ($text -match 'window_title:\s*\{ equals: "Win Glaze Themes" \}') "theme selector has a dedicated floating title rule"
     Assert-True ($text -match 'name:\s*"noalt"') "GlazeWM noalt mode remains available with selective shell-hotkey filtering"
