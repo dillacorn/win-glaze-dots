@@ -29,7 +29,7 @@ Right:
 - network
 - Bluetooth
 - system tray
-- Windows Clipboard History
+- WGDot Clipboard History
 - unified Windows notifications / Do Not Disturb control
 - live YASB + Windows Terminal theme picker
 - Windows Keep Awake / idle inhibitor
@@ -48,7 +48,7 @@ These translations use documented upstream YASB or GlazeWM behavior rather than 
 | Awtarchy behavior | Windows mapping | Evidence |
 | --- | --- | --- |
 | monitor-local workspaces + wheel switching | `GlazewmWorkspacesWidget` | YASB `docs/widgets/(Widget)-GlazeWM-Workspaces.md` |
-| visible mode state | `GlazewmBindingModeWidget` shows `noalt` / `vm`; real GlazeWM pause remains separate as the `PAUSED` indicator | `NoWinKeys` is available as an experimental reversible WGDot tweak so Super-based mode bindings can be tested without Explorer owning the same shell chords. GlazeWM modes do not inherit globals, so noalt explicitly duplicates workspace/focus/move bindings |
+| visible mode state | `GlazewmBindingModeWidget` shows `noalt` / `vm` / `mouse`; real GlazeWM pause remains separate as the `PAUSED` indicator | WGDot tracks mode transitions so Quick Settings, keyboard mode switches, and lone-Super suppression agree even when GlazeWM's large binding-mode query drops its IPC response |
 | tiling direction | native `GlazewmTilingDirectionWidget` shows plain `↔` / `↕` for the current next-split direction and toggles it on click | plain arrows avoid ambiguous Nerd Font glyphs while YASB still subscribes to GlazeWM tiling-direction changes |
 | centered active title | `ActiveWindowWidget` with `monitor_exclusive: false`, so every bar follows the globally focused window like Awtarchy | YASB Active Window source filters per monitor only when `monitor_exclusive` is true |
 | task icons | `TaskbarWidget` with 14 px icons in 26 px total task slots; middle-click closes and right-click uses YASB's native minimize/restore toggle | current Awtarchy `smallIconSize` is 14 px and each horizontal task is `max(26, smallIconSize + 12)` = 26 px. Qt QSS sizes `min-width` / `max-width` against the content rect, so WGDot uses 14 px content plus 6 px horizontal padding per side |
@@ -62,7 +62,7 @@ These translations use documented upstream YASB or GlazeWM behavior rather than 
 | clock/date | Clock widget primary/alternate labels; the alternate uses Windows `strftime` `%#m/%#d` so `Sun 9/20` matches Awtarchy's non-zero-padded `ddd M/d`; left/right toggle time/date and middle opens YASB's native calendar | YASB v2.0.7 delegates `{%...}` formatting to Python `strftime`; YASB itself uses the Windows `%#d` form elsewhere, while Microsoft CRT documents `#` as removing leading zeroes. Clock registers left/middle/right callbacks but no wheel callback |
 | network / Bluetooth | native WiFi and Bluetooth menus; Wi-Fi uses Awtarchy's five signal glyphs including `󰤯` at zero strength, active Ethernet uses `󰈀`, and Bluetooth uses the same `` glyph in all states with disabled state muted by YASB's native `bt-off` class. Left/right click open the native menus | YASB v2.0.7 exposes five Wi-Fi icon slots, an Ethernet icon, configurable Bluetooth state icons, and `bt-off`/`bt-on`/`bt-connected` CSS classes |
 | system tray | not rendered in the WGDot YASB bar; Windows taskbar remains the place for applet/tray interaction | the dormant YASB Systray definition stays `use_hook: false`, but `systray` is removed from the bar's right-side widget list |
-| clipboard history | the `` bar button and `Super+C` call WGDot's Clipboard History helper; the helper waits for the physical Super key to be released, preserves/pauses GlazeWM, then synthesizes Windows' native `Win+V` chord | WGDot's optional shell-hotkey filter uses selective `DisabledHotkeys` rather than blanket `NoWinKeys`, preserving native `Win+V` and `Win+N`; this updated path still needs real Windows confirmation |
+| clipboard history | the `` bar button and `Super+C` open WGDot's own history window with text/image entries, image preview, selectable/editable text, copy, delete, and clear-all | history is captured by WGDot's desktop worker with the Windows clipboard-listener API; it deliberately does not depend on Windows' broken `Win+V` history or YASB's WinRT clipboard-history provider |
 | notifications / mute | one native `DndWidget`: left click uses YASB's built-in `exec notification_center` mapping to open Windows Notification Center; right click uses the widget's native `toggle_status` callback for Windows Do Not Disturb; the icon changes from bell to muted bell with DND state | YASB v2.0.7 `BaseWidget`, Windows `function_map`, and DND source |
 | power controls | WGDot-native themed full-screen overlay modeled after Awtarchy's Quickshell menu: Lock (L), Hibernate (H), Reboot (R), Shutdown (S), Sign out (O), Sleep (Z), plus Escape/click-background close | YASB's stock PowerMenu does not support Awtarchy's direct letter shortcuts, so the bar uses a simple native callback surface while WGDot implements Windows-native system actions and the themed overlay |
 | bar reservation + fullscreen hiding | keep WGDot's existing 35 px GlazeWM top gap, with YASB `always_on_top: true`, `windows_app_bar: false`, and `hide_on_fullscreen: true` | YASB supports non-AppBar always-on-top/fullscreen behavior; this avoids forcing a GlazeWM reload solely to migrate reservation models |
