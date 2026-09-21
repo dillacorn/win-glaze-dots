@@ -61,9 +61,15 @@ QToolTip,
     padding: 4px 6px;
 }
 
-/* Awtarchy-style application search using YASB Quick Launch. */
+/* Awtarchy-style application search button. */
+.awtarchy-launcher,
+.awtarchy-launcher .widget-container,
+.awtarchy-launcher .icon,
+.awtarchy-launcher .label,
 .quick-launch-widget,
 .quick-launch-widget .widget-container,
+.awtarchy-launcher .icon,
+.awtarchy-launcher .label,
 .quick-launch-widget .icon,
 .quick-launch-widget .label {
     background-color: transparent;
@@ -79,6 +85,7 @@ QToolTip,
     font-size: 14px;
 }
 
+.awtarchy-launcher:hover,
 .quick-launch-widget:hover {
     background-color: var(--strong-hover);
 }
