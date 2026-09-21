@@ -87,7 +87,6 @@ try {
             'GlazeWmPauseStatus',
             'GlazeWmPauseToggle',
             'ThemeToggle',
-            'PowerMenu',
             'OpenEarTrumpetMixer',
             'RestoreLegacyFlowHotkey',
             'ApplyFlowLauncherAltP'
