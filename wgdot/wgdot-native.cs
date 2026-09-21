@@ -1002,6 +1002,7 @@ internal static class WgdotNative
             if (command == "runtime-swap-stop") return RuntimeSwapStopFromArgs(args.Skip(1).ToArray());
             if (command == "runtime-swap-restore") return RuntimeSwapRestoreFromArgs(args.Skip(1).ToArray());
             if (command == "maintenance-self-test") return MaintenanceSelfTest();
+            if (command == "source-self-test") return SourceSelfTestFromArgs(args.Skip(1).ToArray());
             if (command == "software") return SoftwareManager();
             if (command == "software-reconcile") return SoftwareReconcile();
             if (command == "software-uninstall") return SoftwareUninstallManager();
@@ -2184,12 +2185,39 @@ internal static class WgdotNative
         }
     }
 
+    static int SourceSelfTestFromArgs(string[] args)
+    {
+        string revision = GetOption(args, "--revision");
+        if (!Regex.IsMatch(revision ?? "", "^[0-9a-fA-F]{40}$"))
+            throw new Exception("source-self-test requires --revision <full 40-character SHA>.");
+
+        string sourceRoot = PrepareRevisionArchive(revision.ToLowerInvariant());
+        Dictionary<string, object> manifest = ReadManifest(sourceRoot);
+
+        int componentCount = GetList(manifest, "components").Count;
+        if (componentCount == 0)
+            throw new Exception("Source self-test resolved a manifest with no components.");
+
+        Console.WriteLine("WGDot source self-test passed.");
+        Console.WriteLine("Revision: " + revision.ToLowerInvariant());
+        Console.WriteLine("Source:   " + sourceRoot);
+        Console.WriteLine("Components: " + componentCount.ToString(CultureInfo.InvariantCulture));
+        return 0;
+    }
+
     static string PrepareRevisionArchive(string revision)
     {
         if (!Regex.IsMatch(revision ?? "", "^[0-9a-fA-F]{40}$"))
             throw new Exception("Source revision must be a full 40-character SHA.");
 
         revision = revision.ToLowerInvariant();
+
+        if (String.Equals(
+                Environment.GetEnvironmentVariable("WGDOT_FORCE_RAW_SOURCE"),
+                "1",
+                StringComparison.Ordinal))
+            return PrepareRawRevisionSource(revision);
+
         string revisionRoot = Path.Combine(CacheRoot, "revision-" + revision);
         string marker = Path.Combine(revisionRoot, ".wgdot-source");
 
