@@ -45,14 +45,8 @@ internal static class WgdotNative
     static readonly string TweakStatePath = Path.Combine(StateRoot, "tweaks.json");
     static readonly string GpuStatePath = Path.Combine(StateRoot, "gpu-maintenance.json");
     static readonly string BrowserStatePath = Path.Combine(StateRoot, "browser-management.json");
-    static readonly string ThemeStatePath = Path.Combine(StateRoot, "theme.json");
-    static readonly string AppearanceStatePath = Path.Combine(StateRoot, "yasb-appearance.json");
     static readonly string StartupStatePath = Path.Combine(StateRoot, "startup.json");
     static readonly string CursorStatePath = Path.Combine(StateRoot, "cursor.json");
-    static readonly string ClipboardHistoryStatePath = Path.Combine(StateRoot, "clipboard-history.json");
-    static readonly string ClipboardHistoryImageRoot = Path.Combine(StateRoot, "clipboard-history-images");
-    static readonly string GlazeBindingModeStatePath = Path.Combine(StateRoot, "glazewm-binding-mode.json");
-    static readonly string RawAccelStatePath = Path.Combine(StateRoot, "rawaccel.json");
     static readonly JavaScriptSerializer Json = new JavaScriptSerializer { MaxJsonLength = int.MaxValue, RecursionLimit = 100 };
 
     static readonly IntPtr HwndBroadcast = new IntPtr(0xffff);
@@ -75,90 +69,9 @@ internal static class WgdotNative
     [DllImport("user32.dll")]
     static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, UIntPtr dwExtraInfo);
 
-    [DllImport("user32.dll", SetLastError = true)]
-    static extern uint SendInput(uint nInputs, INPUT[] pInputs, int cbSize);
-
     [DllImport("user32.dll")]
     static extern short GetAsyncKeyState(int vKey);
 
-    [StructLayout(LayoutKind.Sequential)]
-    struct INPUT
-    {
-        public uint type;
-        public INPUTUNION data;
-    }
-
-    [StructLayout(LayoutKind.Explicit)]
-    struct INPUTUNION
-    {
-        // INPUT is a native union. Include every native member so its size
-        // matches Win32 INPUT on both x86 and x64 even when WGDot only sends
-        // keyboard input. Omitting MOUSEINPUT makes x64 INPUT 32 bytes instead
-        // of the required 40 and causes SendInput to reject the whole batch.
-        [FieldOffset(0)]
-        public MOUSEINPUT mouse;
-        [FieldOffset(0)]
-        public KEYBDINPUT keyboard;
-        [FieldOffset(0)]
-        public HARDWAREINPUT hardware;
-    }
-
-    [StructLayout(LayoutKind.Sequential)]
-    struct MOUSEINPUT
-    {
-        public int dx;
-        public int dy;
-        public uint mouseData;
-        public uint dwFlags;
-        public uint time;
-        public UIntPtr dwExtraInfo;
-    }
-
-    [StructLayout(LayoutKind.Sequential)]
-    struct KEYBDINPUT
-    {
-        public ushort wVk;
-        public ushort wScan;
-        public uint dwFlags;
-        public uint time;
-        public UIntPtr dwExtraInfo;
-    }
-
-    [StructLayout(LayoutKind.Sequential)]
-    struct HARDWAREINPUT
-    {
-        public uint uMsg;
-        public ushort wParamL;
-        public ushort wParamH;
-    }
-
-    [StructLayout(LayoutKind.Sequential)]
-    struct POINT
-    {
-        public int X;
-        public int Y;
-    }
-
-    [StructLayout(LayoutKind.Sequential)]
-    struct RECT
-    {
-        public int Left;
-        public int Top;
-        public int Right;
-        public int Bottom;
-    }
-
-    [StructLayout(LayoutKind.Sequential)]
-    struct MSLLHOOKSTRUCT
-    {
-        public POINT pt;
-        public uint mouseData;
-        public uint flags;
-        public uint time;
-        public UIntPtr dwExtraInfo;
-    }
-
-    delegate IntPtr LowLevelMouseProc(int nCode, IntPtr wParam, IntPtr lParam);
 
     [StructLayout(LayoutKind.Sequential)]
     struct KBDLLHOOKSTRUCT
@@ -171,30 +84,6 @@ internal static class WgdotNative
     }
 
     delegate IntPtr LowLevelKeyboardProc(int nCode, IntPtr wParam, IntPtr lParam);
-
-    [StructLayout(LayoutKind.Sequential)]
-    struct MONITORINFO
-    {
-        public uint cbSize;
-        public RECT rcMonitor;
-        public RECT rcWork;
-        public uint dwFlags;
-    }
-
-    [DllImport("user32.dll", CharSet = CharSet.Auto)]
-    static extern bool GetMonitorInfo(IntPtr hMonitor, ref MONITORINFO lpmi);
-
-    [DllImport("user32.dll")]
-    static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
-
-    [DllImport("user32.dll")]
-    static extern bool MoveWindow(
-        IntPtr hWnd,
-        int x,
-        int y,
-        int width,
-        int height,
-        bool repaint);
 
     delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
 
@@ -212,13 +101,6 @@ internal static class WgdotNative
 
     [DllImport("user32.dll")]
     static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
-
-    [DllImport("user32.dll", SetLastError = true)]
-    static extern IntPtr SetWindowsHookEx(
-        int idHook,
-        LowLevelMouseProc lpfn,
-        IntPtr hMod,
-        uint dwThreadId);
 
     [DllImport("user32.dll", EntryPoint = "SetWindowsHookEx", SetLastError = true)]
     static extern IntPtr SetWindowsHookExKeyboard(
@@ -240,84 +122,24 @@ internal static class WgdotNative
     [DllImport("kernel32.dll", CharSet = CharSet.Auto)]
     static extern IntPtr GetModuleHandle(string lpModuleName);
 
-    [DllImport("user32.dll")]
-    static extern IntPtr WindowFromPoint(POINT point);
-
-    [DllImport("user32.dll")]
-    static extern IntPtr GetAncestor(IntPtr hWnd, uint gaFlags);
-
-    [DllImport("user32.dll")]
-    static extern bool SetForegroundWindow(IntPtr hWnd);
-
     [DllImport("user32.dll", CharSet = CharSet.Auto)]
     static extern int GetClassName(IntPtr hWnd, StringBuilder className, int maxCount);
 
     [DllImport("user32.dll")]
-    static extern IntPtr GetForegroundWindow();
-
-    [DllImport("user32.dll")]
-    static extern IntPtr MonitorFromWindow(IntPtr hWnd, uint flags);
-
-    [DllImport("user32.dll")]
     static extern bool PostMessage(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
-
-    [DllImport("user32.dll", SetLastError = true)]
-    static extern bool PostThreadMessage(uint idThread, uint msg, UIntPtr wParam, IntPtr lParam);
-
-    [DllImport("user32.dll", SetLastError = true)]
-    static extern bool AddClipboardFormatListener(IntPtr hwnd);
-
-    [DllImport("user32.dll", SetLastError = true)]
-    static extern bool RemoveClipboardFormatListener(IntPtr hwnd);
-
-    [DllImport("user32.dll")]
-    static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
-
-    [DllImport("user32.dll")]
-    static extern bool IsWindow(IntPtr hWnd);
 
     [DllImport("dwmapi.dll")]
     static extern int DwmGetWindowAttribute(IntPtr hWnd, int attribute, out int value, int valueSize);
 
-    [DllImport("user32.dll", SetLastError = true)]
-    static extern bool LockWorkStation();
-
-    [DllImport("powrprof.dll", SetLastError = true)]
-    static extern bool SetSuspendState(bool hibernate, bool forceCritical, bool disableWakeEvent);
-
-    [DllImport("kernel32.dll", SetLastError = true)]
-    static extern uint SetThreadExecutionState(uint esFlags);
-
     const uint WmClose = 0x0010;
-    const uint WmNcLButtonDown = 0x00A1;
-    const uint WmLButtonUp = 0x0202;
-    const int WmLButtonDown = 0x0201;
-    const int WmRButtonDown = 0x0204;
-    const int WmRButtonUp = 0x0205;
-    const int WmMButtonDown = 0x0207;
     const int WmKeyDown = 0x0100;
     const int WmKeyUp = 0x0101;
     const int WmSysKeyDown = 0x0104;
     const int WmSysKeyUp = 0x0105;
-    const int WmClipboardUpdate = 0x031D;
-    const int WmHotkey = 0x0312;
-    const int SwRestore = 9;
     const int WhKeyboardLl = 13;
-    const int WhMouseLl = 14;
-    const uint GaRoot = 2;
-    const uint LlMhfInjected = 0x00000001;
     const uint LlKhfInjected = 0x00000010;
-    const int HtCaption = 2;
-    const int HtTopLeft = 13;
-    const int HtTopRight = 14;
-    const int HtBottomLeft = 16;
-    const int HtBottomRight = 17;
-    const uint MonitorDefaultToNearest = 0x00000002;
     const int DwmwaCloaked = 14;
 
-    const uint EsSystemRequired = 0x00000001;
-    const uint EsDisplayRequired = 0x00000002;
-    const uint EsContinuous = 0x80000000;
     const string IdleInhibitorMutexName = @"Local\WGDot.IdleInhibitor";
     const string IdleInhibitorStopEventName = @"Local\WGDot.IdleInhibitorStop";
 
@@ -328,34 +150,17 @@ internal static class WgdotNative
 
     const string DesktopWorkerMutexName = @"Local\WGDot.DesktopWorker";
     const string DesktopWorkerStopEventName = @"Local\WGDot.DesktopWorkerStop";
-    const string ClipboardHistoryDataMutexName = @"Local\WGDot.ClipboardHistoryData";
     const string ClipboardHistoryWindowTitle = "WGDot Clipboard History";
 
-    static LowLevelMouseProc MouseModeHookProc;
-    static IntPtr MouseModeHookHandle = IntPtr.Zero;
-    static IntPtr MouseModeResizeTarget = IntPtr.Zero;
     static LowLevelKeyboardProc SuperLHookProc;
     static IntPtr SuperLHookHandle = IntPtr.Zero;
     static bool SuperLLeftWinDown;
     static bool SuperLRightWinDown;
     static bool SuperLSuppressKeyUp;
-    static LowLevelKeyboardProc DesktopWorkerKeyboardProc;
-    static IntPtr DesktopWorkerKeyboardHookHandle = IntPtr.Zero;
-    static bool DesktopWorkerLeftWinDown;
-    static bool DesktopWorkerRightWinDown;
-    static bool DesktopWorkerSuperChordUsed;
-    static bool DesktopWorkerVmMode;
 
-    const byte VkShift = 0x10;
-    const byte VkControl = 0x11;
-    const byte VkMenu = 0x12;
-    const byte VkD = 0x44;
     const byte VkL = 0x4C;
     const byte VkLwin = 0x5B;
     const byte VkRwin = 0x5C;
-    const byte VkV = 0x56;
-    const uint InputKeyboard = 1;
-    const uint KeyeventfKeyup = 0x0002;
 
     [DllImport("shell32.dll")]
     static extern void SHChangeNotify(uint wEventId, uint uFlags, IntPtr dwItem1, IntPtr dwItem2);
@@ -7159,65 +6964,6 @@ internal static class WgdotNative
             cloaked != 0;
     }
 
-    static System.Windows.Forms.Control CreatePowerTile(
-        System.Windows.Forms.Form form,
-        PowerAction action,
-        System.Drawing.Color foreground,
-        System.Drawing.Color background,
-        System.Drawing.Color hover)
-    {
-        var tile = new System.Windows.Forms.Panel();
-        tile.Dock = System.Windows.Forms.DockStyle.Fill;
-        tile.Margin = new System.Windows.Forms.Padding(8);
-        tile.BackColor = background;
-        tile.Cursor = System.Windows.Forms.Cursors.Hand;
-
-        var grid = new System.Windows.Forms.TableLayoutPanel();
-        grid.Dock = System.Windows.Forms.DockStyle.Fill;
-        grid.ColumnCount = 1;
-        grid.RowCount = 2;
-        grid.Margin = new System.Windows.Forms.Padding(0);
-        grid.Padding = new System.Windows.Forms.Padding(0);
-        grid.BackColor = System.Drawing.Color.Transparent;
-        grid.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 65f));
-        grid.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 35f));
-
-        var icon = new System.Windows.Forms.Label();
-        icon.Text = action.Icon;
-        icon.Dock = System.Windows.Forms.DockStyle.Fill;
-        icon.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
-        icon.ForeColor = foreground;
-        icon.BackColor = System.Drawing.Color.Transparent;
-        icon.Font = new System.Drawing.Font("JetBrainsMono NFP", 42f, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel);
-        icon.Cursor = System.Windows.Forms.Cursors.Hand;
-
-        var label = new System.Windows.Forms.Label();
-        label.Text = action.Label;
-        label.Dock = System.Windows.Forms.DockStyle.Fill;
-        label.TextAlign = System.Drawing.ContentAlignment.TopCenter;
-        label.ForeColor = foreground;
-        label.BackColor = System.Drawing.Color.Transparent;
-        label.Font = new System.Drawing.Font("JetBrainsMono NFP", 17f, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel);
-        label.Cursor = System.Windows.Forms.Cursors.Hand;
-
-        grid.Controls.Add(icon, 0, 0);
-        grid.Controls.Add(label, 0, 1);
-        tile.Controls.Add(grid);
-
-        EventHandler enter = delegate { tile.BackColor = hover; };
-        EventHandler leave = delegate { tile.BackColor = background; };
-        EventHandler click = delegate { InvokePowerAction(form, action); };
-
-        foreach (System.Windows.Forms.Control control in new System.Windows.Forms.Control[] { tile, grid, icon, label })
-        {
-            control.MouseEnter += enter;
-            control.MouseLeave += leave;
-            control.Click += click;
-        }
-
-        return tile;
-    }
-
     static string EnsureEarTrumpetStorageHelper()
     {
         string helperDir = Path.Combine(CacheRoot, "eartrumpet-storage-helper-v1");
@@ -11002,14 +10748,6 @@ public static class Program
             if (String.IsNullOrWhiteSpace(expanded) || expanded.IndexOf("wgdot", StringComparison.OrdinalIgnoreCase) < 0)
                 throw new Exception("Environment expansion self-test failed.");
 
-            int expectedInputSize = IntPtr.Size == 8 ? 40 : 28;
-            if (Marshal.SizeOf(typeof(INPUT)) != expectedInputSize)
-                throw new Exception(
-                    "Win32 INPUT layout self-test failed. Expected " +
-                    expectedInputSize.ToString(CultureInfo.InvariantCulture) +
-                    " bytes, got " +
-                    Marshal.SizeOf(typeof(INPUT)).ToString(CultureInfo.InvariantCulture) +
-                    ".");
 
             string runtimeCopySource = Path.Combine(temp, "runtime-copy-source.bin");
             string runtimeCopyDestination = Path.Combine(temp, "runtime-copy-destination.bin");
