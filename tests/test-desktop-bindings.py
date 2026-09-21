@@ -165,6 +165,33 @@ for name in ("config.yaml", "custom_work_config.yaml"):
                 tiling_keys,
             )
 
+        eartrumpet_keys = {
+            key
+            for binding in bindings
+            if any("40459File-New-Project.EarTrumpet_725pr5jq8wr8a!EarTrumpet" in command for command in binding["commands"])
+            for key in binding["bindings"]
+        }
+        assert {"lwin+v", "rwin+v"} <= eartrumpet_keys, (
+            name,
+            mode,
+            "Super+V must launch EarTrumpet directly",
+            eartrumpet_keys,
+        )
+        if mode == "normal":
+            assert "alt+v" in eartrumpet_keys, (
+                name,
+                mode,
+                "normal mode must bind Alt+V to EarTrumpet",
+                eartrumpet_keys,
+            )
+        else:
+            assert "alt+v" not in eartrumpet_keys, (
+                name,
+                mode,
+                "noalt must leave plain Alt+V uncaptured",
+                eartrumpet_keys,
+            )
+
         rawaccel_keys = {
             key
             for binding in bindings
