@@ -1248,6 +1248,14 @@ internal static class WgdotNative
         {
             client.Headers[HttpRequestHeader.UserAgent] = "wgdot";
             client.Headers[HttpRequestHeader.Accept] = "application/vnd.github+json";
+
+            // GitHub-hosted CI shares public egress and can exhaust GitHub's
+            // anonymous API quota. Normal installs remain tokenless, but an
+            // explicitly supplied token is honored when present.
+            string githubToken = Environment.GetEnvironmentVariable("GITHUB_TOKEN");
+            if (!String.IsNullOrWhiteSpace(githubToken))
+                client.Headers[HttpRequestHeader.Authorization] = "Bearer " + githubToken.Trim();
+
             string raw = client.DownloadString(url);
             return AsDictionary(Json.DeserializeObject(raw));
         }
