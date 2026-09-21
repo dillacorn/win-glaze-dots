@@ -83,16 +83,16 @@ Validation
 
 ## Desktop runtime independence
 
-WGDot is a management/configuration tool, not a required desktop-session helper.
+WGDot is primarily a management/configuration tool. Narrow, compiled desktop-session helpers are allowed only where the desired behavior cannot be reproduced cleanly by GlazeWM, YASB, Windows, or the target application.
 
-- Managed GlazeWM and YASB configuration must remain usable when copied manually without installing or running WGDot.
+- Managed GlazeWM and YASB configuration should remain broadly usable when copied manually without WGDot, but approved custom surfaces may degrade when the compiled helper is absent.
 - Runtime ownership is hybrid and capability-driven. Ordinary actions already supported cleanly by GlazeWM, YASB, Windows, or the target application must stay native; WGDot runtime helpers are allowed only for custom behavior that genuinely requires code, cross-component state coordination, or low-level Windows APIs.
-- GlazeWM owns GlazeWM keybindings and binding modes. YASB owns its native widgets, callbacks, and global widget keybindings. Installed applications should be launched directly when practical.
-- YASB's `PowerMenuWidget` owns the power button and `Win+P`. Do not replace the power menu with WGDot.
+- GlazeWM owns GlazeWM keybindings and binding modes. YASB owns its native widgets and callbacks where those widgets satisfy the intended behavior. Installed applications should be launched directly when practical.
+- The Awtarchy-style fullscreen power surface is an explicit compiled WGDot exception. YASB owns only the bar button; the button and `Super+P` dispatch `wgdotw.exe power-menu`. Keep the surface single-instance, theme-aware, windowless at dispatch, and animated with fade-in/fade-out so it never flashes an unstyled bright frame.
 - Runtime commands launched from YASB must not flash console windows. Use a windowless compiled WGDot frontend/worker path for the small set of approved runtime helpers.
-- Native ownership must stay literal: launchers, screenshots, Windows Settings, EarTrumpet, YASB Quick Launch, workspace movement, GlazeWM pause/mode state, and YASB's native power menu must not be bounced through WGDot merely for convenience.
+- Native ownership must stay literal: launchers, screenshots, Windows Settings, EarTrumpet, YASB Quick Launch, workspace movement, and GlazeWM pause/mode state must not be bounced through WGDot merely for convenience.
 - Neither Normal nor Work desktop runtime may depend on `.ps1` files. All managed GlazeWM/YASB runtime profiles must contain zero runtime references to `.ps1` files, and `desktop-scripts` must not be a default runtime component for either profile. For genuine custom runtime behavior that native owners cannot provide cleanly, use a narrowly scoped compiled WGDot helper. Do not use `-ExecutionPolicy Bypass`.
-- WGDot runtime helpers are permitted for narrowly scoped custom primitives that native owners cannot provide cleanly, including coordinated YASB/GlazeWM auto-hide, idle inhibition through Windows execution-state APIs, live Awtarchy-style theme application/synchronization, and the low-level mouse-button hook GlazeWM cannot express. Do not turn WGDot into a general desktop broker.
+- WGDot runtime helpers are permitted for narrowly scoped custom primitives that native owners cannot provide cleanly, including coordinated YASB/GlazeWM auto-hide, idle inhibition through Windows execution-state APIs, live Awtarchy-style theme application/synchronization, the Awtarchy-style power surface, and the low-level mouse-button hook GlazeWM cannot express. Do not turn WGDot into a general desktop broker.
 - Live Awtarchy-style theme application is an approved compiled WGDot responsibility for both Normal and Work. Theme application must not reload GlazeWM, must preserve unrelated Windows Terminal configuration, and must remain isolated from unrelated desktop actions.
 - WGDot remains responsible for installation, software management, source/version selection, managed-file planning, backups, updates, resets, migrations, audits, and other explicit maintenance operations.
 - Tests must enforce the hybrid boundary: reject WGDot for actions with clean native ownership, allow only explicitly approved custom runtime commands, require both Normal and Work runtime configs to be `.ps1`-free, and reject visible-console runtime dispatch.
