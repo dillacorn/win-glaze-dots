@@ -1036,6 +1036,7 @@ internal static class WgdotNative
             if (command == "mouse-mode-hook") return MouseModeHook();
             if (command == "glazewm-binding-mode-toggle") return GlazeWmBindingModeToggleFromArgs(args.Skip(1).ToArray());
             if (command == "glazewm-binding-mode-set") return GlazeWmBindingModeSetFromArgs(args.Skip(1).ToArray());
+            if (command == "glazewm-reload-config") return GlazeWmReloadConfig();
             if (command == "glazewm-pause-status") return GlazeWmPauseStatus();
             if (command == "glazewm-pause-toggle") return GlazeWmPauseToggle();
             if (command == "theme-toggle") return ThemeToggle();
@@ -1083,7 +1084,12 @@ internal static class WgdotNative
             String.Equals(command, "mouse-mode-toggle", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "mouse-mode-disable", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "mouse-mode-switch", StringComparison.OrdinalIgnoreCase) ||
-            String.Equals(command, "glazewm-binding-mode-toggle", StringComparison.OrdinalIgnoreCase);
+            String.Equals(command, "glazewm-binding-mode-toggle", StringComparison.OrdinalIgnoreCase) ||
+            String.Equals(command, "glazewm-binding-mode-set", StringComparison.OrdinalIgnoreCase) ||
+            String.Equals(command, "glazewm-reload-config", StringComparison.OrdinalIgnoreCase) ||
+            String.Equals(command, "glazewm-pause-toggle", StringComparison.OrdinalIgnoreCase) ||
+            String.Equals(command, "rawaccel-open", StringComparison.OrdinalIgnoreCase) ||
+            String.Equals(command, "desktop-worker", StringComparison.OrdinalIgnoreCase);
     }
 
     static void ReportDesktopHelperFailure(string command, Exception error)
@@ -9430,6 +9436,15 @@ class WgdotHidden
         }
 
         return response;
+    }
+
+    static int GlazeWmReloadConfig()
+    {
+        ProcResult result = Run("glazewm.exe", "command wm-reload-config", null);
+        RequireGlazeWmSuccess(result, "GlazeWM config reload");
+        // Upstream reload clears all active binding modes.
+        WriteTrackedGlazeBindingMode("");
+        return 0;
     }
 
     static bool GlazeWmIsPaused()
