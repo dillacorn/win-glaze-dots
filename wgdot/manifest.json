@@ -115,6 +115,12 @@
           "source": "UserProfile/.config/win-glaze/scripts/rawaccel-toggle.ps1",
           "destination": "%USERPROFILE%\\.config\\win-glaze\\scripts\\rawaccel-toggle.ps1",
           "merge": true
+        },
+        {
+          "id": "script-yasb-quick-launch",
+          "source": "UserProfile/.config/win-glaze/scripts/yasb-quick-launch.ps1",
+          "destination": "%USERPROFILE%\\.config\\win-glaze\\scripts\\yasb-quick-launch.ps1",
+          "merge": true
         }
       ]
     },
