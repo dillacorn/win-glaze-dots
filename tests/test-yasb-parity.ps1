@@ -346,7 +346,7 @@ Assert-Contains -Text $readme -Needle "WGDot manages installation, updates, back
 Assert-Contains -Text $readme -Needle "hybrid" -Message "hybrid runtime ownership is documented"
 Assert-Contains -Text $readme -Needle "does not register a private synthetic hotkey" -Message "synthetic Quick Launch bridge retirement is documented"
 Assert-Contains -Text $readme -Needle "Flow Launcher" -Message "Work launcher A/B split is documented"
-Assert-Contains -Text $readme -Needle "no `.ps1` runtime dependencies" -Message "script-free Normal and Work runtime is documented"
+Assert-Contains -Text $readme -Needle 'no `.ps1` runtime dependencies' -Message "script-free Normal and Work runtime is documented"
 Assert-Contains -Text $readme -Needle "wgdot.exe theme" -Message "compiled theme selector is documented"
 Assert-Contains -Text $readme -Needle "wgdotw.exe bar-autohide-toggle" -Message "compiled coordinated auto-hide is documented"
 Assert-Contains -Text $readme -Needle "wgdotw.exe rawaccel-toggle" -Message "compiled RawAccel toggle is documented"
