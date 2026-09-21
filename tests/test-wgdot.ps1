@@ -766,10 +766,11 @@ Assert-True ($glazeNormalText -match 'bindings:\s*\["alt\+shift\+c"\]') "Normal 
 Assert-True ($glazeNormalText -match 'bindings:\s*\["lwin\+shift\+c",\s*"rwin\+shift\+c"\]') "Normal profile keeps Awtarchy Super+Shift+C SpeedCrunch"
 Assert-True ($glazeNormalText -match '(?ms)cursor_jump:\s*\r?\n\s+enabled:\s*true') "Normal profile enables cursor jump by default"
 Assert-True ($glazeNormalText -notmatch '(?ms)- name: "1"\r?\n\s+display_name: "1: Flame"\r?\n\s+keep_alive:\s*true') "normal GlazeWM workspace 1 is not pinned alive"
-Assert-True ($glazeNormalText -match 'yasb-quick-launch\.ps1') "Normal GlazeWM invokes the standalone YASB launcher bridge"
-Assert-True ($glazeWorkText -match 'flow-launcher\.ps1') "Work GlazeWM routes Alt+P through the standalone Flow Launcher script"
-Assert-True ($glazeWorkText -match 'bindings:\s*\["alt\+p"\]') "Work GlazeWM owns Alt+P for Flow Launcher"
-Assert-True ($glazeWorkText -match 'bindings:\s*\["lwin\+d",\s*"rwin\+d"\]') "Work GlazeWM owns Super+D for the standalone YASB launcher bridge"
+Assert-True ($glazeNormalText -notmatch 'yasb-quick-launch\.ps1|flow-launcher\.ps1') "Normal GlazeWM has no launcher relay scripts"
+Assert-True ($glazeWorkText -notmatch 'yasb-quick-launch\.ps1|flow-launcher\.ps1') "Work GlazeWM has no launcher relay scripts"
+Assert-True ($glazeWorkText -match 'shell-exec %LOCALAPPDATA%/FlowLauncher/Flow\.Launcher\.exe') "Work GlazeWM launches Flow Launcher directly"
+Assert-True ($glazeWorkText -match 'bindings:\s*\["alt\+p"\]') "Work GlazeWM owns Alt+P for direct Flow Launcher"
+Assert-True ($glazeWorkText -notmatch 'bindings:\s*\["lwin\+d",\s*"rwin\+d"\]') "Work GlazeWM does not fake YASB Quick Launch on Super+D"
 foreach ($text in @($glazeNormalText, $glazeWorkText)) {
     $globalMarker = [Environment]::NewLine + "keybindings:" + [Environment]::NewLine
     $globalIndex = $text.LastIndexOf($globalMarker)
