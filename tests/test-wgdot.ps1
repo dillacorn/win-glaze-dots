@@ -263,8 +263,7 @@ Assert-Equal "rustdesk/rustdesk" ([string]$rustDesk.fallbackGitHubRepo) "RustDes
 $tweakIds = @($manifest.tweaks | ForEach-Object { [string]$_.id })
 foreach ($id in @(
     "micro-text-defaults",
-    "flow-launcher-alt-p",
-    "eartrumpet-mixer-alt-v",
+    "eartrumpet-mixer-super-v",
     "disable-windows-shell-hotkeys",
     "clean-taskbar-items",
     "disable-printscreen-snipping",
@@ -290,14 +289,13 @@ foreach ($id in @(
     "enable-windows-sudo",
     "reduce-visual-effects",
     "disable-windows-shell-hotkeys",
-    "flow-launcher-alt-p"
 )) {
     $t = $manifest.tweaks | Where-Object { $_.id -eq $id } | Select-Object -First 1
     Assert-True (-not [bool]$t.defaultNormal) "$id defaults off"
 }
 
 
-foreach ($id in @("eartrumpet-mixer-alt-v", "automatic-time-and-timezone")) {
+foreach ($id in @("eartrumpet-mixer-super-v", "automatic-time-and-timezone")) {
     $tweak = $manifest.tweaks | Where-Object { $_.id -eq $id } | Select-Object -First 1
     Assert-True ([bool]$tweak.defaultNormal) "$id defaults on for Normal"
     Assert-True ([bool]$tweak.defaultWork) "$id defaults on for Work"
@@ -462,16 +460,11 @@ $rustDeskPackage = @($manifest.packages | Where-Object { $_.id -eq 'RustDesk.Rus
 Assert-True ($null -ne $rustDeskPackage) "RustDesk catalog entry exists"
 Assert-Equal ([string]$rustDeskPackage.installMode) 'official-github' "RustDesk uses its verified official GitHub source instead of a missing WinGet ID"
 Assert-Equal ([string]$rustDeskPackage.fallbackGitHubRepo) 'rustdesk/rustdesk' "RustDesk official GitHub source remains publisher-owned"
-Assert-True ($nativeSourceText -match 'const string Version = "native-preview-61"') "native runtime version tracks current WGDot maintenance changes"
-Assert-True ($nativeSourceText -match 'if \(command == "theme"\) return ThemeManagerFromArgs') "native runtime exposes direct YASB theme selection"
-Assert-True ($nativeSourceText -match 'String\.Equals\(command, "theme"') "theme command refreshes the WGDot runtime before dispatch"
-Assert-True ($nativeSourceText -match 'BuildYasbThemeCss') "native runtime generates a variable-only YASB theme override"
-Assert-True ($nativeSourceText -match 'ApplyWindowsTerminalTheme') "theme selection synchronizes Windows Terminal"
-Assert-True ($nativeSourceText -match 'Windows Terminal theme synchronization self-test failed') "isolated native self-test exercises Terminal theme synchronization"
-Assert-True ($nativeSourceText -match 'GlazeWM was not reloaded') "theme application explicitly preserves GlazeWM state"
-Assert-True ($nativeSourceText -match 'catppuccin-frappe') "Awtarchy theme palette catalog is carried into WGDot"
-Assert-True ($nativeSourceText -match 'YASB theme CSS generation self-test failed') "isolated native self-test exercises real theme CSS writes"
-Assert-True ($nativeSourceText -match '(?s)requiredRefreshCommands.*?"theme"') "acceptance audit itself requires theme runtime auto-refresh"
+Assert-True ($nativeSourceText -match 'const string Version = "native-preview-62"') "native runtime version tracks current WGDot maintenance changes"
+Assert-True ($nativeSourceText -notmatch 'if \(command == "theme"\) return ThemeManagerFromArgs') "WGDot no longer exposes live theme switching"
+Assert-True ($nativeSourceText -notmatch '(?s)requiredRefreshCommands.*?"theme"') "theme switching is not part of WGDot runtime refresh policy"
+Assert-True ($manifestText -match 'script-theme-switcher') "standalone theme switcher is managed as a dotfile"
+Assert-True ($manifestText -match 'yasb-theme') "YASB theme CSS is a tracked managed dotfile"
 Assert-True ($nativeSourceText -match '(?s)requiredRefreshCommands.*?"cursor"') "acceptance audit requires cursor runtime auto-refresh"
 Assert-True ($nativeSourceText -match '(?s)requiredRefreshCommands.*?"dots-only"') "acceptance audit requires dots-only runtime auto-refresh"
 Assert-True ($nativeSourceText -match 'File\.AppendAllText\(cssPath, Environment\.NewLine') "theme apply guarantees YASB receives an imported-stylesheet modified event"
@@ -505,12 +498,10 @@ Assert-True (-not [string]::IsNullOrWhiteSpace($dotsOnlyMethod)) "dots-only comm
 Assert-True ($dotsOnlyMethod -match 'ApplyPlan\(plan, source\.Manifest, selection, source, true\)') "dots-only applies through strict post-action gating"
 Assert-True ($dotsOnlyMethod -notmatch 'SoftwareReconcile\(|EnsureWingetAvailable\(|SoftwareElevatedFromArgs\(|RunElevatedSelfWithExitCode\(') "dots-only command does not invoke software or elevation workers"
 Assert-True ($nativeSourceText -match 'GetList\(component, "files"\)\.Count == 0') "dots-only excludes post-action-only components such as cursor registry configuration"
-Assert-True ($nativeSourceText -match 'dotsOnly && !IsDotsOnlyPostAction\(type\)') "dots-only post-actions are enforced by an allowlist"
+Assert-True ($nativeSourceText -match 'dotsOnly && !IsDotsOnlyPostAction\(type\)') "dots-only post-actions remain strictly gated"
 $dotsPostActionAllowlist = [regex]::Match($nativeSourceText, '(?s)static bool IsDotsOnlyPostAction\(string type\).*?(?=\r?\n    static void RunPostActions)').Value
-Assert-True ($dotsPostActionAllowlist -match 'ensure-desktop-worker') "dots-only permits the WGDot desktop runtime helper required by managed GlazeWM config"
-Assert-True ($dotsPostActionAllowlist -match 'ensure-hidden-launcher') "dots-only permits the local WGDot hidden runtime launcher required by managed YASB config"
-Assert-True ($dotsPostActionAllowlist -match 'ensure-yasb-theme') "dots-only permits generated YASB/Terminal theme configuration"
-Assert-True ($dotsPostActionAllowlist -notmatch 'yazi-package-install|set-yazi-file-one|migrate-legacy-windows-hotkeys|ensure-cursor-theme') "dots-only suppresses package, environment, registry migration, and cursor-system post-actions"
+Assert-True ($dotsPostActionAllowlist -match 'return false;') "dots-only runs no post-actions"
+Assert-True ($dotsPostActionAllowlist -notmatch 'ensure-desktop-worker|ensure-hidden-launcher|ensure-yasb-theme|yazi-package-install|set-yazi-file-one|migrate-legacy-windows-hotkeys|ensure-cursor-theme') "dots-only has no runtime/system post-action exceptions"
 Assert-True ($nativeSourceText -match 'PrepareRawRevisionSource') "native runtime can acquire exact managed sources from raw.githubusercontent.com"
 Assert-True ($nativeSourceText -match 'WGDOT_FORCE_RAW_SOURCE') "CI can force the restricted-network raw source path"
 Assert-True ($nativeSourceText -match 'source-self-test') "native runtime exposes an internal exact-source validation command"
@@ -622,15 +613,13 @@ Assert-True ($nativeSourceText -match 'Firefox default-profile rollback self-tes
 Assert-True ($nativeSourceText -match 'key == ConsoleKey\.Escape \|\| key == ConsoleKey\.Q') "Q and Escape share the global back-key behavior"
 Assert-True ($nativeSourceText -match 'Q/Esc: back') "keyboard UI advertises Q and Escape as back keys"
 Assert-True ($nativeSourceText -match 'launch-open-shell') "native runtime starts Open-Shell after installation"
-Assert-True ($nativeSourceText -match 'ApplyFlowLauncherAltP') "native runtime manages Flow Launcher Alt+P"
-Assert-True ($nativeSourceText -match 'command == "quick-launch"') "native runtime exposes the YASB Quick Launch bridge"
-Assert-True ($nativeSourceText -match '(?s)static int OpenYasbQuickLaunch\(\).*?PostThreadMessage.*?new UIntPtr\(1\)') "YASB Quick Launch dispatches directly to hotkey ID 1 without synthetic keys"
-Assert-True ($nativeSourceText -match 'OpenFlowLauncher') "native runtime exposes the Flow Launcher bar helper"
-Assert-True ($nativeSourceText -match 'command == "flow-open"') "Flow Launcher helper command is dispatchable"
-Assert-True ($nativeSourceText -match 'ApplyEarTrumpetMixerAltV') "native runtime manages EarTrumpet Alt+V"
-Assert-True ($nativeSourceText -match 'OpenEarTrumpetMixer') "native runtime exposes the EarTrumpet bar helper"
-Assert-True ($nativeSourceText -match 'keybd_event\(VkMenu') "EarTrumpet helper triggers its configured Alt+V mixer hotkey"
-Assert-True ($nativeSourceText -match 'command == "clipboard-history"') "native runtime exposes Windows Clipboard History"
+Assert-True ($tweakIds -notcontains "flow-launcher-alt-p") "Flow Launcher global Alt+P tweak is retired"
+Assert-True ($tweakIds -contains "eartrumpet-mixer-super-v") "EarTrumpet direct Super+V integration is cataloged"
+Assert-True ($nativeSourceText -match 'ApplyEarTrumpetMixerSuperV') "WGDot configures EarTrumpet Super+V at setup time"
+Assert-True ($nativeSourceText -match 'set-win-v') "EarTrumpet packaged-settings helper writes Super+V directly"
+Assert-True ($nativeSourceText -match 'Modifiers = Keys\.LWin, Key = Keys\.V') "EarTrumpet owns the Windows-key mixer chord itself"
+Assert-True ($nativeSourceText -match 'result\.Tweaks\.RemoveAll\(x => String\.Equals\(x, "flow-launcher-alt-p"') "saved selections retire the old Flow global hotkey"
+Assert-True ($nativeSourceText -match 'eartrumpet-mixer-alt-v.*eartrumpet-mixer-super-v') "saved EarTrumpet Alt+V selections migrate to Super+V"
 Assert-True ($nativeSourceText -match 'ApplyWindowsShellHotkeysPolicy') "native runtime implements reversible selective Windows hotkey filtering"
 Assert-True ($nativeSourceText -match 'MigrateLegacyWindowsShellHotkeys') "native runtime migrates WGDot-owned legacy NoWinKeys state"
 Assert-True ($nativeSourceText -match '(?s)MigrateLegacyWindowsShellHotkeys\(bool allowElevation\).*?if \(!IsAdministrator\(\)\).*?RunElevatedSelf\("migrate-legacy-hotkeys"\)') "legacy NoWinKeys migration elevates before opening the protected policy key for write"
@@ -639,13 +628,19 @@ Assert-True ([bool](@(($manifest.components | Where-Object { $_.id -eq "glazewm"
 Assert-True ($nativeSourceText -match '"DisabledHotkeys"') "native runtime uses selective Explorer DisabledHotkeys instead of blanket NoWinKeys"
 Assert-True ($nativeSourceText -match '"ABCDEFGHIJKLMOPQRSTUWXYZ0123456789"') "selective shell filter preserves native Win+V and Win+N"
 Assert-True ($nativeSourceText -match 'RestoreRegistryOriginals\(id\)') "Windows hotkey tweak participates in registry rollback"
-Assert-True ($nativeSourceText -match 'command == "glazewm-pause-status"') "native runtime exposes GlazeWM paused state"
-Assert-True ($nativeSourceText -match 'command == "glazewm-pause-toggle"') "native runtime exposes real GlazeWM pause toggle"
-Assert-True ($nativeSourceText -match 'command == "theme-toggle"') "native runtime exposes the single-instance theme selector"
-Assert-True ($nativeSourceText -match 'command == "power-menu"') "native runtime exposes the WGDot power overlay"
-Assert-True ($nativeSourceText -match 'System\.Windows\.Forms\.Application\.Run') "power overlay uses a native WinForms event loop"
-Assert-True ($nativeSourceText -match 'LockWorkStation') "power overlay uses Windows lock API"
-Assert-True ($nativeSourceText -match 'SetSuspendState') "power overlay uses Windows sleep API"
+foreach ($desktopCommand in @(
+    "quick-launch", "flow-open", "eartrumpet-mixer", "clipboard-history",
+    "desktop-worker", "desktop-worker-stop",
+    "idle-inhibitor-status", "idle-inhibitor-toggle", "idle-inhibitor-worker",
+    "flameshot-gui", "rawaccel-open", "display-settings", "bar-autohide-toggle",
+    "yasb-running-apps-toggle", "yasb-running-apps-shade-toggle",
+    "mouse-mode-toggle", "mouse-mode-disable", "mouse-mode-switch", "mouse-mode-hook",
+    "glazewm-binding-mode-toggle", "glazewm-binding-mode-set",
+    "glazewm-reload-config", "glazewm-pause-status", "glazewm-pause-toggle",
+    "theme-toggle", "power-menu", "theme"
+)) {
+    Assert-True ($nativeSourceText -notmatch ('command == "' + [regex]::Escape($desktopCommand) + '"')) "WGDot does not dispatch desktop helper command: $desktopCommand"
+}
 Assert-True ($nativeSourceText -match 'ApplicationDataManager\.CreateForPackageFamily') "EarTrumpet AppX settings use Windows packaged LocalSettings"
 Assert-True ($nativeSourceText -match '40459File-New-Project\.EarTrumpet_725pr5jq8wr8a') "EarTrumpet package family is explicit"
 Assert-True ($nativeSourceText -match 'ApplyClassicContextMenu') "native runtime manages classic context menu"
@@ -719,75 +714,17 @@ Assert-True ($yasbWorkConfigText -notmatch '(?i)wgdotw?|%LOCALAPPDATA%\\wgdot\\b
 $flameshotConfigText = Get-Content -LiteralPath (Join-Path $repoRoot "UserProfile\AppData\Roaming\flameshot\flameshot.ini") -Raw
 Assert-True ($flameshotConfigText -match '(?m)^captureActiveMonitor=true') "Flameshot defaults to capturing the active monitor without monitor selection"
 
-Assert-True ($nativeSourceText -match 'WaitForWindowsModifierRelease') "synthetic mixer hotkeys can wait for physical Super release"
-Assert-True ($nativeSourceText -match 'command == "idle-inhibitor-status"') "native runtime exposes idle-inhibitor status"
-Assert-True ($nativeSourceText -match 'command == "idle-inhibitor-toggle"') "native runtime exposes idle-inhibitor toggle"
-Assert-True ($nativeSourceText -match 'SetThreadExecutionState') "idle inhibitor uses the native Windows execution-state API"
-Assert-True ($nativeSourceText -match 'EsContinuous \| EsSystemRequired \| EsDisplayRequired') "idle inhibitor blocks system and display idle timeout while active"
-Assert-True ($nativeSourceText -match 'command == "desktop-worker"') "native runtime exposes the persistent desktop worker"
-Assert-True ($nativeSourceText -match 'String.Equals\(type, "ensure-desktop-worker"') "managed GlazeWM apply can activate the desktop worker without a reboot"
-Assert-True ($nativeSourceText -match 'AddClipboardFormatListener') "WGDot clipboard history listens for native clipboard updates"
-Assert-True ($nativeSourceText -match 'class ClipboardHistoryForm') "WGDot owns a native clipboard history window instead of Win+V"
-Assert-True ($nativeSourceText -match 'Clipboard\.ContainsImage') "WGDot clipboard history captures image content"
-Assert-True ($nativeSourceText -match 'Clipboard\.ContainsText') "WGDot clipboard history captures text content"
-Assert-True ($nativeSourceText -match 'UpdateClipboardHistoryText') "WGDot clipboard text can be edited and saved"
-Assert-True ($nativeSourceText -match 'DeleteClipboardHistoryEntry') "WGDot clipboard entries can be deleted individually"
-Assert-True ($nativeSourceText -match 'ClearClipboardHistory') "WGDot clipboard history can be cleared"
-Assert-True ($nativeSourceText -notmatch '(?s)OpenWindowsClipboardHistory\(\).*?SendKeyChord\(VkLwin, VkV\)') "WGDot clipboard history no longer depends on native Win+V"
-Assert-True ($nativeSourceText -match 'command == "flameshot-gui"') "native runtime exposes a robust Flameshot launcher"
-Assert-True ($nativeSourceText -match 'FindFlameshotExe') "Flameshot launcher resolves the installed executable"
-Assert-True ($nativeSourceText -match 'command == "display-settings"') "native runtime exposes Windows display settings"
-Assert-True ($nativeSourceText -match 'command == "rawaccel-open"') "native runtime exposes the RawAccel GUI toggle"
-Assert-True ($nativeSourceText -match 'ResolveRawAccelExe') "RawAccel GUI resolves managed, running, PATH, standard portable, and remembered locations"
-Assert-True ($nativeSourceText -match 'OpenFileDialog') "RawAccel can ask for rawaccel.exe once when portable discovery cannot find it"
-Assert-True ($nativeSourceText -match 'Process\.GetProcessesByName\("rawaccel"\)') "RawAccel toggle detects an already-running GUI"
-Assert-True ($nativeSourceText -match 'command == "bar-autohide-toggle"') "native runtime exposes coordinated YASB/GlazeWM auto-hide"
-Assert-True ($nativeSourceText -match 'command == "window-audit"') "native runtime exposes visible-window process auditing"
-Assert-True ($nativeSourceText -match 'command == "mouse-mode-toggle"') "native runtime exposes the scoped mouse-mode toggle"
-Assert-True ($nativeSourceText -match 'command == "mouse-mode-disable"') "native runtime exposes an unconditional mouse-mode escape"
-Assert-True ($nativeSourceText -match 'NamedMutexExists\(MouseModeMutexName\)') "mouse-mode state trusts the scoped hook mutex before GlazeWM query fallback"
-Assert-True ($nativeSourceText -match 'command == "mouse-mode-hook"') "native runtime exposes the scoped mouse hook worker"
-Assert-True ($nativeSourceText -match 'command == "glazewm-binding-mode-toggle"') "native runtime exposes NoAlt/VM quick-setting toggles"
-Assert-True ($nativeSourceText -match 'SendInput') "desktop shortcut bridges use Win32 SendInput"
-Assert-True ($nativeSourceText -match 'public MOUSEINPUT mouse') "Win32 INPUT union includes MOUSEINPUT so x64 SendInput uses the native 40-byte layout"
-Assert-True ($nativeSourceText -match 'public HARDWAREINPUT hardware') "Win32 INPUT union includes HARDWAREINPUT for native union sizing"
-Assert-True ($nativeSourceText -match 'expectedInputSize = IntPtr.Size == 8 \? 40 : 28') "native self-test validates Win32 INPUT size on x64 and x86"
-Assert-True ($nativeSourceText -match 'TryGetActiveGlazeWmBindingMode') "binding-mode Quick Settings still use live GlazeWM state when the query succeeds"
-Assert-True ($nativeSourceText -match 'ReadTrackedGlazeBindingMode') "binding-mode Quick Settings fall back to WGDot tracked state when GlazeWM query IPC fails"
-Assert-True ($nativeSourceText -match 'command == "glazewm-binding-mode-set"') "native runtime exposes deterministic binding-mode transitions for keyboard shortcuts"
-Assert-True ($nativeSourceText -match 'PostThreadMessage') "Quick Launch dispatches directly to YASB's hotkey listener"
-$quickLaunchBlock = [regex]::Match($nativeSourceText, '(?ms)^    static int OpenYasbQuickLaunch\(\)\r?\n    \{.*?^    \}').Value
-Assert-True ($quickLaunchBlock -match 'new UIntPtr\(1\)') "Quick Launch posts YASB hotkey ID 1 directly"
-Assert-True ($quickLaunchBlock -notmatch 'GlazeWmPauseToggle|SendKeyChord|Thread\.Sleep|WaitForLauncherModifierRelease') "Quick Launch never pauses GlazeWM or waits on synthetic-key timing"
-Assert-True ($nativeSourceText -match 'EnsureHiddenLauncher') "native runtime installs the GUI-subsystem wgdotw helper"
-Assert-True ($nativeSourceText -match '/target:winexe') "wgdotw is compiled without a console window"
-Assert-True (@($yasb.postActions | Where-Object { $_.type -eq "ensure-hidden-launcher" }).Count -eq 0) "YASB apply does not build a WGDot runtime launcher"
-Assert-True ($nativeSourceText -match 'ReadableTerminalColor') "Windows Terminal ANSI colors are contrast-checked"
-Assert-True ($nativeSourceText -match 'command == "yasb-running-apps-toggle"') "native runtime exposes the running-app visibility toggle"
-Assert-True ($nativeSourceText -match 'command == "yasb-running-apps-shade-toggle"') "native runtime exposes the themed running-app shading toggle"
-Assert-True ($nativeSourceText -match 'AppearanceStatePath') "YASB appearance state is persisted separately from managed styles"
-Assert-True ($nativeSourceText -match 'BuildYasbAppearanceCss') "YASB appearance toggles generate a live imported stylesheet"
-Assert-True ($nativeSourceText -match 'command == "super-l-test"') "native runtime exposes the isolated Super+L test controller"
-Assert-True ($nativeSourceText -match 'command == "super-l-hook"') "native runtime exposes the hidden Super+L test hook worker"
-Assert-True ($nativeSourceText -match 'SetWindowsHookExKeyboard') "Super+L test uses a scoped low-level keyboard hook"
-Assert-True ($nativeSourceText -match 'focus --direction right') "Super+L test sends focus-right to GlazeWM"
-Assert-True ($nativeSourceText -match 'SuperLTestStopEventName') "Super+L test hook has an explicit stop signal"
-Assert-True ($nativeSourceText -match 'String\.Equals\(command, "super-l-test"') "Super+L test controller participates in runtime auto-refresh"
-Assert-True ($nativeSourceText -match 'SetWindowsHookEx') "mouse mode installs a Windows low-level mouse hook only while active"
-Assert-True ($nativeSourceText -match 'UnhookWindowsHookEx') "mouse mode always removes its low-level hook"
-Assert-True ($nativeSourceText -match 'GlazeWmBindingModeActive\("mouse"\)') "mouse hook lifetime follows the real GlazeWM mouse binding mode"
-Assert-True ($nativeSourceText -match 'WmNcLButtonDown') "mouse move/resize uses Windows native interactive move-size messages"
-Assert-True ($nativeSourceText -match 'toggle-floating') "mouse middle-click delegates floating state to GlazeWM"
+Assert-True ($nativeSourceText -match 'command == "window-audit"') "native runtime retains explicit diagnostic window auditing"
+Assert-True ($nativeSourceText -match 'command == "super-l-test"') "native runtime retains the isolated Super+L development controller"
+Assert-True ($nativeSourceText -match 'command == "super-l-hook"') "native runtime retains the hidden Super+L test worker"
+Assert-True ($nativeSourceText -match 'String\.Equals\(command, "super-l-test"') "Super+L development controller participates in runtime auto-refresh"
+Assert-True (@($yasb.postActions | Where-Object { $_.type -match 'ensure-(hidden-launcher|yasb-theme)' }).Count -eq 0) "YASB apply has no WGDot runtime post-actions"
+Assert-True (@($glaze.postActions | Where-Object { $_.type -eq "ensure-desktop-worker" }).Count -eq 0) "GlazeWM apply has no WGDot desktop-worker post-action"
 $autoRefreshBlock = [regex]::Match($nativeSourceText, '(?ms)^    static bool ShouldAutoRefreshRuntime\(string command\)\r?\n    \{.*?^    \}').Value
-Assert-True ($autoRefreshBlock -notmatch 'mouse-mode-toggle') "mouse-mode hotkey skips remote runtime-refresh checks for immediate response"
-Assert-True ($autoRefreshBlock -notmatch 'mouse-mode-disable') "mouse-mode escape skips remote runtime-refresh checks for immediate response"
-Assert-True ($autoRefreshBlock -notmatch 'bar-autohide-toggle') "bar auto-hide hotkey skips remote runtime-refresh checks for immediate response"
 Assert-True ($autoRefreshBlock -match 'window-audit') "window audit command participates in runtime auto-refresh"
-Assert-True ($nativeSourceText -match 'yasbc\.exe", "reload -s"') "bar auto-hide reloads YASB after changing native auto-hide state"
-Assert-True ($nativeSourceText -match 'glazewm\.exe", "command wm-reload-config"') "bar auto-hide reloads GlazeWM after changing the 5/35 px gap"
+Assert-True ($autoRefreshBlock -notmatch 'theme|quick-launch|flow-open|mouse-mode|bar-autohide|glazewm-binding-mode|glazewm-pause|idle-inhibitor') "desktop helpers are absent from runtime auto-refresh policy"
 Assert-True ($nativeSourceText -match 'GetWindowThreadProcessId') "window audit resolves process IDs from real top-level windows"
 Assert-True ($nativeSourceText -match 'IsWindowVisible') "window audit filters to visible top-level windows"
-Assert-True ($nativeSourceText -match 'CenterWindowOnMonitor') "theme picker can move to the focused monitor"
 
 $terminalSettingsPath = Join-Path $repoRoot "UserProfile\AppData\Local\Packages\Microsoft.WindowsTerminal_8wekyb3d8bbwe\LocalState\settings.json"
 $terminalSettings = Get-Content -LiteralPath $terminalSettingsPath -Raw | ConvertFrom-Json
@@ -806,10 +743,10 @@ Assert-True ($glazeNormalText -match 'bindings:\s*\["alt\+shift\+c"\]') "Normal 
 Assert-True ($glazeNormalText -match 'bindings:\s*\["lwin\+shift\+c",\s*"rwin\+shift\+c"\]') "Normal profile keeps Awtarchy Super+Shift+C SpeedCrunch"
 Assert-True ($glazeNormalText -match '(?ms)cursor_jump:\s*\r?\n\s+enabled:\s*true') "Normal profile enables cursor jump by default"
 Assert-True ($glazeNormalText -notmatch '(?ms)- name: "1"\r?\n\s+display_name: "1: Flame"\r?\n\s+keep_alive:\s*true') "normal GlazeWM workspace 1 is not pinned alive"
-Assert-True ($glazeNormalText -notmatch 'quick-launch|flow-launcher\.ps1') "Normal GlazeWM leaves launcher hotkeys to YASB"
+Assert-True ($glazeNormalText -match 'yasb-quick-launch\.ps1') "Normal GlazeWM invokes the standalone YASB launcher bridge"
 Assert-True ($glazeWorkText -match 'flow-launcher\.ps1') "Work GlazeWM routes Alt+P through the standalone Flow Launcher script"
 Assert-True ($glazeWorkText -match 'bindings:\s*\["alt\+p"\]') "Work GlazeWM owns Alt+P for Flow Launcher"
-Assert-True ($glazeWorkText -notmatch 'bindings:\s*\["lwin\+d",\s*"rwin\+d"\]') "Work GlazeWM leaves Super+D to YASB"
+Assert-True ($glazeWorkText -match 'bindings:\s*\["lwin\+d",\s*"rwin\+d"\]') "Work GlazeWM owns Super+D for the standalone YASB launcher bridge"
 foreach ($text in @($glazeNormalText, $glazeWorkText)) {
     $globalMarker = [Environment]::NewLine + "keybindings:" + [Environment]::NewLine
     $globalIndex = $text.LastIndexOf($globalMarker)
@@ -1026,13 +963,9 @@ Assert-True ($nativeSourceText -match 'key == ConsoleKey\.Escape \|\| key == Con
 Assert-True ($nativeSourceText -match 'Q/Esc: back') "keyboard UI advertises Q and Escape as back keys"
 Assert-True ($nativeSourceText -match 'launch-open-shell') "native runtime starts Open-Shell after installation"
 Assert-True ($nativeSourceText -match 'ApplyFlowLauncherAltP') "native runtime manages Flow Launcher Alt+P"
-Assert-True ($nativeSourceText -match 'command == "quick-launch"') "native runtime exposes the YASB Quick Launch bridge"
-Assert-True ($nativeSourceText -match '(?s)static int OpenYasbQuickLaunch\(\).*?PostThreadMessage.*?new UIntPtr\(1\)') "YASB Quick Launch dispatches directly to hotkey ID 1 without synthetic keys"
-Assert-True ($nativeSourceText -match 'OpenFlowLauncher') "native runtime retains the optional Flow Launcher helper"
-Assert-True ($nativeSourceText -match 'command == "flow-open"') "optional Flow Launcher alias command remains dispatchable"
-Assert-True ($nativeSourceText -match 'ApplyEarTrumpetMixerAltV') "native runtime manages EarTrumpet Alt+V"
-Assert-True ($nativeSourceText -match 'OpenEarTrumpetMixer') "native runtime exposes the EarTrumpet bar helper"
-Assert-True ($nativeSourceText -match 'keybd_event\(VkMenu') "EarTrumpet helper triggers the configured Alt+V mixer hotkey"
+Assert-True ($nativeSourceText -notmatch 'command == "quick-launch"|command == "flow-open"') "launcher runtime helpers are not dispatchable"
+Assert-True ($nativeSourceText -match 'ApplyEarTrumpetMixerSuperV') "EarTrumpet hotkey is configured directly at management time"
+Assert-True ($nativeSourceText -match 'set-win-v') "EarTrumpet configuration writes the direct Super+V chord"
 Assert-True ($nativeSourceText -match 'ApplicationDataManager\.CreateForPackageFamily') "EarTrumpet AppX settings use Windows packaged LocalSettings"
 Assert-True ($nativeSourceText -match '40459File-New-Project\.EarTrumpet_725pr5jq8wr8a') "EarTrumpet package family is explicit"
 Assert-True ($nativeSourceText -match 'ApplyClassicContextMenu') "native runtime manages classic context menu"
