@@ -11,6 +11,7 @@ APPROVED_WGDOT_RUNTIME = (
     "wgdotw.exe rawaccel-toggle",
     "wgdot.exe theme",
     "wgdotw.exe power-menu",
+    "wgdotw.exe launcher",
 )
 
 FORBIDDEN_WGDOT_RUNTIME = (
@@ -27,8 +28,19 @@ for yasb_name in ("config.yaml", "custom_work_config.yaml"):
     yasb_text = yasb_path.read_text()
     assert ".ps1" not in yasb_text.lower(), (yasb_name, "YASB runtime must not depend on .ps1 files")
     yasb = yaml.safe_load(yasb_text)
-    keybindings = yasb["widgets"]["launcher"]["options"].get("keybindings", [])
-    assert not keybindings, (yasb_name, "YASB Quick Launch must not own a synthetic/global launcher relay", keybindings)
+    launcher = yasb["widgets"]["launcher"]
+    assert launcher["type"] == "yasb.custom.CustomWidget", (
+        yasb_name,
+        "launcher button must be the lightweight YASB custom control",
+    )
+    assert launcher["options"]["callbacks"]["on_left"] == "exec wgdotw.exe launcher bar", (
+        yasb_name,
+        "launcher button must open the compiled bar-relative surface",
+    )
+    assert launcher["options"]["callbacks"]["on_right"] == "exec wgdotw.exe launcher bar", (
+        yasb_name,
+        "launcher right click must toggle the same compiled surface",
+    )
 
     mode_callbacks = yasb["widgets"]["glazewm_binding_mode"]["options"]["callbacks"]
     assert mode_callbacks["on_left"] == "disable_binding_mode", (
@@ -89,13 +101,6 @@ for name in ("config.yaml", "custom_work_config.yaml"):
         ]
         assert not bridge_commands, (name, mode, "launcher relay script returned", bridge_commands)
 
-        flow_direct_keys = {
-            key
-            for binding in bindings
-            if any("%LOCALAPPDATA%/FlowLauncher/Flow.Launcher.exe" in command for command in binding["commands"])
-            for key in binding["bindings"]
-        }
-
         for binding in bindings:
             for command in binding["commands"]:
                 lower = command.lower()
@@ -125,6 +130,33 @@ for name in ("config.yaml", "custom_work_config.yaml"):
             "Super+P must open the compiled Awtarchy-style power surface",
             power_keys,
         )
+
+        launcher_keys = {
+            key
+            for binding in bindings
+            if any("wgdotw.exe launcher hotkey" in command for command in binding["commands"])
+            for key in binding["bindings"]
+        }
+        assert {"lwin+d", "rwin+d"} <= launcher_keys, (
+            name,
+            mode,
+            "Super+D must open the compiled application launcher",
+            launcher_keys,
+        )
+        if mode == "normal":
+            assert "alt+p" in launcher_keys, (
+                name,
+                mode,
+                "normal mode must bind Alt+P to the compiled launcher",
+                launcher_keys,
+            )
+        else:
+            assert "alt+p" not in launcher_keys, (
+                name,
+                mode,
+                "noalt must leave plain Alt+P uncaptured",
+                launcher_keys,
+            )
 
         theme_keys = {
             key
@@ -205,11 +237,6 @@ for name in ("config.yaml", "custom_work_config.yaml"):
             rawaccel_keys,
         )
         assert "alt+shift+m" not in rawaccel_keys, (name, mode, "RawAccel must not capture Alt+Shift+M")
-
-        if is_work:
-            assert "alt+p" in flow_direct_keys, (name, mode, "Work Alt+P must launch Flow directly", flow_direct_keys)
-        else:
-            assert "alt+p" not in flow_direct_keys, (name, mode, "Normal profile must not default Alt+P to Flow")
 
     mouse_keys = {key for binding in modes["mouse"] for key in binding["bindings"]}
     assert {"lwin+alt+m", "rwin+alt+m"} <= mouse_keys, (name, "mouse mode lacks Super+Alt+M exit")
