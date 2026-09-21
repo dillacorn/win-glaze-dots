@@ -288,7 +288,7 @@ foreach ($id in @(
     "disable-remote-assistance",
     "enable-windows-sudo",
     "reduce-visual-effects",
-    "disable-windows-shell-hotkeys",
+    "disable-windows-shell-hotkeys"
 )) {
     $t = $manifest.tweaks | Where-Object { $_.id -eq $id } | Select-Object -First 1
     Assert-True (-not [bool]$t.defaultNormal) "$id defaults off"
