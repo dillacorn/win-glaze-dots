@@ -661,7 +661,7 @@ Assert-True ($yasbConfigText -match 'context_menu:\s*false') "YASB blank-bar con
 Assert-True ($yasbConfigText -match 'run_cmd:\s*"wgdot idle-inhibitor-status"') "YASB bar polls the WGDot idle inhibitor"
 Assert-True ($yasbConfigText -match 'label:\s*"\{data\[icon\]\}"') "YASB idle inhibitor renders JSON-decoded eye state"
 Assert-True ($yasbConfigText -match 'return_format:\s*"json"') "YASB idle inhibitor uses JSON to preserve Nerd Font glyphs"
-Assert-True ($yasbConfigText -match 'exec wgdot idle-inhibitor-toggle') "YASB bar toggles the WGDot idle inhibitor"
+Assert-True ($yasbConfigText -match 'exec wgdotw idle-inhibitor-toggle') "YASB bar toggles the WGDot idle inhibitor without a console flash"
 Assert-True ($yasbConfigText -match 'glazewm_tiling_direction') "YASB exposes GlazeWM tiling direction"
 Assert-True ($yasbConfigText -match 'GlazewmTilingDirectionWidget') "YASB uses its native GlazeWM tiling-direction widget"
 
@@ -674,7 +674,7 @@ Assert-True ($nativeSourceText -match 'command == "idle-inhibitor-toggle"') "nat
 Assert-True ($nativeSourceText -match 'SetThreadExecutionState') "idle inhibitor uses the native Windows execution-state API"
 Assert-True ($nativeSourceText -match 'EsContinuous \| EsSystemRequired \| EsDisplayRequired') "idle inhibitor blocks system and display idle timeout while active"
 Assert-True ($nativeSourceText -match 'bool wasPaused = GlazeWmIsPaused\(\)') "Clipboard History preserves the existing GlazeWM pause state"
-Assert-True ($nativeSourceText -match '(?s)OpenWindowsClipboardHistory\(\).*?GlazeWmPauseToggle\(\).*?keybd_event\(VkLwin.*?keybd_event\(VkV.*?GlazeWmPauseToggle\(\)') "Clipboard History bypasses GlazeWM Super+V interception while injecting native Win+V"
+Assert-True ($nativeSourceText -match '(?s)OpenWindowsClipboardHistory\(\).*?GlazeWmPauseToggle\(\).*?SendKeyChord\(VkLwin, VkV\).*?GlazeWmPauseToggle\(\)') "Clipboard History bypasses GlazeWM Super+V interception while injecting native Win+V with SendInput"
 Assert-True ($nativeSourceText -match 'command == "flameshot-gui"') "native runtime exposes a robust Flameshot launcher"
 Assert-True ($nativeSourceText -match 'FindFlameshotExe') "Flameshot launcher resolves the installed executable"
 Assert-True ($nativeSourceText -match 'command == "display-settings"') "native runtime exposes Windows display settings"
