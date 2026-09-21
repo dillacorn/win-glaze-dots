@@ -179,6 +179,10 @@ window_rules:
       - window_title: { regex: "Volume Mixer" }
       - window_process: { equals: "EarTrumpet" }
       - window_title: { regex: "(Find|Replace)" }
+      # Keep the standalone theme selector out of the tiling tree. Its terminal
+      # title is fixed with Windows Terminal --suppressApplicationTitle.
+      - window_process: { regex: "^WindowsTerminal(\\.exe)?$" }
+        window_title: { equals: "Win Glaze Themes" }
 
 binding_modes:
   - name: "resize"
@@ -195,7 +199,9 @@ binding_modes:
         bindings: ["escape", "enter"]
       - commands: ["wm-toggle-pause"]
         bindings: ["lwin+alt+p", "rwin+alt+p"]
-      - commands: ["shell-exec wgdotw.exe mouse-mode-toggle"]
+      - commands:
+          - "wm-disable-binding-mode --name resize"
+          - "wm-enable-binding-mode --name mouse"
         bindings: ["lwin+alt+m", "rwin+alt+m"]
 
   # Gaming-friendly mode based on Awtarchy's noalt submap.
@@ -210,11 +216,217 @@ binding_modes:
           - "wm-disable-binding-mode --name noalt"
           - "wm-enable-binding-mode --name vm"
         bindings: ["lwin+alt+v", "rwin+alt+v"]
-      - commands: ["shell-exec wgdotw.exe mouse-mode-toggle"]
+      - commands:
+          - "wm-disable-binding-mode --name noalt"
+          - "wm-enable-binding-mode --name mouse"
         bindings: ["lwin+alt+m", "rwin+alt+m"]
       - commands: ["wm-toggle-pause"]
         bindings: ["lwin+alt+p", "rwin+alt+p"]
-      - commands: ["shell-exec wgdotw.exe bar-autohide-toggle"]
+      - commands: ['shell-exec --hide-window powershell.exe -NoLogo -NoProfile -WindowStyle Hidden -Command "& (Join-Path $env:USERPROFILE ''.config\win-glaze\scripts\bar-autohide.ps1'') toggle"']
+        bindings: ["alt+ctrl+b"]
+      # Work profile: GlazeWM launches Flow Launcher directly. YASB Quick
+      # Launch remains available from its native bar widget; upstream YASB
+      # currently exposes no documented CLI command for GlazeWM to invoke.
+      - commands: ['shell-exec %LOCALAPPDATA%/FlowLauncher/Flow.Launcher.exe']
+        bindings: ["alt+p"]
+
+      - commands: ['shell-exec wt.exe -w new new-tab --title "Win Glaze Themes" --suppressApplicationTitle powershell.exe -NoLogo -NoProfile -Command "& (Join-Path $env:USERPROFILE ''.config\win-glaze\scripts\theme-switcher.ps1'')"']
+        bindings: ["lwin+t", "rwin+t"]
+      - commands: ["shell-exec explorer.exe ms-settings:display"]
+        bindings: ["lwin+ctrl+m", "rwin+ctrl+m"]
+      - commands: ["shell-exec flameshot.exe gui"]
+        bindings: ["lwin+shift+s", "rwin+shift+s"]
+      - commands: ["shell-exec wt.exe -w new"]
+        bindings: ["lwin+enter", "rwin+enter", "lwin+shift+enter", "rwin+shift+enter"]
+      - commands: ["shell-exec wt.exe -w new new-tab --title \"Yazi\" --suppressApplicationTitle powershell.exe -NoProfile -NoLogo -NoExit -Command yazi"]
+        bindings: ["lwin+shift+e", "rwin+shift+e"]
+      - commands: ["shell-exec explorer.exe http:"]
+        bindings: ["lwin+b", "rwin+b"]
+      - commands: ["shell-exec C:\\Program Files (x86)\\SpeedCrunch\\speedcrunch.exe"]
+        bindings: ["lwin+shift+c", "rwin+shift+c"]
+
+      - commands: ["close"]
+        bindings: ["lwin+q", "rwin+q", "lwin+shift+q", "rwin+shift+q"]
+      - commands: ["toggle-floating --centered"]
+        bindings: ["lwin+f", "rwin+f"]
+      - commands: ["toggle-fullscreen"]
+        bindings: ["lwin+ctrl+f", "rwin+ctrl+f"]
+
+      - commands: ["focus --direction left"]
+        bindings: ["lwin+h", "rwin+h", "lwin+left", "rwin+left"]
+      - commands: ["focus --direction right"]
+        bindings: ["lwin+right", "rwin+right"]
+      - commands: ["focus --direction up"]
+        bindings: ["lwin+k", "rwin+k", "lwin+up", "rwin+up"]
+      - commands: ["focus --direction down"]
+        bindings: ["lwin+j", "rwin+j", "lwin+down", "rwin+down"]
+
+      - commands: ["move --direction left"]
+        bindings: ["lwin+shift+h", "rwin+shift+h", "lwin+shift+left", "rwin+shift+left"]
+      - commands: ["move --direction right"]
+        bindings: ["lwin+shift+l", "rwin+shift+l", "lwin+shift+right", "rwin+shift+right"]
+      - commands: ["move --direction up"]
+        bindings: ["lwin+shift+k", "rwin+shift+k", "lwin+shift+up", "rwin+shift+up"]
+      - commands: ["move --direction down"]
+        bindings: ["lwin+shift+j", "rwin+shift+j", "lwin+shift+down", "rwin+shift+down"]
+
+      - commands: ["focus --workspace 1"]
+        bindings: ["lwin+1", "rwin+1"]
+      - commands: ["focus --workspace 2"]
+        bindings: ["lwin+2", "rwin+2"]
+      - commands: ["focus --workspace 3"]
+        bindings: ["lwin+3", "rwin+3"]
+      - commands: ["focus --workspace 4"]
+        bindings: ["lwin+4", "rwin+4"]
+      - commands: ["focus --workspace 5"]
+        bindings: ["lwin+5", "rwin+5"]
+      - commands: ["focus --workspace 6"]
+        bindings: ["lwin+6", "rwin+6"]
+      - commands: ["focus --workspace 7"]
+        bindings: ["lwin+7", "rwin+7"]
+      - commands: ["focus --workspace 8"]
+        bindings: ["lwin+8", "rwin+8"]
+      - commands: ["focus --workspace 9"]
+        bindings: ["lwin+9", "rwin+9"]
+      - commands: ["focus --workspace 10"]
+        bindings: ["lwin+0", "rwin+0"]
+
+      - commands: ["move --workspace 1"]
+        bindings: ["lwin+shift+1", "rwin+shift+1"]
+      - commands: ["move --workspace 2"]
+        bindings: ["lwin+shift+2", "rwin+shift+2"]
+      - commands: ["move --workspace 3"]
+        bindings: ["lwin+shift+3", "rwin+shift+3"]
+      - commands: ["move --workspace 4"]
+        bindings: ["lwin+shift+4", "rwin+shift+4"]
+      - commands: ["move --workspace 5"]
+        bindings: ["lwin+shift+5", "rwin+shift+5"]
+      - commands: ["move --workspace 6"]
+        bindings: ["lwin+shift+6", "rwin+shift+6"]
+      - commands: ["move --workspace 7"]
+        bindings: ["lwin+shift+7", "rwin+shift+7"]
+      - commands: ["move --workspace 8"]
+        bindings: ["lwin+shift+8", "rwin+shift+8"]
+      - commands: ["move --workspace 9"]
+        bindings: ["lwin+shift+9", "rwin+shift+9"]
+      - commands: ["move --workspace 10"]
+        bindings: ["lwin+shift+0", "rwin+shift+0"]
+
+
+  # Native GlazeWM mouse binding mode. Super+Alt+M enters it; the same chord
+  # exits it from inside the mode. GlazeWM 3.10.x still does not expose mouse
+  # buttons themselves, so this restores mode state/visibility without a hook.
+  - name: "mouse"
+    keybindings:
+      - commands: ["wm-disable-binding-mode --name mouse"]
+        bindings: ["lwin+alt+m", "rwin+alt+m"]
+      - commands:
+          - "wm-disable-binding-mode --name mouse"
+          - "wm-enable-binding-mode --name noalt"
+        bindings: ["lwin+alt+n", "rwin+alt+n"]
+      - commands:
+          - "wm-disable-binding-mode --name mouse"
+          - "wm-enable-binding-mode --name vm"
+        bindings: ["lwin+alt+v", "rwin+alt+v"]
+      - commands: ["wm-toggle-pause"]
+        bindings: ["lwin+alt+p", "rwin+alt+p"]
+
+  # VM mode based on Awtarchy's vm submap.
+  # Normal host keybindings are replaced while active so the guest receives
+  # ordinary Alt/Windows shortcuts. Host escape controls live on Win+Alt.
+  - name: "vm"
+    keybindings:
+      - commands: ["wm-disable-binding-mode --name vm"]
+        bindings: ["lwin+alt+v", "rwin+alt+v"]
+      - commands:
+          - "wm-disable-binding-mode --name vm"
+          - "wm-enable-binding-mode --name noalt"
+        bindings: ["lwin+alt+n", "rwin+alt+n"]
+      - commands:
+          - "wm-disable-binding-mode --name vm"
+          - "wm-enable-binding-mode --name mouse"
+        bindings: ["lwin+alt+m", "rwin+alt+m"]
+      - commands: ["wm-toggle-pause"]
+        bindings: ["lwin+alt+p", "rwin+alt+p"]
+
+      - commands: ["close"]
+        bindings: ["lwin+alt+q", "rwin+alt+q"]
+
+      - commands: ["toggle-floating --centered"]
+        bindings: ["lwin+alt+f", "rwin+alt+f"]
+
+
+      - commands: ["shell-exec calc.exe"]
+        bindings: ["lwin+alt+c", "rwin+alt+c"]
+
+      - commands: ["shell-exec flameshot.exe gui"]
+        bindings: ["lwin+alt+s", "rwin+alt+s"]
+
+      - commands: ["shell-exec wt.exe -w new"]
+        bindings: ["lwin+alt+enter", "rwin+alt+enter"]
+
+      - commands: ["focus --workspace 1"]
+        bindings: ["lwin+alt+1", "rwin+alt+1"]
+      - commands: ["focus --workspace 2"]
+        bindings: ["lwin+alt+2", "rwin+alt+2"]
+      - commands: ["focus --workspace 3"]
+        bindings: ["lwin+alt+3", "rwin+alt+3"]
+      - commands: ["focus --workspace 4"]
+        bindings: ["lwin+alt+4", "rwin+alt+4"]
+      - commands: ["focus --workspace 5"]
+        bindings: ["lwin+alt+5", "rwin+alt+5"]
+      - commands: ["focus --workspace 6"]
+        bindings: ["lwin+alt+6", "rwin+alt+6"]
+      - commands: ["focus --workspace 7"]
+        bindings: ["lwin+alt+7", "rwin+alt+7"]
+      - commands: ["focus --workspace 8"]
+        bindings: ["lwin+alt+8", "rwin+alt+8"]
+      - commands: ["focus --workspace 9"]
+        bindings: ["lwin+alt+9", "rwin+alt+9"]
+      - commands: ["focus --workspace 10"]
+        bindings: ["lwin+alt+0", "rwin+alt+0"]
+
+      - commands: ["move --workspace 1"]
+        bindings: ["lwin+alt+shift+1", "rwin+alt+shift+1"]
+      - commands: ["move --workspace 2"]
+        bindings: ["lwin+alt+shift+2", "rwin+alt+shift+2"]
+      - commands: ["move --workspace 3"]
+        bindings: ["lwin+alt+shift+3", "rwin+alt+shift+3"]
+      - commands: ["move --workspace 4"]
+        bindings: ["lwin+alt+shift+4", "rwin+alt+shift+4"]
+      - commands: ["move --workspace 5"]
+        bindings: ["lwin+alt+shift+5", "rwin+alt+shift+5"]
+      - commands: ["move --workspace 6"]
+        bindings: ["lwin+alt+shift+6", "rwin+alt+shift+6"]
+      - commands: ["move --workspace 7"]
+        bindings: ["lwin+alt+shift+7", "rwin+alt+shift+7"]
+      - commands: ["move --workspace 8"]
+        bindings: ["lwin+alt+shift+8", "rwin+alt+shift+8"]
+      - commands: ["move --workspace 9"]
+        bindings: ["lwin+alt+shift+9", "rwin+alt+shift+9"]
+      - commands: ["move --workspace 10"]
+        bindings: ["lwin+alt+shift+0", "rwin+alt+shift+0"]
+
+
+keybindings:
+
+  - commands: ["wm-enable-binding-mode --name mouse"]
+    bindings: ["lwin+alt+m", "rwin+alt+m"]
+
+  # Work profile: direct application launch owned by GlazeWM.
+  - commands: ['shell-exec %LOCALAPPDATA%/FlowLauncher/Flow.Launcher.exe']
+    bindings: ["alt+p"]
+
+  - commands: ["shell-exec flameshot.exe gui"]
+    bindings: ["lwin+shift+s", "rwin+shift+s"]
+
+  - commands: ["shell-exec explorer.exe ms-settings:display"]
+    bindings: ["lwin+ctrl+m", "rwin+ctrl+m"]
+
+  - commands: ['shell-exec wt.exe -w new new-tab --title "Win Glaze Themes" --suppressApplicationTitle powershell.exe -NoLogo -NoProfile -Command "& (Join-Path $env:USERPROFILE ''.config\win-glaze\scripts\theme-switcher.ps1'')"']
+    bindings: ["lwin+t", "rwin+t"]
+  # Standalone script coordinates YASB auto-hide with the GlazeWM top gap.
+  - commands: ['shell-exec --hide-window powershell.exe -NoLogo -NoProfile -WindowStyle Hidden -Command "& (Join-Path $env:USERPROFILE ''.config\win-glaze\scripts\bar-autohide.ps1'') toggle"']
     bindings: ["alt+ctrl+b"]
 
   - commands: ["shell-exec C:\\Program Files (x86)\\SpeedCrunch\\speedcrunch.exe"]
