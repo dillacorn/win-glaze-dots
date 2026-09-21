@@ -1253,16 +1253,23 @@ internal static class WgdotNative
         bool idleInhibitorWasActive = false;
         bool mouseModeHookWasActive = false;
         bool superLTestHookWasActive = false;
+        bool desktopWorkerWasActive = false;
 
         if (replacingInstalledRuntime && File.Exists(targetExe))
         {
             idleInhibitorWasActive = NamedMutexExists(IdleInhibitorMutexName);
             mouseModeHookWasActive = NamedMutexExists(MouseModeMutexName);
             superLTestHookWasActive = NamedMutexExists(SuperLTestMutexName);
+            desktopWorkerWasActive = NamedMutexExists(DesktopWorkerMutexName);
+
+            IntPtr clipboardWindow = FindTopLevelWindowByExactTitle(ClipboardHistoryWindowTitle);
+            if (clipboardWindow != IntPtr.Zero)
+                PostMessage(clipboardWindow, WmClose, IntPtr.Zero, IntPtr.Zero);
 
             if (idleInhibitorWasActive) SignalIdleInhibitorStop();
             if (mouseModeHookWasActive) SignalMouseModeHookStop();
             if (superLTestHookWasActive) SignalSuperLTestStop();
+            if (desktopWorkerWasActive) SignalDesktopWorkerStop();
 
             if (idleInhibitorWasActive)
                 WaitForRuntimeWorkerState(IdleInhibitorMutexName, false, "idle inhibitor");
@@ -1270,6 +1277,8 @@ internal static class WgdotNative
                 WaitForRuntimeWorkerState(MouseModeMutexName, false, "mouse-mode");
             if (superLTestHookWasActive)
                 WaitForRuntimeWorkerState(SuperLTestMutexName, false, "Super+L test");
+            if (desktopWorkerWasActive)
+                WaitForRuntimeWorkerState(DesktopWorkerMutexName, false, "desktop");
         }
 
         try
@@ -1311,6 +1320,12 @@ internal static class WgdotNative
                 {
                     StartRuntimeWorkerFrom(targetExe, "super-l-hook");
                     WaitForRuntimeWorkerState(SuperLTestMutexName, true, "Super+L test");
+                }
+
+                if (desktopWorkerWasActive)
+                {
+                    StartRuntimeWorkerFrom(targetExe, "desktop-worker");
+                    WaitForRuntimeWorkerState(DesktopWorkerMutexName, true, "desktop");
                 }
             }
         }
@@ -1358,6 +1373,9 @@ internal static class WgdotNative
         Console.WriteLine("YASB / Terminal theme: " + CurrentYasbThemeId());
         Console.WriteLine("Cursor theme: " + CurrentCursorThemeId());
         Console.WriteLine("Idle inhibitor: " + (NamedMutexExists(IdleInhibitorMutexName) ? "active" : "inactive"));
+        Console.WriteLine("Desktop worker: " + (NamedMutexExists(DesktopWorkerMutexName) ? "active" : "inactive"));
+        Console.WriteLine("Clipboard history items: " + ReadClipboardHistoryEntries().Count.ToString(CultureInfo.InvariantCulture));
+        Console.WriteLine("Tracked GlazeWM mode: " + (String.IsNullOrWhiteSpace(ReadTrackedGlazeBindingMode()) ? "normal" : ReadTrackedGlazeBindingMode()));
         Dictionary<string, object> appearance = ReadYasbAppearanceState();
         Console.WriteLine(
             "YASB running apps: " +
