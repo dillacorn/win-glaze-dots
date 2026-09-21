@@ -514,7 +514,7 @@ keybindings:
   - commands: ["wm-exit"]
     bindings: ["alt+ctrl+shift+k"]
 
-  - commands: ["wm-reload-config"]
+  - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe glazewm-reload-config']
     bindings: ["alt+ctrl+shift+r"]
 
   - commands: ["wm-redraw"]
