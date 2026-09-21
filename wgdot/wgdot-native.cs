@@ -1514,6 +1514,22 @@ internal static class WgdotNative
         }
     }
 
+    static void AppendRuntimeRefreshDiagnostic(string message)
+    {
+        try
+        {
+            Directory.CreateDirectory(StateRoot);
+            File.AppendAllText(
+                Path.Combine(StateRoot, "runtime-refresh.log"),
+                DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture) +
+                " " + (message ?? "") + Environment.NewLine,
+                new UTF8Encoding(false));
+        }
+        catch
+        {
+        }
+    }
+
     static bool TryRefreshRuntimeAndRun(string[] originalArgs, out int exitCode)
     {
         exitCode = 0;
@@ -1526,7 +1542,21 @@ internal static class WgdotNative
         ValidateBranchName(sourceRef);
 
         string installedRevision = GetString(state, "sourceRevision");
-        string remoteRevision = ResolveBranchHeadViaApi(sourceRef);
+        string remoteRevision;
+        try
+        {
+            remoteRevision = ResolveBranchHeadViaApi(sourceRef);
+        }
+        catch (Exception ex)
+        {
+            // Some managed/corporate networks allow raw.githubusercontent.com
+            // while blocking api.github.com. A refresh check is optional; an
+            // already-installed exact runtime must remain usable offline from
+            // the API rather than failing every user-facing command.
+            AppendRuntimeRefreshDiagnostic(
+                "Runtime refresh check skipped for " + sourceRef + ": " + ex.Message);
+            return false;
+        }
 
         if (String.Equals(installedRevision, remoteRevision, StringComparison.OrdinalIgnoreCase))
             return false;
@@ -1911,7 +1941,13 @@ internal static class WgdotNative
 
             if (useRuntimeRef)
             {
-                string revision = ResolveBranchHeadViaApi(sourceRef);
+                string recordedRevision = GetString(bootstrap, "sourceRevision");
+                string revision =
+                    explicitRefTesting &&
+                    Regex.IsMatch(recordedRevision ?? "", "^[0-9a-fA-F]{40}$")
+                        ? recordedRevision.ToLowerInvariant()
+                        : ResolveBranchHeadViaApi(sourceRef);
+
                 string sourceRoot = PrepareRevisionArchive(revision);
                 return new SourceContext
                 {
@@ -2020,6 +2056,134 @@ internal static class WgdotNative
         }
     }
 
+    static string RawRepositoryUrl(string revision, string relativePath)
+    {
+        string normalized = (relativePath ?? "").Replace('\\', '/').Trim('/');
+        if (String.IsNullOrWhiteSpace(normalized))
+            throw new Exception("Raw repository path is empty.");
+
+        string[] segments = normalized.Split('/');
+        if (segments.Any(
+                segment =>
+                    String.IsNullOrWhiteSpace(segment) ||
+                    segment == "." ||
+                    segment == ".."))
+            throw new Exception("Unsafe raw repository path: " + relativePath);
+
+        string encoded = String.Join(
+            "/",
+            segments.Select(segment => Uri.EscapeDataString(segment)).ToArray());
+
+        return "https://raw.githubusercontent.com/" +
+            RepoFullName + "/" + revision + "/" + encoded;
+    }
+
+    static string SafeRawSourceDestination(string root, string relativePath)
+    {
+        string normalized = (relativePath ?? "").Replace('\\', '/').Trim('/');
+        if (String.IsNullOrWhiteSpace(normalized))
+            throw new Exception("Managed source path is empty.");
+
+        string fullRoot = Path.GetFullPath(root)
+            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) +
+            Path.DirectorySeparatorChar;
+        string destination = Path.GetFullPath(
+            Path.Combine(
+                root,
+                normalized.Replace('/', Path.DirectorySeparatorChar)));
+
+        if (!destination.StartsWith(fullRoot, StringComparison.OrdinalIgnoreCase))
+            throw new Exception("Managed source escaped the raw revision cache: " + relativePath);
+
+        return destination;
+    }
+
+    static void DownloadRawRevisionFile(
+        WebClient client,
+        string revision,
+        string relativePath,
+        string root)
+    {
+        string destination = SafeRawSourceDestination(root, relativePath);
+        string parent = Path.GetDirectoryName(destination);
+        if (!String.IsNullOrWhiteSpace(parent))
+            Directory.CreateDirectory(parent);
+
+        client.DownloadFile(
+            RawRepositoryUrl(revision, relativePath),
+            destination);
+    }
+
+    static string PrepareRawRevisionSource(string revision)
+    {
+        string rawRoot = Path.Combine(CacheRoot, "raw-revision-" + revision);
+        string marker = Path.Combine(rawRoot, ".wgdot-raw-source");
+        string manifestPath = Path.Combine(rawRoot, "wgdot", "manifest.json");
+
+        if (File.Exists(marker) && File.Exists(manifestPath))
+            return rawRoot;
+
+        SafeDeleteDirectory(rawRoot);
+        Directory.CreateDirectory(rawRoot);
+
+        try
+        {
+            using (var client = new WebClient())
+            {
+                client.Headers[HttpRequestHeader.UserAgent] = "wgdot";
+                DownloadRawRevisionFile(
+                    client,
+                    revision,
+                    "wgdot/manifest.json",
+                    rawRoot);
+
+                Dictionary<string, object> manifest = ReadManifest(rawRoot);
+                var sources = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+                foreach (object rawComponent in GetList(manifest, "components"))
+                {
+                    Dictionary<string, object> component = AsDictionary(rawComponent);
+                    foreach (object rawFile in GetList(component, "files"))
+                    {
+                        Dictionary<string, object> file = AsDictionary(rawFile);
+                        string source = GetString(file, "source");
+                        if (!String.IsNullOrWhiteSpace(source))
+                            sources.Add(source);
+
+                        object byProfileRaw;
+                        if (file.TryGetValue("sourceByGlazeProfile", out byProfileRaw) &&
+                            byProfileRaw != null)
+                        {
+                            Dictionary<string, object> byProfile = AsDictionary(byProfileRaw);
+                            foreach (object value in byProfile.Values)
+                            {
+                                string profileSource = Convert.ToString(
+                                    value,
+                                    CultureInfo.InvariantCulture);
+                                if (!String.IsNullOrWhiteSpace(profileSource))
+                                    sources.Add(profileSource);
+                            }
+                        }
+                    }
+                }
+
+                foreach (string source in sources.OrderBy(x => x, StringComparer.OrdinalIgnoreCase))
+                    DownloadRawRevisionFile(client, revision, source, rawRoot);
+            }
+
+            File.WriteAllText(
+                marker,
+                revision + Environment.NewLine,
+                Encoding.ASCII);
+            return rawRoot;
+        }
+        catch
+        {
+            SafeDeleteDirectory(rawRoot);
+            throw;
+        }
+    }
+
     static string PrepareRevisionArchive(string revision)
     {
         if (!Regex.IsMatch(revision ?? "", "^[0-9a-fA-F]{40}$"))
@@ -2032,7 +2196,8 @@ internal static class WgdotNative
         if (File.Exists(marker))
         {
             string cached = File.ReadAllText(marker).Trim();
-            if (Directory.Exists(cached) && File.Exists(Path.Combine(cached, "wgdot", "manifest.json")))
+            if (Directory.Exists(cached) &&
+                File.Exists(Path.Combine(cached, "wgdot", "manifest.json")))
                 return cached;
         }
 
@@ -2044,26 +2209,51 @@ internal static class WgdotNative
         SafeDeleteDirectory(revisionRoot);
         Directory.CreateDirectory(extractRoot);
 
-        string url = "https://github.com/" + RepoFullName + "/archive/" + revision + ".zip";
-        using (var client = new WebClient())
+        Exception archiveFailure = null;
+        try
         {
-            client.Headers[HttpRequestHeader.UserAgent] = "wgdot";
-            client.DownloadFile(url, zipPath);
+            string url =
+                "https://github.com/" + RepoFullName + "/archive/" + revision + ".zip";
+            using (var client = new WebClient())
+            {
+                client.Headers[HttpRequestHeader.UserAgent] = "wgdot";
+                client.DownloadFile(url, zipPath);
+            }
+
+            ZipFile.ExtractToDirectory(zipPath, extractRoot);
+            string[] children = Directory.GetDirectories(extractRoot);
+            if (children.Length != 1)
+                throw new Exception("Unexpected GitHub archive layout.");
+
+            string source = children[0];
+            if (!File.Exists(Path.Combine(source, "wgdot", "manifest.json")))
+                throw new Exception("Revision " + revision + " is not WGDot-compatible.");
+
+            Directory.CreateDirectory(revisionRoot);
+            File.WriteAllText(marker, source, Encoding.ASCII);
+            SafeDeleteFile(zipPath);
+            return source;
+        }
+        catch (Exception ex)
+        {
+            archiveFailure = ex;
+            SafeDeleteFile(zipPath);
+            SafeDeleteDirectory(extractRoot);
+            SafeDeleteDirectory(revisionRoot);
         }
 
-        ZipFile.ExtractToDirectory(zipPath, extractRoot);
-        string[] children = Directory.GetDirectories(extractRoot);
-        if (children.Length != 1)
-            throw new Exception("Unexpected GitHub archive layout.");
-
-        string source = children[0];
-        if (!File.Exists(Path.Combine(source, "wgdot", "manifest.json")))
-            throw new Exception("Revision " + revision + " is not WGDot-compatible.");
-
-        Directory.CreateDirectory(revisionRoot);
-        File.WriteAllText(marker, source, Encoding.ASCII);
-        SafeDeleteFile(zipPath);
-        return source;
+        try
+        {
+            return PrepareRawRevisionSource(revision);
+        }
+        catch (Exception rawFailure)
+        {
+            throw new Exception(
+                "Could not acquire WGDot revision " + revision +
+                " from either the GitHub archive endpoint or raw.githubusercontent.com. " +
+                "Archive error: " + archiveFailure.Message +
+                " Raw error: " + rawFailure.Message);
+        }
     }
 
     static Dictionary<string, object> ReadManifest(string sourceRoot)
