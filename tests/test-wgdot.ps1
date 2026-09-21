@@ -860,7 +860,7 @@ foreach ($text in @($glazeNormalText, $glazeWorkText)) {
     Assert-True ($noaltBlock -notmatch 'bindings:\s*\["alt\+v"\]') "noalt does not capture plain Alt+V"
     Assert-True ($noaltBlock -match 'bindings:\s*\["lwin\+d",\s*"rwin\+d"\]') "noalt keeps Super+D compiled launcher"
     Assert-True ($noaltBlock -notmatch 'bindings:\s*\["alt\+p"\]') "noalt does not capture plain Alt+P"
-    Assert-True ($text -match 'wgdot\.exe theme') "theme shortcut uses the compiled theme manager"
+    Assert-True ($text -match 'wgdotw\.exe theme-window-toggle') "theme shortcut uses the windowless compiled theme toggle"
     Assert-True ($text -match 'window_title:\s*\{ equals: "Win Glaze Themes" \}') "theme selector has a dedicated floating title rule"
     Assert-True ($text -match 'name:\s*"noalt"') "GlazeWM noalt mode remains available with selective shell-hotkey filtering"
     Assert-True ($text -match 'wm-enable-binding-mode --name noalt') "noalt mode transitions are native GlazeWM commands"
