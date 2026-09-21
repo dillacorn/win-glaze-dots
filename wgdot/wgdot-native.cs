@@ -46,6 +46,7 @@ internal static class WgdotNative
     static readonly string GpuStatePath = Path.Combine(StateRoot, "gpu-maintenance.json");
     static readonly string BrowserStatePath = Path.Combine(StateRoot, "browser-management.json");
     static readonly string ThemeStatePath = Path.Combine(StateRoot, "theme.json");
+    static readonly string GlazeBindingModeStatePath = Path.Combine(StateRoot, "glazewm-binding-mode.json");
     static readonly string StartupStatePath = Path.Combine(StateRoot, "startup.json");
     static readonly string CursorStatePath = Path.Combine(StateRoot, "cursor.json");
     static readonly JavaScriptSerializer Json = new JavaScriptSerializer { MaxJsonLength = int.MaxValue, RecursionLimit = 100 };
@@ -7393,6 +7394,20 @@ class WgdotHidden
         {
             return false;
         }
+    }
+
+    static void WriteTrackedGlazeBindingMode(string mode)
+    {
+        var state = new Dictionary<string, object>();
+        state["mode"] = (mode ?? "").Trim().ToLowerInvariant();
+        state["updatedAt"] = DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture);
+        WriteJson(GlazeBindingModeStatePath, state);
+    }
+
+    static string ReadTrackedGlazeBindingMode()
+    {
+        Dictionary<string, object> state = ReadJson(GlazeBindingModeStatePath);
+        return state == null ? "" : GetString(state, "mode").Trim().ToLowerInvariant();
     }
 
     static string GetActiveGlazeWmBindingMode()
