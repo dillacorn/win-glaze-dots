@@ -11695,24 +11695,6 @@ public static class Program
                 {
                     MigrateLegacyWindowsShellHotkeys(true);
                 }
-                else if (String.Equals(type, "ensure-desktop-worker", StringComparison.OrdinalIgnoreCase))
-                {
-                    StartDesktopWorkerIfNeeded();
-                }
-                else if (String.Equals(type, "ensure-hidden-launcher", StringComparison.OrdinalIgnoreCase))
-                {
-                    EnsureHiddenLauncher();
-                }
-                else if (String.Equals(type, "ensure-yasb-theme", StringComparison.OrdinalIgnoreCase))
-                {
-                    // styles.css imports theme.css. Generate the remembered palette
-                    // during every YASB apply so a fresh install never starts with
-                    // a missing import, while preserving the user's selected theme.
-                    string themeId = CurrentYasbThemeId();
-                    if (ApplyYasbTheme(themeId) != 0)
-                        throw new Exception("Failed to generate the YASB theme stylesheet.");
-                    EnsureYasbAppearance();
-                }
                 else if (String.Equals(type, "ensure-cursor-theme", StringComparison.OrdinalIgnoreCase))
                 {
                     EnsureCursorTheme();
