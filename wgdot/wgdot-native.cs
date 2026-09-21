@@ -11474,6 +11474,10 @@ public static class Program
                 {
                     MigrateLegacyWindowsShellHotkeys(true);
                 }
+                else if (String.Equals(type, "ensure-desktop-worker", StringComparison.OrdinalIgnoreCase))
+                {
+                    StartDesktopWorkerIfNeeded();
+                }
                 else if (String.Equals(type, "ensure-hidden-launcher", StringComparison.OrdinalIgnoreCase))
                 {
                     EnsureHiddenLauncher();
