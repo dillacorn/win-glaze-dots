@@ -71,6 +71,8 @@ GlazeWM 3.10.x still does not expose mouse buttons through its keybinding parser
 
 `theme.css` and `appearance.css` are normal tracked dotfiles.
 
+WGDot also remembers the selected theme separately. If a managed dots update replaces `theme.css` or WGDot-managed Windows Terminal settings, WGDot reapplies that remembered theme after the update so the active palette is preserved.
+
 The compiled WGDot theme manager is launched as `wgdot.exe theme` inside Windows Terminal. It:
 
 - writes the selected YASB palette to `~/.config/yasb/theme.css`
