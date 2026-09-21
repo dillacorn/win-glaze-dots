@@ -133,7 +133,7 @@ Assert-Contains $bluetoothBlock 'bluetooth_on: ""' "Bluetooth enabled glyph m
 Assert-Contains $bluetoothBlock 'bluetooth_off: ""' "Bluetooth disabled keeps Awtarchy's single glyph"
 Assert-Contains $bluetoothBlock 'bluetooth_connected: ""' "Bluetooth connected keeps Awtarchy's single glyph"
 Assert-Contains $clipboardBlock 'yasb.custom.CustomWidget' "clipboard bar button uses a simple native callback surface"
-Assert-Contains $clipboardBlock 'exec wgdot clipboard-history' "clipboard bar button opens Windows Clipboard History"
+Assert-Contains $clipboardBlock 'exec wgdotw clipboard-history' "clipboard bar button opens Windows Clipboard History"
 Assert-Contains $config '"idle_inhibitor"' "right-side modules include the Windows idle inhibitor"
 Assert-Contains $config 'brightness_icons: ["", "", "", ""]' "brightness uses a fixed sun icon"
 Assert-Contains $config 'run_cmd: "wgdot idle-inhibitor-status"' "idle inhibitor polls WGDot status"
