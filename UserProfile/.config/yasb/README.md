@@ -107,9 +107,11 @@ The helper uses Windows `SetThreadExecutionState(ES_CONTINUOUS | ES_SYSTEM_REQUI
 
 ## Power controls
 
-The bar uses YASB's native `PowerMenuWidget` with Lock, Sign out, Sleep, Hibernate, Restart, Shutdown, and Cancel.
+The bar power button is a lightweight YASB `CustomWidget` that opens the compiled `wgdotw.exe power-menu` surface.
 
-`Super+P` is owned by the YASB power-menu keybinding. GlazeWM deliberately does not capture that chord.
+The power surface preserves the Awtarchy-style fullscreen 3x2 tile layout for Lock, Hibernate, Reboot, Shutdown, Sign out, and Sleep. It follows the active WGDot/YASB theme and fades in/out to avoid a bright first-frame flash.
+
+`Super+P` is owned by GlazeWM and opens the same windowless compiled power surface. No PowerShell runtime script is involved.
 
 ## Audio
 
@@ -146,7 +148,7 @@ There is currently no rendered clipboard-history bar button and no managed `Supe
 | clock/date | native Clock widget |
 | network / Bluetooth | native WiFi and Bluetooth widgets |
 | notifications / mute | native `DndWidget` |
-| power controls | native `PowerMenuWidget` |
+| power controls | compiled Awtarchy-style `wgdotw.exe power-menu` surface |
 | launcher | native `QuickLaunchWidget`; Work `Alt+P` launches Flow directly during testing |
 | theme switching | compiled `wgdot.exe theme` manager in both profiles |
 | bar auto-hide | compiled `wgdotw.exe bar-autohide-toggle` coordinator in both profiles |
