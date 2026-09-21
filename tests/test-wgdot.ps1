@@ -696,7 +696,7 @@ Assert-True ($nativeSourceText -match 'public MOUSEINPUT mouse') "Win32 INPUT un
 Assert-True ($nativeSourceText -match 'public HARDWAREINPUT hardware') "Win32 INPUT union includes HARDWAREINPUT for native union sizing"
 Assert-True ($nativeSourceText -match 'expectedInputSize = IntPtr.Size == 8 \? 40 : 28') "native self-test validates Win32 INPUT size on x64 and x86"
 Assert-True ($nativeSourceText -match 'TryGetActiveGlazeWmBindingMode') "binding-mode Quick Settings tolerate active-mode query IPC failures"
-Assert-True ($nativeSourceText -match 'SetGlazeWmBindingMode\(mode, false\).*?TryGetActiveGlazeWmBindingMode' ) "binding-mode toggle probes by disabling the requested mode when active-mode query IPC fails"
+Assert-True ($nativeSourceText -match '(?s)SetGlazeWmBindingMode\(mode, false\).*?TryGetActiveGlazeWmBindingMode' ) "binding-mode toggle probes by disabling the requested mode when active-mode query IPC fails"
 Assert-True ($nativeSourceText -match 'VkF24') "Quick Launch bridge avoids Windows-reserved Win+Alt+D"
 Assert-True ($nativeSourceText -match 'EnsureHiddenLauncher') "native runtime installs the GUI-subsystem wgdotw helper"
 Assert-True ($nativeSourceText -match '/target:winexe') "wgdotw is compiled without a console window"
