@@ -165,10 +165,6 @@ widgets:
         round_corners_type: "none"
         border_color: "None"
         dark_mode: true
-      keybindings:
-        - keys: "f24"
-          action: "toggle_quick_launch"
-          screen: "active"
       callbacks:
         on_left: "toggle_quick_launch"
         on_middle: "do_nothing"
@@ -192,6 +188,18 @@ widgets:
         enabled_populated: false
         enabled_active: false
         enabled_focused: false
+
+  workspace_mouse:
+    type: "yasb.custom.CustomWidget"
+    options:
+      label: "󰍽"
+      class_name: "workspace-mouse-hub"
+      tooltip: true
+      tooltip_label: "Workspace mover"
+      callbacks:
+        on_left: "do_nothing"
+        on_middle: "do_nothing"
+        on_right: "do_nothing"
 
   workspace_move:
     type: "yasb.applications.ApplicationsWidget"
@@ -217,7 +225,7 @@ widgets:
     type: "yasb.grouper.GrouperWidget"
     options:
       class_name: "workspace-move-grouper"
-      widgets: ["workspace_move"]
+      widgets: ["workspace_mouse", "workspace_move"]
       hide_empty: false
       # Passive hover container only. Native Grouper click-collapse stays off.
       collapse_options:
