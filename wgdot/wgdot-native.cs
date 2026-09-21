@@ -5512,6 +5512,12 @@ internal static class WgdotNative
         result.Components = GetStringList(state, "components");
         result.Packages = GetStringList(state, "packages");
         result.Tweaks = GetStringList(state, "tweaks");
+        // One-time selection migration from the old WGDot runtime-helper model.
+        // Flow's own Alt+P global hotkey conflicts with VM pass-through, so drop it.
+        result.Tweaks.RemoveAll(x => String.Equals(x, "flow-launcher-alt-p", StringComparison.OrdinalIgnoreCase));
+        if (result.Tweaks.RemoveAll(x => String.Equals(x, "eartrumpet-mixer-alt-v", StringComparison.OrdinalIgnoreCase)) > 0 &&
+            !result.Tweaks.Contains("eartrumpet-mixer-super-v", StringComparer.OrdinalIgnoreCase))
+            result.Tweaks.Add("eartrumpet-mixer-super-v");
         result.TweaksConfigured = state.ContainsKey("tweaks");
         result.BrowserOptions = ReadBrowserOptionsState(state);
         result.BrowserOptionsConfigured = state.ContainsKey("browserOptions");
@@ -6699,10 +6705,8 @@ internal static class WgdotNative
     {
         if (String.Equals(id, "micro-text-defaults", StringComparison.OrdinalIgnoreCase))
             ApplyMicroTextDefaults(enable);
-        else if (String.Equals(id, "flow-launcher-alt-p", StringComparison.OrdinalIgnoreCase))
-            ApplyFlowLauncherAltP(enable);
-        else if (String.Equals(id, "eartrumpet-mixer-alt-v", StringComparison.OrdinalIgnoreCase))
-            ApplyEarTrumpetMixerAltV(enable);
+        else if (String.Equals(id, "eartrumpet-mixer-super-v", StringComparison.OrdinalIgnoreCase))
+            ApplyEarTrumpetMixerSuperV(enable);
         else if (String.Equals(id, "disable-windows-shell-hotkeys", StringComparison.OrdinalIgnoreCase))
             ApplyWindowsShellHotkeysPolicy(enable);
         else if (String.Equals(id, "clean-taskbar-items", StringComparison.OrdinalIgnoreCase))
@@ -10251,9 +10255,9 @@ public static class Program
             return 0;
         }
 
-        if (args[0] == ""set-alt-v"")
+        if (args[0] == ""set-win-v"")
         {
-            var hotkey = new HotkeyData { Modifiers = Keys.Alt, Key = Keys.V };
+            var hotkey = new HotkeyData { Modifiers = Keys.LWin, Key = Keys.V };
             var serializer = new XmlSerializer(typeof(HotkeyData));
             using (var writer = new StringWriter())
             {
@@ -10398,9 +10402,9 @@ public static class Program
         Process.Start(psi);
     }
 
-    static void ApplyEarTrumpetMixerAltV(bool enable)
+    static void ApplyEarTrumpetMixerSuperV(bool enable)
     {
-        const string originalKey = "eartrumpet-mixer-alt-v|MixerHotkey";
+        const string originalKey = "eartrumpet-mixer-alt-v|MixerHotkey"; // preserve existing snapshot ownership key
         string helper = EnsureEarTrumpetStorageHelper();
         bool wasRunning = StopProcessesByName("EarTrumpet");
 
@@ -10414,11 +10418,11 @@ public static class Program
             bool existed = !String.Equals(original, "__MISSING__", StringComparison.Ordinal);
             CaptureExternalSettingOriginal(originalKey, existed, existed ? original : "");
 
-            ProcResult set = Run(helper, "set-alt-v", null);
+            ProcResult set = Run(helper, "set-win-v", null);
             if (set.ExitCode != 0)
                 throw new Exception("Could not set EarTrumpet mixer hotkey.");
 
-            Console.WriteLine("EarTrumpet Open Mixer hotkey set to Alt+V.");
+            Console.WriteLine("EarTrumpet Open Mixer hotkey set to Super+V.");
             RestartEarTrumpet();
             return;
         }
