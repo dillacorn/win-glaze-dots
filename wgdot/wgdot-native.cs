@@ -19,7 +19,7 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-57";
+    const string Version = "native-preview-58";
     const int WingetPreflightTimeoutMs = 30000;
     const string RepoFullName = "dillacorn/win-glaze-dots";
     const string RepoUrl = "https://github.com/dillacorn/win-glaze-dots.git";
@@ -85,8 +85,27 @@ internal static class WgdotNative
     [StructLayout(LayoutKind.Explicit)]
     struct INPUTUNION
     {
+        // INPUT is a native union. Include every native member so its size
+        // matches Win32 INPUT on both x86 and x64 even when WGDot only sends
+        // keyboard input. Omitting MOUSEINPUT makes x64 INPUT 32 bytes instead
+        // of the required 40 and causes SendInput to reject the whole batch.
+        [FieldOffset(0)]
+        public MOUSEINPUT mouse;
         [FieldOffset(0)]
         public KEYBDINPUT keyboard;
+        [FieldOffset(0)]
+        public HARDWAREINPUT hardware;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    struct MOUSEINPUT
+    {
+        public int dx;
+        public int dy;
+        public uint mouseData;
+        public uint dwFlags;
+        public uint time;
+        public UIntPtr dwExtraInfo;
     }
 
     [StructLayout(LayoutKind.Sequential)]
@@ -97,6 +116,14 @@ internal static class WgdotNative
         public uint dwFlags;
         public uint time;
         public UIntPtr dwExtraInfo;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    struct HARDWAREINPUT
+    {
+        public uint uMsg;
+        public ushort wParamL;
+        public ushort wParamH;
     }
 
     [StructLayout(LayoutKind.Sequential)]
@@ -7549,7 +7576,7 @@ class WgdotHidden
         return 0;
     }
 
-    static bool GlazeWmBindingModeActive(string name)
+    static string GetActiveGlazeWmBindingMode()
     {
         ProcResult result = Run("glazewm.exe", "query binding-modes", null);
         Dictionary<string, object> response =
@@ -7572,12 +7599,44 @@ class WgdotHidden
         {
             Dictionary<string, object> mode = AsDictionary(modeObject);
             object modeName;
-            if (mode.TryGetValue("name", out modeName) &&
-                String.Equals(Convert.ToString(modeName), name, StringComparison.OrdinalIgnoreCase))
-                return true;
+            if (mode.TryGetValue("name", out modeName))
+                return Convert.ToString(modeName) ?? "";
         }
 
+        return "";
+    }
+
+    static bool TryGetActiveGlazeWmBindingMode(out string activeMode)
+    {
+        // GlazeWM's query returns the full active BindingModeConfig including
+        // every keybinding. Large modes can make the CLI IPC client fail to
+        // receive that response even though command IPC remains healthy.
+        // Retry transient failures, then let toggle logic use command behavior
+        // to distinguish "same mode" from "different active mode".
+        for (int i = 0; i < 5; i++)
+        {
+            try
+            {
+                activeMode = GetActiveGlazeWmBindingMode();
+                return true;
+            }
+            catch
+            {
+                if (i < 4)
+                    System.Threading.Thread.Sleep(50);
+            }
+        }
+
+        activeMode = "";
         return false;
+    }
+
+    static bool GlazeWmBindingModeActive(string name)
+    {
+        return String.Equals(
+            GetActiveGlazeWmBindingMode(),
+            name,
+            StringComparison.OrdinalIgnoreCase);
     }
 
     static void SetGlazeWmBindingMode(string name, bool enabled)
@@ -7683,17 +7742,38 @@ class WgdotHidden
             throw new Exception("glazewm-binding-mode-toggle requires exactly one target: noalt or vm.");
 
         string mode = args[0].ToLowerInvariant();
-        if (GlazeWmBindingModeActive(mode))
+        string activeMode;
+
+        if (TryGetActiveGlazeWmBindingMode(out activeMode))
         {
-            SetGlazeWmBindingMode(mode, false);
+            if (String.Equals(activeMode, mode, StringComparison.OrdinalIgnoreCase))
+            {
+                SetGlazeWmBindingMode(mode, false);
+                return 0;
+            }
+
+            // GlazeWM's enable command replaces the current binding mode.
+            // Always stop a stale mouse hook before switching to a keyboard mode.
+            SignalMouseModeHookStop();
+            SetGlazeWmBindingMode(mode, true);
             return 0;
         }
 
-        if (MouseModeIsActive())
-            MouseModeDisable();
-        else
-            SignalMouseModeHookStop();
+        // Runtime-tested GlazeWM can lose the CLI response for
+        // 'query binding-modes' while a large mode is active. Disable the
+        // requested mode unconditionally, then query again:
+        //   - query now succeeds with no mode => requested mode was active;
+        //   - another mode remains or query still cannot return => switch to
+        //     the requested mode, which atomically replaces the active mode.
+        SetGlazeWmBindingMode(mode, false);
+        System.Threading.Thread.Sleep(75);
 
+        string remainingMode;
+        if (TryGetActiveGlazeWmBindingMode(out remainingMode) &&
+            String.IsNullOrWhiteSpace(remainingMode))
+            return 0;
+
+        SignalMouseModeHookStop();
         SetGlazeWmBindingMode(mode, true);
         return 0;
     }
@@ -12403,6 +12483,15 @@ public static class Program
             string expanded = Environment.ExpandEnvironmentVariables("%LOCALAPPDATA%\\wgdot");
             if (String.IsNullOrWhiteSpace(expanded) || expanded.IndexOf("wgdot", StringComparison.OrdinalIgnoreCase) < 0)
                 throw new Exception("Environment expansion self-test failed.");
+
+            int expectedInputSize = IntPtr.Size == 8 ? 40 : 28;
+            if (Marshal.SizeOf(typeof(INPUT)) != expectedInputSize)
+                throw new Exception(
+                    "Win32 INPUT layout self-test failed. Expected " +
+                    expectedInputSize.ToString(CultureInfo.InvariantCulture) +
+                    " bytes, got " +
+                    Marshal.SizeOf(typeof(INPUT)).ToString(CultureInfo.InvariantCulture) +
+                    ".");
 
             string runtimeCopySource = Path.Combine(temp, "runtime-copy-source.bin");
             string runtimeCopyDestination = Path.Combine(temp, "runtime-copy-destination.bin");
