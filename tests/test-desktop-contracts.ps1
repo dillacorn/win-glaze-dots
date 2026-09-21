@@ -119,9 +119,7 @@ try {
         'UserProfile/.config/win-glaze/scripts/theme-switcher.ps1',
         'UserProfile/.config/win-glaze/scripts/bar-autohide.ps1',
         'UserProfile/.config/win-glaze/scripts/idle-inhibitor.ps1',
-        'UserProfile/.config/win-glaze/scripts/flow-launcher.ps1',
-        'UserProfile/.config/win-glaze/scripts/rawaccel-toggle.ps1',
-        'UserProfile/.config/win-glaze/scripts/yasb-quick-launch.ps1'
+        'UserProfile/.config/win-glaze/scripts/rawaccel-toggle.ps1'
     )
 
     Check 'managed desktop runtime files are WGDot-independent' {
@@ -157,7 +155,7 @@ try {
             $text = Get-Content -LiteralPath (Join-Path $repo ($relative -replace '/', '\')) -Raw -Encoding UTF8
             Require ($text -match 'yasb\.power_menu\.PowerMenuWidget') ('Native power menu missing: ' + $relative)
             Require ($text -match 'glazewm\.binding_mode\.GlazewmBindingModeWidget') ('Native binding-mode widget missing: ' + $relative)
-            Require ($text -match 'keys:\s*"f24"') ('Private F24 Quick Launch hotkey missing: ' + $relative)
+            Require ($text -notmatch 'keys:\s*"f24"') ('Synthetic F24 Quick Launch relay returned: ' + $relative)
             Require ($text -notmatch 'glazewm-pause-status|glazewm-pause-toggle') ('Retired pause helper reference returned: ' + $relative)
         }
     }
@@ -165,6 +163,17 @@ try {
     Check 'Flow launcher migration no longer owns Alt+P globally' {
         Require ($nativeSource -notmatch 'ApplyFlowLauncherAltP|RestoreLegacyFlowHotkey') 'Retired Flow hotkey implementation remains'
         Require ($nativeSource -match 'result\.Tweaks\.RemoveAll\(x => String\.Equals\(x, "flow-launcher-alt-p"') 'Saved selections no longer retire the old Flow hotkey tweak'
+    }
+
+    Check 'launcher bindings avoid relay scripts and synthetic keys' {
+        $normal = Get-Content -LiteralPath (Join-Path $repo 'UserProfile\.glzr\glazewm\config.yaml') -Raw -Encoding UTF8
+        $work = Get-Content -LiteralPath (Join-Path $repo 'UserProfile\.glzr\glazewm\custom_work_config.yaml') -Raw -Encoding UTF8
+        foreach ($text in @($normal, $work)) {
+            Require ($text -notmatch 'flow-launcher\.ps1|yasb-quick-launch\.ps1') 'Launcher relay script returned to GlazeWM'
+        }
+        Require ($work -match 'shell-exec %LOCALAPPDATA%/FlowLauncher/Flow\.Launcher\.exe') 'Work Alt+P no longer launches Flow directly'
+        Require ($work -match 'bindings:\s*\["alt\+p"\]') 'Work Alt+P binding is missing'
+        Require ($work -notmatch 'bindings:\s*\["lwin\+d",\s*"rwin\+d"\]') 'Work Super+D synthetic YASB relay returned'
     }
 
     Check 'EarTrumpet direct Super+V configuration remains management-time only' {
