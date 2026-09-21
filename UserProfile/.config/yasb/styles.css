@@ -166,10 +166,14 @@ QToolTip,
     background-color: var(--subtle-hover);
 }
 
-/* Awtarchy-style mouse/workspace mover. The Applications widget always
-   contains the mouse toggle plus four directional buttons. Clamp the widget
-   to the first icon at rest; native QSS :hover expands the same widget so the
-   arrows appear without requiring a click or a YASB Grouper. */
+/* Awtarchy-style mouse/workspace mover. The mouse hub stays in its own
+   always-visible child. A passive Grouper supplies one hover parent for the
+   arrow child, which is width-zero until the group is hovered. */
+.workspace-move-grouper,
+.workspace-move-grouper .widget-container,
+.workspace-move-grouper .container,
+.workspace-mouse-hub,
+.workspace-mouse-hub .widget-container,
 .workspace-move-buttons,
 .workspace-move-buttons .widget-container {
     background-color: transparent;
@@ -179,15 +183,12 @@ QToolTip,
     padding: 0;
 }
 
-.workspace-move-buttons {
+.workspace-mouse-hub {
     min-width: 28px;
     max-width: 28px;
 }
 
-.workspace-move-buttons:hover {
-    max-width: 156px;
-}
-
+.workspace-mouse-hub .label,
 .workspace-move-buttons .label {
     color: var(--foreground);
     background-color: transparent;
@@ -199,8 +200,18 @@ QToolTip,
     padding: 0 7px;
 }
 
+.workspace-mouse-hub .label:hover,
 .workspace-move-buttons .label:hover {
     background-color: var(--strong-hover);
+}
+
+.workspace-move-buttons {
+    min-width: 0;
+    max-width: 0;
+}
+
+.workspace-move-grouper:hover .workspace-move-buttons {
+    max-width: 112px;
 }
 
 /* Running window strip. */

@@ -52,7 +52,7 @@ bars:
         [
           "launcher",
           "glazewm_workspaces",
-          "workspace_move",
+          "workspace_move_group",
           "taskbar",
           "glazewm_pause",
           "glazewm_binding_mode",
@@ -201,6 +201,17 @@ widgets:
         enabled_active: false
         enabled_focused: false
 
+  workspace_mouse:
+    type: "yasb.applications.ApplicationsWidget"
+    options:
+      label: "{data}"
+      class_name: "workspace-mouse-hub"
+      tooltip: true
+      app_list:
+        - icon: "󰍽"
+          launch: "wgdot mouse-mode-toggle"
+          name: "Mouse window mode (Super+Alt+M)"
+
   workspace_move:
     type: "yasb.applications.ApplicationsWidget"
     options:
@@ -208,9 +219,6 @@ widgets:
       class_name: "workspace-move-buttons"
       tooltip: true
       app_list:
-        - icon: "󰍽"
-          launch: "wgdot mouse-mode-toggle"
-          name: "Mouse window mode (Super+Alt+M)"
         - icon: "↑"
           launch: "glazewm.exe command move-workspace --direction up"
           name: "Move workspace up"
@@ -223,6 +231,16 @@ widgets:
         - icon: "→"
           launch: "glazewm.exe command move-workspace --direction right"
           name: "Move workspace right"
+
+  workspace_move_group:
+    type: "yasb.grouper.GrouperWidget"
+    options:
+      class_name: "workspace-move-grouper"
+      widgets: ["workspace_mouse", "workspace_move"]
+      hide_empty: false
+      # Passive hover container only. Native Grouper click-collapse stays off.
+      collapse_options:
+        enabled: false
 
   glazewm_tiling_direction:
     type: "glazewm.tiling_direction.GlazewmTilingDirectionWidget"
@@ -324,15 +342,17 @@ widgets:
   idle_inhibitor:
     type: "yasb.custom.CustomWidget"
     options:
-      label: "{data}"
+      # WGDot emits ASCII-only JSON with escaped Font Awesome glyphs. YASB
+      # turns those escapes back into Awtarchy's eye/eye-slash icons.
+      label: "{data[icon]}"
       class_name: "awtarchy-idle"
       tooltip: true
-      tooltip_label: "Idle inhibitor / Keep Awake"
+      tooltip_label: "{data[tooltip]}"
       exec_options:
         run_cmd: "wgdot idle-inhibitor-status"
         run_once: false
         run_interval: 1000
-        return_format: "string"
+        return_format: "json"
         hide_empty: false
       callbacks:
         on_left: "exec wgdot idle-inhibitor-toggle"

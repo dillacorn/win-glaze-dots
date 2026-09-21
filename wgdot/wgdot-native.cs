@@ -19,7 +19,7 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-52";
+    const string Version = "native-preview-53";
     const int WingetPreflightTimeoutMs = 30000;
     const string RepoFullName = "dillacorn/win-glaze-dots";
     const string RepoUrl = "https://github.com/dillacorn/win-glaze-dots.git";
@@ -574,6 +574,7 @@ internal static class WgdotNative
             if (command == "super-l-test") return SuperLTestFromArgs(args.Skip(1).ToArray());
             if (command == "super-l-hook") return SuperLHookWorker();
             if (command == "mouse-mode-toggle") return MouseModeToggle();
+            if (command == "mouse-mode-disable") return MouseModeDisable();
             if (command == "mouse-mode-switch") return MouseModeSwitchFromArgs(args.Skip(1).ToArray());
             if (command == "mouse-mode-hook") return MouseModeHook();
             if (command == "glazewm-pause-status") return GlazeWmPauseStatus();
@@ -619,7 +620,10 @@ internal static class WgdotNative
     {
         return
             String.Equals(command, "quick-launch", StringComparison.OrdinalIgnoreCase) ||
-            String.Equals(command, "clipboard-history", StringComparison.OrdinalIgnoreCase);
+            String.Equals(command, "clipboard-history", StringComparison.OrdinalIgnoreCase) ||
+            String.Equals(command, "mouse-mode-toggle", StringComparison.OrdinalIgnoreCase) ||
+            String.Equals(command, "mouse-mode-disable", StringComparison.OrdinalIgnoreCase) ||
+            String.Equals(command, "mouse-mode-switch", StringComparison.OrdinalIgnoreCase);
     }
 
     static void ReportDesktopHelperFailure(string command, Exception error)
@@ -6569,7 +6573,15 @@ internal static class WgdotNative
 
     static int IdleInhibitorStatus()
     {
-        Console.Write(NamedMutexExists(IdleInhibitorMutexName) ? "" : "");
+        bool active = NamedMutexExists(IdleInhibitorMutexName);
+
+        // Keep stdout ASCII-only because YASB's CustomWidget decodes command
+        // output as UTF-8. JSON escapes are converted back into the same
+        // Font Awesome eye/eye-slash glyphs Awtarchy uses after json.loads().
+        Console.Write(
+            active
+                ? "{\"icon\":\"\\uf06e\",\"active\":true,\"tooltip\":\"Keep Awake: activated - click to deactivate\"}"
+                : "{\"icon\":\"\\uf070\",\"active\":false,\"tooltip\":\"Idle inhibitor: deactivated - click to activate Keep Awake\"}");
         return 0;
     }
 
@@ -7269,36 +7281,29 @@ internal static class WgdotNative
     static bool GlazeWmBindingModeActive(string name)
     {
         ProcResult result = Run("glazewm.exe", "query binding-modes", null);
-        if (result.ExitCode != 0 || String.IsNullOrWhiteSpace(result.StdOut))
-            return false;
+        Dictionary<string, object> response =
+            RequireGlazeWmSuccess(result, "GlazeWM binding-mode query");
 
-        try
+        object dataObject;
+        if (!response.TryGetValue("data", out dataObject) || dataObject == null)
+            throw new Exception("GlazeWM binding-mode query returned no data.");
+
+        Dictionary<string, object> data = AsDictionary(dataObject);
+        object modesObject;
+        if (!data.TryGetValue("bindingModes", out modesObject) || modesObject == null)
+            throw new Exception("GlazeWM binding-mode query returned no bindingModes list.");
+
+        IEnumerable modes = modesObject as IEnumerable;
+        if (modes == null)
+            throw new Exception("GlazeWM binding-mode query returned invalid bindingModes data.");
+
+        foreach (object modeObject in modes)
         {
-            Dictionary<string, object> response = AsDictionary(Json.DeserializeObject(result.StdOut.Trim()));
-            object dataObject;
-            if (!response.TryGetValue("data", out dataObject) || dataObject == null)
-                return false;
-
-            Dictionary<string, object> data = AsDictionary(dataObject);
-            object modesObject;
-            if (!data.TryGetValue("bindingModes", out modesObject) || modesObject == null)
-                return false;
-
-            IEnumerable modes = modesObject as IEnumerable;
-            if (modes == null)
-                return false;
-
-            foreach (object modeObject in modes)
-            {
-                Dictionary<string, object> mode = AsDictionary(modeObject);
-                object modeName;
-                if (mode.TryGetValue("name", out modeName) &&
-                    String.Equals(Convert.ToString(modeName), name, StringComparison.OrdinalIgnoreCase))
-                    return true;
-            }
-        }
-        catch
-        {
+            Dictionary<string, object> mode = AsDictionary(modeObject);
+            object modeName;
+            if (mode.TryGetValue("name", out modeName) &&
+                String.Equals(Convert.ToString(modeName), name, StringComparison.OrdinalIgnoreCase))
+                return true;
         }
 
         return false;
@@ -7311,10 +7316,9 @@ internal static class WgdotNative
             "glazewm.exe",
             "command " + verb + " --name " + Q(name),
             null);
-        if (result.ExitCode != 0)
-            throw new Exception(
-                "GlazeWM binding mode " + (enabled ? "enable" : "disable") +
-                " failed: " + LastUsefulLine(result.StdErr + "\n" + result.StdOut));
+        RequireGlazeWmSuccess(
+            result,
+            "GlazeWM binding mode " + (enabled ? "enable" : "disable") + " '" + name + "'");
     }
 
     static void SignalMouseModeHookStop()
@@ -7345,14 +7349,30 @@ internal static class WgdotNative
             throw new Exception("Failed to start the WGDot mouse-mode hook.");
     }
 
+    static bool MouseModeIsActive()
+    {
+        // The hook mutex is the strongest runtime evidence because it exists
+        // only while WGDot's scoped mouse hook is alive. Fall back to the
+        // GlazeWM binding-mode query so a stale mode can still be shut down.
+        if (NamedMutexExists(MouseModeMutexName))
+            return true;
+
+        return GlazeWmBindingModeActive("mouse");
+    }
+
+    static int MouseModeDisable()
+    {
+        // While already in mouse mode, Super+Alt+M uses this unconditional
+        // escape path instead of running another toggle/query decision.
+        SetGlazeWmBindingMode("mouse", false);
+        SignalMouseModeHookStop();
+        return 0;
+    }
+
     static int MouseModeToggle()
     {
-        if (GlazeWmBindingModeActive("mouse"))
-        {
-            SetGlazeWmBindingMode("mouse", false);
-            SignalMouseModeHookStop();
-            return 0;
-        }
+        if (MouseModeIsActive())
+            return MouseModeDisable();
 
         SetGlazeWmBindingMode("mouse", true);
         try
@@ -7375,10 +7395,11 @@ internal static class WgdotNative
               String.Equals(args[0], "vm", StringComparison.OrdinalIgnoreCase)))
             throw new Exception("mouse-mode-switch requires exactly one target: noalt or vm.");
 
-        if (GlazeWmBindingModeActive("mouse"))
-            SetGlazeWmBindingMode("mouse", false);
+        if (MouseModeIsActive())
+            MouseModeDisable();
+        else
+            SignalMouseModeHookStop();
 
-        SignalMouseModeHookStop();
         SetGlazeWmBindingMode(args[0], true);
         return 0;
     }

@@ -320,7 +320,8 @@ binding_modes:
   # keyboard-mode state; WGDot owns the temporary low-level mouse hook.
   - name: "mouse"
     keybindings:
-      - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe mouse-mode-toggle']
+      # Once mouse mode is active this chord is an unconditional escape path.
+      - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe mouse-mode-disable']
         bindings: ["lwin+alt+m", "rwin+alt+m"]
       - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe mouse-mode-switch noalt']
         bindings: ["lwin+alt+n", "rwin+alt+n"]
