@@ -214,8 +214,6 @@ binding_modes:
         bindings: ["lwin+alt+p", "rwin+alt+p"]
       - commands: ['shell-exec --hide-window powershell.exe -NoLogo -NoProfile -WindowStyle Hidden -File "%USERPROFILE%\.config\win-glaze\scripts\bar-autohide.ps1" toggle']
         bindings: ["alt+ctrl+b"]
-      - commands: ['shell-exec --hide-window powershell.exe -NoLogo -NoProfile -WindowStyle Hidden -File "%USERPROFILE%\.config\win-glaze\scripts\yasb-quick-launch.ps1"']
-        bindings: ["alt+p", "lwin+d", "rwin+d"]
 
       - commands: ['shell-exec wt.exe -w new new-tab --title "Win Glaze Themes" --suppressApplicationTitle powershell.exe -NoLogo -NoProfile -File "%USERPROFILE%\.config\win-glaze\scripts\theme-switcher.ps1"']
         bindings: ["lwin+t", "rwin+t"]
@@ -391,8 +389,6 @@ keybindings:
   # Standalone script coordinates YASB auto-hide with the GlazeWM top gap.
   - commands: ['shell-exec --hide-window powershell.exe -NoLogo -NoProfile -WindowStyle Hidden -File "%USERPROFILE%\.config\win-glaze\scripts\bar-autohide.ps1" toggle']
     bindings: ["alt+ctrl+b"]
-  - commands: ['shell-exec --hide-window powershell.exe -NoLogo -NoProfile -WindowStyle Hidden -File "%USERPROFILE%\.config\win-glaze\scripts\yasb-quick-launch.ps1"']
-    bindings: ["alt+p", "lwin+d", "rwin+d"]
 
   - commands: ['shell-exec C:\Program Files (x86)\SpeedCrunch\speedcrunch.exe']
     bindings: ["alt+shift+c"]
