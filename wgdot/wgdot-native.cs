@@ -19,7 +19,7 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-58";
+    const string Version = "native-preview-59";
     const int WingetPreflightTimeoutMs = 30000;
     const string RepoFullName = "dillacorn/win-glaze-dots";
     const string RepoUrl = "https://github.com/dillacorn/win-glaze-dots.git";
@@ -254,6 +254,9 @@ internal static class WgdotNative
 
     [DllImport("user32.dll")]
     static extern bool PostMessage(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    static extern bool PostThreadMessage(uint idThread, uint msg, UIntPtr wParam, IntPtr lParam);
 
     [DllImport("user32.dll")]
     static extern bool IsWindow(IntPtr hWnd);
@@ -7228,31 +7231,41 @@ class WgdotHidden
 
     static int OpenYasbQuickLaunch()
     {
-        if (Process.GetProcessesByName("yasb").Length == 0)
+        Process[] processes = Process.GetProcessesByName("yasb");
+        if (processes.Length == 0)
             throw new Exception("YASB is not running; Quick Launch cannot be opened.");
 
-        WaitForLauncherModifierRelease();
-
-        // YASB v2.0.7 exposes widget hotkeys through Win32 RegisterHotKey but
-        // has no CLI/IPC command for invoking an individual widget callback.
-        // GlazeWM's low-level keyboard hook also sees injected input, so mirror
-        // the Clipboard History helper: preserve the pause state and pause the
-        // WM while synthesizing YASB's private Win+Alt+F24 bridge. SendInput
-        // injects the complete chord atomically instead of racing keybd_event calls.
-        bool wasPaused = GlazeWmIsPaused();
-        if (!wasPaused)
-            GlazeWmPauseToggle();
-
-        try
+        // YASB registers all configured widget hotkeys on a dedicated
+        // HotkeyListener thread and dispatches WM_HOTKEY by numeric binding ID.
+        // The managed config deliberately keeps Quick Launch as the first YASB
+        // keybinding, so it is ID 1. Post that event directly instead of
+        // synthesizing Win+Alt+F24 through SendInput. This avoids GlazeWM's
+        // keyboard hook entirely, so no temporary WM pause, modifier-release
+        // wait, or artificial sleep is needed.
+        bool posted = false;
+        foreach (Process process in processes)
         {
-            SendKeyChord(VkLwin, VkMenu, VkF24);
-            System.Threading.Thread.Sleep(150);
+            try
+            {
+                foreach (ProcessThread thread in process.Threads)
+                {
+                    if (PostThreadMessage(
+                            unchecked((uint)thread.Id),
+                            0x0312,
+                            new UIntPtr(1),
+                            IntPtr.Zero))
+                        posted = true;
+                }
+            }
+            catch
+            {
+            }
         }
-        finally
-        {
-            if (!wasPaused)
-                GlazeWmPauseToggle();
-        }
+
+        if (!posted)
+            throw new System.ComponentModel.Win32Exception(
+                Marshal.GetLastWin32Error(),
+                "Could not dispatch Quick Launch directly to YASB.");
 
         return 0;
     }
