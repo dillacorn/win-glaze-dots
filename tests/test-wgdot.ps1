@@ -491,7 +491,7 @@ Assert-True ($nativeSourceText -match 'CreateRuntimeSwapHelper') "native runtime
 Assert-True ($nativeSourceText -match 'PrepareRawRevisionSource') "native runtime can acquire exact managed sources from raw.githubusercontent.com"
 Assert-True ($nativeSourceText -match 'WGDOT_FORCE_RAW_SOURCE') "CI can force the restricted-network raw source path"
 Assert-True ($nativeSourceText -match 'source-self-test') "native runtime exposes an internal exact-source validation command"
-Assert-True ($nativeSourceText -match 'explicitRefTesting.*recordedRevision|recordedRevision.*explicitRefTesting') "explicit exact bootstrap revisions stay pinned without requiring a branch-head API lookup"
+Assert-True ($nativeSourceText -match '(?s)string recordedRevision = GetString\(bootstrap, "sourceRevision"\);.*?explicitRefTesting.*?Regex\.IsMatch\(recordedRevision.*?\? recordedRevision\.ToLowerInvariant\(\).*?: ResolveBranchHeadViaApi\(sourceRef\)') "explicit exact bootstrap revisions stay pinned without requiring a branch-head API lookup"
 Assert-True ($nativeSourceText -match 'runtime-refresh\.log') "blocked API refresh checks are recorded without killing the installed runtime"
 Assert-True ($nativeSourceText -match 'CopyRuntimeWithRetry') "runtime install retries replacement across transient executable locks"
 Assert-True ($nativeSourceText -match 'runtime-swap-stop') "runtime self-refresh stops WGDot-owned workers before replacing the installed executable"
