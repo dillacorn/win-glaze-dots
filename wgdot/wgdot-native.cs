@@ -8528,6 +8528,8 @@ class WgdotHidden
                 throw new Exception(
                     "GlazeWM reload failed: " +
                     LastUsefulLine(glazeReload.StdErr + "\n" + glazeReload.StdOut));
+            // GlazeWM reload clears active binding modes upstream.
+            WriteTrackedGlazeBindingMode("");
         }
         catch
         {
@@ -8535,6 +8537,7 @@ class WgdotHidden
             WriteTextAtomic(glazePath, glazeOriginal);
             try { Run("yasbc.exe", "reload -s", null); } catch { }
             try { Run("glazewm.exe", "command wm-reload-config", null); } catch { }
+            WriteTrackedGlazeBindingMode("");
             throw;
         }
 
