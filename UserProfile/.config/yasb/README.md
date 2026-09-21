@@ -7,14 +7,12 @@ WGDot manages installation, updates, backups, and deployment of these files. It 
 ## Runtime ownership
 
 - **GlazeWM** owns window-manager keybindings, binding modes, pause, workspace actions, screenshots, and direct Windows/application launches.
-- **YASB** owns bar widgets, native widget callbacks, its native power menu, DND, Quick Launch, and the private Quick Launch hotkey.
+- **YASB** owns bar widgets, native widget callbacks, its native power menu, DND, and Quick Launch.
 - **Installed applications** own their supported native hotkeys where possible. EarTrumpet is configured to own `Super+V` directly.
 - **Portable non-elevated scripts** handle only custom behavior that needs coordination across applications:
   - `theme-switcher.ps1`
   - `bar-autohide.ps1`
   - `idle-inhibitor.ps1`
-  - `yasb-quick-launch.ps1`
-  - `flow-launcher.ps1`
   - `rawaccel-toggle.ps1`
 - **WGDot is never required when a bar button or window-manager keybinding is used.**
 
@@ -53,25 +51,24 @@ The system tray definition remains available but is not rendered in the bar. `us
 
 ## Launcher ownership
 
-YASB Quick Launch registers only a private `F24` hotkey. It must not globally register `Alt+P` or `Super+D`, because a Windows `RegisterHotKey` registration would steal those chords even while GlazeWM is in VM mode.
+YASB Quick Launch is opened from its native bar widget. It does not register a private synthetic hotkey and GlazeWM does not inject a key to open it.
 
-GlazeWM owns the user-facing chords and invokes the portable `yasb-quick-launch.ps1` bridge:
-
-- Normal profile: `Alt+P` and `Super+D` open YASB Quick Launch.
-- Work profile: `Alt+P` opens Flow Launcher and `Super+D` opens YASB Quick Launch.
-- VM mode does not define those chords, so they can pass through to the guest.
-
-The Work split is an A/B migration choice, not the normal project default.
+- Normal profile: no external Quick Launch chord is advertised until YASB exposes a documented direct command/interface that GlazeWM can invoke.
+- Work profile: `Alt+P` launches Flow Launcher directly from GlazeWM for the current work-PC test.
+- `Super+D` is not faked through YASB, PowerShell, SendKeys, or WGDot.
+- VM mode therefore has no launcher relay that can steal guest shortcuts.
 
 ## Binding modes
 
-GlazeWM owns `noalt` and `vm` modes directly with `wm-enable-binding-mode` and `wm-disable-binding-mode`.
+GlazeWM owns `noalt`, `mouse`, and `vm` modes directly with `wm-enable-binding-mode` and `wm-disable-binding-mode`.
+
+`Win+Alt+N`, `Win+Alt+M`, and `Win+Alt+V` enter the corresponding mode. The same mode chord exits that mode, and mode-to-mode transitions explicitly disable the current mode first.
 
 YASB's native `GlazewmBindingModeWidget` displays and cycles those modes. No WGDot-tracked mode state is required.
 
 Real GlazeWM pause remains `Win+Alt+P` and uses `wm-toggle-pause`.
 
-Mouse-window mode is currently omitted. GlazeWM 3.10.x does not expose mouse buttons through its normal keybinding parser, and the previous WGDot-owned hook was removed with the runtime-decoupling work. Do not render a dead mouse-mode control.
+GlazeWM 3.10.x still does not expose mouse buttons through its keybinding parser. The `mouse` mode therefore restores native mode state/visibility only; it does not pretend to provide the old low-level mouse move/resize hook.
 
 ## Themes
 
@@ -149,7 +146,7 @@ There is currently no rendered clipboard-history bar button and no managed `Supe
 | network / Bluetooth | native WiFi and Bluetooth widgets |
 | notifications / mute | native `DndWidget` |
 | power controls | native `PowerMenuWidget` |
-| launcher | native `QuickLaunchWidget` behind the portable F24 bridge |
+| launcher | native `QuickLaunchWidget`; Work `Alt+P` launches Flow directly during testing |
 | theme switching | standalone non-elevated `theme-switcher.ps1` |
 | bar auto-hide | standalone non-elevated `bar-autohide.ps1` |
 | keep awake | standalone non-elevated `idle-inhibitor.ps1` |
@@ -162,7 +159,7 @@ There is currently no rendered clipboard-history bar button and no managed `Supe
 - A dedicated privacy/screen-capture indicator has no verified native YASB equivalent.
 - Current YASB bar placement is top/bottom; left/right vertical bars are not faked.
 - Workspace urgent-state coloring and Awtarchy's static number+glyph mappings do not have exact YASB equivalents.
-- Mouse-window move/resize mode is omitted until it has a portable implementation independent of WGDot.
+- The native `mouse` binding mode exists and toggles with `Win+Alt+M`, but actual mouse-button move/resize behavior remains absent because GlazeWM 3.10.x does not expose mouse buttons.
 - Custom clipboard history is omitted until it has a portable implementation independent of WGDot.
 - Awtarchy can retint task/tray image pixels; stock YASB does not expose an equivalent image-tint option.
 - At exactly 15% battery, YASB's shared threshold controls both critical styling and glyph selection, so the exact Awtarchy glyph boundary cannot be reproduced independently.
