@@ -10,6 +10,7 @@ APPROVED_WGDOT_RUNTIME = (
     "wgdotw.exe bar-autohide-toggle",
     "wgdotw.exe rawaccel-toggle",
     "wgdot.exe theme",
+    "wgdotw.exe power-menu",
 )
 
 FORBIDDEN_WGDOT_RUNTIME = (
@@ -19,7 +20,6 @@ FORBIDDEN_WGDOT_RUNTIME = (
     "clipboard-history",
     "flameshot-gui",
     "display-settings",
-    "power-menu",
 )
 
 for yasb_name in ("config.yaml", "custom_work_config.yaml"):
@@ -60,20 +60,15 @@ for yasb_name in ("config.yaml", "custom_work_config.yaml"):
     )
 
     power = yasb["widgets"]["power_menu"]
-    assert power["type"] == "yasb.power_menu.PowerMenuWidget", (yasb_name, "power menu must remain native YASB")
-    assert power["options"]["menu_style"] == "popup", (yasb_name, "power menu must use native popup style")
-    assert power["options"]["callbacks"]["on_left"] == "toggle_power_menu", (
+    assert power["type"] == "yasb.custom.CustomWidget", (yasb_name, "power button must remain a lightweight YASB custom control")
+    assert power["options"]["callbacks"]["on_left"] == "exec wgdotw.exe power-menu", (
         yasb_name,
-        "power icon must use YASB's native toggle callback",
+        "power icon must open the compiled Awtarchy-style power surface",
     )
-    assert power["options"]["callbacks"]["on_right"] == "toggle_power_menu", (
+    assert power["options"]["callbacks"]["on_right"] == "exec wgdotw.exe power-menu", (
         yasb_name,
-        "power icon right click must use YASB's native toggle callback",
+        "power icon right click must toggle the same compiled power surface",
     )
-    assert any(
-        binding.get("keys") == "win+p" and binding.get("action") == "toggle_power_menu"
-        for binding in power["options"].get("keybindings", [])
-    ), (yasb_name, "Win+P must use the native YASB power menu")
 
 for name in ("config.yaml", "custom_work_config.yaml"):
     glaze_path = root / "UserProfile/.glzr/glazewm" / name
@@ -117,6 +112,19 @@ for name in ("config.yaml", "custom_work_config.yaml"):
                         "native-capable action was routed through WGDot",
                         command,
                     )
+
+        power_keys = {
+            key
+            for binding in bindings
+            if any("wgdotw.exe power-menu" in command for command in binding["commands"])
+            for key in binding["bindings"]
+        }
+        assert {"lwin+p", "rwin+p"} <= power_keys, (
+            name,
+            mode,
+            "Super+P must open the compiled Awtarchy-style power surface",
+            power_keys,
+        )
 
         rawaccel_keys = {
             key
