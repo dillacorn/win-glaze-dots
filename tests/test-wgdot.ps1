@@ -596,7 +596,7 @@ Assert-True ($nativeSourceText -match 'command == "clipboard-history"') "native 
 Assert-True ($nativeSourceText -match 'ApplyWindowsShellHotkeysPolicy') "native runtime implements reversible selective Windows hotkey filtering"
 Assert-True ($nativeSourceText -match 'MigrateLegacyWindowsShellHotkeys') "native runtime migrates WGDot-owned legacy NoWinKeys state"
 Assert-True ($nativeSourceText -match 'DiscardRegistryOriginalSnapshot\(id, "HKCU", legacyPath, legacyName\)') "legacy NoWinKeys ownership is retired after migration"
-Assert-True ($manifestText -match 'migrate-legacy-windows-hotkeys') "managed GlazeWM updates run the legacy hotkey migration"
+Assert-True ([bool](@(($manifest.components | Where-Object { $_.id -eq "glazewm" }).postActions | Where-Object { $_.type -eq "migrate-legacy-windows-hotkeys" }).Count -eq 1)) "managed GlazeWM updates run the legacy hotkey migration"
 Assert-True ($nativeSourceText -match '"DisabledHotkeys"') "native runtime uses selective Explorer DisabledHotkeys instead of blanket NoWinKeys"
 Assert-True ($nativeSourceText -match '"ABCDEFGHIJKLMOPQRSTUWXYZ0123456789"') "selective shell filter preserves native Win+V and Win+N"
 Assert-True ($nativeSourceText -match 'RestoreRegistryOriginals\(id\)') "Windows hotkey tweak participates in registry rollback"

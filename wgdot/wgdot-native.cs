@@ -8753,7 +8753,7 @@ public static class Program
             {
                 if (key == null)
                     throw new UnauthorizedAccessException(
-                        "Registry access denied: HKCU\" + legacyPath + "\" + legacyName);
+                        "Registry access denied: HKCU\\\\" + legacyPath + "\\\\" + legacyName);
 
                 if (!GetBool(original, "exists"))
                 {
