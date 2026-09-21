@@ -151,11 +151,120 @@ function Get-WgdotYasbThemeCss {
     ) -join [Environment]::NewLine
 }
 
+function Get-WgdotWindowsTerminalSettingsPath {
+    return (Join-Path $env:LOCALAPPDATA "Packages\Microsoft.WindowsTerminal_8wekyb3d8bbwe\LocalState\settings.json")
+}
+
+function Set-WgdotWindowsTerminalTheme {
+    param(
+        [Parameter(Mandatory = $true)]$Theme,
+        [string]$Path = (Get-WgdotWindowsTerminalSettingsPath)
+    )
+
+    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
+        return $false
+    }
+
+    try {
+        $root = Get-Content -LiteralPath $Path -Raw | ConvertFrom-Json
+    } catch {
+        throw "Windows Terminal settings.json could not be parsed: $($_.Exception.Message)"
+    }
+    if ($null -eq $root) { throw "Windows Terminal settings.json is empty." }
+
+    $schemeName = "WGDot $($Theme.label)"
+    $uiThemeName = "$schemeName UI"
+
+    if (-not ($root.PSObject.Properties.Name -contains "profiles")) {
+        $root | Add-Member -NotePropertyName profiles -NotePropertyValue ([pscustomobject]@{})
+    }
+    if (-not ($root.profiles.PSObject.Properties.Name -contains "defaults")) {
+        $root.profiles | Add-Member -NotePropertyName defaults -NotePropertyValue ([pscustomobject]@{})
+    }
+    $root.profiles.defaults | Add-Member -NotePropertyName colorScheme -NotePropertyValue $schemeName -Force
+
+    $schemes = @()
+    if ($root.PSObject.Properties.Name -contains "schemes") {
+        $schemes = @($root.schemes | Where-Object { -not ([string]$_.name).StartsWith("WGDot ", [StringComparison]::OrdinalIgnoreCase) })
+    }
+    $scheme = [pscustomobject][ordered]@{
+        name = $schemeName
+        background = [string]$Theme.background
+        foreground = [string]$Theme.foreground
+        cursorColor = [string]$Theme.foreground
+        selectionBackground = [string]$Theme.focus
+        black = [string]$Theme.dark
+        red = [string]$Theme.urgent
+        green = [string]$Theme.charging
+        yellow = [string]$Theme.critical
+        blue = [string]$Theme.focus
+        purple = [string]$Theme.active
+        cyan = [string]$Theme.hover
+        white = [string]$Theme.foreground
+        brightBlack = [string]$Theme.muted
+        brightRed = [string]$Theme.urgent
+        brightGreen = [string]$Theme.charging
+        brightYellow = [string]$Theme.critical
+        brightBlue = [string]$Theme.focus
+        brightPurple = [string]$Theme.active
+        brightCyan = [string]$Theme.hover
+        brightWhite = [string]$Theme.foreground
+    }
+    $root | Add-Member -NotePropertyName schemes -NotePropertyValue @($schemes + $scheme) -Force
+
+    $themes = @()
+    if ($root.PSObject.Properties.Name -contains "themes") {
+        $themes = @($root.themes | Where-Object { -not ([string]$_.name).StartsWith("WGDot ", [StringComparison]::OrdinalIgnoreCase) })
+    }
+
+    $background = [string]$Theme.background
+    $red = [Convert]::ToInt32($background.Substring(1, 2), 16)
+    $green = [Convert]::ToInt32($background.Substring(3, 2), 16)
+    $blue = [Convert]::ToInt32($background.Substring(5, 2), 16)
+    $luminance = (0.2126 * $red) + (0.7152 * $green) + (0.0722 * $blue)
+    $applicationTheme = if ($luminance -ge 155) { "light" } else { "dark" }
+
+    $uiTheme = [pscustomobject][ordered]@{
+        name = $uiThemeName
+        window = [pscustomobject][ordered]@{
+            applicationTheme = $applicationTheme
+            useMica = $false
+        }
+        tab = [pscustomobject][ordered]@{
+            background = "terminalBackground"
+            unfocusedBackground = [string]$Theme.background
+        }
+        tabRow = [pscustomobject][ordered]@{
+            background = [string]$Theme.background
+            unfocusedBackground = [string]$Theme.background
+        }
+    }
+    $root | Add-Member -NotePropertyName themes -NotePropertyValue @($themes + $uiTheme) -Force
+    $root | Add-Member -NotePropertyName theme -NotePropertyValue $uiThemeName -Force
+
+    $parent = Split-Path -Parent $Path
+    Ensure-WgdotDirectory -Path $parent
+    $tmp = "$Path.tmp-$([guid]::NewGuid().ToString("N"))"
+    $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+    try {
+        [System.IO.File]::WriteAllText(
+            $tmp,
+            (($root | ConvertTo-Json -Depth 32) + [Environment]::NewLine),
+            $utf8NoBom)
+        Move-Item -LiteralPath $tmp -Destination $Path -Force
+    } finally {
+        if (Test-Path -LiteralPath $tmp) { Remove-Item -LiteralPath $tmp -Force }
+    }
+
+    return $true
+}
+
 function Set-WgdotYasbTheme {
     param(
         [Parameter(Mandatory = $true)][string]$Id,
         [string]$CssPath = (Join-Path $env:USERPROFILE ".config\yasb\theme.css"),
-        [string]$StatePath = $script:ThemeStatePath
+        [string]$StatePath = $script:ThemeStatePath,
+        [string]$TerminalSettingsPath = (Get-WgdotWindowsTerminalSettingsPath)
     )
 
     $theme = Get-WgdotYasbTheme -Id $Id
@@ -174,15 +283,24 @@ function Set-WgdotYasbTheme {
 
     [System.IO.File]::AppendAllText($CssPath, [Environment]::NewLine, $utf8NoBom)
 
+    $terminalSynced = Set-WgdotWindowsTerminalTheme -Theme $theme -Path $TerminalSettingsPath
+
     Write-WgdotJson -Path $StatePath -Value ([pscustomobject]@{
         id = [string]$theme.id
         label = [string]$theme.label
         appliedAt = (Get-Date).ToUniversalTime().ToString("o")
         cssPath = $CssPath
+        terminalSynced = [bool]$terminalSynced
+        terminalSettingsPath = $TerminalSettingsPath
         glazewmReloaded = $false
     })
 
     Write-Host "YASB theme applied: $($theme.label)"
+    if ($terminalSynced) {
+        Write-Host "Windows Terminal theme applied: $($theme.label)"
+    } else {
+        Write-Host "Windows Terminal settings were not found; terminal theme sync was skipped."
+    }
     Write-Host "GlazeWM was not reloaded; window tiling/layout state is untouched."
 }
 

@@ -491,6 +491,7 @@ Assert-True ($nativeSourceText -match '"maintenance-self-test"') "native runtime
 Assert-True ($nativeSourceText -match 'ensure-yasb-theme') "native runtime supports generated YASB theme post-action"
 Assert-True ((Get-Command Get-WgdotYasbThemeCss -ErrorAction SilentlyContinue) -ne $null) "PowerShell fallback exposes YASB theme CSS generator"
 Assert-True ((Get-Command Set-WgdotYasbTheme -ErrorAction SilentlyContinue) -ne $null) "PowerShell fallback exposes YASB theme writer"
+Assert-True ((Get-Command Set-WgdotWindowsTerminalTheme -ErrorAction SilentlyContinue) -ne $null) "PowerShell fallback exposes Windows Terminal theme writer"
 Assert-True ((Get-Command Get-WgdotYasbThemeManualPowerShell -ErrorAction SilentlyContinue) -ne $null) "PowerShell fallback can emit standalone theme recovery commands"
 
 $expectedThemeRows = @(
@@ -523,7 +524,10 @@ try {
     New-Item -ItemType Directory -Path $themeTestRoot -Force | Out-Null
     $themeCssPath = Join-Path $themeTestRoot "theme.css"
     $themeStatePath = Join-Path $themeTestRoot "theme.json"
-    Set-WgdotYasbTheme -Id "electric-blue" -CssPath $themeCssPath -StatePath $themeStatePath
+    $terminalSettingsPath = Join-Path $themeTestRoot "settings.json"
+    '{"profiles":{"defaults":{}},"schemes":[{"name":"External"}],"themes":[{"name":"External UI"}],"theme":"External UI"}' |
+        Set-Content -LiteralPath $terminalSettingsPath -Encoding UTF8
+    Set-WgdotYasbTheme -Id "electric-blue" -CssPath $themeCssPath -StatePath $themeStatePath -TerminalSettingsPath $terminalSettingsPath
 
     Assert-True (Test-Path -LiteralPath $themeCssPath -PathType Leaf) "PowerShell fallback writes YASB theme.css"
     Assert-True (Test-Path -LiteralPath $themeStatePath -PathType Leaf) "PowerShell fallback writes YASB theme state"
@@ -533,7 +537,12 @@ try {
     Assert-True ($themeCss -match '--foreground: #89b4fa;') "PowerShell fallback theme has Electric Blue foreground"
     Assert-True ($themeCss -match '--subtle-hover: rgba\(137, 180, 250, 20\);') "PowerShell fallback derives Awtarchy subtle-hover alpha"
     Assert-Equal "electric-blue" ([string]$themeState.id) "PowerShell fallback preserves theme id in state"
+    Assert-Equal $true ([bool]$themeState.terminalSynced) "PowerShell fallback records successful Terminal synchronization"
     Assert-Equal $false ([bool]$themeState.glazewmReloaded) "PowerShell fallback records that GlazeWM was not reloaded"
+    $terminalSettings = Get-Content -LiteralPath $terminalSettingsPath -Raw | ConvertFrom-Json
+    Assert-Equal "WGDot Electric Blue UI" ([string]$terminalSettings.theme) "PowerShell fallback selects the WGDot Terminal UI theme"
+    Assert-True (@($terminalSettings.schemes | Where-Object { $_.name -eq "External" }).Count -eq 1) "PowerShell fallback preserves unrelated Terminal schemes"
+    Assert-True (@($terminalSettings.schemes | Where-Object { $_.name -eq "WGDot Electric Blue" }).Count -eq 1) "PowerShell fallback writes the selected WGDot Terminal scheme"
 
     $manualThemeLines = @(Get-WgdotYasbThemeManualPowerShell -Id "electric-blue")
     $manualThemeText = $manualThemeLines -join [Environment]::NewLine
