@@ -232,6 +232,8 @@ binding_modes:
         bindings: ["lwin+ctrl+m", "rwin+ctrl+m"]
       - commands: ["shell-exec flameshot.exe gui"]
         bindings: ["lwin+shift+s", "rwin+shift+s"]
+      - commands: ["shell-exec wgdotw.exe rawaccel-toggle"]
+        bindings: ["lwin+shift+m", "rwin+shift+m"]
       - commands: ["shell-exec wt.exe -w new"]
         bindings: ["lwin+enter", "rwin+enter", "lwin+shift+enter", "rwin+shift+enter"]
       - commands: ["shell-exec wt.exe -w new new-tab --title \"Yazi\" --suppressApplicationTitle powershell.exe -NoProfile -NoLogo -NoExit -Command yazi"]
@@ -410,12 +412,15 @@ keybindings:
   - commands: ["shell-exec flameshot.exe gui"]
     bindings: ["lwin+shift+s", "rwin+shift+s"]
 
+  - commands: ["shell-exec wgdotw.exe rawaccel-toggle"]
+    bindings: ["lwin+shift+m", "rwin+shift+m"]
+
   - commands: ["shell-exec explorer.exe ms-settings:display"]
     bindings: ["lwin+ctrl+m", "rwin+ctrl+m"]
 
   - commands: ['shell-exec wt.exe -w new new-tab --title "Win Glaze Themes" --suppressApplicationTitle wgdot.exe theme']
     bindings: ["lwin+t", "rwin+t"]
-  # Standalone script coordinates YASB auto-hide with the GlazeWM top gap.
+  # Compiled WGDot coordinates YASB auto-hide with the GlazeWM top gap.
   - commands: ["shell-exec wgdotw.exe bar-autohide-toggle"]
     bindings: ["alt+ctrl+b"]
 
