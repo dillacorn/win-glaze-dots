@@ -5,6 +5,8 @@ set "SOURCE_REF=main"
 set "SOURCE_REVISION="
 set "REMOTE_REQUESTED=0"
 set "SOURCE_EXPLICIT=0"
+set "DOTS_ONLY=0"
+set "DOTS_PROFILE="
 
 :parse_args
 if "%~1"=="" goto args_done
@@ -32,10 +34,32 @@ if /I "%~1"=="--revision" (
   shift
   goto parse_args
 )
+if /I "%~1"=="--dots-only" (
+  set "DOTS_ONLY=1"
+  shift
+  goto parse_args
+)
+if /I "%~1"=="--profile" (
+  if "%~2"=="" (
+    echo Missing value for --profile.
+    exit /b 2
+  )
+  set "DOTS_PROFILE=%~2"
+  shift
+  shift
+  goto parse_args
+)
 echo Unknown bootstrap argument: %~1
 exit /b 2
 
 :args_done
+if "%DOTS_ONLY%"=="1" (
+  if not defined DOTS_PROFILE (
+    echo --dots-only requires --profile normal or --profile work.
+    exit /b 2
+  )
+)
+
 set "FETCH_REF=%SOURCE_REF%"
 if defined SOURCE_REVISION set "FETCH_REF=%SOURCE_REVISION%"
 
@@ -98,7 +122,22 @@ if errorlevel 1 (
 set "RC=%ERRORLEVEL%"
 if not "%RC%"=="0" goto cleanup
 
+if "%DOTS_ONLY%"=="1" goto apply_dots_only
+
 "%OUT%" ensure-winget
+set "RC=%ERRORLEVEL%"
+goto cleanup
+
+:apply_dots_only
+set "INSTALLED_WGDOT=%LOCALAPPDATA%\wgdot\bin\wgdot.exe"
+if defined WGDOT_TEST_ROOT set "INSTALLED_WGDOT=%WGDOT_TEST_ROOT%\wgdot\bin\wgdot.exe"
+if not exist "%INSTALLED_WGDOT%" (
+  echo Installed WGDot runtime was not found after bootstrap.
+  set "RC=5"
+  goto cleanup
+)
+set "WGDOT_SKIP_RUNTIME_REFRESH=1"
+"%INSTALLED_WGDOT%" dots-only --profile "%DOTS_PROFILE%" --yes
 set "RC=%ERRORLEVEL%"
 
 :cleanup
