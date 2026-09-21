@@ -74,101 +74,19 @@ bars:
 
 widgets:
   launcher:
-    type: "yasb.quick_launch.QuickLaunchWidget"
+    type: "yasb.custom.CustomWidget"
     options:
       label: ""
-      search_placeholder: "Search applications..."
-      remember_last_query: false
-      max_results: 40
-      show_icons: true
-      icon_size: 28
-      home_page: false
-      compact_mode: false
-      compact_text: true
-      providers:
-        apps:
-          enabled: true
-          prefix: "*"
-          priority: 0
-          show_recent: true
-          max_recent: 10
-          show_description: false
-        bookmarks:
-          enabled: false
-        calculator:
-          enabled: true
-          prefix: "="
-        clipboard_history:
-          enabled: false
-          prefix: "cb"
-          max_items: 30
-          show_preview: true
-        color:
-          enabled: false
-        binance:
-          enabled: false
-        currency:
-          enabled: false
-        dev_tools:
-          enabled: false
-        emoji:
-          enabled: true
-          prefix: ":"
-        file_search:
-          enabled: true
-          prefix: "/"
-          backend: "auto"
-          show_path: true
-          show_preview: false
-        github_notifications:
-          enabled: false
-        hacker_news:
-          enabled: false
-        ip_info:
-          enabled: false
-        kill_process:
-          enabled: false
-        port_viewer:
-          enabled: false
-        settings:
-          enabled: true
-          prefix: "@"
-        snippets:
-          enabled: false
-        ssh:
-          enabled: false
-        system_commands:
-          enabled: true
-          prefix: ">"
-        unit_converter:
-          enabled: true
-          prefix: "~"
-        vscode:
-          enabled: false
-        web_search:
-          enabled: false
-        window_switcher:
-          enabled: true
-          prefix: "win"
-        windows_terminal:
-          enabled: true
-          prefix: "wt"
-        world_clock:
-          enabled: false
-        wsl:
-          enabled: false
-      popup:
-        width: 720
-        height: 480
-        blur: false
-        round_corners: false
-        round_corners_type: "none"
-        border_color: "None"
-        dark_mode: true
+      class_name: "awtarchy-launcher"
+      tooltip: true
+      tooltip_label: "Applications (Alt+P / Super+D)"
+      exec_options:
+        run_once: true
+        return_format: "string"
       callbacks:
-        on_left: "toggle_quick_launch"
+        on_left: "exec wgdotw.exe launcher bar"
         on_middle: "do_nothing"
-        on_right: "toggle_quick_launch"
+        on_right: "exec wgdotw.exe launcher bar"
 
   glazewm_workspaces:
     type: "glazewm.workspaces.GlazewmWorkspacesWidget"
