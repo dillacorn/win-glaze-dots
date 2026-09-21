@@ -326,15 +326,15 @@ function Get-WgdotWindowsTerminalThemeManualPowerShell {
         '    $terminal = Get-Content -LiteralPath $terminalSettingsPath -Raw | ConvertFrom-Json',
         '    if (-not ($terminal.PSObject.Properties.Name -contains ''profiles'')) { $terminal | Add-Member -NotePropertyName profiles -NotePropertyValue ([pscustomobject]@{}) }',
         '    if (-not ($terminal.profiles.PSObject.Properties.Name -contains ''defaults'')) { $terminal.profiles | Add-Member -NotePropertyName defaults -NotePropertyValue ([pscustomobject]@{}) }',
-        "    \$schemeName = 'WGDot $safeLabel'",
+        ('    $schemeName = ''WGDot {0}''' -f $safeLabel),
         '    $terminal.profiles.defaults | Add-Member -NotePropertyName colorScheme -NotePropertyValue $schemeName -Force',
         '    $terminalSchemes = @()',
         '    if ($terminal.PSObject.Properties.Name -contains ''schemes'') { $terminalSchemes = @($terminal.schemes | Where-Object { -not ([string]$_.name).StartsWith(''WGDot '', [StringComparison]::OrdinalIgnoreCase) }) }',
-        "    \$terminalScheme = [pscustomobject][ordered]@{ name = \$schemeName; background = '$($theme.background)'; foreground = '$($theme.foreground)'; cursorColor = '$($theme.foreground)'; selectionBackground = '$($theme.focus)'; black = '$($theme.dark)'; red = '$($theme.urgent)'; green = '$($theme.charging)'; yellow = '$($theme.critical)'; blue = '$($theme.focus)'; purple = '$($theme.active)'; cyan = '$($theme.hover)'; white = '$($theme.foreground)'; brightBlack = '$($theme.muted)'; brightRed = '$($theme.urgent)'; brightGreen = '$($theme.charging)'; brightYellow = '$($theme.critical)'; brightBlue = '$($theme.focus)'; brightPurple = '$($theme.active)'; brightCyan = '$($theme.hover)'; brightWhite = '$($theme.foreground)' }",
+        ('    $terminalScheme = [pscustomobject][ordered]@{ name = $schemeName; background = ''' + [string]$theme.background + '''; foreground = ''' + [string]$theme.foreground + '''; cursorColor = ''' + [string]$theme.foreground + '''; selectionBackground = ''' + [string]$theme.focus + '''; black = ''' + [string]$theme.dark + '''; red = ''' + [string]$theme.urgent + '''; green = ''' + [string]$theme.charging + '''; yellow = ''' + [string]$theme.critical + '''; blue = ''' + [string]$theme.focus + '''; purple = ''' + [string]$theme.active + '''; cyan = ''' + [string]$theme.hover + '''; white = ''' + [string]$theme.foreground + '''; brightBlack = ''' + [string]$theme.muted + '''; brightRed = ''' + [string]$theme.urgent + '''; brightGreen = ''' + [string]$theme.charging + '''; brightYellow = ''' + [string]$theme.critical + '''; brightBlue = ''' + [string]$theme.focus + '''; brightPurple = ''' + [string]$theme.active + '''; brightCyan = ''' + [string]$theme.hover + '''; brightWhite = ''' + [string]$theme.foreground + ''' }'),
         '    $terminal | Add-Member -NotePropertyName schemes -NotePropertyValue @($terminalSchemes + $terminalScheme) -Force',
         '    $terminalThemes = @()',
         '    if ($terminal.PSObject.Properties.Name -contains ''themes'') { $terminalThemes = @($terminal.themes | Where-Object { -not ([string]$_.name).StartsWith(''WGDot '', [StringComparison]::OrdinalIgnoreCase) }) }',
-        "    \$terminalUiTheme = [pscustomobject][ordered]@{ name = \"\$schemeName UI\"; window = [pscustomobject][ordered]@{ applicationTheme = '$applicationTheme'; useMica = \$false }; tab = [pscustomobject][ordered]@{ background = 'terminalBackground'; unfocusedBackground = '$($theme.background)' }; tabRow = [pscustomobject][ordered]@{ background = '$($theme.background)'; unfocusedBackground = '$($theme.background)' } }",
+        ('    $terminalUiTheme = [pscustomobject][ordered]@{ name = "$schemeName UI"; window = [pscustomobject][ordered]@{ applicationTheme = ''' + $applicationTheme + '''; useMica = $false }; tab = [pscustomobject][ordered]@{ background = ''terminalBackground''; unfocusedBackground = ''' + [string]$theme.background + ''' }; tabRow = [pscustomobject][ordered]@{ background = ''' + [string]$theme.background + '''; unfocusedBackground = ''' + [string]$theme.background + ''' } }'),
         '    $terminal | Add-Member -NotePropertyName themes -NotePropertyValue @($terminalThemes + $terminalUiTheme) -Force',
         '    $terminal | Add-Member -NotePropertyName theme -NotePropertyValue "$schemeName UI" -Force',
         '    $terminalTmp = "$terminalSettingsPath.tmp-$([guid]::NewGuid().ToString(''N''))"',
@@ -363,13 +363,13 @@ function Get-WgdotYasbThemeManualPowerShell {
         "# YASB generated theme post-action",
         '$themePath = Join-Path $env:USERPROFILE ''.config\yasb\theme.css''',
         'New-Item -ItemType Directory -Force -Path (Split-Path -Parent $themePath) | Out-Null',
-        "[IO.File]::WriteAllBytes(\$themePath, [Convert]::FromBase64String('$encoded'))"
+        ('[IO.File]::WriteAllBytes($themePath, [Convert]::FromBase64String(''' + $encoded + '''))')
     )
     $lines += @(Get-WgdotWindowsTerminalThemeManualPowerShell -Id ([string]$theme.id))
     $lines += @(
         '$themeStatePath = Join-Path $env:LOCALAPPDATA ''wgdot\state\theme.json''',
         'New-Item -ItemType Directory -Force -Path (Split-Path -Parent $themeStatePath) | Out-Null',
-        "\$themeState = [pscustomobject]@{ id = '$safeId'; label = '$safeLabel'; appliedAt = (Get-Date).ToUniversalTime().ToString('o'); cssPath = \$themePath; terminalSynced = [bool]\$terminalSynced; terminalSettingsPath = \$terminalSettingsPath; glazewmReloaded = \$false }",
+        ('$themeState = [pscustomobject]@{ id = ''' + $safeId + '''; label = ''' + $safeLabel + '''; appliedAt = (Get-Date).ToUniversalTime().ToString(''o''); cssPath = $themePath; terminalSynced = [bool]$terminalSynced; terminalSettingsPath = $terminalSettingsPath; glazewmReloaded = $false }'),
         '$themeState | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $themeStatePath -Encoding UTF8',
         'Write-Host "YASB / Windows Terminal theme generated: $themePath"'
     )
