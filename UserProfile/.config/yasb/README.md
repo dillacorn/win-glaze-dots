@@ -10,7 +10,7 @@ WGDot manages installation, updates, backups, and deployment. Runtime ownership 
 - **YASB** owns ordinary bar widgets and native callbacks; for the custom application launcher it owns only the visible bar button.
 - **Installed applications** are launched directly where practical. GlazeWM opens EarTrumpet directly on `Super+V` / global `Alt+V`; WGDot's EarTrumpet packaged-hotkey configuration remains only a management-time fallback.
 - **Neither Normal nor Work has any `.ps1` runtime dependencies.** Desktop-session behavior uses native GlazeWM/YASB/Windows/application interfaces first.
-- **Compiled WGDot is used at runtime only for approved custom primitives:** the application launcher, power surface, mouse hook, idle inhibition, coordinated auto-hide, theme application, invisible GlazeWM mode dispatch where a console would otherwise flash, and the narrow RawAccel GUI toggle.
+- **Compiled WGDot is used at runtime only for approved custom primitives:** the application launcher, power surface, mouse hook, idle inhibition, coordinated auto-hide, theme application/window toggle, invisible GlazeWM mode dispatch where a console would otherwise flash, the narrow RawAccel GUI toggle, and the experimental native Clipboard History anchor.
 - Runtime actions that must stay invisible use the windowless `wgdotw.exe` frontend; the interactive theme selector uses `wgdot.exe theme` inside Windows Terminal.
 
 ## Bar layout
@@ -41,6 +41,7 @@ Right:
 - clock/date
 - Wi-Fi
 - Bluetooth
+- Windows Clipboard History
 - unified Windows notifications / Do Not Disturb
 - native YASB power menu
 
@@ -52,7 +53,7 @@ The application button is a lightweight YASB `CustomWidget` that opens `wgdotw.e
 
 - Global `Alt+P` and `Super+D` open the launcher.
 - `noalt` retains `Super+D` but intentionally leaves plain `Alt+P` uncaptured.
-- Bar click opens below/adjacent to the application button while the bar is visible.
+- Bar click opens directly below the top bar at the top-left of the active display while the bar is visible.
 - Keyboard activation opens horizontally centered just below the top bar during ordinary desktop use.
 - If YASB auto-hide is enabled, or the foreground window fills the active monitor, the launcher opens centered on that monitor.
 - The first implementation is intentionally application-focused: it indexes Start Menu shortcuts and avoids Flow Launcher-style provider/scaling complexity.
@@ -86,7 +87,7 @@ The compiled WGDot theme manager is launched as `wgdot.exe theme` inside Windows
 
 The selector uses the title `Win Glaze Themes`, and both GlazeWM profiles float/center that window.
 
-`Super+Alt+T` opens themes. `Super+T` toggles tiling, as does global `Alt+T`; `noalt` intentionally leaves plain `Alt+T` unbound while retaining `Super+T`.
+`Super+Alt+T` toggles the single `Win Glaze Themes` window. Pressing it again in the same visible monitor/workspace closes it; invoking it from another monitor or a cloaked workspace closes the old instance and reopens exactly one selector in the currently focused context. `Super+T` toggles tiling, as does global `Alt+T`; `noalt` intentionally leaves plain `Alt+T` unbound while retaining `Super+T`.
 
 GlazeWM focused borders stay neutral `#a1a1a1` so a theme change never requires a layout-disrupting GlazeWM reload.
 
@@ -133,11 +134,9 @@ WGDot may configure EarTrumpet's own mixer hotkey to `Super+V` during explicit e
 
 ## Clipboard
 
-The previous WGDot-owned clipboard-history worker/window has been removed from the desktop runtime.
+The old generic WGDot clipboard-history worker/window remains removed.
 
-YASB's Quick Launch clipboard-history provider remains disabled because it depends on Windows Clipboard History, which was unreliable in maintainer testing.
-
-There is currently no rendered clipboard-history bar button and no managed `Super+C` custom history shortcut. If custom history returns, it must be implemented as a portable dotfile-owned helper that works without WGDot.
+YASB's Quick Launch clipboard provider stays disabled. Instead, the bar restores a dedicated Clipboard History button and GlazeWM binds `Super+C` to the narrow `wgdotw.exe clipboard-anchor` experiment. The helper creates a temporary focusable caret near the requested bar/keyboard position, preserves GlazeWM's existing pause state while invoking native `Win+V`, then exits. Windows still exposes no documented public API to open or position this shell surface, so this placement path remains explicitly experimental until real-machine testing proves it reliable.
 
 ## Evidence-backed mappings
 
@@ -156,11 +155,11 @@ There is currently no rendered clipboard-history bar button and no managed `Supe
 | microphone | native Microphone widget |
 | output audio | native Volume widget + direct EarTrumpet launch |
 | clock/date | native Clock widget |
-| network / Bluetooth | native WiFi and Bluetooth widgets |
+| network / Bluetooth | native WiFi and Bluetooth widgets with their own toggleable menus |
 | notifications / mute | native `DndWidget` |
 | power controls | compiled Awtarchy-style `wgdotw.exe power-menu` surface |
 | launcher | compiled context-aware `wgdotw.exe launcher` application search surface |
-| theme switching | compiled `wgdot.exe theme` manager in both profiles |
+| theme switching | compiled `wgdot.exe theme` manager with `wgdotw.exe theme-window-toggle` dispatch |
 | bar auto-hide | compiled `wgdotw.exe bar-autohide-toggle` coordinator in both profiles |
 | keep awake | compiled WGDot execution-state helper in both profiles |
 | RawAccel GUI toggle | compiled `wgdotw.exe rawaccel-toggle` in both profiles |
@@ -174,7 +173,6 @@ There is currently no rendered clipboard-history bar button and no managed `Supe
 - Current YASB bar placement is top/bottom; left/right vertical bars are not faked.
 - Workspace urgent-state coloring and Awtarchy's static number+glyph mappings do not have exact YASB equivalents.
 - The native `mouse` binding mode exists and toggles with `Win+Alt+M`; the scoped WGDot hook supplies mouse-button move/resize because GlazeWM 3.10.x does not expose mouse buttons.
-- Custom clipboard history is omitted until it has a portable implementation independent of WGDot.
 - Awtarchy can retint task/tray image pixels; stock YASB does not expose an equivalent image-tint option.
 - At exactly 15% battery, YASB's shared threshold controls both critical styling and glyph selection, so the exact Awtarchy glyph boundary cannot be reproduced independently.
 - A plugged-in-but-not-charging battery may retain YASB's critical state at low charge because YASB exposes a charging class rather than a broader AC-present class.
