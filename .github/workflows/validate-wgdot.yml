@@ -103,6 +103,9 @@ jobs:
         shell: cmd
         run: |
           "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" status
+          if not exist "%LOCALAPPDATA%\wgdot\bin\wgdotw.exe" exit /b 1
+          "%LOCALAPPDATA%\wgdot\bin\wgdotw.exe" idle-inhibitor-status
+          if errorlevel 1 exit /b %errorlevel%
       - name: Reinstall exact runtime through PowerShell WebClient fallback
         shell: cmd
         env:
