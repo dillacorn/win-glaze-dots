@@ -709,10 +709,18 @@ Assert-True ($yasbConfigText -match 'return_format:\s*"json"') "YASB idle inhibi
 Assert-True ($yasbConfigText -match 'idle-inhibitor\.ps1" toggle') "YASB bar toggles the standalone idle inhibitor"
 Assert-True ($yasbConfigText -match 'glazewm_tiling_direction') "YASB exposes GlazeWM tiling direction"
 Assert-True ($yasbConfigText -match 'GlazewmTilingDirectionWidget') "YASB uses its native GlazeWM tiling-direction widget"
-Assert-True ($yasbConfigText -match 'keys:\s*"f24"') "Normal YASB owns only its private F24 Quick Launch bridge"
+Assert-True ($yasbConfigText -notmatch 'keys:\s*"f24"') "Normal YASB has no synthetic F24 Quick Launch bridge"
 Assert-True ($yasbConfigText -notmatch 'keys:\s*"alt\+p"|keys:\s*"win\+d"') "Normal YASB leaves user-facing launcher chords to GlazeWM"
-Assert-True ($yasbWorkConfigText -match 'keys:\s*"f24"') "Work YASB owns only its private F24 Quick Launch bridge"
+Assert-True ($yasbWorkConfigText -notmatch 'keys:\s*"f24"') "Work YASB has no synthetic F24 Quick Launch bridge"
 Assert-True ($yasbWorkConfigText -notmatch 'keys:\s*"alt\+p"|keys:\s*"win\+d"') "Work YASB leaves user-facing launcher chords to GlazeWM"
+Assert-True ($yasbConfigText -match 'class_name:\s*"workspace-mouse-hub"') "Normal YASB keeps the passive workspace mover mouse icon"
+Assert-True ($yasbWorkConfigText -match 'class_name:\s*"workspace-mouse-hub"') "Work YASB keeps the passive workspace mover mouse icon"
+$glazeNormalText = Get-Content -LiteralPath (Join-Path $repoRoot "UserProfile\.glzr\glazewm\config.yaml") -Raw
+$glazeWorkText = Get-Content -LiteralPath (Join-Path $repoRoot "UserProfile\.glzr\glazewm\custom_work_config.yaml") -Raw
+Assert-True ($glazeNormalText -notmatch 'flow-launcher\.ps1|yasb-quick-launch\.ps1') "Normal GlazeWM contains no launcher relay script"
+Assert-True ($glazeWorkText -notmatch 'flow-launcher\.ps1|yasb-quick-launch\.ps1') "Work GlazeWM contains no launcher relay script"
+Assert-True ($glazeWorkText -match 'shell-exec %LOCALAPPDATA%/FlowLauncher/Flow\.Launcher\.exe') "Work GlazeWM launches Flow directly from Alt+P"
+
 Assert-True ($yasbConfigText -match 'PowerMenuWidget') "YASB uses its native power menu"
 Assert-True ($yasbConfigText -match 'theme-switcher\.ps1') "YASB themes use the standalone theme script"
 Assert-True ($yasbConfigText -match 'bar-autohide\.ps1') "YASB auto-hide uses the standalone coordination script"
@@ -924,9 +932,7 @@ $managedDesktopRuntimeFiles = @(
     Join-Path $repoRoot "UserProfile/.config/win-glaze/scripts/theme-switcher.ps1"
     Join-Path $repoRoot "UserProfile/.config/win-glaze/scripts/bar-autohide.ps1"
     Join-Path $repoRoot "UserProfile/.config/win-glaze/scripts/idle-inhibitor.ps1"
-    Join-Path $repoRoot "UserProfile/.config/win-glaze/scripts/flow-launcher.ps1"
     Join-Path $repoRoot "UserProfile/.config/win-glaze/scripts/rawaccel-toggle.ps1"
-    Join-Path $repoRoot "UserProfile/.config/win-glaze/scripts/yasb-quick-launch.ps1"
 )
 foreach ($managedDesktopRuntimeFile in $managedDesktopRuntimeFiles) {
     $managedDesktopRuntimeText = Get-Content -Raw -LiteralPath $managedDesktopRuntimeFile
