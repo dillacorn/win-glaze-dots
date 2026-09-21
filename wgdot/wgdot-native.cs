@@ -2979,6 +2979,7 @@ internal static class WgdotNative
             "software-audit",
             "acceptance-audit",
             "theme",
+            "cursor",
             "gpu-driver",
             "update",
             "reset",
@@ -3033,8 +3034,9 @@ internal static class WgdotNative
         Console.WriteLine();
         Console.ForegroundColor = ConsoleColor.DarkGray;
         Console.WriteLine(
-            "Still requires real Windows interaction: hotkey behavior, actual Firefox/Brave extension consumption, " +
-            "one real managed-dots apply/rollback cycle, and any intentionally tested DDU reboot flow.");
+            "Still requires real Windows interaction: hotkey behavior, idle-inhibitor/cursor live behavior, " +
+            "Windows Terminal live theme reload, actual Firefox/Brave extension consumption, one real managed-dots " +
+            "apply/rollback cycle, and any intentionally tested DDU reboot flow.");
         Console.ResetColor();
 
         return failures == 0 ? 0 : 1;
@@ -8700,11 +8702,20 @@ public static class Program
         const string id = "oops-all-links-cursor";
         if (!enable)
         {
+            string current = CurrentCursorThemeId();
             RestoreRegistryOriginals(id);
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine("Cursor registry values were restored to their pre-WGDot values.");
-            Console.ResetColor();
-            SystemParametersInfo(0x0057, 0, IntPtr.Zero, 0x01 | 0x02);
+
+            if (current.StartsWith("bibata-", StringComparison.OrdinalIgnoreCase))
+            {
+                ApplyBibataCursor(current);
+                Console.WriteLine("Oops-all-links ownership disabled; retained the active Bibata cursor.");
+            }
+            else
+            {
+                WriteCursorState("windows-default");
+                SystemParametersInfo(0x0057, 0, IntPtr.Zero, 0x01 | 0x02);
+                Console.WriteLine("Cursor registry values were restored to their pre-WGDot values.");
+            }
             return;
         }
 
@@ -8740,7 +8751,7 @@ public static class Program
             Directory.Delete(cursorDir, true);
         }
         Directory.CreateDirectory(cursorDir);
-        ZipFile.ExtractToDirectory(zipPath, cursorDir);
+        ExtractZipToDirectorySafe(zipPath, cursorDir);
 
         string[,] mappings = new string[,]
         {
