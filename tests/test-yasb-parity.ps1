@@ -47,14 +47,13 @@ Assert-NotContains $config "center: false" "obsolete bar alignment field is abse
 Assert-NotContains $config "acrylic:" "removed YASB blur field is absent"
 Assert-Contains $config "enabled: false" "bar/task decorative animation has an explicit disabled state"
 Assert-Contains $config "yasb.applications.ApplicationsWidget" "native YASB Applications widget is used for workspace move arrows"
-Assert-Contains $config "yasb.quick_launch.QuickLaunchWidget" "launcher uses native YASB Quick Launch"
-Assert-Contains $config "search_placeholder: `"Search applications...`"" "Quick Launch defaults to installed-application search"
-Assert-NotContains $config "keys: `"alt+p`"" "YASB does not globally capture Alt+P from VM guests"
-Assert-NotContains $config "keys: `"win+d`"" "YASB does not globally capture Super+D from VM guests"
-Assert-NotContains $config "keys: `"f24`"" "YASB Quick Launch does not use a synthetic F24 relay"
+Assert-Contains $config "class_name: `"awtarchy-launcher`"" "launcher uses the compiled Awtarchy-style YASB button"
+Assert-Contains $config "wgdotw.exe launcher bar" "launcher button opens the compiled bar-relative search surface"
+Assert-NotContains $config "keys: `"alt+p`"" "YASB does not globally capture Alt+P from noalt/VM guests"
+Assert-NotContains $config "keys: `"win+d`"" "YASB does not globally capture Super+D outside GlazeWM ownership"
+Assert-NotContains $config "keys: `"f24`"" "launcher does not use a synthetic F24 relay"
 Assert-NotContains $config "keys: `"win+alt+d`"" "YASB does not globally capture Win+Alt+D"
 Assert-Contains $config "wgdotw.exe power-menu" "normal YASB uses the compiled Awtarchy-style power surface"
-Assert-NotContains $config "wgdotw.exe quick-launch" "normal YASB keeps Quick Launch native"
 Assert-Contains $config "glazewm.workspaces.GlazewmWorkspacesWidget" "native GlazeWM workspace widget is used"
 Assert-Contains $config "monitor_exclusive: true" "monitor-local workspace/task behavior is retained"
 Assert-Contains $config "enable_scroll_switching: true" "workspace wheel switching is enabled"
@@ -159,10 +158,9 @@ Assert-Contains $config "label: `"{data[icon]}`"" "idle inhibitor renders its JS
 Assert-Contains $config "return_format: `"json`"" "idle inhibitor avoids Windows console glyph encoding loss"
 Assert-Contains $config "idle-inhibitor-toggle" "idle inhibitor callbacks toggle Keep Awake"
 $launcherBlock = [regex]::Match($config, '(?ms)^  launcher:\r?\n.*?(?=^  glazewm_workspaces:)').Value
-Assert-Contains $launcherBlock "clipboard_history:" "Quick Launch clipboard provider remains explicitly configured"
-Assert-Contains $launcherBlock "yasb.quick_launch.QuickLaunchWidget" "native Quick Launch replaces the old Flow launcher surface"
-Assert-Contains $launcherBlock "clipboard_history:" "Quick Launch clipboard provider remains explicitly configured"
-Assert-Contains $launcherBlock "enabled: false" "Quick Launch clipboard provider remains disabled while no standalone history surface is configured"
+Assert-Contains $launcherBlock "yasb.custom.CustomWidget" "launcher bar button stays a lightweight YASB custom widget"
+Assert-Contains $launcherBlock "class_name: `"awtarchy-launcher`"" "launcher bar button has dedicated styling"
+Assert-Contains $launcherBlock "wgdotw.exe launcher bar" "launcher bar button opens the context-aware compiled surface"
 Assert-Contains $config "wgdotw.exe power-menu" "normal YASB power uses the compiled surface"
 Assert-Contains $workConfig "wgdotw.exe power-menu" "Work YASB power uses the compiled surface"
 Assert-NotContains $config ".ps1" "Normal YASB has no script-file runtime dependency"
@@ -239,7 +237,7 @@ foreach ($glaze in @($glazeNormal, $glazeWork)) {
     Assert-Contains $glaze "window_title: { equals: `"Win Glaze Themes`" }" "theme selector has a dedicated floating title"
     Assert-Contains $glaze "window_process: { regex: `"^WindowsTerminal(\\.exe)?`$`" }" "theme selector floating rule is scoped to Windows Terminal"
     Assert-Contains $glaze "wgdotw.exe power-menu" "GlazeWM routes Super+P through the approved compiled power surface"
-    Assert-NotContains $glaze "wgdotw.exe quick-launch" "GlazeWM does not route Quick Launch through WGDot"
+    Assert-Contains $glaze "wgdotw.exe launcher hotkey" "GlazeWM routes launcher hotkeys through the approved compiled surface"
     Assert-NotContains $glaze "yasbc toggle-bar" "unsafe hard-hide command is not bound from GlazeWM"
     Assert-Contains $glaze "bindings: [`"alt+ctrl+b`"]" "GlazeWM retains coordinated auto-hide binding"
     Assert-Contains $glaze "bindings: [`"alt+ctrl+b`"]" "Alt+Ctrl+B toggles coordinated auto-hide"
@@ -254,10 +252,9 @@ foreach ($glaze in @($glazeNormal, $glazeWork)) {
 }
 
 Assert-NotContains $glazeNormal "yasb-quick-launch.ps1" "Normal GlazeWM has no YASB launcher relay"
-Assert-NotContains $glazeNormal "bindings: [`"alt+p`", `"lwin+d`", `"rwin+d`"]" "Normal GlazeWM does not fake Quick Launch through a relay"
-
-Assert-Contains $glazeWork "shell-exec %LOCALAPPDATA%/FlowLauncher/Flow.Launcher.exe" "Work GlazeWM launches Flow Launcher directly"
-Assert-Contains $glazeWork "bindings: [`"alt+p`"]" "Work GlazeWM maps Alt+P directly to Flow Launcher"
+Assert-Contains $glazeNormal "bindings: [`"alt+p`", `"lwin+d`", `"rwin+d`"]" "Normal GlazeWM maps Alt+P and Super+D to the compiled launcher"
+Assert-Contains $glazeWork "bindings: [`"alt+p`", `"lwin+d`", `"rwin+d`"]" "Work GlazeWM maps Alt+P and Super+D to the compiled launcher"
+Assert-NotContains $glazeWork "FlowLauncher/Flow.Launcher.exe" "Work launcher hotkeys no longer default to Flow Launcher"
 Assert-NotContains $glazeNormal ".ps1" "Normal GlazeWM has no script-file runtime dependency"
 Assert-NotContains $glazeWork ".ps1" "Work GlazeWM has no script-file runtime dependency"
 Assert-Contains $glazeNormal "wgdotw.exe rawaccel-toggle" "Normal RawAccel uses the scoped compiled helper"
@@ -265,7 +262,7 @@ Assert-Contains $glazeWork "wgdotw.exe rawaccel-toggle" "Work RawAccel uses the 
 Assert-Contains $glazeWork "wgdotw.exe mouse-mode-toggle" "Work mouse mode uses the scoped compiled helper"
 Assert-Contains $glazeWork "wgdotw.exe bar-autohide-toggle" "Work auto-hide uses the compiled helper"
 Assert-Contains $glazeWork "wgdot.exe theme" "Work theme selection uses the compiled helper"
-Assert-NotContains $glazeWork "bindings: [`"lwin+d`", `"rwin+d`"]" "Work GlazeWM does not fake YASB Quick Launch on Super+D"
+Assert-Contains $glazeWork "wgdotw.exe launcher hotkey" "Work GlazeWM uses the compiled launcher surface"
 
 Assert-NotContains $config "komorebi" "abandoned Komorebi integration is absent"
 Assert-NotContains $config "whkd" "whkd is not introduced"
@@ -274,7 +271,6 @@ foreach ($widgetType in @(
     'yasb.cpu.CpuWidget',
     'yasb.memory.MemoryWidget',
     'yasb.control_center.ControlCenterWidget',
-    'yasb.quick_launch.QuickLaunchWidget',
     'yasb.brightness.BrightnessWidget',
     'yasb.battery.BatteryWidget',
     'yasb.microphone.MicrophoneWidget',
@@ -306,9 +302,8 @@ Assert-Contains -Text $style -Needle ".workspace-move-buttons .label" -Message "
 Assert-Contains -Text $style -Needle ".workspace-move-grouper:hover .workspace-move-buttons .label" -Message "parent hover restores workspace arrows"
 Assert-Contains -Text $style -Needle "max-width: 112px;" -Message "workspace arrow strip has bounded hover width"
 Assert-Contains -Text $style -Needle ".workspace-move-grouper:hover .workspace-move-buttons" -Message "workspace mover hover reveals arrows"
-Assert-Contains -Text $style -Needle ".quick-launch-widget .icon" -Message "native Quick Launch icon is styled"
-Assert-Contains -Text $style -Needle ".quick-launch-widget:hover" -Message "Quick Launch has strong hover treatment"
-Assert-Contains -Text $style -Needle ".quick-launch-popup .container" -Message "Quick Launch popup uses shared theme styling"
+Assert-Contains -Text $style -Needle ".awtarchy-launcher .icon" -Message "compiled launcher button icon is styled"
+Assert-Contains -Text $style -Needle ".awtarchy-launcher:hover" -Message "compiled launcher button has strong hover treatment"
 Assert-Contains -Text $style -Needle ".awtarchy-control-center:hover" -Message "quick settings has strong hover treatment"
 Assert-Contains -Text $style -Needle ".control-center-menu" -Message "Control Center popup uses shared theme styling"
 Assert-Contains -Text $style -Needle "@import `"appearance.css`";" -Message "styles import portable appearance overrides"
@@ -338,8 +333,9 @@ Assert-Contains -Text $style -Needle "margin: 0 5px;" -Message "tray buttons pre
 
 Assert-Contains -Text $readme -Needle "WGDot manages installation, updates, backups, and deployment" -Message "management/runtime boundary is documented"
 Assert-Contains -Text $readme -Needle "hybrid" -Message "hybrid runtime ownership is documented"
-Assert-Contains -Text $readme -Needle "does not register a private synthetic hotkey" -Message "synthetic Quick Launch bridge retirement is documented"
-Assert-Contains -Text $readme -Needle "Flow Launcher" -Message "Work launcher A/B split is documented"
+Assert-Contains -Text $readme -Needle "wgdotw.exe launcher bar" -Message "compiled launcher bar ownership is documented"
+Assert-Contains -Text $readme -Needle "Alt+P" -Message "compiled launcher hotkeys are documented"
+Assert-Contains -Text $readme -Needle "Flow Launcher remains optional" -Message "Flow Launcher optional status is documented"
 Assert-Contains -Text $readme -Needle 'no `.ps1` runtime dependencies' -Message "script-free Normal and Work runtime is documented"
 Assert-Contains -Text $readme -Needle "wgdot.exe theme" -Message "compiled theme selector is documented"
 Assert-Contains -Text $readme -Needle "wgdotw.exe bar-autohide-toggle" -Message "compiled coordinated auto-hide is documented"
