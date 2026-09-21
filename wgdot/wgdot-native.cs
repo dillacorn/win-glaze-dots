@@ -19,7 +19,7 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-54";
+    const string Version = "native-preview-55";
     const int WingetPreflightTimeoutMs = 30000;
     const string RepoFullName = "dillacorn/win-glaze-dots";
     const string RepoUrl = "https://github.com/dillacorn/win-glaze-dots.git";
@@ -8744,6 +8744,24 @@ public static class Program
             DiscardRegistryOriginalSnapshot(id, "HKCU", legacyPath, legacyName);
             if (currentExists)
                 Console.WriteLine("Preserved user-modified legacy NoWinKeys value and retired old WGDot ownership.");
+            return 0;
+        }
+
+        // The legacy Policies\Explorer key is protected on the Windows build
+        // where WGDot originally created NoWinKeys. Once ownership and the
+        // exact old value are proven, elevate before opening it for write
+        // instead of relying on the registry API's inconsistent access-denied
+        // exception type.
+        if (!IsAdministrator())
+        {
+            if (!allowElevation)
+                throw new UnauthorizedAccessException(
+                    "Administrator approval is required to restore the retired WGDot NoWinKeys policy.");
+
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine("Removing WGDot's retired NoWinKeys policy requires administrator approval.");
+            Console.ResetColor();
+            RunElevatedSelf("migrate-legacy-hotkeys");
             return 0;
         }
 
