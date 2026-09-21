@@ -84,7 +84,7 @@
       "id": "desktop-scripts",
       "name": "Desktop helper scripts",
       "defaultNormal": true,
-      "defaultWork": true,
+      "defaultWork": false,
       "files": [
         {
           "id": "script-theme-switcher",
