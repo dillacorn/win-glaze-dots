@@ -735,8 +735,9 @@ Assert-True (@($terminalSettings.keybindings | Where-Object { $_.id -eq "Termina
 
 $glazeNormalText = Get-Content -LiteralPath (Join-Path $repoRoot "UserProfile\.glzr\glazewm\config.yaml") -Raw
 $glazeWorkText = Get-Content -LiteralPath (Join-Path $repoRoot "UserProfile\.glzr\glazewm\custom_work_config.yaml") -Raw
-Assert-True ($glazeNormalText -match 'bindings:\s*\["alt\+shift\+m",\s*"lwin\+shift\+m",\s*"rwin\+shift\+m"\]') "Normal profile matches Awtarchy Raw Accel launch keys"
-Assert-True ($glazeNormalText -match 'bindings:\s*\["alt\+ctrl\+shift\+m"\]') "Normal scripts menu moves off the Raw Accel Alt+Shift+M chord"
+Assert-True ($glazeNormalText -match 'bindings:\s*\["lwin\+shift\+m",\s*"rwin\+shift\+m"\]') "Normal profile keeps Raw Accel on Super+Shift+M"
+Assert-True ($glazeNormalText -notmatch 'bindings:\s*\["alt\+shift\+m",\s*"lwin\+shift\+m",\s*"rwin\+shift\+m"\]') "Normal profile does not capture Alt+Shift+M for Raw Accel"
+Assert-True ($glazeNormalText -match 'bindings:\s*\["alt\+ctrl\+shift\+m"\]') "Normal scripts menu remains on Alt+Ctrl+Shift+M"
 Assert-True ($glazeNormalText -match 'window_process:\s*\{ regex: "\^rawaccel') "Raw Accel launches floating and centered in Normal profile"
 Assert-True ($glazeNormalText -match '(?ms)cursor_jump:\s*\r?\n\s+enabled:\s*true') "Normal profile enables cursor jump by default"
 Assert-True ($glazeNormalText -notmatch '(?ms)- name: "1"\r?\n\s+display_name: "1: Flame"\r?\n\s+keep_alive:\s*true') "normal GlazeWM workspace 1 is not pinned alive"
