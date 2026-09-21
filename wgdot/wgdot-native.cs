@@ -154,6 +154,9 @@ internal static class WgdotNative
     [DllImport("user32.dll")]
     static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
 
+    [DllImport("user32.dll")]
+    static extern bool GetCursorPos(out POINT lpPoint);
+
     [DllImport("kernel32.dll", SetLastError = true)]
     static extern uint SetThreadExecutionState(uint esFlags);
 
@@ -391,6 +394,17 @@ internal static class WgdotNative
         public System.Windows.Forms.Timer FadeOutTimer;
     }
 
+    sealed class LauncherApp
+    {
+        public string Name;
+        public string Path;
+
+        public override string ToString()
+        {
+            return Name ?? "";
+        }
+    }
+
     // Windows/YASB equivalents of the current Awtarchy theme palettes.
     // GlazeWM is intentionally excluded so applying a theme never reloads the WM.
     sealed class YasbTheme
@@ -565,6 +579,7 @@ internal static class WgdotNative
             if (command == "mouse-mode-disable") return MouseModeDisable();
             if (command == "mouse-mode-hook") return MouseModeHook();
             if (command == "theme") return ThemeManagerFromArgs(args.Skip(1).ToArray());
+            if (command == "launcher") return LauncherFromArgs(args.Skip(1).ToArray());
             if (command == "power-menu") return PowerMenu();
             if (command == "rawaccel-toggle") return RawAccelToggle();
             if (command == "gpu-driver") return GpuDriverMaintenance();
@@ -6735,6 +6750,494 @@ class WgdotHidden
         return 0;
     }
 
+
+
+    static int LauncherFromArgs(string[] args)
+    {
+        string source = args != null && args.Length > 0
+            ? (args[0] ?? "").Trim().ToLowerInvariant()
+            : "hotkey";
+
+        if (!(String.Equals(source, "bar", StringComparison.OrdinalIgnoreCase) ||
+              String.Equals(source, "hotkey", StringComparison.OrdinalIgnoreCase)))
+            throw new Exception("Usage: wgdot launcher [bar|hotkey]");
+
+        return Launcher(source);
+    }
+
+    static bool YasbAutoHideEnabled()
+    {
+        try
+        {
+            string profile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            string path = Path.Combine(profile, ".config", "yasb", "config.yaml");
+            if (!File.Exists(path)) return false;
+            string text = File.ReadAllText(path);
+            return Regex.IsMatch(
+                text,
+                @"(?m)^\s*auto_hide:\s*true\s*$",
+                RegexOptions.IgnoreCase);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    static bool ForegroundWindowFillsScreen(IntPtr window, System.Windows.Forms.Screen screen)
+    {
+        if (window == IntPtr.Zero || screen == null)
+            return false;
+
+        try
+        {
+            System.Windows.Forms.Screen windowScreen = System.Windows.Forms.Screen.FromHandle(window);
+            if (!String.Equals(windowScreen.DeviceName, screen.DeviceName, StringComparison.OrdinalIgnoreCase))
+                return false;
+
+            RECT rect;
+            if (!GetWindowRect(window, out rect))
+                return false;
+
+            System.Drawing.Rectangle bounds = screen.Bounds;
+            const int tolerance = 3;
+            return
+                rect.Left <= bounds.Left + tolerance &&
+                rect.Top <= bounds.Top + tolerance &&
+                rect.Right >= bounds.Right - tolerance &&
+                rect.Bottom >= bounds.Bottom - tolerance;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    static System.Drawing.Point ClampLauncherLocation(
+        System.Windows.Forms.Screen screen,
+        int x,
+        int y,
+        int width,
+        int height)
+    {
+        System.Drawing.Rectangle bounds = screen.Bounds;
+        int minX = bounds.Left + 8;
+        int maxX = Math.Max(minX, bounds.Right - width - 8);
+        int minY = bounds.Top + 8;
+        int maxY = Math.Max(minY, bounds.Bottom - height - 8);
+
+        return new System.Drawing.Point(
+            Math.Max(minX, Math.Min(maxX, x)),
+            Math.Max(minY, Math.Min(maxY, y)));
+    }
+
+    static System.Drawing.Point LauncherLocation(
+        string source,
+        System.Windows.Forms.Screen screen,
+        IntPtr foreground,
+        int width,
+        int height)
+    {
+        bool centerScreen =
+            YasbAutoHideEnabled() ||
+            ForegroundWindowFillsScreen(foreground, screen);
+
+        if (centerScreen)
+        {
+            return ClampLauncherLocation(
+                screen,
+                screen.Bounds.Left + ((screen.Bounds.Width - width) / 2),
+                screen.Bounds.Top + ((screen.Bounds.Height - height) / 2),
+                width,
+                height);
+        }
+
+        if (String.Equals(source, "bar", StringComparison.OrdinalIgnoreCase))
+        {
+            POINT cursor;
+            if (!GetCursorPos(out cursor))
+            {
+                cursor.X = screen.Bounds.Left + 12;
+                cursor.Y = screen.Bounds.Top + 12;
+            }
+
+            return ClampLauncherLocation(
+                screen,
+                cursor.X - 18,
+                screen.Bounds.Top + 40,
+                width,
+                height);
+        }
+
+        return ClampLauncherLocation(
+            screen,
+            screen.Bounds.Left + ((screen.Bounds.Width - width) / 2),
+            screen.Bounds.Top + 40,
+            width,
+            height);
+    }
+
+    static void AddLauncherAppsFromFolder(
+        string root,
+        Dictionary<string, LauncherApp> byName)
+    {
+        if (String.IsNullOrWhiteSpace(root) || !Directory.Exists(root))
+            return;
+
+        string[] files;
+        try
+        {
+            files = Directory.GetFiles(root, "*.*", SearchOption.AllDirectories);
+        }
+        catch
+        {
+            return;
+        }
+
+        foreach (string path in files)
+        {
+            string ext = Path.GetExtension(path);
+            if (!(String.Equals(ext, ".lnk", StringComparison.OrdinalIgnoreCase) ||
+                  String.Equals(ext, ".url", StringComparison.OrdinalIgnoreCase) ||
+                  String.Equals(ext, ".appref-ms", StringComparison.OrdinalIgnoreCase)))
+                continue;
+
+            if (path.IndexOf(
+                    Path.DirectorySeparatorChar + "Startup" + Path.DirectorySeparatorChar,
+                    StringComparison.OrdinalIgnoreCase) >= 0)
+                continue;
+
+            string name = Path.GetFileNameWithoutExtension(path);
+            if (String.IsNullOrWhiteSpace(name))
+                continue;
+
+            LauncherApp existing;
+            if (byName.TryGetValue(name, out existing))
+                continue;
+
+            byName[name] = new LauncherApp
+            {
+                Name = name.Trim(),
+                Path = path
+            };
+        }
+    }
+
+    static List<LauncherApp> GetLauncherApps()
+    {
+        var byName = new Dictionary<string, LauncherApp>(StringComparer.OrdinalIgnoreCase);
+
+        AddLauncherAppsFromFolder(
+            Environment.GetFolderPath(Environment.SpecialFolder.Programs),
+            byName);
+        AddLauncherAppsFromFolder(
+            Environment.GetFolderPath(Environment.SpecialFolder.CommonPrograms),
+            byName);
+
+        return byName.Values
+            .OrderBy(x => x.Name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    static int LauncherMatchScore(string name, string query)
+    {
+        string n = (name ?? "").Trim().ToLowerInvariant();
+        string q = (query ?? "").Trim().ToLowerInvariant();
+
+        if (q.Length == 0)
+            return 1000 + n.Length;
+
+        if (String.Equals(n, q, StringComparison.OrdinalIgnoreCase))
+            return 0;
+        if (n.StartsWith(q, StringComparison.OrdinalIgnoreCase))
+            return 10 + n.Length;
+
+        string[] tokens = q.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+        int score = 100;
+        foreach (string token in tokens)
+        {
+            int index = n.IndexOf(token, StringComparison.OrdinalIgnoreCase);
+            if (index < 0)
+                return Int32.MaxValue;
+            score += index * 5;
+        }
+
+        return score + n.Length;
+    }
+
+    static List<LauncherApp> FilterLauncherApps(
+        List<LauncherApp> apps,
+        string query,
+        int maxResults)
+    {
+        return apps
+            .Select(x => new
+            {
+                App = x,
+                Score = LauncherMatchScore(x.Name, query)
+            })
+            .Where(x => x.Score != Int32.MaxValue)
+            .OrderBy(x => x.Score)
+            .ThenBy(x => x.App.Name, StringComparer.OrdinalIgnoreCase)
+            .Take(maxResults)
+            .Select(x => x.App)
+            .ToList();
+    }
+
+    static void LaunchLauncherApp(
+        System.Windows.Forms.Form form,
+        LauncherApp app)
+    {
+        if (app == null || String.IsNullOrWhiteSpace(app.Path))
+            return;
+
+        form.Close();
+
+        var psi = new ProcessStartInfo();
+        psi.FileName = app.Path;
+        psi.UseShellExecute = true;
+        Process.Start(psi);
+    }
+
+    static int Launcher(string source)
+    {
+        const string title = "WGDot Launcher";
+        IntPtr existing = FindTopLevelWindowByExactTitle(title);
+        if (existing != IntPtr.Zero)
+        {
+            PostMessage(existing, WmClose, IntPtr.Zero, IntPtr.Zero);
+            return 0;
+        }
+
+        List<LauncherApp> apps = GetLauncherApps();
+
+        IntPtr foreground = GetForegroundWindow();
+        POINT cursor;
+        bool haveCursor = GetCursorPos(out cursor);
+
+        System.Windows.Forms.Screen screen;
+        if (String.Equals(source, "bar", StringComparison.OrdinalIgnoreCase) && haveCursor)
+            screen = System.Windows.Forms.Screen.FromPoint(new System.Drawing.Point(cursor.X, cursor.Y));
+        else if (foreground != IntPtr.Zero)
+            screen = System.Windows.Forms.Screen.FromHandle(foreground);
+        else if (haveCursor)
+            screen = System.Windows.Forms.Screen.FromPoint(new System.Drawing.Point(cursor.X, cursor.Y));
+        else
+            screen = System.Windows.Forms.Screen.PrimaryScreen;
+
+        YasbTheme theme = FindYasbTheme(CurrentYasbThemeId()) ?? YasbThemes[0];
+        System.Drawing.Color background = WgdotDrawingColor(
+            theme.Background,
+            System.Drawing.Color.FromArgb(25, 25, 25));
+        System.Drawing.Color foregroundColor = WgdotDrawingColor(
+            theme.Foreground,
+            System.Drawing.Color.Gainsboro);
+        System.Drawing.Color field = WgdotDrawingColor(
+            theme.Active,
+            System.Drawing.Color.FromArgb(43, 43, 43));
+        System.Drawing.Color hover = WgdotDrawingColor(
+            theme.Hover,
+            System.Drawing.Color.FromArgb(64, 64, 64));
+
+        const int width = 720;
+        const int height = 450;
+
+        var form = new System.Windows.Forms.Form();
+        form.Text = title;
+        form.FormBorderStyle = System.Windows.Forms.FormBorderStyle.None;
+        form.StartPosition = System.Windows.Forms.FormStartPosition.Manual;
+        form.Size = new System.Drawing.Size(width, height);
+        form.Location = LauncherLocation(source, screen, foreground, width, height);
+        form.BackColor = background;
+        form.ForeColor = foregroundColor;
+        form.ShowInTaskbar = false;
+        form.TopMost = true;
+        form.KeyPreview = true;
+        form.Opacity = 0.0;
+
+        var outer = new System.Windows.Forms.Panel();
+        outer.Dock = System.Windows.Forms.DockStyle.Fill;
+        outer.Padding = new System.Windows.Forms.Padding(12);
+        outer.BackColor = background;
+
+        var searchWrap = new System.Windows.Forms.Panel();
+        searchWrap.Dock = System.Windows.Forms.DockStyle.Top;
+        searchWrap.Height = 58;
+        searchWrap.Padding = new System.Windows.Forms.Padding(12, 10, 12, 8);
+        searchWrap.BackColor = field;
+
+        var search = new System.Windows.Forms.TextBox();
+        search.Dock = System.Windows.Forms.DockStyle.Fill;
+        search.BorderStyle = System.Windows.Forms.BorderStyle.None;
+        search.BackColor = field;
+        search.ForeColor = foregroundColor;
+        search.Font = new System.Drawing.Font(
+            "Segoe UI",
+            17f,
+            System.Drawing.FontStyle.Regular,
+            System.Drawing.GraphicsUnit.Pixel);
+
+        var results = new System.Windows.Forms.ListBox();
+        results.Dock = System.Windows.Forms.DockStyle.Fill;
+        results.BorderStyle = System.Windows.Forms.BorderStyle.None;
+        results.BackColor = background;
+        results.ForeColor = foregroundColor;
+        results.Font = new System.Drawing.Font(
+            "Segoe UI",
+            15f,
+            System.Drawing.FontStyle.Regular,
+            System.Drawing.GraphicsUnit.Pixel);
+        results.DrawMode = System.Windows.Forms.DrawMode.OwnerDrawFixed;
+        results.ItemHeight = 36;
+        results.IntegralHeight = false;
+
+        Action refresh = delegate
+        {
+            List<LauncherApp> filtered = FilterLauncherApps(apps, search.Text, 12);
+            results.BeginUpdate();
+            try
+            {
+                results.Items.Clear();
+                foreach (LauncherApp app in filtered)
+                    results.Items.Add(app);
+
+                if (results.Items.Count > 0)
+                    results.SelectedIndex = 0;
+            }
+            finally
+            {
+                results.EndUpdate();
+            }
+        };
+
+        results.DrawItem += delegate(
+            object sender,
+            System.Windows.Forms.DrawItemEventArgs e)
+        {
+            if (e.Index < 0 || e.Index >= results.Items.Count)
+                return;
+
+            bool selected = (e.State & System.Windows.Forms.DrawItemState.Selected) != 0;
+            using (var brush = new System.Drawing.SolidBrush(selected ? hover : background))
+                e.Graphics.FillRectangle(brush, e.Bounds);
+
+            LauncherApp app = results.Items[e.Index] as LauncherApp;
+            string label = app == null ? "" : app.Name;
+            System.Drawing.Rectangle textBounds = new System.Drawing.Rectangle(
+                e.Bounds.Left + 12,
+                e.Bounds.Top,
+                Math.Max(1, e.Bounds.Width - 24),
+                e.Bounds.Height);
+
+            System.Windows.Forms.TextRenderer.DrawText(
+                e.Graphics,
+                label,
+                results.Font,
+                textBounds,
+                foregroundColor,
+                System.Windows.Forms.TextFormatFlags.Left |
+                System.Windows.Forms.TextFormatFlags.VerticalCenter |
+                System.Windows.Forms.TextFormatFlags.EndEllipsis);
+        };
+
+        Action launchSelected = delegate
+        {
+            LauncherApp app = results.SelectedItem as LauncherApp;
+            if (app != null)
+                LaunchLauncherApp(form, app);
+        };
+
+        search.TextChanged += delegate { refresh(); };
+        search.KeyDown += delegate(
+            object sender,
+            System.Windows.Forms.KeyEventArgs e)
+        {
+            if (e.KeyCode == System.Windows.Forms.Keys.Down)
+            {
+                if (results.Items.Count > 0)
+                    results.SelectedIndex = Math.Min(results.Items.Count - 1, results.SelectedIndex + 1);
+                e.Handled = true;
+                e.SuppressKeyPress = true;
+            }
+            else if (e.KeyCode == System.Windows.Forms.Keys.Up)
+            {
+                if (results.Items.Count > 0)
+                    results.SelectedIndex = Math.Max(0, results.SelectedIndex - 1);
+                e.Handled = true;
+                e.SuppressKeyPress = true;
+            }
+            else if (e.KeyCode == System.Windows.Forms.Keys.Enter)
+            {
+                launchSelected();
+                e.Handled = true;
+                e.SuppressKeyPress = true;
+            }
+            else if (e.KeyCode == System.Windows.Forms.Keys.Escape)
+            {
+                form.Close();
+                e.Handled = true;
+                e.SuppressKeyPress = true;
+            }
+        };
+
+        results.DoubleClick += delegate { launchSelected(); };
+        results.KeyDown += delegate(
+            object sender,
+            System.Windows.Forms.KeyEventArgs e)
+        {
+            if (e.KeyCode == System.Windows.Forms.Keys.Enter)
+            {
+                launchSelected();
+                e.Handled = true;
+            }
+            else if (e.KeyCode == System.Windows.Forms.Keys.Escape)
+            {
+                form.Close();
+                e.Handled = true;
+            }
+        };
+
+        form.Deactivate += delegate
+        {
+            if (!form.IsDisposed)
+                form.Close();
+        };
+
+        searchWrap.Controls.Add(search);
+        outer.Controls.Add(results);
+        outer.Controls.Add(searchWrap);
+        form.Controls.Add(outer);
+
+        form.Shown += delegate
+        {
+            refresh();
+            search.Focus();
+
+            var fade = new System.Windows.Forms.Timer();
+            fade.Interval = 15;
+            fade.Tick += delegate
+            {
+                if (form.IsDisposed)
+                {
+                    fade.Stop();
+                    fade.Dispose();
+                    return;
+                }
+
+                form.Opacity = Math.Min(0.98, form.Opacity + 0.12);
+                if (form.Opacity >= 0.979)
+                {
+                    form.Opacity = 0.98;
+                    fade.Stop();
+                    fade.Dispose();
+                }
+            };
+            fade.Start();
+        };
+
+        System.Windows.Forms.Application.Run(form);
+        return 0;
+    }
 
     static System.Drawing.Color WgdotDrawingColor(string hex, System.Drawing.Color fallback)
     {
