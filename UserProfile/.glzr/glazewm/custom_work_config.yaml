@@ -219,10 +219,12 @@ binding_modes:
         bindings: ["lwin+alt+p", "rwin+alt+p"]
       - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe bar-autohide-toggle']
         bindings: ["alt+ctrl+b"]
-      # Keep ordinary launcher keys out of VM mode. WGDot dispatches directly
-      # to YASB's private hotkey listener without pausing GlazeWM.
+      # Work-profile launcher A/B test: Alt+P opens Flow Launcher while
+      # Super+D keeps WGDot/YASB Quick Launch. VM mode still captures neither.
+      - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe flow-open']
+        bindings: ["alt+p"]
       - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe quick-launch']
-        bindings: ["alt+p", "lwin+d", "rwin+d"]
+        bindings: ["lwin+d", "rwin+d"]
 
       - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe theme-toggle']
         bindings: ["lwin+t", "rwin+t"]
@@ -405,10 +407,12 @@ keybindings:
   # so Start stays closed while preserving normal Super chords. VM mode is
   # tracked separately and bypasses that suppression for guest input.
 
-  # Alt+P/Super+D are host launcher aliases outside VM mode. WGDot dispatches
-  # directly to YASB's private hotkey listener; no temporary Glaze pause is used.
+  # Work-profile launcher A/B test: Alt+P opens Flow Launcher while
+  # Super+D keeps WGDot/YASB Quick Launch. No temporary Glaze pause is used.
+  - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe flow-open']
+    bindings: ["alt+p"]
   - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe quick-launch']
-    bindings: ["alt+p", "lwin+d", "rwin+d"]
+    bindings: ["lwin+d", "rwin+d"]
 
   - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe flameshot-gui']
     bindings: ["lwin+shift+s", "rwin+shift+s"]
