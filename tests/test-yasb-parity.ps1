@@ -202,8 +202,7 @@ foreach ($glaze in @($glazeNormal, $glazeWork)) {
     Assert-Contains $glaze 'color: "#a1a1a1"' "focused GlazeWM border stays theme-neutral"
     Assert-Contains $glaze 'bindings: ["lwin+t", "rwin+t"]' "Win+T opens themes"
     Assert-Contains $glaze 'bindings: ["lwin+c", "rwin+c"]' "Super+C opens WGDot Clipboard History"
-    Assert-Contains $glaze 'wgdot.exe quick-launch' "GlazeWM launcher aliases route through the WGDot YASB helper"
-    Assert-Contains $glaze 'bindings: ["alt+p", "lwin+d", "rwin+d"]' "GlazeWM owns Alt+P/Super+D outside VM mode"
+    Assert-Contains $glaze 'wgdot.exe quick-launch' "GlazeWM keeps WGDot/YASB Quick Launch available"
     Assert-Contains $glaze 'bindings: ["lwin+v", "rwin+v"]' "GlazeWM owns Super+V for the EarTrumpet mixer"
     Assert-Contains $glaze 'name: "noalt"' "noalt mode is restored"
     Assert-Contains $glaze 'commands: ["wm-toggle-pause"]' "real GlazeWM pause replaces pause/noalt emulation"
@@ -224,6 +223,15 @@ foreach ($glaze in @($glazeNormal, $glazeWork)) {
     Assert-Contains $glaze 'bindings: ["lwin+shift+1", "rwin+shift+1"]' "Super+Shift+number workspace move survives noalt"
     Assert-NotContains $glaze 'bindings: ["lwin+alt+d", "rwin+alt+d"]' "GlazeWM leaves the private YASB bridge out of normal bindings"
 }
+
+Assert-Contains $glazeNormal 'bindings: ["alt+p", "lwin+d", "rwin+d"]' "Normal GlazeWM keeps Alt+P/Super+D on WGDot/YASB Quick Launch"
+Assert-NotContains $glazeNormal 'wgdot.exe flow-open' "Normal GlazeWM does not make Flow Launcher the default"
+
+Assert-Contains $glazeWork 'wgdot.exe flow-open' "Work GlazeWM exposes Flow Launcher for the migration A/B test"
+Assert-Contains $glazeWork 'bindings: ["alt+p"]' "Work GlazeWM maps Alt+P to Flow Launcher"
+Assert-Contains $glazeWork 'bindings: ["lwin+d", "rwin+d"]' "Work GlazeWM maps Super+D to WGDot/YASB Quick Launch"
+Assert-NotContains $glazeWork 'bindings: ["alt+p", "lwin+d", "rwin+d"]' "Work GlazeWM keeps Flow and YASB launcher chords separate"
+
 Assert-NotContains $config 'komorebi' "abandoned Komorebi integration is absent"
 Assert-NotContains $config 'whkd' "whkd is not introduced"
 
