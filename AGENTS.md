@@ -94,6 +94,7 @@ WGDot runtime and managed configuration intentionally have different lifecycles.
 - A runtime refresh from `main` must not silently change the release manifest used for a stable config operation.
 - The selected stable release supplies its own `wgdot/manifest.json` and managed source files.
 - Development branches are accessible only through explicit Git-testing mode.
+- Restricted/corporate networks may allow `raw.githubusercontent.com` while blocking `github.com` archive downloads and `api.github.com`. An explicitly bootstrapped full 40-character revision is already immutable and may be reused exactly without a branch-head API lookup. Managed source acquisition should prefer the normal GitHub archive path but fall back to downloading the revision's manifest plus all manifest-declared managed source files from `raw.githubusercontent.com`. A failed optional runtime-refresh API check must never make an already-installed exact runtime unusable. Do not weaken normal Git branch-membership validation for `git-review` / `git-update` / `git-reset`; the raw fallback is source transport, not a replacement for branch verification.
 
 Do not collapse runtime state, stable config state, Git-testing state, and baseline state into one version value.
 
