@@ -965,6 +965,16 @@ try {
     Remove-Item -LiteralPath $temp -Recurse -Force -ErrorAction SilentlyContinue
 }
 
+$managedDesktopRuntimeFiles = @(
+    Join-Path $repoRoot "UserProfile/.glzr/glazewm/config.yaml"
+    Join-Path $repoRoot "UserProfile/.glzr/glazewm/custom_work_config.yaml"
+    Join-Path $repoRoot "UserProfile/.config/yasb/config.yaml"
+)
+foreach ($managedDesktopRuntimeFile in $managedDesktopRuntimeFiles) {
+    $managedDesktopRuntimeText = Get-Content -Raw -LiteralPath $managedDesktopRuntimeFile
+    Assert-True ($managedDesktopRuntimeText -notmatch '(?i)(?:wgdotw?|%LOCALAPPDATA%\\wgdot\\bin\\wgdot\.exe)') "managed desktop config has no WGDot runtime dependency: $managedDesktopRuntimeFile"
+}
+
 Write-Host "WGDot tests passed." -ForegroundColor Green
  "Flow Launcher fallback accepts only the official setup asset"
 Assert-Equal ([int]$flowPackage.wingetInstallTimeoutSeconds) 180 "Flow Launcher WinGet attempt times out before indefinite stalls"
