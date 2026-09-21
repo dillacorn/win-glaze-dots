@@ -35,6 +35,9 @@
       "postActions": [
         {
           "type": "migrate-legacy-windows-hotkeys"
+        },
+        {
+          "type": "ensure-desktop-worker"
         }
       ]
     },
