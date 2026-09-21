@@ -166,10 +166,7 @@ widgets:
         border_color: "None"
         dark_mode: true
       keybindings:
-        - keys: "win+d"
-          action: "toggle_quick_launch"
-          screen: "active"
-        - keys: "win+alt+d"
+        - keys: "f24"
           action: "toggle_quick_launch"
           screen: "active"
       callbacks:
@@ -552,7 +549,7 @@ widgets:
       callbacks:
         on_left: "toggle_mute"
         on_middle: "toggle_label"
-        on_right: "exec explorer.exe shell:AppsFolder\40459File-New-Project.EarTrumpet_725pr5jq8wr8a!EarTrumpet"
+        on_right: 'exec explorer.exe shell:AppsFolder\40459File-New-Project.EarTrumpet_725pr5jq8wr8a!EarTrumpet'
 
   clock:
     type: "yasb.clock.ClockWidget"
