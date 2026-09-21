@@ -7482,18 +7482,6 @@ class WgdotHidden
         }
     }
 
-    static void SignalMouseModeHookStop()
-    {
-        try
-        {
-            using (var stop = System.Threading.EventWaitHandle.OpenExisting(MouseModeStopEventName))
-                stop.Set();
-        }
-        catch (System.Threading.WaitHandleCannotBeOpenedException)
-        {
-        }
-    }
-
     static void StartMouseModeHook()
     {
         string exe = Process.GetCurrentProcess().MainModule.FileName;
