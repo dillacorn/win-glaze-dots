@@ -669,37 +669,16 @@ widgets:
         on_right: "toggle_status"
 
   power_menu:
-    type: "yasb.power_menu.PowerMenuWidget"
+    type: "yasb.custom.CustomWidget"
     options:
       label: "<span></span>"
-      uptime: false
-      show_user: false
-      blur: false
-      blur_background: false
-      animation_duration: 0
-      button_row: 3
-      menu_style: "popup"
-      popup:
-        blur: false
-        round_corners: false
-        round_corners_type: "none"
-        border_color: "None"
-        alignment: "right"
-        direction: "down"
-        offset_top: 0
-        offset_left: 0
-      buttons:
-        lock: ["", "Lock"]
-        signout: ["󰗽", "Sign out"]
-        sleep: ["󰒲", "Sleep"]
-        hibernate: ["", "Hibernate"]
-        restart: ["", "Restart"]
-        shutdown: ["", "Shut Down"]
-        cancel: ["󰅖", "Cancel"]
-      keybindings:
-        - keys: "win+p"
-          action: "toggle_power_menu"
+      class_name: "awtarchy-power"
+      tooltip: true
+      tooltip_label: "Power menu (L/H/R/S/O/Z)"
+      exec_options:
+        run_once: true
+        return_format: "string"
       callbacks:
-        on_left: "toggle_power_menu"
+        on_left: "exec wgdotw.exe power-menu"
         on_middle: "do_nothing"
-        on_right: "toggle_power_menu"
+        on_right: "exec wgdotw.exe power-menu"
