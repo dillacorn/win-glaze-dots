@@ -166,9 +166,9 @@ QToolTip,
     background-color: var(--subtle-hover);
 }
 
-/* Awtarchy-style mouse/workspace mover. The mouse hub stays in its own
-   always-visible child. A passive Grouper supplies one hover parent for the
-   arrow child, which is width-zero until the group is hovered. */
+/* Awtarchy-style mouse/workspace mover. Collapse the ApplicationsWidget frame,
+   its container, and each arrow label because Qt child size hints can otherwise
+   keep the arrows visible even when the parent frame says max-width: 0. */
 .workspace-move-grouper,
 .workspace-move-grouper .widget-container,
 .workspace-move-grouper .container,
@@ -188,8 +188,7 @@ QToolTip,
     max-width: 28px;
 }
 
-.workspace-mouse-hub .label,
-.workspace-move-buttons .label {
+.workspace-mouse-hub .label {
     color: var(--foreground);
     background-color: transparent;
     border: none;
@@ -200,18 +199,38 @@ QToolTip,
     padding: 0 7px;
 }
 
+.workspace-move-buttons,
+.workspace-move-buttons .widget-container,
+.workspace-move-buttons .label {
+    min-width: 0;
+    max-width: 0;
+    margin: 0;
+    padding: 0;
+}
+
+.workspace-move-buttons .label {
+    color: transparent;
+    background-color: transparent;
+    border: none;
+    border-radius: 0;
+    font-size: 14px;
+}
+
+.workspace-move-grouper:hover .workspace-move-buttons,
+.workspace-move-grouper:hover .workspace-move-buttons .widget-container {
+    max-width: 112px;
+}
+
+.workspace-move-grouper:hover .workspace-move-buttons .label {
+    color: var(--foreground);
+    min-width: 14px;
+    max-width: 28px;
+    padding: 0 7px;
+}
+
 .workspace-mouse-hub .label:hover,
 .workspace-move-buttons .label:hover {
     background-color: var(--strong-hover);
-}
-
-.workspace-move-buttons {
-    min-width: 0;
-    max-width: 0;
-}
-
-.workspace-move-grouper:hover .workspace-move-buttons {
-    max-width: 112px;
 }
 
 /* Running window strip. */
@@ -310,7 +329,7 @@ QToolTip,
     border: none;
     border-radius: 0;
     margin: 0;
-    padding: 0 7px;
+    padding: 0 4px;
 }
 
 .awtarchy-control-center:hover {

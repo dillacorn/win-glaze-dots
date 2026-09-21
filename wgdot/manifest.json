@@ -65,6 +65,9 @@
       ],
       "postActions": [
         {
+          "type": "ensure-hidden-launcher"
+        },
+        {
           "type": "ensure-yasb-theme"
         }
       ]

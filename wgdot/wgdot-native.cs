@@ -19,7 +19,7 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-55";
+    const string Version = "native-preview-56";
     const int WingetPreflightTimeoutMs = 30000;
     const string RepoFullName = "dillacorn/win-glaze-dots";
     const string RepoUrl = "https://github.com/dillacorn/win-glaze-dots.git";
@@ -69,8 +69,35 @@ internal static class WgdotNative
     [DllImport("user32.dll")]
     static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, UIntPtr dwExtraInfo);
 
+    [DllImport("user32.dll", SetLastError = true)]
+    static extern uint SendInput(uint nInputs, INPUT[] pInputs, int cbSize);
+
     [DllImport("user32.dll")]
     static extern short GetAsyncKeyState(int vKey);
+
+    [StructLayout(LayoutKind.Sequential)]
+    struct INPUT
+    {
+        public uint type;
+        public INPUTUNION data;
+    }
+
+    [StructLayout(LayoutKind.Explicit)]
+    struct INPUTUNION
+    {
+        [FieldOffset(0)]
+        public KEYBDINPUT keyboard;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    struct KEYBDINPUT
+    {
+        public ushort wVk;
+        public ushort wScan;
+        public uint dwFlags;
+        public uint time;
+        public UIntPtr dwExtraInfo;
+    }
 
     [StructLayout(LayoutKind.Sequential)]
     struct POINT
@@ -266,6 +293,8 @@ internal static class WgdotNative
     const byte VkLwin = 0x5B;
     const byte VkRwin = 0x5C;
     const byte VkV = 0x56;
+    const byte VkF24 = 0x87;
+    const uint InputKeyboard = 1;
     const uint KeyeventfKeyup = 0x0002;
 
     [DllImport("shell32.dll")]
@@ -578,6 +607,7 @@ internal static class WgdotNative
             if (command == "mouse-mode-disable") return MouseModeDisable();
             if (command == "mouse-mode-switch") return MouseModeSwitchFromArgs(args.Skip(1).ToArray());
             if (command == "mouse-mode-hook") return MouseModeHook();
+            if (command == "glazewm-binding-mode-toggle") return GlazeWmBindingModeToggleFromArgs(args.Skip(1).ToArray());
             if (command == "glazewm-pause-status") return GlazeWmPauseStatus();
             if (command == "glazewm-pause-toggle") return GlazeWmPauseToggle();
             if (command == "theme-toggle") return ThemeToggle();
@@ -624,7 +654,8 @@ internal static class WgdotNative
             String.Equals(command, "clipboard-history", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "mouse-mode-toggle", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "mouse-mode-disable", StringComparison.OrdinalIgnoreCase) ||
-            String.Equals(command, "mouse-mode-switch", StringComparison.OrdinalIgnoreCase);
+            String.Equals(command, "mouse-mode-switch", StringComparison.OrdinalIgnoreCase) ||
+            String.Equals(command, "glazewm-binding-mode-toggle", StringComparison.OrdinalIgnoreCase);
     }
 
     static void ReportDesktopHelperFailure(string command, Exception error)
@@ -6247,6 +6278,63 @@ internal static class WgdotNative
         return Path.Combine(profileRoot, ".config", "yasb", "theme.css");
     }
 
+    static string HiddenLauncherPath()
+    {
+        return Path.Combine(BinRoot, "wgdotw.exe");
+    }
+
+    static void EnsureHiddenLauncher()
+    {
+        string destination = HiddenLauncherPath();
+        if (File.Exists(destination))
+            return;
+
+        Directory.CreateDirectory(BinRoot);
+        Directory.CreateDirectory(CacheRoot);
+        string sourcePath = Path.Combine(CacheRoot, "wgdotw-wrapper.cs");
+        string source = @"
+using System;
+using System.Diagnostics;
+using System.IO;
+
+class WgdotHidden
+{
+    static int Main(string[] args)
+    {
+        string exe = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, ""wgdot.exe"");
+        if (!File.Exists(exe))
+            return 127;
+
+        var psi = new ProcessStartInfo();
+        psi.FileName = exe;
+        psi.Arguments = String.Join("" "", args ?? new string[0]);
+        psi.UseShellExecute = false;
+        psi.CreateNoWindow = true;
+
+        using (Process process = Process.Start(psi))
+        {
+            process.WaitForExit();
+            return process.ExitCode;
+        }
+    }
+}
+";
+        File.WriteAllText(sourcePath, source, new UTF8Encoding(false));
+
+        string csc = GetCscPath();
+        if (String.IsNullOrWhiteSpace(csc))
+            throw new Exception("Windows .NET Framework C# compiler was not found for wgdotw.exe.");
+
+        ProcResult compile = Run(
+            csc,
+            "/nologo /optimize+ /target:winexe /out:" + Q(destination) + " " + Q(sourcePath),
+            null);
+        if (compile.ExitCode != 0)
+            throw new Exception(
+                "Hidden WGDot launcher compilation failed: " +
+                LastUsefulLine((compile.StdErr ?? "") + "\n" + (compile.StdOut ?? "")));
+    }
+
     static string YasbAppearanceCssPath()
     {
         string profileRoot;
@@ -6323,7 +6411,10 @@ internal static class WgdotNative
 
     static void EnsureYasbAppearance()
     {
-        WriteYasbAppearance(ReadYasbAppearanceState());
+        Dictionary<string, object> state = ReadYasbAppearanceState();
+        state["runningAppsVisible"] = true;
+        state["shadeRunningApps"] = false;
+        WriteYasbAppearance(state);
     }
 
     static int ToggleYasbRunningApps()
@@ -6477,6 +6568,51 @@ internal static class WgdotNative
             "settings.json");
     }
 
+    static double TerminalRelativeLuminance(string hex)
+    {
+        if (String.IsNullOrWhiteSpace(hex) || !Regex.IsMatch(hex, "^#[0-9A-Fa-f]{6}$"))
+            return 0.0;
+
+        Func<int, double> channel = delegate(int value)
+        {
+            double c = value / 255.0;
+            return c <= 0.03928 ? c / 12.92 : Math.Pow((c + 0.055) / 1.055, 2.4);
+        };
+
+        int r = Int32.Parse(hex.Substring(1, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture);
+        int g = Int32.Parse(hex.Substring(3, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture);
+        int b = Int32.Parse(hex.Substring(5, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture);
+        return (0.2126 * channel(r)) + (0.7152 * channel(g)) + (0.0722 * channel(b));
+    }
+
+    static double TerminalContrastRatio(string a, string b)
+    {
+        double la = TerminalRelativeLuminance(a);
+        double lb = TerminalRelativeLuminance(b);
+        return (Math.Max(la, lb) + 0.05) / (Math.Min(la, lb) + 0.05);
+    }
+
+    static string BlendTerminalColor(string background, string foreground, double foregroundWeight)
+    {
+        Func<string, int, int> part = delegate(string value, int start)
+        {
+            return Int32.Parse(value.Substring(start, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture);
+        };
+
+        double backWeight = 1.0 - foregroundWeight;
+        int r = (int)Math.Round((part(background, 1) * backWeight) + (part(foreground, 1) * foregroundWeight));
+        int g = (int)Math.Round((part(background, 3) * backWeight) + (part(foreground, 3) * foregroundWeight));
+        int b = (int)Math.Round((part(background, 5) * backWeight) + (part(foreground, 5) * foregroundWeight));
+        return String.Format(CultureInfo.InvariantCulture, "#{0:X2}{1:X2}{2:X2}", r, g, b);
+    }
+
+    static string ReadableTerminalColor(string candidate, YasbTheme theme, double minimumContrast, double fallbackForegroundWeight)
+    {
+        if (TerminalContrastRatio(candidate, theme.Background) >= minimumContrast)
+            return candidate;
+        return BlendTerminalColor(theme.Background, theme.Foreground, fallbackForegroundWeight);
+    }
+
     static bool IsLightHexColor(string hex)
     {
         if (String.IsNullOrWhiteSpace(hex) ||
@@ -6525,22 +6661,22 @@ internal static class WgdotNative
         scheme["background"] = theme.Background;
         scheme["foreground"] = theme.Foreground;
         scheme["cursorColor"] = theme.Foreground;
-        scheme["selectionBackground"] = theme.Focus;
+        scheme["selectionBackground"] = ReadableTerminalColor(theme.Focus, theme, 1.6, 0.45);
         scheme["black"] = theme.Dark;
-        scheme["red"] = theme.Urgent;
-        scheme["green"] = theme.Charging;
-        scheme["yellow"] = theme.Critical;
-        scheme["blue"] = theme.Focus;
-        scheme["purple"] = theme.Active;
-        scheme["cyan"] = theme.Hover;
+        scheme["red"] = ReadableTerminalColor(theme.Urgent, theme, 3.0, 0.72);
+        scheme["green"] = ReadableTerminalColor(theme.Charging, theme, 3.0, 0.72);
+        scheme["yellow"] = ReadableTerminalColor(theme.Critical, theme, 3.0, 0.72);
+        scheme["blue"] = ReadableTerminalColor(theme.Focus, theme, 3.0, 0.72);
+        scheme["purple"] = ReadableTerminalColor(theme.Active, theme, 3.0, 0.72);
+        scheme["cyan"] = ReadableTerminalColor(theme.Hover, theme, 4.5, 0.82);
         scheme["white"] = theme.Foreground;
-        scheme["brightBlack"] = theme.Muted;
-        scheme["brightRed"] = theme.Urgent;
-        scheme["brightGreen"] = theme.Charging;
-        scheme["brightYellow"] = theme.Critical;
-        scheme["brightBlue"] = theme.Focus;
-        scheme["brightPurple"] = theme.Active;
-        scheme["brightCyan"] = theme.Hover;
+        scheme["brightBlack"] = ReadableTerminalColor(theme.Muted, theme, 3.0, 0.60);
+        scheme["brightRed"] = ReadableTerminalColor(theme.Urgent, theme, 4.0, 0.82);
+        scheme["brightGreen"] = ReadableTerminalColor(theme.Charging, theme, 4.0, 0.82);
+        scheme["brightYellow"] = ReadableTerminalColor(theme.Critical, theme, 4.0, 0.82);
+        scheme["brightBlue"] = ReadableTerminalColor(theme.Focus, theme, 4.0, 0.82);
+        scheme["brightPurple"] = ReadableTerminalColor(theme.Active, theme, 4.0, 0.82);
+        scheme["brightCyan"] = ReadableTerminalColor(theme.Hover, theme, 4.5, 0.90);
         scheme["brightWhite"] = theme.Foreground;
         schemes.Add(scheme);
         root["schemes"] = schemes.ToArray();
@@ -6891,6 +7027,37 @@ internal static class WgdotNative
             throw new Exception("Failed to apply the remembered cursor theme.");
     }
 
+    static void SendKeyChord(params byte[] virtualKeys)
+    {
+        if (virtualKeys == null || virtualKeys.Length == 0)
+            return;
+
+        var inputs = new List<INPUT>();
+        foreach (byte key in virtualKeys)
+        {
+            var input = new INPUT();
+            input.type = InputKeyboard;
+            input.data.keyboard.wVk = key;
+            inputs.Add(input);
+        }
+
+        for (int i = virtualKeys.Length - 1; i >= 0; i--)
+        {
+            var input = new INPUT();
+            input.type = InputKeyboard;
+            input.data.keyboard.wVk = virtualKeys[i];
+            input.data.keyboard.dwFlags = KeyeventfKeyup;
+            inputs.Add(input);
+        }
+
+        INPUT[] batch = inputs.ToArray();
+        uint sent = SendInput((uint)batch.Length, batch, Marshal.SizeOf(typeof(INPUT)));
+        if (sent != batch.Length)
+            throw new System.ComponentModel.Win32Exception(
+                Marshal.GetLastWin32Error(),
+                "Windows SendInput did not inject the complete shortcut.");
+    }
+
     static int OpenFlowLauncher()
     {
         string exe = FindFlowLauncherExe();
@@ -6906,9 +7073,10 @@ internal static class WgdotNative
     static void WaitForLauncherModifierRelease()
     {
         // Alt+P and Super+D are owned by GlazeWM outside VM mode. The helper
-        // forwards them to YASB's one VM-safe RegisterHotKey chord, Win+Alt+D.
-        // Wait for the physical launcher modifiers to be released first so the
-        // synthetic chord cannot inherit a still-held Alt/Windows key.
+        // forwards them to YASB's private RegisterHotKey bridge, Win+Alt+F24.
+        // Win+Alt+D is reserved by Windows for date/time, so it cannot be a
+        // reliable YASB bridge. Wait for the physical launcher modifiers to be
+        // released first so the synthetic chord cannot inherit held modifiers.
         for (int i = 0; i < 200; i++)
         {
             bool altDown = (GetAsyncKeyState(VkMenu) & 0x8000) != 0;
@@ -6933,20 +7101,16 @@ internal static class WgdotNative
         // has no CLI/IPC command for invoking an individual widget callback.
         // GlazeWM's low-level keyboard hook also sees injected input, so mirror
         // the Clipboard History helper: preserve the pause state and pause the
-        // WM while synthesizing the one YASB-owned Win+Alt+D host chord.
+        // WM while synthesizing YASB's private Win+Alt+F24 bridge. SendInput
+        // injects the complete chord atomically instead of racing keybd_event calls.
         bool wasPaused = GlazeWmIsPaused();
         if (!wasPaused)
             GlazeWmPauseToggle();
 
         try
         {
-            keybd_event(VkLwin, 0, 0, UIntPtr.Zero);
-            keybd_event(VkMenu, 0, 0, UIntPtr.Zero);
-            keybd_event(VkD, 0, 0, UIntPtr.Zero);
-            keybd_event(VkD, 0, KeyeventfKeyup, UIntPtr.Zero);
-            keybd_event(VkMenu, 0, KeyeventfKeyup, UIntPtr.Zero);
-            keybd_event(VkLwin, 0, KeyeventfKeyup, UIntPtr.Zero);
-            System.Threading.Thread.Sleep(80);
+            SendKeyChord(VkLwin, VkMenu, VkF24);
+            System.Threading.Thread.Sleep(150);
         }
         finally
         {
@@ -6990,11 +7154,8 @@ internal static class WgdotNative
 
         try
         {
-            keybd_event(VkLwin, 0, 0, UIntPtr.Zero);
-            keybd_event(VkV, 0, 0, UIntPtr.Zero);
-            keybd_event(VkV, 0, KeyeventfKeyup, UIntPtr.Zero);
-            keybd_event(VkLwin, 0, KeyeventfKeyup, UIntPtr.Zero);
-            System.Threading.Thread.Sleep(80);
+            SendKeyChord(VkLwin, VkV);
+            System.Threading.Thread.Sleep(150);
         }
         finally
         {
@@ -7402,6 +7563,29 @@ internal static class WgdotNative
             SignalMouseModeHookStop();
 
         SetGlazeWmBindingMode(args[0], true);
+        return 0;
+    }
+
+    static int GlazeWmBindingModeToggleFromArgs(string[] args)
+    {
+        if (args.Length != 1 ||
+            !(String.Equals(args[0], "noalt", StringComparison.OrdinalIgnoreCase) ||
+              String.Equals(args[0], "vm", StringComparison.OrdinalIgnoreCase)))
+            throw new Exception("glazewm-binding-mode-toggle requires exactly one target: noalt or vm.");
+
+        string mode = args[0].ToLowerInvariant();
+        if (GlazeWmBindingModeActive(mode))
+        {
+            SetGlazeWmBindingMode(mode, false);
+            return 0;
+        }
+
+        if (MouseModeIsActive())
+            MouseModeDisable();
+        else
+            SignalMouseModeHookStop();
+
+        SetGlazeWmBindingMode(mode, true);
         return 0;
     }
 
@@ -9883,6 +10067,10 @@ public static class Program
                 else if (String.Equals(type, "migrate-legacy-windows-hotkeys", StringComparison.OrdinalIgnoreCase))
                 {
                     MigrateLegacyWindowsShellHotkeys(true);
+                }
+                else if (String.Equals(type, "ensure-hidden-launcher", StringComparison.OrdinalIgnoreCase))
+                {
+                    EnsureHiddenLauncher();
                 }
                 else if (String.Equals(type, "ensure-yasb-theme", StringComparison.OrdinalIgnoreCase))
                 {

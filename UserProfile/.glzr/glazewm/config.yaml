@@ -221,7 +221,7 @@ binding_modes:
         bindings: ["lwin", "rwin"]
 
       # Keep ordinary launcher keys out of VM mode. This helper forwards to
-      # YASB's single VM-safe Win+Alt+D RegisterHotKey chord.
+      # YASB's private Win+Alt+F24 RegisterHotKey bridge.
       - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe quick-launch']
         bindings: ["alt+p", "lwin+d", "rwin+d"]
 
@@ -411,7 +411,7 @@ keybindings:
     bindings: ["lwin", "rwin"]
 
   # Alt+P/Super+D are host launcher aliases outside VM mode. YASB itself owns
-  # only Win+Alt+D so the ordinary guest chords can pass through in VM mode.
+  # only a private Win+Alt+F24 bridge so ordinary guest chords remain untouched.
   - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe quick-launch']
     bindings: ["alt+p", "lwin+d", "rwin+d"]
 
