@@ -110,6 +110,17 @@ jobs:
           WGDOT_SKIP_RUNTIME_REFRESH: "1"
         run: |
           "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" source-self-test --revision ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Validate restricted-network dots-only planning
+        shell: cmd
+        env:
+          WGDOT_FORCE_RAW_SOURCE: "1"
+          WGDOT_SKIP_RUNTIME_REFRESH: "1"
+        run: |
+          "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" dots-only --profile work > "%TEMP%\wgdot-dots-only-plan.txt"
+          type "%TEMP%\wgdot-dots-only-plan.txt"
+          findstr /C:"GlazeWM profile: work" "%TEMP%\wgdot-dots-only-plan.txt"
+          findstr /C:"Software operations: disabled" "%TEMP%\wgdot-dots-only-plan.txt"
+          findstr /C:"Review only. No managed files, backups, baselines, or selection state were changed." "%TEMP%\wgdot-dots-only-plan.txt"
       - name: Validate automatic runtime refresh handoff
         shell: cmd
         run: |
