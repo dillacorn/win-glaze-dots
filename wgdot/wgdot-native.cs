@@ -19,7 +19,7 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-51";
+    const string Version = "native-preview-52";
     const int WingetPreflightTimeoutMs = 30000;
     const string RepoFullName = "dillacorn/win-glaze-dots";
     const string RepoUrl = "https://github.com/dillacorn/win-glaze-dots.git";
@@ -510,14 +510,13 @@ internal static class WgdotNative
     static int Main(string[] args)
     {
         bool stagedRuntime = false;
+        string command = args.Length == 0 ? "menu" : args[0].ToLowerInvariant();
 
         try
         {
             ServicePointManager.SecurityProtocol |= SecurityProtocolType.Tls12;
             EnsureStateDirectories();
             stagedRuntime = IsStagedRuntimeProcess();
-
-            string command = args.Length == 0 ? "menu" : args[0].ToLowerInvariant();
 
             if (ShouldAutoRefreshRuntime(command) &&
                 !String.Equals(Environment.GetEnvironmentVariable("WGDOT_SKIP_RUNTIME_REFRESH"), "1", StringComparison.Ordinal))
@@ -597,6 +596,7 @@ internal static class WgdotNative
         catch (Exception ex)
         {
             Console.Error.WriteLine("WGDot native error: " + ex.Message);
+            ReportDesktopHelperFailure(command, ex);
             return 1;
         }
         finally
@@ -612,6 +612,54 @@ internal static class WgdotNative
                     Console.Error.WriteLine("WGDot runtime install finalization warning: " + ex.Message);
                 }
             }
+        }
+    }
+
+    static bool ShouldSurfaceDesktopHelperFailure(string command)
+    {
+        return
+            String.Equals(command, "quick-launch", StringComparison.OrdinalIgnoreCase) ||
+            String.Equals(command, "clipboard-history", StringComparison.OrdinalIgnoreCase);
+    }
+
+    static void ReportDesktopHelperFailure(string command, Exception error)
+    {
+        if (!ShouldSurfaceDesktopHelperFailure(command))
+            return;
+
+        string detail =
+            error == null || String.IsNullOrWhiteSpace(error.Message)
+                ? "Unknown desktop helper failure."
+                : error.Message;
+        string logPath = Path.Combine(StateRoot, "desktop-helper-errors.log");
+
+        try
+        {
+            Directory.CreateDirectory(StateRoot);
+            File.AppendAllText(
+                logPath,
+                DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture) +
+                " " + command + ": " + detail + Environment.NewLine,
+                Encoding.UTF8);
+        }
+        catch
+        {
+        }
+
+        try
+        {
+            System.Windows.Forms.MessageBox.Show(
+                "WGDot " + command + " failed." +
+                Environment.NewLine + Environment.NewLine +
+                detail +
+                Environment.NewLine + Environment.NewLine +
+                "Diagnostic log:" + Environment.NewLine + logPath,
+                "WGDot desktop helper error",
+                System.Windows.Forms.MessageBoxButtons.OK,
+                System.Windows.Forms.MessageBoxIcon.Error);
+        }
+        catch
+        {
         }
     }
 

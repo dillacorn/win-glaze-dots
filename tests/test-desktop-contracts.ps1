@@ -58,6 +58,11 @@ class FakeGlaze {
     Require ($LASTEXITCODE -eq 0) 'IPC fixture compilation failed'
     $env:PATH = $temp + ';' + $savedPath
     [Environment]::CurrentDirectory = $temp
+    Check 'hidden launcher and clipboard helpers surface failures' {
+        Require ([bool](Invoke-Native 'ShouldSurfaceDesktopHelperFailure' @('quick-launch'))) 'Quick Launch failure stayed hidden'
+        Require ([bool](Invoke-Native 'ShouldSurfaceDesktopHelperFailure' @('clipboard-history'))) 'Clipboard failure stayed hidden'
+        Require (-not [bool](Invoke-Native 'ShouldSurfaceDesktopHelperFailure' @('status'))) 'Normal status command should not show desktop error UI'
+    }
     Check 'GlazeWM rejected command is not treated as success even with exit zero' {
         $env:WGDOT_FIXTURE_RESPONSE = '{"clientMessage":"command wm-toggle-pause","data":null,"error":"fixture denied","success":false}'
         Expect-Failure { Invoke-Native 'GlazeWmPauseToggle' } 'fixture denied'
