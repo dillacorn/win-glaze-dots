@@ -9,12 +9,9 @@ WGDot manages installation, updates, backups, and deployment. Runtime ownership 
 - **GlazeWM** owns window-manager keybindings, binding modes, pause, workspace actions, screenshots, and direct Windows/application launches.
 - **YASB** owns bar widgets, native widget callbacks, its native power menu, DND, and Quick Launch.
 - **Installed applications** own their supported native hotkeys where possible. EarTrumpet is configured to own `Super+V` directly.
-- **Portable non-elevated scripts** handle only custom behavior that needs coordination across applications:
-  - `theme-switcher.ps1`
-  - `bar-autohide.ps1`
-  - `idle-inhibitor.ps1`
-  - `rawaccel-toggle.ps1`
-- **WGDot is used at runtime only for the approved custom primitives: mouse hook, idle inhibition, coordinated auto-hide, theme application, and invisible GlazeWM mode dispatch where YASB would otherwise flash a console.**
+- **Neither Normal nor Work has any `.ps1` runtime dependencies.** Desktop-session behavior uses native GlazeWM/YASB/Windows/application interfaces first.
+- **Compiled WGDot is used at runtime only for approved custom primitives:** the mouse hook, idle inhibition, coordinated auto-hide, theme application, invisible GlazeWM mode dispatch where a console would otherwise flash, and the narrow RawAccel GUI toggle.
+- Runtime actions that must stay invisible use the windowless `wgdotw.exe` frontend; the interactive theme selector uses `wgdot.exe theme` inside Windows Terminal.
 
 ## Bar layout
 
@@ -74,22 +71,22 @@ GlazeWM 3.10.x still does not expose mouse buttons through its keybinding parser
 
 `theme.css` and `appearance.css` are normal tracked dotfiles.
 
-`theme-switcher.ps1` is a non-elevated standalone script. It:
+The compiled WGDot theme manager is launched as `wgdot.exe theme` inside Windows Terminal. It:
 
 - writes the selected YASB palette to `~/.config/yasb/theme.css`
-- updates the user's Windows Terminal color/UI theme when Terminal settings exist
-- records its own state under `~/.config/win-glaze`
+- updates only WGDot-owned Windows Terminal theme entries/settings when Terminal settings exist, preserving unrelated Terminal configuration
+- records its own lightweight theme state under `~/.config/win-glaze`
 - does **not** reload GlazeWM
 
-The selector is launched in Windows Terminal with the title `Win Glaze Themes`, and both GlazeWM profiles float/center that window.
+The selector uses the title `Win Glaze Themes`, and both GlazeWM profiles float/center that window.
 
 GlazeWM focused borders stay neutral `#a1a1a1` so a theme change never requires a layout-disrupting GlazeWM reload.
 
 ## Coordinated bar auto-hide
 
-`Alt+Ctrl+B` invokes coordinated auto-hide. Normal may use the standalone script; restricted Work uses the compiled WGDot helper because `.ps1` files are blocked there.
+`Alt+Ctrl+B` invokes `wgdotw.exe bar-autohide-toggle` in both profiles.
 
-The script coordinates:
+The compiled helper coordinates:
 
 - YASB `auto_hide: true/false`
 - GlazeWM top gap `5px/35px`
@@ -100,9 +97,13 @@ The blank-bar context menu stays disabled so there is no second unsynchronized a
 
 ## Idle inhibitor
 
-The eye control uses the compiled WGDot idle helper on the managed bar. Restricted Work therefore has no `.ps1` dependency for Keep Awake.
+The eye control uses `wgdot.exe idle-inhibitor-status` for status and `wgdotw.exe idle-inhibitor-toggle` for changes in both profiles.
 
 The helper uses Windows `SetThreadExecutionState(ES_CONTINUOUS | ES_SYSTEM_REQUIRED | ES_DISPLAY_REQUIRED)` in a scoped hidden user-session worker. It changes no power-plan values.
+
+## RawAccel
+
+`Super+Shift+M` uses `wgdotw.exe rawaccel-toggle` in both profiles. The helper is deliberately narrow: if the RawAccel GUI is open it closes that GUI process; otherwise it locates and launches `rawaccel.exe`. Windows does not add Awtarchy's `Alt+Shift+M` alias.
 
 ## Power controls
 
@@ -136,7 +137,7 @@ There is currently no rendered clipboard-history bar button and no managed `Supe
 | active title | `ActiveWindowWidget` with `monitor_exclusive: false` |
 | task icons | native `TaskbarWidget`, 14 px icons in Awtarchy-sized slots |
 | workspace mover | passive native YASB Grouper with GlazeWM move-workspace commands |
-| quick settings | native `ControlCenterWidget` plus standalone theme/auto-hide scripts |
+| quick settings | native `ControlCenterWidget` plus narrowly scoped compiled WGDot theme/auto-hide/mode actions |
 | CPU / memory | native CPU and Memory widgets |
 | DDC brightness | native Brightness widget |
 | battery | native Battery widget with Awtarchy-like thresholds and glyph composition |
@@ -147,9 +148,10 @@ There is currently no rendered clipboard-history bar button and no managed `Supe
 | notifications / mute | native `DndWidget` |
 | power controls | native `PowerMenuWidget` |
 | launcher | native `QuickLaunchWidget`; Work `Alt+P` launches Flow directly during testing |
-| theme switching | standalone script on Normal; compiled WGDot helper on restricted Work |
-| bar auto-hide | standalone script on Normal; compiled WGDot helper on restricted Work |
-| keep awake | compiled WGDot execution-state helper on managed bar |
+| theme switching | compiled `wgdot.exe theme` manager in both profiles |
+| bar auto-hide | compiled `wgdotw.exe bar-autohide-toggle` coordinator in both profiles |
+| keep awake | compiled WGDot execution-state helper in both profiles |
+| RawAccel GUI toggle | compiled `wgdotw.exe rawaccel-toggle` in both profiles |
 
 ## Deliberate differences and omissions
 
@@ -177,4 +179,4 @@ Windows still reserves `Win+L`, and the selective Explorer hotkey policy does no
 
 - YASB systray stays `use_hook: false`.
 - No AutoHotkey, whkd, Explorer DLL injection, or third-party general-purpose input daemon is added.
-- Runtime helpers are narrowly scoped. Restricted Work uses compiled WGDot helpers instead of `.ps1` files; native-capable actions remain outside WGDot.
+- Runtime helpers are narrowly scoped. Normal and Work have no `.ps1` runtime dependencies; native-capable actions remain outside WGDot.
