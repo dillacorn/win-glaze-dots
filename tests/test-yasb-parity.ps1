@@ -139,7 +139,7 @@ Assert-Contains $config 'brightness_icons: ["", "", "", ""]' "bright
 Assert-Contains $config 'run_cmd: "wgdot idle-inhibitor-status"' "idle inhibitor polls WGDot status"
 Assert-Contains $config 'label: "{data[icon]}"' "idle inhibitor renders its JSON-decoded Awtarchy eye glyph"
 Assert-Contains $config 'return_format: "json"' "idle inhibitor avoids Windows console glyph encoding loss"
-Assert-Contains $config 'exec wgdot idle-inhibitor-toggle' "idle inhibitor toggles WGDot Keep Awake"
+Assert-Contains $config 'exec wgdotw idle-inhibitor-toggle' "idle inhibitor toggles WGDot Keep Awake without a console flash"
 Assert-Contains $clipboardBlock 'label: "<span></span>"' "clipboard glyph matches current Awtarchy rendering"
 $launcherBlock = [regex]::Match($config, '(?ms)^  launcher:\r?\n.*?(?=^  glazewm_workspaces:)').Value
 Assert-Contains $launcherBlock 'yasb.quick_launch.QuickLaunchWidget' "native Quick Launch replaces the old Flow launcher surface"
@@ -153,7 +153,7 @@ Assert-Contains $config 'yasb.dnd.DndWidget' "unified notifications and Do Not D
 Assert-NotContains $config 'yasb.notifications.NotificationsWidget' "separate Notifications widget stays removed after DND unification"
 Assert-Contains $config 'on_left: "exec notification_center"' "unified DND left click opens Windows Notification Center through YASB native exec mapping"
 Assert-Contains $config 'on_right: "toggle_status"' "unified DND right click uses its native DND toggle callback"
-Assert-Contains $config 'on_right: "exec wgdot eartrumpet-mixer"' "audio right click opens the existing EarTrumpet mixer helper"
+Assert-Contains $config 'on_right: "exec wgdotw eartrumpet-mixer"' "audio right click opens the existing EarTrumpet mixer helper without a console flash"
 Assert-Contains $config 'normal: ""' "unmuted microphone glyph is collapsed like Awtarchy"
 $mutedMicBlock = [regex]::Match($style, '(?ms)^\.microphone-widget \.label\.muted,\r?\n\.microphone-widget \.icon\.muted \{\r?\n.*?^\}').Value
 Assert-Contains $mutedMicBlock 'padding: 0 8px;' "muted microphone keeps Awtarchy's 8 px horizontal control padding"
@@ -166,7 +166,7 @@ Assert-Contains $native 'string themeId = CurrentYasbThemeId();' "theme post-act
 Assert-Contains $native 'YASB theme post-action self-test failed.' "native maintenance self-test exercises post-apply theme generation"
 $powerBlock = [regex]::Match($config, '(?ms)^  power_menu:\r?\n.*$').Value
 Assert-Contains $powerBlock 'yasb.custom.CustomWidget' "power button uses a simple YASB callback surface"
-Assert-Contains $powerBlock 'exec wgdot power-menu' "power button opens the WGDot native overlay"
+Assert-Contains $powerBlock 'exec wgdotw power-menu' "power button opens the WGDot native overlay without a console flash"
 Assert-Contains $powerBlock 'Power menu (L/H/R/S/O/Z)' "power tooltip advertises direct action keys"
 Assert-NotContains $config 'yasb.power_menu.PowerMenuWidget' "stock YASB power popup is removed"
 Assert-Contains $native 'if (command == "power-menu") return PowerMenu();' "native WGDot exposes the power overlay"
