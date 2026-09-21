@@ -10,6 +10,8 @@ APPROVED_WGDOT_RUNTIME = (
     "wgdotw.exe bar-autohide-toggle",
     "wgdotw.exe rawaccel-toggle",
     "wgdot.exe theme",
+    "wgdotw.exe theme-window-toggle",
+    "wgdotw.exe clipboard-anchor",
     "wgdotw.exe power-menu",
     "wgdotw.exe launcher",
 )
@@ -40,6 +42,24 @@ for yasb_name in ("config.yaml", "custom_work_config.yaml"):
     assert launcher["options"]["callbacks"]["on_right"] == "exec wgdotw.exe launcher bar", (
         yasb_name,
         "launcher right click must toggle the same compiled surface",
+    )
+
+    clipboard = yasb["widgets"]["clipboard_history"]
+    assert clipboard["options"]["callbacks"]["on_left"] == "exec wgdotw.exe clipboard-anchor bar", (
+        yasb_name,
+        "clipboard button must use the narrow bar-relative native-history anchor",
+    )
+    assert clipboard["options"]["callbacks"]["on_right"] == "exec wgdotw.exe clipboard-anchor bar", (
+        yasb_name,
+        "clipboard right click must toggle the same native-history surface",
+    )
+    assert yasb["widgets"]["wifi"]["options"]["callbacks"]["on_left"] == "toggle_menu", (
+        yasb_name,
+        "Wi-Fi/Ethernet must use the native toggleable YASB menu",
+    )
+    assert yasb["widgets"]["bluetooth"]["options"]["callbacks"]["on_left"] == "toggle_menu", (
+        yasb_name,
+        "Bluetooth must use the native toggleable YASB menu",
     )
 
     mode_callbacks = yasb["widgets"]["glazewm_binding_mode"]["options"]["callbacks"]
@@ -161,7 +181,7 @@ for name in ("config.yaml", "custom_work_config.yaml"):
         theme_keys = {
             key
             for binding in bindings
-            if any("wgdot.exe theme" in command for command in binding["commands"])
+            if any("wgdotw.exe theme-window-toggle" in command for command in binding["commands"])
             for key in binding["bindings"]
         }
         assert {"lwin+alt+t", "rwin+alt+t"} <= theme_keys, (
@@ -200,7 +220,7 @@ for name in ("config.yaml", "custom_work_config.yaml"):
         eartrumpet_keys = {
             key
             for binding in bindings
-            if any("40459File-New-Project.EarTrumpet_725pr5jq8wr8a!EarTrumpet" in command for command in binding["commands"])
+            if any("40459File-New-Project.EarTrumpet_1sdd7yawvg6ne!EarTrumpet" in command for command in binding["commands"])
             for key in binding["bindings"]
         }
         assert {"lwin+v", "rwin+v"} <= eartrumpet_keys, (
@@ -223,6 +243,19 @@ for name in ("config.yaml", "custom_work_config.yaml"):
                 "noalt must leave plain Alt+V uncaptured",
                 eartrumpet_keys,
             )
+
+        clipboard_keys = {
+            key
+            for binding in bindings
+            if any("wgdotw.exe clipboard-anchor hotkey" in command for command in binding["commands"])
+            for key in binding["bindings"]
+        }
+        assert {"lwin+c", "rwin+c"} <= clipboard_keys, (
+            name,
+            mode,
+            "Super+C must invoke the narrow native Clipboard History anchor",
+            clipboard_keys,
+        )
 
         rawaccel_keys = {
             key
