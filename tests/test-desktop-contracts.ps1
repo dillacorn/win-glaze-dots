@@ -139,6 +139,11 @@ try {
             $text = Get-Content -LiteralPath (Join-Path $repo ($relative -replace '/', '\')) -Raw -Encoding UTF8
             Require ($text -match 'wm-enable-binding-mode --name noalt') ('NoAlt native transition missing: ' + $relative)
             Require ($text -match 'wm-enable-binding-mode --name vm') ('VM native transition missing: ' + $relative)
+            Require ($text -match 'name:\s*"mouse"') ('Native mouse binding mode missing: ' + $relative)
+            Require ($text -match 'wm-enable-binding-mode --name mouse') ('Native mouse-mode entry missing: ' + $relative)
+            Require ($text -match 'wm-disable-binding-mode --name mouse') ('Native mouse-mode exit missing: ' + $relative)
+            Require ($text -match 'bindings:\s*\["lwin\+alt\+m",\s*"rwin\+alt\+m"\]') ('Super+Alt+M mouse binding missing: ' + $relative)
+            Require ($text -notmatch 'mouse-mode-(?:toggle|disable|switch|hook)') ('Retired WGDot mouse helper returned: ' + $relative)
             Require ($text -match 'wm-disable-binding-mode --name') ('Native mode escape missing: ' + $relative)
             Require ($text -match 'wm-toggle-pause') ('Native pause binding missing: ' + $relative)
             Require ($text -match 'flameshot\.exe gui') ('Direct Flameshot launch missing: ' + $relative)
@@ -156,6 +161,10 @@ try {
             Require ($text -match 'yasb\.power_menu\.PowerMenuWidget') ('Native power menu missing: ' + $relative)
             Require ($text -match 'glazewm\.binding_mode\.GlazewmBindingModeWidget') ('Native binding-mode widget missing: ' + $relative)
             Require ($text -notmatch 'keys:\s*"f24"') ('Synthetic F24 Quick Launch relay returned: ' + $relative)
+            Require ($text -match 'binding_modes_to_cycle_through:\s*\["none",\s*"noalt",\s*"mouse",\s*"vm"\]') ('YASB binding-mode widget does not expose mouse mode: ' + $relative)
+            Require ($text -match 'class_name:\s*"workspace-mouse-hub"') ('Passive workspace mouse icon missing: ' + $relative)
+            Require ($text -notmatch 'border_color:\s*None') ('Invalid null popup border_color returned: ' + $relative)
+            Require ($text -notmatch 'cmd\.exe /c start ms-settings') ('YASB settings callback spawns cmd.exe: ' + $relative)
             Require ($text -notmatch 'glazewm-pause-status|glazewm-pause-toggle') ('Retired pause helper reference returned: ' + $relative)
         }
     }
