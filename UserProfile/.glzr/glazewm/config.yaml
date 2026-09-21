@@ -222,6 +222,8 @@ binding_modes:
         bindings: ["lwin+v", "rwin+v"]
       - commands: ["shell-exec wgdotw.exe bar-autohide-toggle"]
         bindings: ["alt+ctrl+b"]
+      - commands: ["shell-exec wgdotw.exe launcher hotkey"]
+        bindings: ["lwin+d", "rwin+d"]
 
       - commands: ['shell-exec wt.exe -w new new-tab --title "Win Glaze Themes" --suppressApplicationTitle wgdot.exe theme']
         bindings: ["lwin+alt+t", "rwin+alt+t"]
@@ -400,6 +402,10 @@ binding_modes:
 
 
 keybindings:
+
+  - commands: ["shell-exec wgdotw.exe launcher hotkey"]
+    bindings: ["alt+p", "lwin+d", "rwin+d"]
+
 
   - commands: ["shell-exec wgdotw.exe mouse-mode-toggle"]
     bindings: ["lwin+alt+m", "rwin+alt+m"]
