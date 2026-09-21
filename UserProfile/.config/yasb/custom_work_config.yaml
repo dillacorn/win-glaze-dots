@@ -1,0 +1,158 @@
+watch_stylesheet: true
+watch_config: true
+debug: false
+show_systray: false
+
+bars:
+  primary-bar:
+    enabled: true
+    screens: ["*"]
+    class_name: "yasb-bar"
+    # coordinated auto-hide on Alt+Ctrl+B instead of exposing YASB's separate
+    # context-menu auto-hide state.
+    context_menu: false
+
+    alignment:
+      position: "top"
+      align: "center"
+
+    blur_effect:
+      enabled: false
+      dark_mode: false
+      round_corners: false
+      border_color: None
+
+    window_flags:
+      always_on_top: true
+      # live sessions to a Windows AppBar. Switching reservation models would
+      # not force that layout-disrupting reload for a bar/theme update.
+      windows_app_bar: false
+      hide_on_fullscreen: true
+      auto_hide: false
+
+    dimensions:
+      width: "100%"
+      height: 28
+
+    padding:
+      top: 0
+      left: 0
+      bottom: 0
+      right: 0
+
+    animation:
+      enabled: false
+      duration: 0
+
+    widgets:
+      left:
+        [
+          "launcher",
+          "glazewm_workspaces",
+          "workspace_move_group",
+          "taskbar",
+          "glazewm_binding_mode",
+          "glazewm_tiling_direction",
+        ]
+      center: ["active_window"]
+      right:
+        [
+          "idle_inhibitor",
+          "cpu",
+          "memory",
+          "control_center",
+          "brightness",
+          "battery",
+          "microphone",
+          "volume",
+          "clock",
+          "wifi",
+          "bluetooth",
+          "dnd",
+          "power_menu",
+        ]
+
+widgets:
+  launcher:
+    type: "yasb.quick_launch.QuickLaunchWidget"
+    options:
+      label: ""
+      search_placeholder: "Search applications..."
+      remember_last_query: false
+      max_results: 40
+      show_icons: true
+      icon_size: 28
+      home_page: false
+      compact_mode: false
+      compact_text: true
+      providers:
+        apps:
+          enabled: true
+          prefix: "*"
+          priority: 0
+          show_recent: true
+          max_recent: 10
+          show_description: false
+        bookmarks:
+          enabled: false
+        calculator:
+          enabled: true
+          prefix: "="
+
+
+  dnd:
+    type: "yasb.dnd.DndWidget"
+    options:
+      label: "<span>{icon}</span>"
+      label_alt: "<span>{icon}</span> {status}"
+      class_name: "awtarchy-dnd"
+      tooltip: true
+      default_active_mode: "priority"
+      # One native YASB control now matches Awtarchy's notification button:
+      # normal bell when enabled, muted bell when DND is active.
+      icons:
+        disabled: ""
+        priority: ""
+        alarms: ""
+      callbacks:
+        # BaseWidget's native exec callback recognizes notification_center
+        # through YASB's own Windows function map (Win+N).
+        on_left: "exec notification_center"
+        on_middle: "do_nothing"
+        on_right: "toggle_status"
+  power_menu:
+    type: "yasb.power_menu.PowerMenuWidget"
+    options:
+      label: "<span></span>"
+      uptime: false
+      show_user: false
+      blur: false
+      blur_background: false
+      animation_duration: 0
+      button_row: 3
+      buttons:
+        lock: ["", "Lock"]
+        signout: ["󰗽", "Sign out"]
+        sleep: ["󰒲", "Sleep"]
+        hibernate: ["", "Hibernate"]
+        restart: ["", "Restart"]
+        shutdown: ["", "Shut Down"]
+        cancel: ["󰅖", "Cancel"]
+      keybindings:
+        - keys: "win+p"
+          action: "toggle_power_menu"
+      callbacks:
+        on_left: "toggle_power_menu"
+        on_middle: "do_nothing"
+        on_right: "toggle_power_menu"
+
+    options:
+      label: "<span></span>"
+      class_name: "awtarchy-power"
+      tooltip: true
+      tooltip_label: "Power menu (L/H/R/S/O/Z)"
+      exec_options:
+        run_once: true
+        return_format: "string"
+      callbacks:
+        on_middle: "do_nothing"
