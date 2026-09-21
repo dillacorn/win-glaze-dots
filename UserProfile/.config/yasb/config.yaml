@@ -8,9 +8,8 @@ bars:
     enabled: true
     screens: ["*"]
     class_name: "yasb-bar"
-    # Blank-bar right-click menu is intentionally disabled. WGDot keeps
-    # coordinated auto-hide on Alt+Ctrl+B instead of exposing YASB's separate
-    # context-menu auto-hide state.
+    # Blank-bar right-click menu is intentionally disabled. The standalone
+    # auto-hide script coordinates YASB with GlazeWM on Alt+Ctrl+B.
     context_menu: false
 
     alignment:
@@ -25,10 +24,8 @@ bars:
 
     window_flags:
       always_on_top: true
-      # Keep WGDot's existing GlazeWM-reserved top gap instead of migrating
-      # live sessions to a Windows AppBar. Switching reservation models would
-      # require a GlazeWM config reload to avoid a double gap, and WGDot does
-      # not force that layout-disrupting reload for a bar/theme update.
+      # Keep the GlazeWM-reserved top gap instead of migrating live sessions
+      # to a Windows AppBar. Theme changes do not reload GlazeWM.
       windows_app_bar: false
       hide_on_fullscreen: true
       auto_hide: false
@@ -54,7 +51,6 @@ bars:
           "glazewm_workspaces",
           "workspace_move_group",
           "taskbar",
-          "glazewm_pause",
           "glazewm_binding_mode",
           "glazewm_tiling_direction",
         ]
@@ -72,7 +68,6 @@ bars:
           "clock",
           "wifi",
           "bluetooth",
-          "clipboard_history",
           "dnd",
           "power_menu",
         ]
@@ -171,9 +166,13 @@ widgets:
         border_color: "None"
         dark_mode: true
       keybindings:
-        # Private WGDot bridge only. Win+Alt+D is reserved by Windows for
-        # date/time, so use an otherwise-unused F24 chord.
-        - keys: "win+alt+f24"
+        - keys: "alt+p"
+          action: "toggle_quick_launch"
+          screen: "active"
+        - keys: "win+d"
+          action: "toggle_quick_launch"
+          screen: "active"
+        - keys: "win+alt+d"
           action: "toggle_quick_launch"
           screen: "active"
       callbacks:
@@ -200,17 +199,6 @@ widgets:
         enabled_active: false
         enabled_focused: false
 
-  workspace_mouse:
-    type: "yasb.applications.ApplicationsWidget"
-    options:
-      label: "{data}"
-      class_name: "workspace-mouse-hub"
-      tooltip: true
-      app_list:
-        - icon: "󰍽"
-          launch: "wgdot mouse-mode-toggle"
-          name: "Mouse window mode (Super+Alt+M)"
-
   workspace_move:
     type: "yasb.applications.ApplicationsWidget"
     options:
@@ -235,7 +223,7 @@ widgets:
     type: "yasb.grouper.GrouperWidget"
     options:
       class_name: "workspace-move-grouper"
-      widgets: ["workspace_mouse", "workspace_move"]
+      widgets: ["workspace_move"]
       hide_empty: false
       # Passive hover container only. Native Grouper click-collapse stays off.
       collapse_options:
@@ -282,24 +270,6 @@ widgets:
         titles: []
         classes: []
 
-  glazewm_pause:
-    type: "yasb.custom.CustomWidget"
-    options:
-      label: "{data}"
-      class_name: "awtarchy-pause"
-      tooltip: true
-      tooltip_label: "GlazeWM pause (Alt+Super+P)"
-      exec_options:
-        run_cmd: "wgdot glazewm-pause-status"
-        run_once: false
-        run_interval: 1000
-        return_format: "string"
-        hide_empty: true
-      callbacks:
-        on_left: "exec wgdotw glazewm-pause-toggle"
-        on_middle: "do_nothing"
-        on_right: "exec wgdotw glazewm-pause-toggle"
-
   glazewm_binding_mode:
     type: "glazewm.binding_mode.GlazewmBindingModeWidget"
     options:
@@ -312,15 +282,11 @@ widgets:
         none: ""
         noalt: ""
         vm: ""
-        mouse: ""
-      binding_modes_to_cycle_through: ["none", "noalt", "vm", "mouse"]
+      binding_modes_to_cycle_through: ["none", "noalt", "vm"]
       callbacks:
-        # Match Awtarchy's visible submap label: either primary mouse button
-        # clears the active binding mode through WGDot so VM/Super tracking
-        # stays synchronized with the real GlazeWM mode.
-        on_left: "exec wgdotw glazewm-binding-mode-set normal"
-        on_middle: "do_nothing"
-        on_right: "exec wgdotw glazewm-binding-mode-set normal"
+        on_left: "next_binding_mode"
+        on_middle: "toggle_label"
+        on_right: "disable_binding_mode"
 
   active_window:
     type: "yasb.active_window.ActiveWindowWidget"
@@ -342,22 +308,21 @@ widgets:
   idle_inhibitor:
     type: "yasb.custom.CustomWidget"
     options:
-      # WGDot emits ASCII-only JSON with escaped Font Awesome glyphs. YASB
-      # turns those escapes back into Awtarchy's eye/eye-slash icons.
+      # The standalone script emits the same eye/eye-slash state JSON.
       label: "{data[icon]}"
       class_name: "awtarchy-idle"
       tooltip: true
       tooltip_label: "{data[tooltip]}"
       exec_options:
-        run_cmd: "wgdot idle-inhibitor-status"
+        run_cmd: 'powershell.exe -NoLogo -NoProfile -File "%USERPROFILE%\.config\win-glaze\scripts\idle-inhibitor.ps1" status'
         run_once: false
         run_interval: 250
         return_format: "json"
         hide_empty: false
       callbacks:
-        on_left: "exec wgdotw idle-inhibitor-toggle"
+        on_left: 'exec powershell.exe -NoLogo -NoProfile -WindowStyle Hidden -File "%USERPROFILE%\.config\win-glaze\scripts\idle-inhibitor.ps1" toggle'
         on_middle: "do_nothing"
-        on_right: "exec wgdotw idle-inhibitor-toggle"
+        on_right: 'exec powershell.exe -NoLogo -NoProfile -WindowStyle Hidden -File "%USERPROFILE%\.config\win-glaze\scripts\idle-inhibitor.ps1" toggle'
 
   cpu:
     type: "yasb.cpu.CpuWidget"
@@ -431,23 +396,23 @@ widgets:
           columns: 3
           label_position: "inline"
           actions:
-            - id: "wgdot_themes"
+            - id: "themes"
               label: "Themes"
               icon: ""
-              command: "wgdotw theme-toggle"
-            - id: "wgdot_autohide"
+              command: 'wt.exe -w new new-tab --title "Win Glaze Themes" --suppressApplicationTitle powershell.exe -NoLogo -NoProfile -File "%USERPROFILE%\.config\win-glaze\scripts\theme-switcher.ps1"'
+            - id: "bar_autohide"
               label: "Auto Hide"
               icon: "󰘖"
-              command: "wgdotw bar-autohide-toggle"
-            - id: "wgdot_noalt"
+              command: 'powershell.exe -NoLogo -NoProfile -WindowStyle Hidden -File "%USERPROFILE%\.config\win-glaze\scripts\bar-autohide.ps1" toggle'
+            - id: "noalt_mode"
               label: "NoAlt Mode"
               icon: "󰌌"
-              command: "wgdotw glazewm-binding-mode-toggle noalt"
-            - id: "wgdot_vm"
+              command: "glazewm.exe command wm-enable-binding-mode --name noalt"
+            - id: "vm_mode"
               label: "VM Mode"
               icon: "󰢹"
-              command: "wgdotw glazewm-binding-mode-toggle vm"
-            - id: "wgdot_display"
+              command: "glazewm.exe command wm-enable-binding-mode --name vm"
+            - id: "display_settings"
               label: "Displays"
               icon: "󰍹"
               command: "explorer.exe ms-settings:display"
@@ -590,7 +555,7 @@ widgets:
       callbacks:
         on_left: "toggle_mute"
         on_middle: "toggle_label"
-        on_right: "exec wgdotw eartrumpet-mixer"
+        on_right: "exec explorer.exe shell:AppsFolder\40459File-New-Project.EarTrumpet_725pr5jq8wr8a!EarTrumpet"
 
   clock:
     type: "yasb.clock.ClockWidget"
@@ -681,21 +646,6 @@ widgets:
       use_hook: false
       hide_icons: []
 
-  clipboard_history:
-    type: "yasb.custom.CustomWidget"
-    options:
-      label: "<span></span>"
-      class_name: "awtarchy-clipboard"
-      tooltip: true
-      tooltip_label: "WGDot Clipboard History (Super+C)"
-      exec_options:
-        run_once: true
-        return_format: "string"
-      callbacks:
-        on_left: "exec wgdotw clipboard-history"
-        on_middle: "do_nothing"
-        on_right: "exec wgdotw clipboard-history"
-
   dnd:
     type: "yasb.dnd.DndWidget"
     options:
@@ -718,16 +668,27 @@ widgets:
         on_right: "toggle_status"
 
   power_menu:
-    type: "yasb.custom.CustomWidget"
+    type: "yasb.power_menu.PowerMenuWidget"
     options:
       label: "<span></span>"
-      class_name: "awtarchy-power"
-      tooltip: true
-      tooltip_label: "Power menu (L/H/R/S/O/Z)"
-      exec_options:
-        run_once: true
-        return_format: "string"
+      uptime: false
+      show_user: false
+      blur: false
+      blur_background: false
+      animation_duration: 0
+      button_row: 3
+      buttons:
+        lock: ["", "Lock"]
+        signout: ["󰗽", "Sign out"]
+        sleep: ["󰒲", "Sleep"]
+        hibernate: ["", "Hibernate"]
+        restart: ["", "Restart"]
+        shutdown: ["", "Shut Down"]
+        cancel: ["󰅖", "Cancel"]
+      keybindings:
+        - keys: "win+p"
+          action: "toggle_power_menu"
       callbacks:
-        on_left: "exec wgdotw power-menu"
+        on_left: "toggle_power_menu"
         on_middle: "do_nothing"
-        on_right: "exec wgdotw power-menu"
+        on_right: "toggle_power_menu"
