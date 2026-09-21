@@ -81,38 +81,6 @@
       "postActions": []
     },
     {
-      "id": "desktop-scripts",
-      "name": "Desktop helper scripts",
-      "defaultNormal": true,
-      "defaultWork": false,
-      "files": [
-        {
-          "id": "script-theme-switcher",
-          "source": "UserProfile/.config/win-glaze/scripts/theme-switcher.ps1",
-          "destination": "%USERPROFILE%\\.config\\win-glaze\\scripts\\theme-switcher.ps1",
-          "merge": true
-        },
-        {
-          "id": "script-bar-autohide",
-          "source": "UserProfile/.config/win-glaze/scripts/bar-autohide.ps1",
-          "destination": "%USERPROFILE%\\.config\\win-glaze\\scripts\\bar-autohide.ps1",
-          "merge": true
-        },
-        {
-          "id": "script-idle-inhibitor",
-          "source": "UserProfile/.config/win-glaze/scripts/idle-inhibitor.ps1",
-          "destination": "%USERPROFILE%\\.config\\win-glaze\\scripts\\idle-inhibitor.ps1",
-          "merge": true
-        },
-        {
-          "id": "script-rawaccel-toggle",
-          "source": "UserProfile/.config/win-glaze/scripts/rawaccel-toggle.ps1",
-          "destination": "%USERPROFILE%\\.config\\win-glaze\\scripts\\rawaccel-toggle.ps1",
-          "merge": true
-        }
-      ]
-    },
-    {
       "id": "cursor",
       "name": "Cursor theme",
       "defaultNormal": true,
