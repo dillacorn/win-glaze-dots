@@ -912,18 +912,10 @@
       "defaultWork": true
     },
     {
-      "id": "flow-launcher-alt-p",
-      "name": "Flow Launcher: Alt+P (legacy optional; conflicts with YASB Quick Launch)",
+      "id": "eartrumpet-mixer-super-v",
+      "name": "EarTrumpet mixer: Super+V",
       "category": "keybinds",
-      "type": "flow-launcher-alt-p",
-      "defaultNormal": false,
-      "defaultWork": false
-    },
-    {
-      "id": "eartrumpet-mixer-alt-v",
-      "name": "EarTrumpet mixer: Alt+V",
-      "category": "keybinds",
-      "type": "eartrumpet-mixer-alt-v",
+      "type": "eartrumpet-mixer-super-v",
       "defaultNormal": true,
       "defaultWork": true
     },
