@@ -470,7 +470,8 @@ Assert-True ($manifestText -match 'script-theme-switcher') "standalone theme swi
 Assert-True ($manifestText -match 'yasb-theme') "YASB theme CSS is a tracked managed dotfile"
 Assert-True ($nativeSourceText -match '(?s)requiredRefreshCommands.*?"cursor"') "acceptance audit requires cursor runtime auto-refresh"
 Assert-True ($nativeSourceText -match '(?s)requiredRefreshCommands.*?"dots-only"') "acceptance audit requires dots-only runtime auto-refresh"
-Assert-True ($nativeSourceText -match 'File\.AppendAllText\(cssPath, Environment\.NewLine') "theme apply guarantees YASB receives an imported-stylesheet modified event"
+Assert-True ($nativeSourceText -notmatch 'BuildYasbThemeCss|ApplyWindowsTerminalTheme|ThemeManagerFromArgs') "native runtime has no retired WGDot theme implementation"
+Assert-True ($nativeSourceText -notmatch 'OpenYasbQuickLaunch|OpenFlowLauncher|OpenEarTrumpetMixer|OpenWindowsClipboardHistory|OpenFlameshotGui|OpenRawAccel|OpenDisplaySettings|BarAutoHideToggle|GlazeWmPauseToggle|ThemeToggle|PowerMenu') "retired desktop helper implementations stay removed"
 Assert-True ($nativeSourceText -match 'if \(command == "acceptance-audit"\) return AcceptanceAudit') "native runtime exposes automated acceptance audit"
 Assert-True ($nativeSourceText -match 'String\.Equals\(command, "acceptance-audit"') "acceptance audit refreshes runtime before dispatch"
 Assert-True ($nativeSourceText -match 'Automated acceptance audit \(safe\)') "development menu exposes safe acceptance audit"
@@ -919,6 +920,13 @@ $managedDesktopRuntimeFiles = @(
     Join-Path $repoRoot "UserProfile/.glzr/glazewm/config.yaml"
     Join-Path $repoRoot "UserProfile/.glzr/glazewm/custom_work_config.yaml"
     Join-Path $repoRoot "UserProfile/.config/yasb/config.yaml"
+    Join-Path $repoRoot "UserProfile/.config/yasb/custom_work_config.yaml"
+    Join-Path $repoRoot "UserProfile/.config/win-glaze/scripts/theme-switcher.ps1"
+    Join-Path $repoRoot "UserProfile/.config/win-glaze/scripts/bar-autohide.ps1"
+    Join-Path $repoRoot "UserProfile/.config/win-glaze/scripts/idle-inhibitor.ps1"
+    Join-Path $repoRoot "UserProfile/.config/win-glaze/scripts/flow-launcher.ps1"
+    Join-Path $repoRoot "UserProfile/.config/win-glaze/scripts/rawaccel-toggle.ps1"
+    Join-Path $repoRoot "UserProfile/.config/win-glaze/scripts/yasb-quick-launch.ps1"
 )
 foreach ($managedDesktopRuntimeFile in $managedDesktopRuntimeFiles) {
     $managedDesktopRuntimeText = Get-Content -Raw -LiteralPath $managedDesktopRuntimeFile
