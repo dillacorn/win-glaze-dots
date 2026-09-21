@@ -8,7 +8,7 @@ $stylePath = Join-Path $repoRoot "UserProfile\.config\yasb\styles.css"
 $readmePath = Join-Path $repoRoot "UserProfile\.config\yasb\README.md"
 $glazeNormalPath = Join-Path $repoRoot "UserProfile\.glzr\glazewm\config.yaml"
 $glazeWorkPath = Join-Path $repoRoot "UserProfile\.glzr\glazewm\custom_work_config.yaml"
-$nativePath = Join-Path $repoRoot "wgdot\wgdot-native.cs"
+$themeScriptPath = Join-Path $repoRoot "UserProfile\.config\win-glaze\scripts\theme-switcher.ps1"
 $manifestPath = Join-Path $repoRoot "wgdot\manifest.json"
 
 function Assert-Contains {
@@ -21,7 +21,7 @@ function Assert-NotContains {
     if ($Text.Contains($Needle)) { throw "ASSERTION FAILED: $Message" }
 }
 
-foreach ($path in @($configPath, $workConfigPath, $stylePath, $readmePath, $glazeNormalPath, $glazeWorkPath, $nativePath, $manifestPath)) {
+foreach ($path in @($configPath, $workConfigPath, $stylePath, $readmePath, $glazeNormalPath, $glazeWorkPath, $themeScriptPath, $manifestPath)) {
     if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
         throw "ASSERTION FAILED: missing YASB parity file: $path"
     }
@@ -33,7 +33,7 @@ $style = Get-Content -LiteralPath $stylePath -Raw
 $readme = Get-Content -LiteralPath $readmePath -Raw
 $glazeNormal = Get-Content -LiteralPath $glazeNormalPath -Raw
 $glazeWork = Get-Content -LiteralPath $glazeWorkPath -Raw
-$native = Get-Content -LiteralPath $nativePath -Raw
+$themeScript = Get-Content -LiteralPath $themeScriptPath -Raw
 $manifest = Get-Content -LiteralPath $manifestPath -Raw
 
 Assert-Contains $config 'height: 28' "bar height stays at Awtarchy horizontal default"
@@ -135,7 +135,7 @@ Assert-Contains $wifiBlock 'ethernet_icon: "󰈀"' "active Ethernet glyph matche
 Assert-Contains $bluetoothBlock 'bluetooth_on: ""' "Bluetooth enabled glyph matches Awtarchy"
 Assert-Contains $bluetoothBlock 'bluetooth_off: ""' "Bluetooth disabled keeps Awtarchy's single glyph"
 Assert-Contains $bluetoothBlock 'bluetooth_connected: ""' "Bluetooth connected keeps Awtarchy's single glyph"
-Assert-NotContains $config '  clipboard_history:' "dedicated clipboard runtime widget is removed until it has a standalone implementation"
+Assert-NotContains $config 'yasb.clipboard_history' "dedicated clipboard widget implementation is absent until a standalone history surface exists"
 Assert-NotContains $config '"clipboard_history",' "clipboard runtime button is not rendered as a dead WGDot action"
 Assert-Contains $config '"idle_inhibitor"' "right-side modules include the Windows idle inhibitor"
 Assert-Contains $config 'brightness_icons: ["", "", "", ""]' "brightness uses a fixed sun icon"
@@ -182,15 +182,21 @@ Assert-Contains $glazeNormal 'window_title: { equals: "Win Glaze Themes" }' "the
 Assert-NotContains $glazeNormal 'wgdot' "theme hotkey does not depend on WGDot"
 Assert-Contains $glazeNormal 'theme-switcher.ps1' "GlazeWM launches the standalone theme selector"
 Assert-Contains $manifest 'UserProfile/.config/yasb/theme.css' "theme.css is portable with the dotfiles"
-Assert-Contains $native 'new YasbTheme("carbon-night", "Carbon Night", "#353535", "#d0d0d0", "#404040", "#4a4a4a", "#2b2b2b", "#ff5555", "#1a1a1a", "#6a9955", "#ff5555", "#5c5c5c")' "Carbon Night YASB palette matches current Awtarchy"
-Assert-Contains $native 'new YasbTheme("catppuccin-frappe", "Catppuccin Frappe", "#303446", "#c6d0f5", "#414559", "#535970", "#383c4d", "#e78284", "#232634", "#a6d189", "#ef9f76", "#a5adce")' "Catppuccin Frappe YASB palette matches current Awtarchy"
-Assert-Contains $native 'new YasbTheme("crimson-red", "Crimson Red", "#1e1e2e", "#f38ba8", "#352630", "#5a3442", "#292330", "#f38ba8", "#1e1e2e", "#fab387", "#f38ba8", "#9f8994")' "Crimson Red YASB palette matches current Awtarchy"
-Assert-Contains $native 'new YasbTheme("electric-blue", "Electric Blue", "#1e1e2e", "#89b4fa", "#293448", "#34445e", "#252938", "#f38ba8", "#1e1e2e", "#a6e3a1", "#fab387", "#8993a8")' "Electric Blue YASB palette matches current Awtarchy"
-Assert-Contains $native 'new YasbTheme("gruvbox", "Gruvbox", "#282828", "#ebdbb2", "#4a423c", "#665c4e", "#3c3836", "#b16286", "#fbf1c7", "#98971a", "#cc241d", "#a89984")' "Gruvbox YASB palette matches current Awtarchy"
-Assert-Contains $native 'new YasbTheme("iron-forge", "Iron Forge", "#0f1113", "#bcd2d2", "#1f2328", "#242a32", "#0d0f12", "#a31717", "#ffffff", "#1f6f6f", "#a31717", "#6a7b86")' "Iron Forge YASB palette matches current Awtarchy"
-Assert-Contains $native 'new YasbTheme("obsidian-night", "Obsidian Night", "#0f0f0f", "#cdd6f4", "#1e1e2e", "#313244", "#1a1a1a", "#ff5555", "#1e1e2e", "#6a9955", "#ff5555", "#4b4b4b")' "Obsidian Night YASB palette matches current Awtarchy"
-Assert-Contains $native 'new YasbTheme("pink", "Pink", "#D297A1", "#2E2E2E", "#B77F91", "#C0AFC0", "#C0AFC0", "#B04155", "#FFFFFF", "#D3D3D3", "#B04155", "#7A7A7A")' "Pink YASB palette matches current Awtarchy"
-Assert-Contains $native 'new YasbTheme("pipboy", "Pip-Boy", "#050805", "#a4ff47", "#1f301f", "#1b281b", "#101810", "#263826", "#050805", "#a4ff47", "#3c1b1b", "#2a3d2a")' "Pip-Boy YASB palette matches current Awtarchy"
+foreach ($themeNeedle in @(
+    "'carbon-night' = [ordered]@{ Label='Carbon Night'; Background='#353535'; Foreground='#d0d0d0'",
+    "'catppuccin-frappe' = [ordered]@{ Label='Catppuccin Frappe'; Background='#303446'; Foreground='#c6d0f5'",
+    "'crimson-red' = [ordered]@{ Label='Crimson Red'; Background='#1e1e2e'; Foreground='#f38ba8'",
+    "'electric-blue' = [ordered]@{ Label='Electric Blue'; Background='#1e1e2e'; Foreground='#89b4fa'",
+    "'gruvbox' = [ordered]@{ Label='Gruvbox'; Background='#282828'; Foreground='#ebdbb2'",
+    "'iron-forge' = [ordered]@{ Label='Iron Forge'; Background='#0f1113'; Foreground='#bcd2d2'",
+    "'obsidian-night' = [ordered]@{ Label='Obsidian Night'; Background='#0f0f0f'; Foreground='#cdd6f4'",
+    "'pink' = [ordered]@{ Label='Pink'; Background='#D297A1'; Foreground='#2E2E2E'",
+    "'pipboy' = [ordered]@{ Label='Pip-Boy'; Background='#050805'; Foreground='#a4ff47'"
+)) {
+    Assert-Contains -Text $themeScript -Needle $themeNeedle -Message "standalone theme script owns expected Awtarchy palette"
+}
+Assert-Contains -Text $themeScript -Needle "Win Glaze $($t.Label)" -Message "standalone theme script owns Windows Terminal synchronization"
+Assert-NotContains -Text $themeScript -Needle "wgdot" -Message "standalone theme switching has no WGDot runtime dependency"
 
 foreach ($glaze in @($glazeNormal, $glazeWork)) {
     Assert-Contains $glaze 'top: "35px"' "GlazeWM uses the requested 35 px top reservation"
@@ -257,48 +263,48 @@ Assert-Contains -Text $style -Needle ".glazewm-workspaces .ws-btn.empty" -Messag
 Assert-Contains -Text $style -Needle "min-height: 28px;" -Message "workspace shading spans the full 28 px bar height"
 Assert-Contains -Text $style -Needle "margin-left: 2px;" -Message "CPU and memory icons have a tiny separation from their values"
 Assert-Contains -Text $style -Needle ".tooltip," -Message "YASB custom rich tooltips receive an opaque themed background"
-Assert-Contains $style '#353535' "Awtarchy background color is retained"
-Assert-Contains $style '#d0d0d0' "Awtarchy foreground color is retained"
-Assert-Contains $style '#ff5555' "Awtarchy critical color is retained"
-Assert-Contains $style 'JetBrainsMono NFP' "existing WGDot-managed Nerd Font is retained"
-$taskContainerBlock = [regex]::Match($style, '(?ms)^\.taskbar-widget \.app-container \{\r?\n.*?^\}').Value
-Assert-Contains $taskContainerBlock 'min-width: 14px;' "task content width matches its 14 px Awtarchy icon"
-Assert-Contains $taskContainerBlock 'max-width: 14px;' "task content width is fixed so the padded slot remains 26 px"
-Assert-Contains $taskContainerBlock 'padding: 0 6px;' "task slot totals Awtarchy's 26 px width"
-Assert-Contains $style '.workspace-move-buttons .widget-container' "workspace arrow container is explicitly collapsed at rest"
-Assert-Contains $style '.workspace-move-buttons .label' "individual workspace arrows are explicitly collapsed at rest"
-Assert-Contains $style '.workspace-move-grouper:hover .workspace-move-buttons .label' "parent hover restores arrow width and padding"
-Assert-Contains $style 'max-width: 112px;' "workspace arrow strip expands only while hovered"
-Assert-Contains $style '.workspace-move-grouper:hover .workspace-move-buttons' "hovering the workspace mover reveals its arrows"
-Assert-Contains $style '.quick-launch-widget .icon' "native Quick Launch icon is styled like Awtarchy's launcher"
-Assert-Contains $style '.quick-launch-widget:hover' "Quick Launch uses Awtarchy's strong hover treatment"
-Assert-Contains $style '.quick-launch-popup .container' "Quick Launch popup uses the shared Win Glaze theme styling"
-Assert-Contains $style '.awtarchy-control-center:hover' "quick settings button uses Awtarchy's strong hover treatment"
-Assert-Contains $style '.control-center-menu' "Control Center popup uses the shared Win Glaze theme styling"
-Assert-Contains $style '@import "appearance.css";' "styles import portable live appearance overrides"
-Assert-Contains $style '.dnd-widget:hover' "notification/DND action uses Awtarchy's strong hover treatment"
-Assert-Contains $style 'font-size: 14px;' "bar icon scale is normalized to the adjacent 14 px text"
-Assert-Contains $style 'padding: 0 8px;' "fixed 8 px horizontal action padding is retained"
+Assert-Contains -Text $style -Needle "#353535" -Message "Awtarchy background color is retained"
+Assert-Contains -Text $style -Needle "#d0d0d0" -Message "Awtarchy foreground color is retained"
+Assert-Contains -Text $style -Needle "#ff5555" -Message "Awtarchy critical color is retained"
+Assert-Contains -Text $style -Needle "JetBrainsMono NFP" -Message "managed Nerd Font is retained"
+$taskContainerBlock = [regex]::Match($style, "(?ms)^\.taskbar-widget \.app-container \{\r?\n.*?^\}").Value
+Assert-Contains -Text $taskContainerBlock -Needle "min-width: 14px;" -Message "task content width matches its 14 px icon"
+Assert-Contains -Text $taskContainerBlock -Needle "max-width: 14px;" -Message "task content width remains fixed"
+Assert-Contains -Text $taskContainerBlock -Needle "padding: 0 6px;" -Message "task slot keeps 26 px total width"
+Assert-Contains -Text $style -Needle ".workspace-move-buttons .widget-container" -Message "workspace arrow container collapses at rest"
+Assert-Contains -Text $style -Needle ".workspace-move-buttons .label" -Message "workspace arrows collapse at rest"
+Assert-Contains -Text $style -Needle ".workspace-move-grouper:hover .workspace-move-buttons .label" -Message "parent hover restores workspace arrows"
+Assert-Contains -Text $style -Needle "max-width: 112px;" -Message "workspace arrow strip has bounded hover width"
+Assert-Contains -Text $style -Needle ".workspace-move-grouper:hover .workspace-move-buttons" -Message "workspace mover hover reveals arrows"
+Assert-Contains -Text $style -Needle ".quick-launch-widget .icon" -Message "native Quick Launch icon is styled"
+Assert-Contains -Text $style -Needle ".quick-launch-widget:hover" -Message "Quick Launch has strong hover treatment"
+Assert-Contains -Text $style -Needle ".quick-launch-popup .container" -Message "Quick Launch popup uses shared theme styling"
+Assert-Contains -Text $style -Needle ".awtarchy-control-center:hover" -Message "quick settings has strong hover treatment"
+Assert-Contains -Text $style -Needle ".control-center-menu" -Message "Control Center popup uses shared theme styling"
+Assert-Contains -Text $style -Needle '@import "appearance.css";' -Message "styles import portable appearance overrides"
+Assert-Contains -Text $style -Needle ".dnd-widget:hover" -Message "DND action has strong hover treatment"
+Assert-Contains -Text $style -Needle "font-size: 14px;" -Message "bar icon scale is normalized"
+Assert-Contains -Text $style -Needle "padding: 0 8px;" -Message "fixed action padding is retained"
 
-Assert-Contains $readme 'Evidence-backed mappings' "feature mappings document their evidence boundary"
-Assert-Contains $readme 'Deliberate differences and omissions' "unsupported translations are documented"
-Assert-Contains $style '.battery-widget .label.status-critical' "battery critical state has dedicated styling"
-Assert-NotContains $style '.battery-widget .label.status-low' "battery low range is not incorrectly colored critical"
-Assert-Contains $style '.battery-widget .label.status-charging' "battery charging selector matches YASB's native status-charging class"
-Assert-NotContains $style '.battery-widget .label.charging' "dead non-native battery charging selector is not reintroduced"
-Assert-Contains $style 'Awtarchy indicates charging with the bolt, not a separate color.' "charging battery keeps Awtarchy's normal foreground"
-Assert-Contains $style '.bluetooth-menu .bluetooth-item' "Bluetooth popup rows use YASB's current bluetooth-item class"
-Assert-Contains $style '.bluetooth-menu .bluetooth-item:hover' "Bluetooth popup hover styling targets YASB's current class"
-Assert-NotContains $style '.bluetooth-menu .device' "stale Bluetooth popup device selector is not reintroduced"
-Assert-Contains $style '.bluetooth-widget .icon.bt-off' "Bluetooth disabled state has explicit native-state styling"
-Assert-Contains $style 'color: var(--muted);' "disabled Bluetooth uses Awtarchy's muted foreground"
-$systrayBlocks = [regex]::Matches($style, '(?ms)^\.systray \{\r?\n.*?^\}')
+Assert-Contains -Text $readme -Needle "Evidence-backed mappings" -Message "feature mappings document their evidence boundary"
+Assert-Contains -Text $readme -Needle "Deliberate differences and omissions" -Message "unsupported translations are documented"
+Assert-Contains -Text $style -Needle ".battery-widget .label.status-critical" -Message "battery critical state has dedicated styling"
+Assert-NotContains -Text $style -Needle ".battery-widget .label.status-low" -Message "battery low range is not colored critical"
+Assert-Contains -Text $style -Needle ".battery-widget .label.status-charging" -Message "battery charging selector matches native class"
+Assert-NotContains -Text $style -Needle ".battery-widget .label.charging" -Message "dead battery charging selector is absent"
+Assert-Contains -Text $style -Needle "Awtarchy indicates charging with the bolt, not a separate color." -Message "charging battery keeps normal foreground"
+Assert-Contains -Text $style -Needle ".bluetooth-menu .bluetooth-item" -Message "Bluetooth popup rows use current class"
+Assert-Contains -Text $style -Needle ".bluetooth-menu .bluetooth-item:hover" -Message "Bluetooth popup hover uses current class"
+Assert-NotContains -Text $style -Needle ".bluetooth-menu .device" -Message "stale Bluetooth selector is absent"
+Assert-Contains -Text $style -Needle ".bluetooth-widget .icon.bt-off" -Message "Bluetooth disabled state has explicit styling"
+Assert-Contains -Text $style -Needle "color: var(--muted);" -Message "disabled Bluetooth uses muted foreground"
+$systrayBlocks = [regex]::Matches($style, "(?ms)^\.systray \{\r?\n.*?^\}")
 if ($systrayBlocks.Count -lt 1) {
     throw "ASSERTION FAILED: dedicated systray styling block is missing"
 }
 $systrayBlock = $systrayBlocks[$systrayBlocks.Count - 1].Value
-Assert-Contains $systrayBlock 'padding: 0;' "Awtarchy-style tray outer padding is removed"
-Assert-Contains $style 'margin: 0 5px;' "tray buttons preserve 10 px inter-icon spacing"
+Assert-Contains -Text $systrayBlock -Needle "padding: 0;" -Message "tray outer padding is removed"
+Assert-Contains -Text $style -Needle "margin: 0 5px;" -Message "tray buttons preserve inter-icon spacing"
 
 Assert-Contains $readme 'WGDot manages installation, updates, backups, and deployment' "management/runtime boundary is documented"
 Assert-Contains $readme 'WGDot is never required when a bar button or window-manager keybinding is used.' "desktop runtime independence is explicit"
