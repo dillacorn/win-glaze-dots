@@ -35,9 +35,6 @@
       "postActions": [
         {
           "type": "migrate-legacy-windows-hotkeys"
-        },
-        {
-          "type": "ensure-desktop-worker"
         }
       ]
     },
@@ -49,7 +46,10 @@
       "files": [
         {
           "id": "yasb-config",
-          "source": "UserProfile/.config/yasb/config.yaml",
+          "sourceByGlazeProfile": {
+            "normal": "UserProfile/.config/yasb/config.yaml",
+            "work": "UserProfile/.config/yasb/custom_work_config.yaml"
+          },
           "destination": "%USERPROFILE%\\.config\\yasb\\config.yaml",
           "merge": true
         },
@@ -64,14 +64,57 @@
           "source": "UserProfile/.config/yasb/README.md",
           "destination": "%USERPROFILE%\\.config\\yasb\\README.md",
           "merge": false
-        }
-      ],
-      "postActions": [
-        {
-          "type": "ensure-hidden-launcher"
         },
         {
-          "type": "ensure-yasb-theme"
+          "id": "yasb-theme",
+          "source": "UserProfile/.config/yasb/theme.css",
+          "destination": "%USERPROFILE%\\.config\\yasb\\theme.css",
+          "merge": true
+        },
+        {
+          "id": "yasb-appearance",
+          "source": "UserProfile/.config/yasb/appearance.css",
+          "destination": "%USERPROFILE%\\.config\\yasb\\appearance.css",
+          "merge": true
+        }
+      ],
+      "postActions": []
+    },
+    {
+      "id": "desktop-scripts",
+      "name": "Desktop helper scripts",
+      "defaultNormal": true,
+      "defaultWork": true,
+      "files": [
+        {
+          "id": "script-theme-switcher",
+          "source": "UserProfile/.config/win-glaze/scripts/theme-switcher.ps1",
+          "destination": "%USERPROFILE%\\.config\\win-glaze\\scripts\\theme-switcher.ps1",
+          "merge": true
+        },
+        {
+          "id": "script-bar-autohide",
+          "source": "UserProfile/.config/win-glaze/scripts/bar-autohide.ps1",
+          "destination": "%USERPROFILE%\\.config\\win-glaze\\scripts\\bar-autohide.ps1",
+          "merge": true
+        },
+        {
+          "id": "script-idle-inhibitor",
+          "source": "UserProfile/.config/win-glaze/scripts/idle-inhibitor.ps1",
+          "destination": "%USERPROFILE%\\.config\\win-glaze\\scripts\\idle-inhibitor.ps1",
+          "merge": true
+        },
+        {
+          "id": "script-flow-launcher",
+          "source": "UserProfile/.config/win-glaze/scripts/flow-launcher.ps1",
+          "destination": "%USERPROFILE%\\.config\\win-glaze\\scripts\\flow-launcher.ps1",
+          "merge": true
+        },
+        {
+          "id": "script-rawaccel-toggle",
+          "source": "UserProfile/.config/win-glaze/scripts/rawaccel-toggle.ps1",
+          "destination": "%USERPROFILE%\\.config\\win-glaze\\scripts\\rawaccel-toggle.ps1",
+          "merge": true
         }
       ]
     },
