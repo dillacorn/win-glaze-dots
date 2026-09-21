@@ -968,7 +968,7 @@ internal static class WgdotNative
         {
             ServicePointManager.SecurityProtocol |= SecurityProtocolType.Tls12;
             EnsureStateDirectories();
-            stagedRuntime = IsStagedRuntimeProcess();
+            stagedRuntime = IsStagedRuntimeProcess() && !IsRuntimeSwapInternalCommand(command);
 
             if (ShouldAutoRefreshRuntime(command) &&
                 !String.Equals(Environment.GetEnvironmentVariable("WGDOT_SKIP_RUNTIME_REFRESH"), "1", StringComparison.Ordinal))
@@ -999,6 +999,8 @@ internal static class WgdotNative
             if (command == "apply-tweak") return ApplyTweakFromArgs(args.Skip(1).ToArray());
             if (command == "migrate-legacy-hotkeys") return MigrateLegacyWindowsShellHotkeys(true);
             if (command == "mark-runtime") return MarkRuntimeFromArgs(args.Skip(1).ToArray());
+            if (command == "runtime-swap-stop") return RuntimeSwapStopFromArgs(args.Skip(1).ToArray());
+            if (command == "runtime-swap-restore") return RuntimeSwapRestoreFromArgs(args.Skip(1).ToArray());
             if (command == "maintenance-self-test") return MaintenanceSelfTest();
             if (command == "software") return SoftwareManager();
             if (command == "software-reconcile") return SoftwareReconcile();
@@ -1149,6 +1151,13 @@ internal static class WgdotNative
             String.Equals(command, "update", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "reset", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "review", StringComparison.OrdinalIgnoreCase);
+    }
+
+    static bool IsRuntimeSwapInternalCommand(string command)
+    {
+        return
+            String.Equals(command, "runtime-swap-stop", StringComparison.OrdinalIgnoreCase) ||
+            String.Equals(command, "runtime-swap-restore", StringComparison.OrdinalIgnoreCase);
     }
 
     static bool IsStagedRuntimeProcess()
@@ -1560,6 +1569,98 @@ internal static class WgdotNative
         return String.Join(" ", args.Select(Q).ToArray());
     }
 
+    static string NormalizeRuntimeSwapStatePath(string path)
+    {
+        if (String.IsNullOrWhiteSpace(path))
+            throw new Exception("Runtime-swap worker state path is required.");
+
+        string full = Path.GetFullPath(path);
+        string temp = Path.GetFullPath(Path.GetTempPath())
+            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) +
+            Path.DirectorySeparatorChar;
+        string fileName = Path.GetFileName(full);
+
+        if (!full.StartsWith(temp, StringComparison.OrdinalIgnoreCase) ||
+            !fileName.StartsWith("wgdot-worker-state-", StringComparison.OrdinalIgnoreCase) ||
+            !fileName.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
+            throw new Exception("Runtime-swap worker state must stay in the Windows temporary directory.");
+
+        return full;
+    }
+
+    static int RuntimeSwapStopFromArgs(string[] args)
+    {
+        string statePath = NormalizeRuntimeSwapStatePath(GetOption(args, "--state"));
+
+        var state = new Dictionary<string, object>();
+        bool idle = NamedMutexExists(IdleInhibitorMutexName);
+        bool mouse = NamedMutexExists(MouseModeMutexName);
+        bool superL = NamedMutexExists(SuperLTestMutexName);
+        bool desktop = NamedMutexExists(DesktopWorkerMutexName);
+
+        state["idleInhibitor"] = idle;
+        state["mouseMode"] = mouse;
+        state["superLTest"] = superL;
+        state["desktopWorker"] = desktop;
+        state["createdAt"] = DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture);
+        WriteJson(statePath, state);
+
+        IntPtr clipboardWindow = FindTopLevelWindowByExactTitle(ClipboardHistoryWindowTitle);
+        if (clipboardWindow != IntPtr.Zero)
+            PostMessage(clipboardWindow, WmClose, IntPtr.Zero, IntPtr.Zero);
+
+        if (idle) SignalIdleInhibitorStop();
+        if (mouse) SignalMouseModeHookStop();
+        if (superL) SignalSuperLTestStop();
+        if (desktop) SignalDesktopWorkerStop();
+
+        if (idle) WaitForRuntimeWorkerState(IdleInhibitorMutexName, false, "idle inhibitor");
+        if (mouse) WaitForRuntimeWorkerState(MouseModeMutexName, false, "mouse-mode");
+        if (superL) WaitForRuntimeWorkerState(SuperLTestMutexName, false, "Super+L test");
+        if (desktop) WaitForRuntimeWorkerState(DesktopWorkerMutexName, false, "desktop");
+
+        return 0;
+    }
+
+    static int RuntimeSwapRestoreFromArgs(string[] args)
+    {
+        string statePath = NormalizeRuntimeSwapStatePath(GetOption(args, "--state"));
+        Dictionary<string, object> state = ReadJson(statePath);
+        if (state == null)
+            return 0;
+
+        string installedExe = Path.Combine(BinRoot, "wgdot.exe");
+        if (!File.Exists(installedExe))
+            throw new Exception("Installed WGDot runtime is missing during worker restore.");
+
+        if (GetBool(state, "idleInhibitor") && !NamedMutexExists(IdleInhibitorMutexName))
+        {
+            StartRuntimeWorkerFrom(installedExe, "idle-inhibitor-worker");
+            WaitForRuntimeWorkerState(IdleInhibitorMutexName, true, "idle inhibitor");
+        }
+
+        if (GetBool(state, "mouseMode") && !NamedMutexExists(MouseModeMutexName))
+        {
+            StartRuntimeWorkerFrom(installedExe, "mouse-mode-hook");
+            WaitForRuntimeWorkerState(MouseModeMutexName, true, "mouse-mode");
+        }
+
+        if (GetBool(state, "superLTest") && !NamedMutexExists(SuperLTestMutexName))
+        {
+            StartRuntimeWorkerFrom(installedExe, "super-l-hook");
+            WaitForRuntimeWorkerState(SuperLTestMutexName, true, "Super+L test");
+        }
+
+        if (GetBool(state, "desktopWorker") && !NamedMutexExists(DesktopWorkerMutexName))
+        {
+            StartRuntimeWorkerFrom(installedExe, "desktop-worker");
+            WaitForRuntimeWorkerState(DesktopWorkerMutexName, true, "desktop");
+        }
+
+        SafeDeleteFile(statePath);
+        return 0;
+    }
+
     static void ScheduleStagedRuntimeInstall()
     {
         string currentExe = Path.GetFullPath(Process.GetCurrentProcess().MainModule.FileName);
@@ -1579,7 +1680,15 @@ internal static class WgdotNative
         ValidateBranchName(sourceRef);
 
         string installedExe = Path.Combine(BinRoot, "wgdot.exe");
-        string helper = CreateRuntimeSwapHelper(currentExe, installedExe, sourceRef, revision);
+        string workerState = Path.Combine(
+            Path.GetTempPath(),
+            "wgdot-worker-state-" + Guid.NewGuid().ToString("N") + ".json");
+        string helper = CreateRuntimeSwapHelper(
+            currentExe,
+            installedExe,
+            sourceRef,
+            revision,
+            workerState);
 
         var helperInfo = new ProcessStartInfo();
         helperInfo.FileName = "cmd.exe";
@@ -1638,7 +1747,7 @@ internal static class WgdotNative
         return File.Exists(x86) ? x86 : "";
     }
 
-    static string CreateRuntimeSwapHelper(string sourceExe, string destinationExe, string sourceRef, string revision)
+    static string CreateRuntimeSwapHelper(string sourceExe, string destinationExe, string sourceRef, string revision, string workerStatePath)
     {
         string helper = Path.Combine(Path.GetTempPath(), "wgdot-swap-" + Guid.NewGuid().ToString("N") + ".cmd");
         var lines = new List<string>();
@@ -1646,21 +1755,28 @@ internal static class WgdotNative
         lines.Add("setlocal EnableExtensions");
         lines.Add("set \"SRC=" + sourceExe + "\"");
         lines.Add("set \"DST=" + destinationExe + "\"");
+        lines.Add("set \"STATE=" + workerStatePath + "\"");
+        lines.Add("set \"WGDOT_SKIP_RUNTIME_REFRESH=1\"");
+        lines.Add("\"%SRC%\" runtime-swap-stop --state \"%STATE%\" >nul 2>&1");
+        lines.Add("if errorlevel 1 goto failed");
         lines.Add("set /a TRIES=0");
         lines.Add(":retry");
         lines.Add("set /a TRIES+=1");
         lines.Add("copy /Y \"%SRC%\" \"%DST%\" >nul 2>&1");
-        lines.Add("if not errorlevel 1 goto done");
+        lines.Add("if not errorlevel 1 goto copied");
         lines.Add("if %TRIES% GEQ 60 goto failed");
         lines.Add("ping 127.0.0.1 -n 2 >nul");
         lines.Add("goto retry");
-        lines.Add(":done");
+        lines.Add(":copied");
         lines.Add("\"%DST%\" mark-runtime --ref " + Q(sourceRef) + " --revision " + Q(revision) + " >nul 2>&1");
+        lines.Add("if errorlevel 1 goto failed");
+        lines.Add("\"%DST%\" runtime-swap-restore --state \"%STATE%\" >nul 2>&1");
         lines.Add("if errorlevel 1 goto failed");
         lines.Add("del /q \"%SRC%\" >nul 2>&1");
         lines.Add("del /q \"%~f0\" >nul 2>&1");
         lines.Add("exit /b 0");
         lines.Add(":failed");
+        lines.Add("if exist \"%STATE%\" \"%SRC%\" runtime-swap-restore --state \"%STATE%\" >nul 2>&1");
         lines.Add("exit /b 1");
         File.WriteAllLines(helper, lines.ToArray(), Encoding.ASCII);
         return helper;
