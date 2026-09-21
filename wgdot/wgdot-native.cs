@@ -1372,6 +1372,33 @@ class WgdotHidden
         return ManagedOperation(operation, context);
     }
 
+
+    static bool ManagedPlanWritesThemeState(List<PlanItem> plan)
+    {
+        if (plan == null) return false;
+
+        return plan.Any(item =>
+            item != null &&
+            (String.Equals(item.FileId, "yasb-theme", StringComparison.OrdinalIgnoreCase) ||
+             String.Equals(item.FileId, "terminal-settings", StringComparison.OrdinalIgnoreCase)) &&
+            (String.Equals(item.Action, "APPLY", StringComparison.OrdinalIgnoreCase) ||
+             String.Equals(item.Action, "REPLACE", StringComparison.OrdinalIgnoreCase) ||
+             String.Equals(item.Action, "MERGE", StringComparison.OrdinalIgnoreCase)));
+    }
+
+    static void RestoreRememberedThemeAfterManagedApply(List<PlanItem> plan)
+    {
+        if (!ManagedPlanWritesThemeState(plan))
+            return;
+
+        string rememberedTheme = CurrentYasbThemeId();
+        int result = ApplyYasbTheme(rememberedTheme);
+        if (result != 0)
+            throw new Exception("Managed dots were applied, but the selected WGDot theme could not be restored.");
+
+        Console.WriteLine("Preserved selected WGDot theme: " + rememberedTheme);
+    }
+
     static int DotsOnlyFromArgs(string[] args)
     {
         string profile = GetOption(args ?? new string[0], "--profile");
@@ -1406,6 +1433,7 @@ class WgdotHidden
         }
 
         ApplyPlan(plan, source.Manifest, selection, source, true);
+        RestoreRememberedThemeAfterManagedApply(plan);
         WriteInstallationSelection(selection);
         UpdateSourceStateAfterApply(source);
 
@@ -9705,6 +9733,7 @@ public static class Program
 
         string pendingGitRuntime = PrepareGitRuntimeSync(source);
         ApplyPlan(plan, source.Manifest, selection, source);
+        RestoreRememberedThemeAfterManagedApply(plan);
 
         if (selectionChanged)
             WriteInstallationSelection(selection);
