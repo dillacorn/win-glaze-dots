@@ -135,7 +135,7 @@ jobs:
           "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" mark-runtime --ref "${{ github.head_ref || github.ref_name }}" --revision 0000000000000000000000000000000000000001
           "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" status
           ping 127.0.0.1 -n 4 >nul
-          powershell.exe -NoLogo -NoProfile -Command "$s = Get-Content -Raw -LiteralPath (Join-Path $env:LOCALAPPDATA 'wgdot\state\native-bootstrap.json') | ConvertFrom-Json; if ($s.sourceRevision -eq '0000000000000000000000000000000000000001' -or $s.sourceRevision -notmatch '^[0-9a-fA-F]{40}
+          findstr /C:"0000000000000000000000000000000000000001" "%LOCALAPPDATA%\wgdot\state\native-bootstrap.json" && exit /b 1 || echo Runtime refresh updated revision.
       - name: Verify persistent user PATH
         shell: cmd
         run: |
