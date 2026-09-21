@@ -709,8 +709,9 @@ Assert-True ($nativeSourceText -match 'TryGetActiveGlazeWmBindingMode') "binding
 Assert-True ($nativeSourceText -match 'ReadTrackedGlazeBindingMode') "binding-mode Quick Settings fall back to WGDot tracked state when GlazeWM query IPC fails"
 Assert-True ($nativeSourceText -match 'command == "glazewm-binding-mode-set"') "native runtime exposes deterministic binding-mode transitions for keyboard shortcuts"
 Assert-True ($nativeSourceText -match 'PostThreadMessage') "Quick Launch dispatches directly to YASB's hotkey listener"
-Assert-True ($nativeSourceText -match '(?s)OpenYasbQuickLaunch\(\).*?new UIntPtr\(1\)') "Quick Launch posts YASB hotkey ID 1 directly"
-Assert-True ($nativeSourceText -notmatch '(?s)OpenYasbQuickLaunch\(\).*?GlazeWmPauseToggle\(\)') "Quick Launch never temporarily pauses GlazeWM"
+$quickLaunchBlock = [regex]::Match($nativeSourceText, '(?ms)^    static int OpenYasbQuickLaunch\(\)\r?\n    \{.*?^    \}').Value
+Assert-True ($quickLaunchBlock -match 'new UIntPtr\(1\)') "Quick Launch posts YASB hotkey ID 1 directly"
+Assert-True ($quickLaunchBlock -notmatch 'GlazeWmPauseToggle|SendKeyChord|Thread\.Sleep|WaitForLauncherModifierRelease') "Quick Launch never pauses GlazeWM or waits on synthetic-key timing"
 Assert-True ($nativeSourceText -match 'EnsureHiddenLauncher') "native runtime installs the GUI-subsystem wgdotw helper"
 Assert-True ($nativeSourceText -match '/target:winexe') "wgdotw is compiled without a console window"
 Assert-True (@($yasb.postActions | Where-Object { $_.type -eq "ensure-hidden-launcher" }).Count -eq 1) "YASB apply ensures wgdotw exists"
