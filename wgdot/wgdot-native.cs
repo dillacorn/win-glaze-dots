@@ -19,7 +19,7 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-56";
+    const string Version = "native-preview-57";
     const int WingetPreflightTimeoutMs = 30000;
     const string RepoFullName = "dillacorn/win-glaze-dots";
     const string RepoUrl = "https://github.com/dillacorn/win-glaze-dots.git";
@@ -747,6 +747,61 @@ internal static class WgdotNative
         Directory.CreateDirectory(BaselineRoot);
     }
 
+    static void WaitForRuntimeWorkerState(string mutexName, bool expected, string label)
+    {
+        for (int i = 0; i < 100; i++)
+        {
+            if (NamedMutexExists(mutexName) == expected)
+                return;
+            System.Threading.Thread.Sleep(50);
+        }
+
+        throw new Exception(
+            "WGDot " + label + " worker did not " + (expected ? "start." : "stop."));
+    }
+
+    static void StartRuntimeWorkerFrom(string exe, string arguments)
+    {
+        var psi = new ProcessStartInfo();
+        psi.FileName = exe;
+        psi.Arguments = arguments;
+        psi.UseShellExecute = false;
+        psi.CreateNoWindow = true;
+        psi.WindowStyle = ProcessWindowStyle.Hidden;
+        psi.EnvironmentVariables["WGDOT_SKIP_RUNTIME_REFRESH"] = "1";
+
+        Process process = Process.Start(psi);
+        if (process == null)
+            throw new Exception("Failed to restart WGDot runtime worker '" + arguments + "'.");
+    }
+
+    static void CopyRuntimeWithRetry(string source, string destination)
+    {
+        Exception last = null;
+        for (int i = 0; i < 100; i++)
+        {
+            try
+            {
+                File.Copy(source, destination, true);
+                return;
+            }
+            catch (IOException ex)
+            {
+                last = ex;
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                last = ex;
+            }
+
+            System.Threading.Thread.Sleep(50);
+        }
+
+        throw new IOException(
+            "Could not replace the installed WGDot runtime after waiting for active helpers to release it.",
+            last);
+    }
+
     static int Install()
     {
         EnsureStateDirectories();
@@ -763,22 +818,76 @@ internal static class WgdotNative
             "1",
             StringComparison.Ordinal);
 
-        if (!String.Equals(Path.GetFullPath(currentExe), Path.GetFullPath(targetExe), StringComparison.OrdinalIgnoreCase))
-            File.Copy(currentExe, targetExe, true);
+        bool replacingInstalledRuntime =
+            !String.Equals(
+                Path.GetFullPath(currentExe),
+                Path.GetFullPath(targetExe),
+                StringComparison.OrdinalIgnoreCase);
 
-        string cmd = "@echo off\r\n\"%~dp0wgdot.exe\" %*\r\n";
-        File.WriteAllText(Path.Combine(BinRoot, "wgdot.cmd"), cmd, Encoding.ASCII);
-        AddUserPath(BinRoot);
+        bool idleInhibitorWasActive = false;
+        bool mouseModeHookWasActive = false;
+        bool superLTestHookWasActive = false;
 
-        var state = new Dictionary<string, object>();
-        state["version"] = Version;
-        state["installedAt"] = DateTime.UtcNow.ToString("o");
-        state["sourceRoot"] = sourceRoot;
-        state["sourceRef"] = sourceRef;
-        state["sourceRevision"] = sourceRevision;
-        state["sourceExplicit"] = sourceExplicit;
-        state["executionPolicyIndependent"] = true;
-        WriteJson(BootstrapStatePath, state);
+        if (replacingInstalledRuntime && File.Exists(targetExe))
+        {
+            idleInhibitorWasActive = NamedMutexExists(IdleInhibitorMutexName);
+            mouseModeHookWasActive = NamedMutexExists(MouseModeMutexName);
+            superLTestHookWasActive = NamedMutexExists(SuperLTestMutexName);
+
+            if (idleInhibitorWasActive) SignalIdleInhibitorStop();
+            if (mouseModeHookWasActive) SignalMouseModeHookStop();
+            if (superLTestHookWasActive) SignalSuperLTestStop();
+
+            if (idleInhibitorWasActive)
+                WaitForRuntimeWorkerState(IdleInhibitorMutexName, false, "idle inhibitor");
+            if (mouseModeHookWasActive)
+                WaitForRuntimeWorkerState(MouseModeMutexName, false, "mouse-mode");
+            if (superLTestHookWasActive)
+                WaitForRuntimeWorkerState(SuperLTestMutexName, false, "Super+L test");
+        }
+
+        try
+        {
+            if (replacingInstalledRuntime)
+                CopyRuntimeWithRetry(currentExe, targetExe);
+
+            string cmd = "@echo off\r\n\"%~dp0wgdot.exe\" %*\r\n";
+            File.WriteAllText(Path.Combine(BinRoot, "wgdot.cmd"), cmd, Encoding.ASCII);
+            AddUserPath(BinRoot);
+
+            var state = new Dictionary<string, object>();
+            state["version"] = Version;
+            state["installedAt"] = DateTime.UtcNow.ToString("o");
+            state["sourceRoot"] = sourceRoot;
+            state["sourceRef"] = sourceRef;
+            state["sourceRevision"] = sourceRevision;
+            state["sourceExplicit"] = sourceExplicit;
+            state["executionPolicyIndependent"] = true;
+            WriteJson(BootstrapStatePath, state);
+        }
+        finally
+        {
+            if (replacingInstalledRuntime && File.Exists(targetExe))
+            {
+                if (idleInhibitorWasActive)
+                {
+                    StartRuntimeWorkerFrom(targetExe, "idle-inhibitor-worker");
+                    WaitForRuntimeWorkerState(IdleInhibitorMutexName, true, "idle inhibitor");
+                }
+
+                if (mouseModeHookWasActive)
+                {
+                    StartRuntimeWorkerFrom(targetExe, "mouse-mode-hook");
+                    WaitForRuntimeWorkerState(MouseModeMutexName, true, "mouse-mode");
+                }
+
+                if (superLTestHookWasActive)
+                {
+                    StartRuntimeWorkerFrom(targetExe, "super-l-hook");
+                    WaitForRuntimeWorkerState(SuperLTestMutexName, true, "Super+L test");
+                }
+            }
+        }
 
         Console.WriteLine("WGDot native runtime installed to:");
         Console.WriteLine("  " + BinRoot);
