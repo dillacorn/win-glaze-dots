@@ -223,7 +223,7 @@ foreach ($glaze in @($glazeNormal, $glazeWork)) {
     Assert-Contains $glaze "color: `"#a1a1a1`"" "focused GlazeWM border stays theme-neutral"
     Assert-Contains $glaze "bindings: [`"lwin+alt+t`", `"rwin+alt+t`"]" "Super+Alt+T opens the compiled theme selector"
     Assert-NotContains $glaze "bindings: [`"lwin+c`", `"rwin+c`"]" "GlazeWM does not require WGDot Clipboard History"
-    Assert-NotContains $glaze "bindings: [`"lwin+v`", `"rwin+v`"]" "GlazeWM leaves Super+V available for EarTrumpet"
+    Assert-Contains $glaze "bindings: [`"alt+v`", `"lwin+v`", `"rwin+v`"]" "global Alt+V and Super+V launch EarTrumpet directly"
     Assert-Contains $glaze "bindings: [`"lwin+p`", `"rwin+p`"]" "GlazeWM owns Super+P for the compiled power surface"
     Assert-Contains $glaze "name: `"noalt`"" "noalt mode is retained"
     Assert-Contains $glaze "name: `"mouse`"" "native mouse binding mode is retained"
