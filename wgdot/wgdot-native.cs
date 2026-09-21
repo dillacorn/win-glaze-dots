@@ -8266,21 +8266,175 @@ class WgdotHidden
         return 0;
     }
 
-    static int OpenRawAccel()
+    static void RememberRawAccelExe(string exe)
     {
-        string exe = Path.Combine(
+        if (String.IsNullOrWhiteSpace(exe) || !File.Exists(exe))
+            return;
+
+        var state = new Dictionary<string, object>();
+        state["exe"] = Path.GetFullPath(exe);
+        state["updatedAt"] = DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture);
+        WriteJson(RawAccelStatePath, state);
+    }
+
+    static string ResolveRawAccelExe(bool allowPrompt)
+    {
+        Dictionary<string, object> state = ReadJson(RawAccelStatePath);
+        if (state != null)
+        {
+            string remembered = GetString(state, "exe");
+            if (!String.IsNullOrWhiteSpace(remembered) && File.Exists(remembered))
+                return remembered;
+        }
+
+        foreach (Process process in Process.GetProcessesByName("rawaccel"))
+        {
+            try
+            {
+                string running = process.MainModule.FileName;
+                if (!String.IsNullOrWhiteSpace(running) && File.Exists(running))
+                {
+                    RememberRawAccelExe(running);
+                    return running;
+                }
+            }
+            catch
+            {
+            }
+        }
+
+        string managed = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "Programs",
             "RawAccel",
             "rawaccel.exe");
+        if (File.Exists(managed))
+        {
+            RememberRawAccelExe(managed);
+            return managed;
+        }
 
-        if (!File.Exists(exe))
-            throw new Exception("Raw Accel is not installed in WGDot's managed RawAccel location.");
+        string registered = FindRegisteredAppPath("rawaccel.exe");
+        if (!String.IsNullOrWhiteSpace(registered))
+        {
+            RememberRawAccelExe(registered);
+            return registered;
+        }
+
+        ProcResult where = Run("where.exe", "rawaccel.exe", null);
+        if (where.ExitCode == 0)
+        {
+            foreach (string line in (where.StdOut ?? "").Replace("\r", "").Split('\n'))
+            {
+                string candidate = line.Trim();
+                if (!String.IsNullOrWhiteSpace(candidate) && File.Exists(candidate))
+                {
+                    RememberRawAccelExe(candidate);
+                    return candidate;
+                }
+            }
+        }
+
+        string profile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        string[] roots =
+        {
+            Path.Combine(profile, "Downloads"),
+            Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory),
+            Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)
+        };
+
+        foreach (string root in roots.Where(Directory.Exists))
+        {
+            try
+            {
+                string found = Directory
+                    .EnumerateFiles(root, "rawaccel.exe", SearchOption.AllDirectories)
+                    .OrderBy(path => path.Length)
+                    .FirstOrDefault();
+                if (!String.IsNullOrWhiteSpace(found))
+                {
+                    RememberRawAccelExe(found);
+                    return found;
+                }
+            }
+            catch
+            {
+            }
+        }
+
+        if (!allowPrompt)
+            return "";
+
+        using (var dialog = new System.Windows.Forms.OpenFileDialog())
+        {
+            dialog.Title = "Locate RawAccel GUI";
+            dialog.Filter = "RawAccel GUI (rawaccel.exe)|rawaccel.exe|Executable files (*.exe)|*.exe";
+            dialog.FileName = "rawaccel.exe";
+            string downloads = Path.Combine(profile, "Downloads");
+            if (Directory.Exists(downloads))
+                dialog.InitialDirectory = downloads;
+
+            if (dialog.ShowDialog() != System.Windows.Forms.DialogResult.OK)
+                return "";
+
+            string selected = dialog.FileName;
+            if (!String.Equals(
+                    Path.GetFileName(selected),
+                    "rawaccel.exe",
+                    StringComparison.OrdinalIgnoreCase))
+                throw new Exception("Select RawAccel's rawaccel.exe GUI executable.");
+
+            RememberRawAccelExe(selected);
+            return selected;
+        }
+    }
+
+    static int OpenRawAccel()
+    {
+        Process[] running = Process.GetProcessesByName("rawaccel");
+        if (running.Length > 0)
+        {
+            foreach (Process process in running)
+            {
+                try
+                {
+                    if (process.MainWindowHandle != IntPtr.Zero)
+                        PostMessage(process.MainWindowHandle, WmClose, IntPtr.Zero, IntPtr.Zero);
+                    else
+                        process.CloseMainWindow();
+                }
+                catch
+                {
+                }
+            }
+
+            foreach (Process process in running)
+            {
+                try
+                {
+                    if (!process.WaitForExit(700))
+                        process.Kill();
+                }
+                catch
+                {
+                }
+            }
+            return 0;
+        }
+
+        string exe = ResolveRawAccelExe(true);
+        if (String.IsNullOrWhiteSpace(exe))
+            throw new Exception(
+                "RawAccel GUI was not found. Select rawaccel.exe from the extracted RawAccel release folder.");
 
         var psi = new ProcessStartInfo();
         psi.FileName = exe;
+        psi.WorkingDirectory = Path.GetDirectoryName(exe);
         psi.UseShellExecute = true;
-        Process.Start(psi);
+        Process processStarted = Process.Start(psi);
+        if (processStarted == null)
+            throw new Exception("RawAccel GUI did not start.");
+
         return 0;
     }
 
