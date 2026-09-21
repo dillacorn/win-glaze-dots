@@ -1,7 +1,9 @@
 # dilla.glaze.files (https://github.com/dillacorn/win-glaze-dots)
 # This config is my personalized config I use specifically for my gaming computer.
 general:
-  startup_commands: ["shell-exec yasb"]
+  startup_commands:
+    - "shell-exec yasb"
+    - 'shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe desktop-worker'
   shutdown_commands: ["shell-exec taskkill /IM yasb.exe /F"]
   config_reload_commands: []
   focus_follows_cursor: false
@@ -194,10 +196,8 @@ binding_modes:
         bindings: ["j", "down"]
       - commands: ["wm-disable-binding-mode --name resize"]
         bindings: ["escape", "enter"]
-      # Experimental standalone-Super suppression. GlazeWM accepts one-key
-      # bindings and consumes matched key-down events before Windows.
-      - commands: ["wm-redraw"]
-        bindings: ["lwin", "rwin"]
+      # Lone Super is handled by WGDot's desktop worker so normal Super chords
+      # remain untouched and VM mode can pass the key through to the guest.
       - commands: ["wm-toggle-pause"]
         bindings: ["lwin+alt+p", "rwin+alt+p"]
 
@@ -207,9 +207,9 @@ binding_modes:
   # do not inherit global bindings.
   - name: "noalt"
     keybindings:
-      - commands: ["wm-disable-binding-mode --name noalt"]
+      - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe glazewm-binding-mode-set normal']
         bindings: ["lwin+alt+n", "rwin+alt+n"]
-      - commands: ["wm-enable-binding-mode --name vm"]
+      - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe glazewm-binding-mode-set vm']
         bindings: ["lwin+alt+v", "rwin+alt+v"]
       - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe mouse-mode-toggle']
         bindings: ["lwin+alt+m", "rwin+alt+m"]
@@ -332,9 +332,9 @@ binding_modes:
   # ordinary Alt/Windows shortcuts. Host escape controls live on Win+Alt.
   - name: "vm"
     keybindings:
-      - commands: ["wm-disable-binding-mode --name vm"]
+      - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe glazewm-binding-mode-set normal']
         bindings: ["lwin+alt+v", "rwin+alt+v"]
-      - commands: ["wm-enable-binding-mode --name noalt"]
+      - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe glazewm-binding-mode-set noalt']
         bindings: ["lwin+alt+n", "rwin+alt+n"]
       - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe mouse-mode-toggle']
         bindings: ["lwin+alt+m", "rwin+alt+m"]
@@ -482,10 +482,10 @@ keybindings:
   - commands: ["resize --height -2%"]
     bindings: ["alt+u", "alt+ctrl+down"]
 
-  - commands: ["wm-enable-binding-mode --name noalt"]
+  - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe glazewm-binding-mode-set noalt']
     bindings: ["lwin+alt+n", "rwin+alt+n"]
 
-  - commands: ["wm-enable-binding-mode --name vm"]
+  - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe glazewm-binding-mode-set vm']
     bindings: ["lwin+alt+v", "rwin+alt+v"]
 
   - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe mouse-mode-toggle']
