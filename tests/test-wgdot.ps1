@@ -453,7 +453,7 @@ $rustDeskPackage = @($manifest.packages | Where-Object { $_.id -eq 'RustDesk.Rus
 Assert-True ($null -ne $rustDeskPackage) "RustDesk catalog entry exists"
 Assert-Equal ([string]$rustDeskPackage.installMode) 'official-github' "RustDesk uses its verified official GitHub source instead of a missing WinGet ID"
 Assert-Equal ([string]$rustDeskPackage.fallbackGitHubRepo) 'rustdesk/rustdesk' "RustDesk official GitHub source remains publisher-owned"
-Assert-True ($nativeSourceText -match 'const string Version = "native-preview-59"') "native runtime version tracks current WGDot maintenance changes"
+Assert-True ($nativeSourceText -match 'const string Version = "native-preview-60"') "native runtime version tracks current WGDot maintenance changes"
 Assert-True ($nativeSourceText -match 'if \(command == "theme"\) return ThemeManagerFromArgs') "native runtime exposes direct YASB theme selection"
 Assert-True ($nativeSourceText -match 'String\.Equals\(command, "theme"') "theme command refreshes the WGDot runtime before dispatch"
 Assert-True ($nativeSourceText -match 'BuildYasbThemeCss') "native runtime generates a variable-only YASB theme override"
