@@ -354,7 +354,6 @@ internal static class WgdotNative
     const byte VkLwin = 0x5B;
     const byte VkRwin = 0x5C;
     const byte VkV = 0x56;
-    const byte VkF24 = 0x87;
     const uint InputKeyboard = 1;
     const uint KeyeventfKeyup = 0x0002;
 
@@ -569,7 +568,8 @@ internal static class WgdotNative
                 using (var fg = new SolidBrush(foreground))
                     e.Graphics.DrawString(title, Font, fg, titleRect);
                 using (var muted = new SolidBrush(Color.FromArgb(160, foreground)))
-                    e.Graphics.DrawString(stamp, new Font(Font.FontFamily, 8.0f), muted, stampRect);
+                using (var stampFont = new Font(Font.FontFamily, 8.0f))
+                    e.Graphics.DrawString(stamp, stampFont, muted, stampRect);
                 e.DrawFocusRectangle();
             };
             _list.SelectedIndexChanged += delegate { LoadSelectedEntry(); };
@@ -7739,26 +7739,6 @@ class WgdotHidden
         return 0;
     }
 
-    static void WaitForLauncherModifierRelease()
-    {
-        // Alt+P and Super+D are owned by GlazeWM outside VM mode. The helper
-        // forwards them to YASB's private RegisterHotKey bridge, Win+Alt+F24.
-        // Win+Alt+D is reserved by Windows for date/time, so it cannot be a
-        // reliable YASB bridge. Wait for the physical launcher modifiers to be
-        // released first so the synthetic chord cannot inherit held modifiers.
-        for (int i = 0; i < 200; i++)
-        {
-            bool altDown = (GetAsyncKeyState(VkMenu) & 0x8000) != 0;
-            bool leftDown = (GetAsyncKeyState(VkLwin) & 0x8000) != 0;
-            bool rightDown = (GetAsyncKeyState(VkRwin) & 0x8000) != 0;
-            if (!altDown && !leftDown && !rightDown)
-                return;
-            System.Threading.Thread.Sleep(10);
-        }
-
-        throw new Exception("Alt/Windows launcher modifier is still held; release it and retry the shortcut.");
-    }
-
     static int OpenYasbQuickLaunch()
     {
         Process[] processes = Process.GetProcessesByName("yasb");
@@ -7781,7 +7761,7 @@ class WgdotHidden
                 {
                     if (PostThreadMessage(
                             unchecked((uint)thread.Id),
-                            0x0312,
+                            WmHotkey,
                             new UIntPtr(1),
                             IntPtr.Zero))
                         posted = true;
