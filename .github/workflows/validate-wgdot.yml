@@ -103,6 +103,13 @@ jobs:
         shell: cmd
         run: |
           "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" status
+      - name: Validate raw-only exact revision source acquisition
+        shell: cmd
+        env:
+          WGDOT_FORCE_RAW_SOURCE: "1"
+          WGDOT_SKIP_RUNTIME_REFRESH: "1"
+        run: |
+          "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" source-self-test --revision ${{ github.event.pull_request.head.sha || github.sha }}
       - name: Validate automatic runtime refresh handoff
         shell: cmd
         run: |
