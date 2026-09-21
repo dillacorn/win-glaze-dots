@@ -8,6 +8,7 @@ bars:
     enabled: true
     screens: ["*"]
     class_name: "yasb-bar"
+    # Blank-bar right-click menu is intentionally disabled. WGDot keeps
     # coordinated auto-hide on Alt+Ctrl+B instead of exposing YASB's separate
     # context-menu auto-hide state.
     context_menu: false
@@ -24,7 +25,9 @@ bars:
 
     window_flags:
       always_on_top: true
+      # Keep WGDot's existing GlazeWM-reserved top gap instead of migrating
       # live sessions to a Windows AppBar. Switching reservation models would
+      # require a GlazeWM config reload to avoid a double gap, and WGDot does
       # not force that layout-disrupting reload for a bar/theme update.
       windows_app_bar: false
       hide_on_fullscreen: true
@@ -51,6 +54,7 @@ bars:
           "glazewm_workspaces",
           "workspace_move_group",
           "taskbar",
+          "glazewm_pause",
           "glazewm_binding_mode",
           "glazewm_tiling_direction",
         ]
@@ -68,6 +72,7 @@ bars:
           "clock",
           "wifi",
           "bluetooth",
+          "clipboard_history",
           "dnd",
           "power_menu",
         ]
@@ -98,7 +103,598 @@ widgets:
         calculator:
           enabled: true
           prefix: "="
+        clipboard_history:
+          enabled: false
+          prefix: "cb"
+          max_items: 30
+          show_preview: true
+        color:
+          enabled: false
+        binance:
+          enabled: false
+        currency:
+          enabled: false
+        dev_tools:
+          enabled: false
+        emoji:
+          enabled: true
+          prefix: ":"
+        file_search:
+          enabled: true
+          prefix: "/"
+          backend: "auto"
+          show_path: true
+          show_preview: false
+        github_notifications:
+          enabled: false
+        hacker_news:
+          enabled: false
+        ip_info:
+          enabled: false
+        kill_process:
+          enabled: false
+        port_viewer:
+          enabled: false
+        settings:
+          enabled: true
+          prefix: "@"
+        snippets:
+          enabled: false
+        ssh:
+          enabled: false
+        system_commands:
+          enabled: true
+          prefix: ">"
+        unit_converter:
+          enabled: true
+          prefix: "~"
+        vscode:
+          enabled: false
+        web_search:
+          enabled: false
+        window_switcher:
+          enabled: true
+          prefix: "win"
+        windows_terminal:
+          enabled: true
+          prefix: "wt"
+        world_clock:
+          enabled: false
+        wsl:
+          enabled: false
+      popup:
+        width: 720
+        height: 480
+        blur: false
+        round_corners: false
+        round_corners_type: "none"
+        border_color: "None"
+        dark_mode: true
+      keybindings:
+        # Private WGDot bridge only. Win+Alt+D is reserved by Windows for
+        # date/time, so use an otherwise-unused F24 chord.
+        - keys: "win+alt+f24"
+          action: "toggle_quick_launch"
+          screen: "active"
+      callbacks:
+        on_left: "toggle_quick_launch"
+        on_middle: "do_nothing"
+        on_right: "toggle_quick_launch"
 
+  glazewm_workspaces:
+    type: "glazewm.workspaces.GlazewmWorkspacesWidget"
+    options:
+      offline_label: "GlazeWM Offline"
+      populated_label: "{name}"
+      empty_label: "{name}"
+      active_populated_label: "{name}"
+      active_empty_label: "{name}"
+      focused_populated_label: "{name}"
+      focused_empty_label: "{name}"
+      hide_if_offline: false
+      monitor_exclusive: true
+      enable_scroll_switching: true
+      reverse_scroll_direction: false
+      app_icons:
+        enabled_populated: false
+        enabled_active: false
+        enabled_focused: false
+
+  workspace_mouse:
+    type: "yasb.applications.ApplicationsWidget"
+    options:
+      label: "{data}"
+      class_name: "workspace-mouse-hub"
+      tooltip: true
+      app_list:
+        - icon: "󰍽"
+          launch: "wgdot mouse-mode-toggle"
+          name: "Mouse window mode (Super+Alt+M)"
+
+  workspace_move:
+    type: "yasb.applications.ApplicationsWidget"
+    options:
+      label: "{data}"
+      class_name: "workspace-move-buttons"
+      tooltip: true
+      app_list:
+        - icon: "↑"
+          launch: "glazewm.exe command move-workspace --direction up"
+          name: "Move workspace up"
+        - icon: "↓"
+          launch: "glazewm.exe command move-workspace --direction down"
+          name: "Move workspace down"
+        - icon: "←"
+          launch: "glazewm.exe command move-workspace --direction left"
+          name: "Move workspace left"
+        - icon: "→"
+          launch: "glazewm.exe command move-workspace --direction right"
+          name: "Move workspace right"
+
+  workspace_move_group:
+    type: "yasb.grouper.GrouperWidget"
+    options:
+      class_name: "workspace-move-grouper"
+      widgets: ["workspace_mouse", "workspace_move"]
+      hide_empty: false
+      # Passive hover container only. Native Grouper click-collapse stays off.
+      collapse_options:
+        enabled: false
+
+  glazewm_tiling_direction:
+    type: "glazewm.tiling_direction.GlazewmTilingDirectionWidget"
+    options:
+      horizontal_label: "↔"
+      vertical_label: "↕"
+
+  taskbar:
+    type: "yasb.taskbar.TaskbarWidget"
+    options:
+      icon_size: 14
+      tooltip: true
+      show_only_visible: false
+      strict_filtering: true
+      monitor_exclusive: true
+      hide_empty: true
+      callbacks:
+        on_left: "toggle_window"
+        on_middle: "close_app"
+        on_right: "toggle_window"
+      animation:
+        enabled: false
+        duration: 0
+      preview:
+        enabled: false
+        width: 240
+        delay: 400
+        padding: 8
+        margin: 8
+      grouping:
+        enabled: false
+        show_count: true
+      title_label:
+        enabled: false
+        show: "always"
+        min_length: 10
+        max_length: 30
+      ignore_apps:
+        processes: []
+        titles: []
+        classes: []
+
+  glazewm_pause:
+    type: "yasb.custom.CustomWidget"
+    options:
+      label: "{data}"
+      class_name: "awtarchy-pause"
+      tooltip: true
+      tooltip_label: "GlazeWM pause (Alt+Super+P)"
+      exec_options:
+        run_cmd: "wgdot glazewm-pause-status"
+        run_once: false
+        run_interval: 1000
+        return_format: "string"
+        hide_empty: true
+      callbacks:
+        on_left: "exec wgdotw glazewm-pause-toggle"
+        on_middle: "do_nothing"
+        on_right: "exec wgdotw glazewm-pause-toggle"
+
+  glazewm_binding_mode:
+    type: "glazewm.binding_mode.GlazewmBindingModeWidget"
+    options:
+      label: "{binding_mode}"
+      label_alt: "{binding_mode}"
+      hide_if_no_active: true
+      label_if_no_active: ""
+      default_icon: ""
+      icons:
+        none: ""
+        noalt: ""
+        vm: ""
+        mouse: ""
+      binding_modes_to_cycle_through: ["none", "noalt", "vm", "mouse"]
+      callbacks:
+        # Match Awtarchy's visible submap label: either primary mouse button
+        # clears the active binding mode through WGDot so VM/Super tracking
+        # stays synchronized with the real GlazeWM mode.
+        on_left: "exec wgdotw glazewm-binding-mode-set normal"
+        on_middle: "do_nothing"
+        on_right: "exec wgdotw glazewm-binding-mode-set normal"
+
+  active_window:
+    type: "yasb.active_window.ActiveWindowWidget"
+    options:
+      label: "{win[title]}"
+      label_alt: "class={win[class_name]} | exe={win[process][name]} | hwnd={win[hwnd]}"
+      label_no_window: ""
+      label_icon: false
+      label_icon_size: 14
+      max_length: 64
+      max_length_ellipsis: "..."
+      # Awtarchy shows the globally focused title on every horizontal bar.
+      monitor_exclusive: false
+      callbacks:
+        on_left: "toggle_label"
+        on_middle: "do_nothing"
+        on_right: "toggle_label"
+
+  idle_inhibitor:
+    type: "yasb.custom.CustomWidget"
+    options:
+      # WGDot emits ASCII-only JSON with escaped Font Awesome glyphs. YASB
+      # turns those escapes back into Awtarchy's eye/eye-slash icons.
+      label: "{data[icon]}"
+      class_name: "awtarchy-idle"
+      tooltip: true
+      tooltip_label: "{data[tooltip]}"
+      exec_options:
+        run_cmd: "wgdot idle-inhibitor-status"
+        run_once: false
+        run_interval: 250
+        return_format: "json"
+        hide_empty: false
+      callbacks:
+        on_left: "exec wgdotw idle-inhibitor-toggle"
+        on_middle: "do_nothing"
+        on_right: "exec wgdotw idle-inhibitor-toggle"
+
+  cpu:
+    type: "yasb.cpu.CpuWidget"
+    options:
+      label: "{info[percent][total]} <span></span>"
+      label_alt: "{info[freq][current]} MHz"
+      update_interval: 2000
+      hide_decimal: true
+      callbacks:
+        on_left: "toggle_menu"
+        on_middle: "do_nothing"
+        on_right: "toggle_label"
+      menu:
+        enabled: true
+        blur: false
+        round_corners: false
+        border_color: None
+        alignment: "right"
+        direction: "down"
+        show_graph: true
+        show_graph_grid: false
+        graph_history_size: 60
+
+  memory:
+    type: "yasb.memory.MemoryWidget"
+    options:
+      label: "{virtual_mem_percent} <span></span>"
+      label_alt: "{virtual_mem_used} / {virtual_mem_total}"
+      update_interval: 5000
+      hide_decimal: true
+      callbacks:
+        on_left: "toggle_menu"
+        on_middle: "do_nothing"
+        on_right: "toggle_label"
+      menu:
+        enabled: true
+        blur: false
+        round_corners: false
+        border_color: None
+        alignment: "right"
+        direction: "down"
+        show_graph: true
+        show_graph_grid: false
+        graph_history_size: 60
+
+  control_center:
+    type: "yasb.control_center.ControlCenterWidget"
+    options:
+      label: "<span></span>"
+      label_alt: "<span></span>"
+      class_name: "awtarchy-control-center"
+      tooltip: true
+      popup:
+        blur: false
+        round_corners: false
+        round_corners_type: "none"
+        border_color: "None"
+        alignment: "right"
+        direction: "down"
+        offset_top: 0
+        offset_left: 0
+      sections_order:
+        - "quick_actions"
+        - "sliders"
+        - "media"
+      sections:
+        system_controls:
+          show: false
+        quick_actions:
+          show: true
+          columns: 3
+          label_position: "inline"
+          actions:
+            - id: "wgdot_themes"
+              label: "Themes"
+              icon: ""
+              command: "wgdotw theme-toggle"
+            - id: "wgdot_autohide"
+              label: "Auto Hide"
+              icon: "󰘖"
+              command: "wgdotw bar-autohide-toggle"
+            - id: "wgdot_noalt"
+              label: "NoAlt Mode"
+              icon: "󰌌"
+              command: "wgdotw glazewm-binding-mode-toggle noalt"
+            - id: "wgdot_vm"
+              label: "VM Mode"
+              icon: "󰢹"
+              command: "wgdotw glazewm-binding-mode-toggle vm"
+            - id: "wgdot_display"
+              label: "Displays"
+              icon: "󰍹"
+              command: "explorer.exe ms-settings:display"
+            - id: "toggle_dnd"
+              label: "Do Not Disturb"
+              icon: ""
+            - id: "toggle_theme"
+              label: "Windows Dark"
+              icon: "󰖔"
+        sliders:
+          show: true
+          brightness:
+            show_slider: true
+            icon: "󰃟"
+            show_source_selector: true
+            source_selector_icon: "󰅀"
+          volume:
+            show_slider: true
+            icon: ""
+            show_source_selector: true
+            source_selector_icon: "󰅀"
+          microphone:
+            show_slider: true
+            icon: ""
+            show_source_selector: true
+            source_selector_icon: "󰅀"
+        power:
+          show: false
+        media:
+          show: true
+          thumbnail_size: 36
+          thumbnail_radius: 0
+      keybindings:
+        - keys: "win+alt+backspace"
+          action: "toggle_menu"
+          screen: "active"
+      callbacks:
+        on_left: "toggle_menu"
+        on_middle: "do_nothing"
+        on_right: "toggle_menu"
+
+  brightness:
+    type: "yasb.brightness.BrightnessWidget"
+    options:
+      label: "<span>{icon}</span> {percent}%"
+      label_alt: "Brightness {percent}%"
+      tooltip: true
+      scroll_step: 5
+      invert_wheel: false
+      # Keep one fixed sun glyph at every brightness level.
+      brightness_icons: ["", "", "", ""]
+      ddc_poll_interval: 60
+      brightness_menu:
+        blur: false
+        round_corners: false
+        border_color: None
+        alignment: "right"
+        direction: "down"
+      callbacks:
+        on_left: "toggle_brightness_menu"
+        on_middle: "do_nothing"
+        on_right: "toggle_brightness_menu"
+
+  battery:
+    type: "yasb.battery.BatteryWidget"
+    options:
+      label: "<span>{icon}</span> {percent}"
+      label_alt: "<span>{icon}</span> {percent} {time_remaining}"
+      update_interval: 5000
+      hide_unsupported: true
+      charging_options:
+        icon_format: "{icon} {charging_icon}"
+        blink_charging_icon: false
+        blink_interval: 500
+      # Match Awtarchy's 15/40/65/90 battery bands as closely as YASB's
+      # shared status threshold for both color and icon allows.
+      status_thresholds:
+        critical: 15
+        low: 39
+        medium: 64
+        high: 89
+        full: 100
+      callbacks:
+        # YASB has no native battery details popup. Open Windows' own
+        # Power & battery surface on either primary mouse button; keep
+        # middle-click for the compact alternate label.
+        on_left: "exec cmd.exe /c start ms-settings:powersleep"
+        on_middle: "toggle_label"
+        on_right: "exec cmd.exe /c start ms-settings:powersleep"
+
+  microphone:
+    type: "yasb.microphone.MicrophoneWidget"
+    options:
+      label: "<span>{icon}</span>"
+      label_alt: "<span>{icon}</span> {level}"
+      mute_text: "mute"
+      tooltip: true
+      scroll_step: 2
+      # Match Awtarchy's muted-only bar indicator. YASB collapses the
+      # empty normal icon while retaining its native muted state class.
+      icons:
+        normal: ""
+        muted: ""
+      mic_menu:
+        blur: false
+        round_corners: false
+        border_color: None
+        alignment: "right"
+        direction: "down"
+      callbacks:
+        on_left: "toggle_mic_menu"
+        on_middle: "toggle_label"
+        on_right: "toggle_mute"
+
+  volume:
+    type: "yasb.volume.VolumeWidget"
+    options:
+      label: "<span>{icon}</span> {level}"
+      label_alt: "<span>{icon}</span> {level}"
+      mute_text: "mute"
+      tooltip: true
+      scroll_step: 5
+      slider_beep: false
+      icons:
+        muted: ""
+        # Awtarchy: <25 low, <60 medium, otherwise high.
+        "24": ""
+        "59": ""
+        "100": ""
+      audio_menu:
+        blur: false
+        round_corners: false
+        border_color: None
+        alignment: "right"
+        direction: "down"
+        show_apps: true
+        show_app_labels: false
+        show_app_icons: true
+        show_apps_expanded: false
+      callbacks:
+        on_left: "toggle_mute"
+        on_middle: "toggle_label"
+        on_right: "exec wgdotw eartrumpet-mixer"
+
+  clock:
+    type: "yasb.clock.ClockWidget"
+    options:
+      label: "<span></span> {%H:%M}"
+      label_alt: "<span></span> {%a %#m/%#d}"
+      tooltip: true
+      update_interval: 1000
+      timezones: []
+      calendar:
+        blur: false
+        round_corners: false
+        border_color: None
+        alignment: "right"
+        direction: "down"
+        show_holidays: false
+        show_week_numbers: false
+        show_years: true
+        extended: false
+      callbacks:
+        on_left: "toggle_label"
+        on_middle: "toggle_calendar"
+        on_right: "toggle_label"
+
+  wifi:
+    type: "yasb.wifi.WifiWidget"
+    options:
+      label: "<span>{wifi_icon}</span>"
+      label_alt: "{wifi_name} {wifi_strength}%"
+      update_interval: 5000
+      get_exact_wifi_strength: false
+      callbacks:
+        on_left: "toggle_menu"
+        on_middle: "exec cmd.exe /c start ms-settings:network"
+        on_right: "toggle_menu"
+      ethernet_label: "<span>{wifi_icon}</span>"
+      ethernet_label_alt: "<span>{wifi_icon}</span> {ip_addr}"
+      ethernet_icon: "󰈀"
+      wifi_icons:
+        [
+          "󰤯",
+          "󰤟",
+          "󰤢",
+          "󰤥",
+          "󰤨",
+        ]
+      menu_config:
+        blur: false
+        round_corners: false
+        border_color: None
+        alignment: "right"
+        direction: "down"
+
+  bluetooth:
+    type: "yasb.bluetooth.BluetoothWidget"
+    options:
+      label: "<span>{icon}</span>"
+      label_alt: "{device_name}"
+      tooltip: true
+      # Awtarchy keeps the same Bluetooth glyph and changes state by color.
+      icons:
+        bluetooth_on: ""
+        bluetooth_off: ""
+        bluetooth_connected: ""
+      callbacks:
+        on_left: "toggle_menu"
+        on_middle: "do_nothing"
+        on_right: "toggle_menu"
+      menu_config:
+        blur: false
+        round_corners: false
+        border_color: None
+        alignment: "right"
+        direction: "down"
+
+  systray:
+    type: "yasb.systray.SystrayWidget"
+    options:
+      class_name: "systray"
+      icon_size: 14
+      tooltip: true
+      show_unpinned: true
+      show_unpinned_button: false
+      show_in_popup: false
+      show_battery: false
+      show_volume: false
+      show_network: false
+      use_hook: false
+      hide_icons: []
+
+  clipboard_history:
+    type: "yasb.custom.CustomWidget"
+    options:
+      label: "<span></span>"
+      class_name: "awtarchy-clipboard"
+      tooltip: true
+      tooltip_label: "WGDot Clipboard History (Super+C)"
+      exec_options:
+        run_once: true
+        return_format: "string"
+      callbacks:
+        on_left: "exec wgdotw clipboard-history"
+        on_middle: "do_nothing"
+        on_right: "exec wgdotw clipboard-history"
 
   dnd:
     type: "yasb.dnd.DndWidget"
@@ -120,32 +716,9 @@ widgets:
         on_left: "exec notification_center"
         on_middle: "do_nothing"
         on_right: "toggle_status"
-  power_menu:
-    type: "yasb.power_menu.PowerMenuWidget"
-    options:
-      label: "<span></span>"
-      uptime: false
-      show_user: false
-      blur: false
-      blur_background: false
-      animation_duration: 0
-      button_row: 3
-      buttons:
-        lock: ["", "Lock"]
-        signout: ["󰗽", "Sign out"]
-        sleep: ["󰒲", "Sleep"]
-        hibernate: ["", "Hibernate"]
-        restart: ["", "Restart"]
-        shutdown: ["", "Shut Down"]
-        cancel: ["󰅖", "Cancel"]
-      keybindings:
-        - keys: "win+p"
-          action: "toggle_power_menu"
-      callbacks:
-        on_left: "toggle_power_menu"
-        on_middle: "do_nothing"
-        on_right: "toggle_power_menu"
 
+  power_menu:
+    type: "yasb.custom.CustomWidget"
     options:
       label: "<span></span>"
       class_name: "awtarchy-power"
@@ -155,4 +728,6 @@ widgets:
         run_once: true
         return_format: "string"
       callbacks:
+        on_left: "exec wgdotw power-menu"
         on_middle: "do_nothing"
+        on_right: "exec wgdotw power-menu"
