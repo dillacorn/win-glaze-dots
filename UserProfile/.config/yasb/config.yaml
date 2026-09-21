@@ -172,12 +172,8 @@ widgets:
         border_color: "None"
         dark_mode: true
       keybindings:
-        - keys: "alt+p"
-          action: "toggle_quick_launch"
-          screen: "active"
-        - keys: "win+d"
-          action: "toggle_quick_launch"
-          screen: "active"
+        # Keep one host-only chord in YASB. GlazeWM owns Alt+P/Super+D outside
+        # VM mode and forwards those aliases to this registered shortcut.
         - keys: "win+alt+d"
           action: "toggle_quick_launch"
           screen: "active"

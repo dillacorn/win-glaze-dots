@@ -223,6 +223,11 @@ binding_modes:
       - commands: ["wm-redraw"]
         bindings: ["lwin", "rwin"]
 
+      # Keep ordinary launcher keys out of VM mode. This helper forwards to
+      # YASB's single VM-safe Win+Alt+D RegisterHotKey chord.
+      - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe quick-launch']
+        bindings: ["alt+p", "lwin+d", "rwin+d"]
+
       - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe theme-toggle']
         bindings: ["lwin+t", "rwin+t"]
       - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe clipboard-history']
@@ -404,6 +409,11 @@ keybindings:
   # their normal Windows key. Real Windows behavior still needs runtime testing.
   - commands: ["wm-redraw"]
     bindings: ["lwin", "rwin"]
+
+  # Alt+P/Super+D are host launcher aliases outside VM mode. YASB itself owns
+  # only Win+Alt+D so the ordinary guest chords can pass through in VM mode.
+  - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe quick-launch']
+    bindings: ["alt+p", "lwin+d", "rwin+d"]
 
   - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe flameshot-gui']
     bindings: ["lwin+shift+s", "rwin+shift+s"]

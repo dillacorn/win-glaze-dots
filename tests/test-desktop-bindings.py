@@ -12,7 +12,8 @@ for name in ("config.yaml", "custom_work_config.yaml"):
     modes = {m["name"]: m["keybindings"] for m in config["binding_modes"]}
     for mode, bindings in [("normal", config["keybindings"]), ("noalt", modes["noalt"])]:
         launch = {key for b in bindings if any("wgdot.exe quick-launch" in c for c in b["commands"]) for key in b["bindings"]}
-        assert {"alt+p", "lwin+d", "rwin+d", "lwin+alt+d", "rwin+alt+d"} <= launch, (name, mode, launch)
+        assert {"alt+p", "lwin+d", "rwin+d"} <= launch, (name, mode, launch)
+        assert not ({"lwin+alt+d", "rwin+alt+d"} & launch), (name, mode, "YASB host chord recursed through GlazeWM")
     guest_keys = {key for b in modes["vm"] for key in b["bindings"]}
     assert not ({"alt+p", "lwin+d", "rwin+d", "lwin", "rwin"} & guest_keys), (name, "VM guest shortcuts intercepted")
 print("Desktop launcher ownership checks passed (configuration contract, not Windows input acceptance).")

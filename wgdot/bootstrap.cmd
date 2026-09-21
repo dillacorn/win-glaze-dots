@@ -96,12 +96,12 @@ if errorlevel 1 (
 
 "%OUT%" install
 set "RC=%ERRORLEVEL%"
+if not "%RC%"=="0" goto cleanup
 
-if "%RC%"=="0" (
-  "%OUT%" ensure-winget
-  set "RC=%ERRORLEVEL%"
-)
+"%OUT%" ensure-winget
+set "RC=%ERRORLEVEL%"
 
+:cleanup
 del /q "%OUT%" >nul 2>&1
 if "%DOWNLOADED_SOURCE%"=="1" del /q "%SOURCE_FILE%" >nul 2>&1
 exit /b %RC%

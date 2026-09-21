@@ -19,7 +19,7 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-49";
+    const string Version = "native-preview-50";
     const int WingetPreflightTimeoutMs = 30000;
     const string RepoFullName = "dillacorn/win-glaze-dots";
     const string RepoUrl = "https://github.com/dillacorn/win-glaze-dots.git";
@@ -261,6 +261,7 @@ internal static class WgdotNative
     static bool SuperLSuppressKeyUp;
 
     const byte VkMenu = 0x12;
+    const byte VkD = 0x44;
     const byte VkL = 0x4C;
     const byte VkLwin = 0x5B;
     const byte VkRwin = 0x5C;
@@ -556,6 +557,7 @@ internal static class WgdotNative
             if (command == "ensure-winget") return EnsureWingetAvailable();
             if (command == "acceptance-audit") return AcceptanceAudit();
             if (command == "software-elevated") return SoftwareElevatedFromArgs(args.Skip(1).ToArray());
+            if (command == "quick-launch") return OpenYasbQuickLaunch();
             if (command == "flow-open") return OpenFlowLauncher();
             if (command == "eartrumpet-mixer") return OpenEarTrumpetMixer();
             if (command == "clipboard-history") return OpenWindowsClipboardHistory();
@@ -3142,6 +3144,72 @@ internal static class WgdotNative
             });
     }
 
+    static bool IsLegacyYasbStartupCommand(string command)
+    {
+        string trimmed = (command ?? "").Trim();
+        if (trimmed.Length < 3 || trimmed[0] != '"' || trimmed[trimmed.Length - 1] != '"')
+            return false;
+
+        string path = trimmed.Substring(1, trimmed.Length - 2);
+        if (String.IsNullOrWhiteSpace(path) || path.IndexOf('"') >= 0 || !Path.IsPathRooted(path))
+            return false;
+
+        string local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        string[] oldCandidates =
+        {
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "YASB", "yasb.exe"),
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "YASB", "yasb.exe"),
+            Path.Combine(local, "Programs", "YASB", "yasb.exe"),
+            Path.Combine(local, "yasb", "yasb.exe")
+        };
+
+        try
+        {
+            string normalized = Path.GetFullPath(path);
+            return oldCandidates
+                .Where(candidate => !String.IsNullOrWhiteSpace(candidate))
+                .Any(candidate =>
+                    String.Equals(
+                        normalized,
+                        Path.GetFullPath(candidate),
+                        StringComparison.OrdinalIgnoreCase));
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    static void RemoveLegacyYasbStartupRegistrationIfOwned()
+    {
+        const string runPath = @"Software\Microsoft\Windows\CurrentVersion\Run";
+        const string valueName = "WGDot.yasb";
+
+        using (RegistryKey key = Registry.CurrentUser.OpenSubKey(runPath, true))
+        {
+            if (key == null) return;
+
+            object raw = key.GetValue(
+                valueName,
+                null,
+                RegistryValueOptions.DoNotExpandEnvironmentNames);
+            if (raw == null) return;
+
+            string command = Convert.ToString(raw);
+            if (!IsLegacyYasbStartupCommand(command))
+            {
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine(
+                    "Legacy WGDot.yasb startup value no longer matches WGDot's old direct YASB command; preserved.");
+                Console.ResetColor();
+                return;
+            }
+
+            key.DeleteValue(valueName, false);
+            Console.WriteLine("Removed legacy duplicate WGDot.yasb startup registration.");
+        }
+    }
+
     static string StartupRunValueName(Dictionary<string, object> package)
     {
         string handler = GetString(package, "startupHandler");
@@ -3210,6 +3278,8 @@ internal static class WgdotNative
     {
         string name = StartupRunValueName(package);
         const string runPath = @"Software\Microsoft\Windows\CurrentVersion\Run";
+
+        RemoveLegacyYasbStartupRegistrationIfOwned();
 
         using (RegistryKey key = Registry.CurrentUser.CreateSubKey(runPath))
         {
@@ -6764,6 +6834,46 @@ internal static class WgdotNative
         return 0;
     }
 
+    static void WaitForLauncherModifierRelease()
+    {
+        // Alt+P and Super+D are owned by GlazeWM outside VM mode. The helper
+        // forwards them to YASB's one VM-safe RegisterHotKey chord, Win+Alt+D.
+        // Wait for the physical launcher modifiers to be released first so the
+        // synthetic chord cannot inherit a still-held Alt/Windows key.
+        for (int i = 0; i < 200; i++)
+        {
+            bool altDown = (GetAsyncKeyState(VkMenu) & 0x8000) != 0;
+            bool leftDown = (GetAsyncKeyState(VkLwin) & 0x8000) != 0;
+            bool rightDown = (GetAsyncKeyState(VkRwin) & 0x8000) != 0;
+            if (!altDown && !leftDown && !rightDown)
+                return;
+            System.Threading.Thread.Sleep(10);
+        }
+
+        throw new Exception("Alt/Windows launcher modifier is still held; release it and retry the shortcut.");
+    }
+
+    static int OpenYasbQuickLaunch()
+    {
+        if (Process.GetProcessesByName("yasb").Length == 0)
+            throw new Exception("YASB is not running; Quick Launch cannot be opened.");
+
+        WaitForLauncherModifierRelease();
+
+        // YASB v2.0.7 exposes widget hotkeys through Win32 RegisterHotKey but
+        // has no CLI/IPC command for invoking an individual widget callback.
+        // Keep one YASB-owned host chord and synthesize that exact registered
+        // shortcut rather than inventing an unsupported YASB command.
+        keybd_event(VkLwin, 0, 0, UIntPtr.Zero);
+        keybd_event(VkMenu, 0, 0, UIntPtr.Zero);
+        keybd_event(VkD, 0, 0, UIntPtr.Zero);
+        keybd_event(VkD, 0, KeyeventfKeyup, UIntPtr.Zero);
+        keybd_event(VkMenu, 0, KeyeventfKeyup, UIntPtr.Zero);
+        keybd_event(VkLwin, 0, KeyeventfKeyup, UIntPtr.Zero);
+        System.Threading.Thread.Sleep(80);
+        return 0;
+    }
+
     static void WaitForWindowsModifierRelease()
     {
         // GlazeWM launches Super aliases before the physical Windows key has
@@ -7614,22 +7724,63 @@ internal static class WgdotNative
         return 0;
     }
 
+    static Dictionary<string, object> RequireGlazeWmSuccess(
+        ProcResult result,
+        string operation)
+    {
+        if (result == null)
+            throw new Exception(operation + " failed: no GlazeWM process result.");
+
+        if (result.ExitCode != 0)
+        {
+            string detail = LastUsefulLine((result.StdErr ?? "") + "\n" + (result.StdOut ?? ""));
+            throw new Exception(
+                operation + " failed with exit " +
+                result.ExitCode.ToString(CultureInfo.InvariantCulture) +
+                (String.IsNullOrWhiteSpace(detail) ? "." : ": " + detail));
+        }
+
+        if (String.IsNullOrWhiteSpace(result.StdOut))
+            throw new Exception(operation + " failed: GlazeWM returned no IPC response.");
+
+        Dictionary<string, object> response;
+        try
+        {
+            response = AsDictionary(Json.DeserializeObject(result.StdOut.Trim()));
+        }
+        catch (Exception ex)
+        {
+            throw new Exception(operation + " failed: invalid GlazeWM IPC JSON: " + ex.Message);
+        }
+
+        object rawSuccess;
+        if (!response.TryGetValue("success", out rawSuccess) || !(rawSuccess is bool))
+            throw new Exception(operation + " failed: GlazeWM IPC response is missing a boolean success field.");
+
+        if (!(bool)rawSuccess)
+        {
+            string error = GetString(response, "error");
+            if (String.IsNullOrWhiteSpace(error))
+                error = GetString(response, "clientMessage");
+            if (String.IsNullOrWhiteSpace(error))
+                error = "GlazeWM rejected the request.";
+            throw new Exception(operation + " failed: " + error);
+        }
+
+        return response;
+    }
+
     static bool GlazeWmIsPaused()
     {
         ProcResult result = Run("glazewm.exe", "query paused", null);
-        if (result.ExitCode != 0 || String.IsNullOrWhiteSpace(result.StdOut))
-            return false;
+        Dictionary<string, object> response =
+            RequireGlazeWmSuccess(result, "GlazeWM pause query");
 
-        try
-        {
-            Dictionary<string, object> response = AsDictionary(Json.DeserializeObject(result.StdOut.Trim()));
-            object data;
-            return response.TryGetValue("data", out data) && data != null && Convert.ToBoolean(data);
-        }
-        catch
-        {
-            return false;
-        }
+        object data;
+        if (!response.TryGetValue("data", out data) || !(data is bool))
+            throw new Exception("GlazeWM pause query returned invalid pause data.");
+
+        return (bool)data;
     }
 
     static int GlazeWmPauseStatus()
@@ -7641,8 +7792,7 @@ internal static class WgdotNative
     static int GlazeWmPauseToggle()
     {
         ProcResult result = Run("glazewm.exe", "command wm-toggle-pause", null);
-        if (result.ExitCode != 0)
-            throw new Exception("GlazeWM pause toggle failed: " + LastUsefulLine(result.StdErr));
+        RequireGlazeWmSuccess(result, "GlazeWM pause toggle");
         return 0;
     }
 
@@ -7986,6 +8136,48 @@ internal static class WgdotNative
         return 0;
     }
 
+    static bool RestoreLegacyFlowHotkey(
+        Dictionary<string, object> settings,
+        Dictionary<string, object> original)
+    {
+        if (settings == null || original == null)
+            return false;
+
+        if (!String.Equals(
+                GetString(settings, "Hotkey"),
+                "Alt + P",
+                StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        object rawExists;
+        if (!original.TryGetValue("exists", out rawExists) || rawExists == null)
+            return false;
+
+        bool existed;
+        try
+        {
+            existed = Convert.ToBoolean(rawExists);
+        }
+        catch
+        {
+            return false;
+        }
+
+        if (!existed)
+        {
+            settings.Remove("Hotkey");
+            return true;
+        }
+
+        string originalValue = GetString(original, "value");
+        if (String.IsNullOrWhiteSpace(originalValue) ||
+            String.Equals(originalValue, "Alt + P", StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        settings["Hotkey"] = originalValue;
+        return true;
+    }
+
     static void ApplyFlowLauncherAltP(bool enable)
     {
         const string originalKey = "flow-launcher-alt-p|Hotkey";
@@ -8041,15 +8233,16 @@ internal static class WgdotNative
             {
                 Console.WriteLine("No pre-WGDot Flow Launcher hotkey snapshot exists; leaving current setting unchanged.");
             }
-            else
+            else if (RestoreLegacyFlowHotkey(settings, original))
             {
                 CreateBackup(settingsPath, "tweak-flow-launcher");
-                if (GetBool(original, "exists"))
-                    settings["Hotkey"] = GetString(original, "value");
-                else
-                    settings.Remove("Hotkey");
                 WriteJson(settingsPath, settings);
                 Console.WriteLine("Flow Launcher hotkey restored to its pre-WGDot value.");
+            }
+            else
+            {
+                Console.WriteLine(
+                    "Flow Launcher hotkey is no longer the WGDot-owned Alt+P value; leaving it unchanged.");
             }
         }
 
