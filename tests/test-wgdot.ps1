@@ -667,7 +667,7 @@ foreach ($desktopCommand in @(
 foreach ($approvedDesktopCommand in @(
     "idle-inhibitor-status", "idle-inhibitor-toggle", "idle-inhibitor-worker",
     "bar-autohide-toggle", "mouse-mode-toggle", "mouse-mode-disable", "mouse-mode-hook",
-    "glazewm-binding-mode-toggle", "theme", "power-menu", "rawaccel-toggle"
+    "glazewm-binding-mode-toggle", "theme", "launcher", "power-menu", "rawaccel-toggle"
 )) {
     Assert-True ($nativeSourceText -match ('command == "' + [regex]::Escape($approvedDesktopCommand) + '"')) "WGDot exposes approved scoped runtime helper: $approvedDesktopCommand"
 }
@@ -745,11 +745,17 @@ $glazeNormalText = Get-Content -LiteralPath (Join-Path $repoRoot "UserProfile\.g
 $glazeWorkText = Get-Content -LiteralPath (Join-Path $repoRoot "UserProfile\.glzr\glazewm\custom_work_config.yaml") -Raw
 Assert-True ($glazeNormalText -notmatch 'flow-launcher\.ps1|yasb-quick-launch\.ps1') "Normal GlazeWM contains no launcher relay script"
 Assert-True ($glazeWorkText -notmatch 'flow-launcher\.ps1|yasb-quick-launch\.ps1') "Work GlazeWM contains no launcher relay script"
-Assert-True ($glazeWorkText -match 'shell-exec %LOCALAPPDATA%/FlowLauncher/Flow\.Launcher\.exe') "Work GlazeWM launches Flow directly from Alt+P"
+Assert-True ($glazeNormalText -match 'wgdotw\.exe launcher hotkey') "Normal GlazeWM uses the compiled launcher"
+Assert-True ($glazeWorkText -match 'wgdotw\.exe launcher hotkey') "Work GlazeWM uses the compiled launcher"
+Assert-True ($glazeWorkText -notmatch 'shell-exec %LOCALAPPDATA%/FlowLauncher/Flow\.Launcher\.exe') "Work GlazeWM no longer defaults launcher hotkeys to Flow Launcher"
 
 Assert-True ($yasbConfigText -match 'yasb\.custom\.CustomWidget') "YASB uses a lightweight custom power button"
 Assert-True ($yasbConfigText -match 'on_left:\s*"exec wgdotw\.exe power-menu"') "YASB power button opens the compiled Awtarchy-style surface"
 Assert-True ($yasbWorkConfigText -match 'on_left:\s*"exec wgdotw\.exe power-menu"') "Work YASB power button opens the compiled Awtarchy-style surface"
+Assert-True ($yasbConfigText -match 'class_name:\s*"awtarchy-launcher"') "Normal YASB renders the compiled launcher button"
+Assert-True ($yasbWorkConfigText -match 'class_name:\s*"awtarchy-launcher"') "Work YASB renders the compiled launcher button"
+Assert-True ($yasbConfigText -match 'on_left:\s*"exec wgdotw\.exe launcher bar"') "Normal YASB launcher button opens the bar-relative compiled launcher"
+Assert-True ($yasbWorkConfigText -match 'on_left:\s*"exec wgdotw\.exe launcher bar"') "Work YASB launcher button opens the bar-relative compiled launcher"
 Assert-True ($yasbConfigText -match 'wgdot\.exe theme') "YASB theme action uses the approved compiled theme helper"
 Assert-True ($yasbConfigText -match 'wgdotw\.exe bar-autohide-toggle') "YASB auto-hide uses the approved compiled coordination helper"
 Assert-True ($yasbConfigText -notmatch '(?i)(quick-launch|flow-open|eartrumpet-mixer|clipboard-history|flameshot-gui|display-settings)') "Normal YASB does not route native-capable actions through WGDot"
@@ -806,9 +812,9 @@ Assert-True ($glazeWorkText -match 'wgdotw\.exe rawaccel-toggle') "Work GlazeWM 
 Assert-True ($glazeWorkText -match 'wgdotw\.exe mouse-mode-toggle') "Work GlazeWM uses the scoped compiled mouse helper"
 Assert-True ($glazeWorkText -match 'wgdotw\.exe bar-autohide-toggle') "Work GlazeWM uses the scoped compiled auto-hide helper"
 Assert-True ($glazeWorkText -match 'wgdot\.exe theme') "Work GlazeWM uses the compiled theme helper"
-Assert-True ($glazeWorkText -match 'shell-exec %LOCALAPPDATA%/FlowLauncher/Flow\.Launcher\.exe') "Work GlazeWM launches Flow Launcher directly"
-Assert-True ($glazeWorkText -match 'bindings:\s*\["alt\+p"\]') "Work GlazeWM owns Alt+P for direct Flow Launcher"
-Assert-True ($glazeWorkText -notmatch 'bindings:\s*\["lwin\+d",\s*"rwin\+d"\]') "Work GlazeWM does not fake YASB Quick Launch on Super+D"
+Assert-True ($glazeNormalText -match 'bindings:\s*\["alt\+p",\s*"lwin\+d",\s*"rwin\+d"\]') "Normal GlazeWM owns Alt+P and Super+D for the compiled launcher"
+Assert-True ($glazeWorkText -match 'bindings:\s*\["alt\+p",\s*"lwin\+d",\s*"rwin\+d"\]') "Work GlazeWM owns Alt+P and Super+D for the compiled launcher"
+Assert-True ($glazeWorkText -notmatch 'FlowLauncher/Flow\.Launcher\.exe') "Work launcher hotkeys do not depend on Flow Launcher"
 foreach ($text in @($glazeNormalText, $glazeWorkText)) {
     $globalMarker = [Environment]::NewLine + "keybindings:" + [Environment]::NewLine
     $globalIndex = $text.LastIndexOf($globalMarker)
@@ -843,6 +849,8 @@ foreach ($text in @($glazeNormalText, $glazeWorkText)) {
     Assert-True ($noaltBlock -notmatch 'bindings:\s*\["alt\+t"\]') "noalt does not capture plain Alt+T"
     Assert-True ($noaltBlock -match 'bindings:\s*\["lwin\+v",\s*"rwin\+v"\]') "noalt keeps Super+V EarTrumpet"
     Assert-True ($noaltBlock -notmatch 'bindings:\s*\["alt\+v"\]') "noalt does not capture plain Alt+V"
+    Assert-True ($noaltBlock -match 'bindings:\s*\["lwin\+d",\s*"rwin\+d"\]') "noalt keeps Super+D compiled launcher"
+    Assert-True ($noaltBlock -notmatch 'bindings:\s*\["alt\+p"\]') "noalt does not capture plain Alt+P"
     Assert-True ($text -match 'wgdot\.exe theme') "theme shortcut uses the compiled theme manager"
     Assert-True ($text -match 'window_title:\s*\{ equals: "Win Glaze Themes" \}') "theme selector has a dedicated floating title rule"
     Assert-True ($text -match 'name:\s*"noalt"') "GlazeWM noalt mode remains available with selective shell-hotkey filtering"
@@ -1037,7 +1045,13 @@ Assert-True ($nativeSourceText -match 'key == ConsoleKey\.Escape \|\| key == Con
 Assert-True ($nativeSourceText -match 'Q/Esc: back') "keyboard UI advertises Q and Escape as back keys"
 Assert-True ($nativeSourceText -match 'launch-open-shell') "native runtime starts Open-Shell after installation"
 Assert-True ($nativeSourceText -notmatch 'ApplyFlowLauncherAltP') "retired WGDot Flow Launcher Alt+P integration stays removed"
-Assert-True ($nativeSourceText -notmatch 'command == "quick-launch"|command == "flow-open"') "launcher runtime helpers are not dispatchable"
+Assert-True ($nativeSourceText -notmatch 'command == "quick-launch"|command == "flow-open"') "retired launcher relay commands stay removed"
+Assert-True ($nativeSourceText -match 'if \(command == "launcher"\) return LauncherFromArgs') "native runtime exposes the approved compiled launcher"
+Assert-True ($nativeSourceText -match 'LauncherLocation') "compiled launcher has context-aware placement logic"
+Assert-True ($nativeSourceText -match 'YasbAutoHideEnabled') "compiled launcher centers when YASB auto-hide is active"
+Assert-True ($nativeSourceText -match 'ForegroundWindowFillsScreen') "compiled launcher detects fullscreen/borderless foreground windows"
+Assert-True ($nativeSourceText -match 'Environment\.SpecialFolder\.Programs') "compiled launcher indexes user Start Menu applications"
+Assert-True ($nativeSourceText -match 'Environment\.SpecialFolder\.CommonPrograms') "compiled launcher indexes common Start Menu applications"
 Assert-True ($nativeSourceText -match 'ApplyEarTrumpetMixerSuperV') "EarTrumpet hotkey is configured directly at management time"
 Assert-True ($nativeSourceText -match 'static string RequireGlazeWmExe\(\)') "runtime helpers require the resolved GlazeWM executable path"
 Assert-True ($nativeSourceText -match 'Run\(RequireGlazeWmExe\(\), "query binding-modes"') "mouse-mode queries use the resolved GlazeWM path"
