@@ -103,17 +103,42 @@ jobs:
         shell: cmd
         run: |
           "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" status
+          if not exist "%LOCALAPPDATA%\wgdot\bin\wgdotw.exe" exit /b 1
+          "%LOCALAPPDATA%\wgdot\bin\wgdotw.exe" idle-inhibitor-status
+          if errorlevel 1 exit /b %errorlevel%
+      - name: Reinstall exact runtime through PowerShell WebClient fallback
+        shell: cmd
+        env:
+          WGDOT_FORCE_POWERSHELL_DOWNLOAD: "1"
+        run: |
+          cd /d "%TEMP%"
+          call wgdot-bootstrap-test.cmd --ref "${{ github.head_ref || github.ref_name }}" --revision ${{ github.event.pull_request.head.sha || github.sha }}
+          "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" status
+      - name: Validate raw-only exact revision source acquisition
+        shell: cmd
+        env:
+          WGDOT_FORCE_RAW_SOURCE: "1"
+          WGDOT_SKIP_RUNTIME_REFRESH: "1"
+        run: |
+          "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" source-self-test --revision ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Validate restricted-network dots-only planning
+        shell: cmd
+        env:
+          WGDOT_FORCE_RAW_SOURCE: "1"
+          WGDOT_SKIP_RUNTIME_REFRESH: "1"
+        run: |
+          "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" dots-only --profile work > "%TEMP%\wgdot-dots-only-plan.txt"
+          type "%TEMP%\wgdot-dots-only-plan.txt"
+          findstr /C:"GlazeWM profile: work" "%TEMP%\wgdot-dots-only-plan.txt"
+          findstr /C:"Software operations: disabled" "%TEMP%\wgdot-dots-only-plan.txt"
+          findstr /C:"Review only. No managed files, backups, baselines, or selection state were changed." "%TEMP%\wgdot-dots-only-plan.txt"
       - name: Validate automatic runtime refresh handoff
         shell: cmd
         run: |
-          start "" /b "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" desktop-worker
-          ping 127.0.0.1 -n 2 >nul
-          "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" status | findstr /C:"Desktop worker: active"
           "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" mark-runtime --ref "${{ github.head_ref || github.ref_name }}" --revision 0000000000000000000000000000000000000001
           "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" status
           ping 127.0.0.1 -n 4 >nul
           findstr /C:"${{ github.event.pull_request.head.sha || github.sha }}" "%LOCALAPPDATA%\wgdot\state\native-bootstrap.json"
-          "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" status | findstr /C:"Desktop worker: active"
       - name: Verify persistent user PATH
         shell: cmd
         run: |

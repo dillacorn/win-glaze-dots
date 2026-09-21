@@ -35,9 +35,6 @@
       "postActions": [
         {
           "type": "migrate-legacy-windows-hotkeys"
-        },
-        {
-          "type": "ensure-desktop-worker"
         }
       ]
     },
@@ -49,7 +46,10 @@
       "files": [
         {
           "id": "yasb-config",
-          "source": "UserProfile/.config/yasb/config.yaml",
+          "sourceByGlazeProfile": {
+            "normal": "UserProfile/.config/yasb/config.yaml",
+            "work": "UserProfile/.config/yasb/custom_work_config.yaml"
+          },
           "destination": "%USERPROFILE%\\.config\\yasb\\config.yaml",
           "merge": true
         },
@@ -64,16 +64,21 @@
           "source": "UserProfile/.config/yasb/README.md",
           "destination": "%USERPROFILE%\\.config\\yasb\\README.md",
           "merge": false
-        }
-      ],
-      "postActions": [
-        {
-          "type": "ensure-hidden-launcher"
         },
         {
-          "type": "ensure-yasb-theme"
+          "id": "yasb-theme",
+          "source": "UserProfile/.config/yasb/theme.css",
+          "destination": "%USERPROFILE%\\.config\\yasb\\theme.css",
+          "merge": true
+        },
+        {
+          "id": "yasb-appearance",
+          "source": "UserProfile/.config/yasb/appearance.css",
+          "destination": "%USERPROFILE%\\.config\\yasb\\appearance.css",
+          "merge": true
         }
-      ]
+      ],
+      "postActions": []
     },
     {
       "id": "cursor",
@@ -863,18 +868,10 @@
       "defaultWork": true
     },
     {
-      "id": "flow-launcher-alt-p",
-      "name": "Flow Launcher: Alt+P (legacy optional; conflicts with YASB Quick Launch)",
+      "id": "eartrumpet-mixer-super-v",
+      "name": "EarTrumpet mixer: Super+V",
       "category": "keybinds",
-      "type": "flow-launcher-alt-p",
-      "defaultNormal": false,
-      "defaultWork": false
-    },
-    {
-      "id": "eartrumpet-mixer-alt-v",
-      "name": "EarTrumpet mixer: Alt+V",
-      "category": "keybinds",
-      "type": "eartrumpet-mixer-alt-v",
+      "type": "eartrumpet-mixer-super-v",
       "defaultNormal": true,
       "defaultWork": true
     },

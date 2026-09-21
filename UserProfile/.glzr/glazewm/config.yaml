@@ -3,7 +3,6 @@
 general:
   startup_commands:
     - "shell-exec yasb"
-    - 'shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe desktop-worker'
   shutdown_commands: ["shell-exec taskkill /IM yasb.exe /F"]
   config_reload_commands: []
   focus_follows_cursor: false
@@ -178,10 +177,10 @@ window_rules:
       - window_process: { equals: "EarTrumpet" }
       - window_process: { regex: "^rawaccel(\\.exe)?$" }
       - window_title: { regex: "(Find|Replace)" }
-      # Keep the WGDot theme selector out of the tiling tree. Its terminal
+      # Keep the standalone theme selector out of the tiling tree. Its terminal
       # title is fixed with Windows Terminal --suppressApplicationTitle.
       - window_process: { regex: "^WindowsTerminal(\\.exe)?$" }
-        window_title: { equals: "WGDot Themes" }
+        window_title: { equals: "Win Glaze Themes" }
 
 binding_modes:
   - name: "resize"
@@ -196,10 +195,10 @@ binding_modes:
         bindings: ["j", "down"]
       - commands: ["wm-disable-binding-mode --name resize"]
         bindings: ["escape", "enter"]
-      # Lone Super is handled by WGDot's desktop worker so normal Super chords
-      # remain untouched and VM mode can pass the key through to the guest.
       - commands: ["wm-toggle-pause"]
         bindings: ["lwin+alt+p", "rwin+alt+p"]
+      - commands: ["shell-exec wgdotw.exe mouse-mode-toggle"]
+        bindings: ["lwin+alt+m", "rwin+alt+m"]
 
   # Gaming-friendly mode based on Awtarchy's noalt submap.
   # Normal Alt-heavy bindings are replaced with Super equivalents while active.
@@ -207,34 +206,26 @@ binding_modes:
   # do not inherit global bindings.
   - name: "noalt"
     keybindings:
-      - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe glazewm-binding-mode-set normal']
+      - commands: ["wm-disable-binding-mode --name noalt"]
         bindings: ["lwin+alt+n", "rwin+alt+n"]
-      - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe glazewm-binding-mode-set vm']
+      - commands:
+          - "wm-disable-binding-mode --name noalt"
+          - "wm-enable-binding-mode --name vm"
         bindings: ["lwin+alt+v", "rwin+alt+v"]
-      - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe mouse-mode-toggle']
+      - commands: ["shell-exec wgdotw.exe mouse-mode-toggle"]
         bindings: ["lwin+alt+m", "rwin+alt+m"]
       - commands: ["wm-toggle-pause"]
         bindings: ["lwin+alt+p", "rwin+alt+p"]
-      - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe bar-autohide-toggle']
+      - commands: ["shell-exec wgdotw.exe bar-autohide-toggle"]
         bindings: ["alt+ctrl+b"]
-      # Keep ordinary launcher keys out of VM mode. WGDot dispatches directly
-      # to YASB's private hotkey listener without pausing GlazeWM.
-      - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe quick-launch']
-        bindings: ["alt+p", "lwin+d", "rwin+d"]
 
-      - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe theme-toggle']
+      - commands: ['shell-exec wt.exe -w new new-tab --title "Win Glaze Themes" --suppressApplicationTitle wgdot.exe theme']
         bindings: ["lwin+t", "rwin+t"]
-      - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe clipboard-history']
-        bindings: ["lwin+c", "rwin+c"]
-      - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe eartrumpet-mixer']
-        bindings: ["lwin+v", "rwin+v"]
-      - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe power-menu']
-        bindings: ["lwin+p", "rwin+p"]
-      - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe display-settings']
+      - commands: ["shell-exec explorer.exe ms-settings:display"]
         bindings: ["lwin+ctrl+m", "rwin+ctrl+m"]
-      - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe rawaccel-open']
+      - commands: ["shell-exec wgdotw.exe rawaccel-toggle"]
         bindings: ["lwin+shift+m", "rwin+shift+m"]
-      - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe flameshot-gui']
+      - commands: ["shell-exec flameshot.exe gui"]
         bindings: ["lwin+shift+s", "rwin+shift+s"]
       - commands: ["shell-exec wt.exe -w new"]
         bindings: ["lwin+enter", "rwin+enter", "lwin+shift+enter", "rwin+shift+enter"]
@@ -312,28 +303,33 @@ binding_modes:
       - commands: ["move --workspace 10"]
         bindings: ["lwin+shift+0", "rwin+shift+0"]
 
-  # Pointer-only mode matching Awtarchy's mouse submap. GlazeWM owns the
-  # keyboard-mode state; WGDot owns the temporary low-level mouse hook.
+
+  # GlazeWM owns mouse-mode state; WGDot supplies only the scoped low-level
+  # pointer hook that GlazeWM 3.10.x cannot express. The hook self-terminates
+  # whenever GlazeWM leaves this mode.
   - name: "mouse"
     keybindings:
-      # Once mouse mode is active this chord is an unconditional escape path.
-      - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe mouse-mode-disable']
+      - commands: ["shell-exec wgdotw.exe mouse-mode-toggle"]
         bindings: ["lwin+alt+m", "rwin+alt+m"]
-      - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe mouse-mode-switch noalt']
+      - commands: ["shell-exec wgdotw.exe glazewm-binding-mode-toggle noalt"]
         bindings: ["lwin+alt+n", "rwin+alt+n"]
-      - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe mouse-mode-switch vm']
+      - commands: ["shell-exec wgdotw.exe glazewm-binding-mode-toggle vm"]
         bindings: ["lwin+alt+v", "rwin+alt+v"]
+      - commands: ["wm-toggle-pause"]
+        bindings: ["lwin+alt+p", "rwin+alt+p"]
 
   # VM mode based on Awtarchy's vm submap.
   # Normal host keybindings are replaced while active so the guest receives
   # ordinary Alt/Windows shortcuts. Host escape controls live on Win+Alt.
   - name: "vm"
     keybindings:
-      - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe glazewm-binding-mode-set normal']
+      - commands: ["wm-disable-binding-mode --name vm"]
         bindings: ["lwin+alt+v", "rwin+alt+v"]
-      - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe glazewm-binding-mode-set noalt']
+      - commands:
+          - "wm-disable-binding-mode --name vm"
+          - "wm-enable-binding-mode --name noalt"
         bindings: ["lwin+alt+n", "rwin+alt+n"]
-      - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe mouse-mode-toggle']
+      - commands: ["shell-exec wgdotw.exe mouse-mode-toggle"]
         bindings: ["lwin+alt+m", "rwin+alt+m"]
       - commands: ["wm-toggle-pause"]
         bindings: ["lwin+alt+p", "rwin+alt+p"]
@@ -348,10 +344,7 @@ binding_modes:
       - commands: ["shell-exec calc.exe"]
         bindings: ["lwin+alt+c", "rwin+alt+c"]
 
-      - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe eartrumpet-mixer']
-        bindings: ["lwin+alt+ctrl+v", "rwin+alt+ctrl+v"]
-
-      - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe flameshot-gui']
+      - commands: ["shell-exec flameshot.exe gui"]
         bindings: ["lwin+alt+s", "rwin+alt+s"]
 
       - commands: ["shell-exec wt.exe -w new"]
@@ -401,41 +394,23 @@ binding_modes:
 
 
 keybindings:
-  # WGDot's desktop worker suppresses an otherwise-unmodified lone Super release
-  # so Start stays closed while preserving normal Super chords. VM mode is
-  # tracked separately and bypasses that suppression for guest input.
 
-  # Alt+P/Super+D are host launcher aliases outside VM mode. WGDot dispatches
-  # directly to YASB's private hotkey listener; no temporary Glaze pause is used.
-  - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe quick-launch']
-    bindings: ["alt+p", "lwin+d", "rwin+d"]
+  - commands: ["shell-exec wgdotw.exe mouse-mode-toggle"]
+    bindings: ["lwin+alt+m", "rwin+alt+m"]
 
-  - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe flameshot-gui']
+  - commands: ["shell-exec flameshot.exe gui"]
     bindings: ["lwin+shift+s", "rwin+shift+s"]
 
-  # Match Awtarchy: Super+C opens Clipboard History and Super+V opens the mixer.
-  - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe clipboard-history']
-    bindings: ["lwin+c", "rwin+c"]
-
-  - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe eartrumpet-mixer']
-    bindings: ["lwin+v", "rwin+v"]
-
-  - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe power-menu']
-    bindings: ["lwin+p", "rwin+p"]
-
-  - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe display-settings']
+  - commands: ["shell-exec explorer.exe ms-settings:display"]
     bindings: ["lwin+ctrl+m", "rwin+ctrl+m"]
 
-  - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe rawaccel-open']
+  - commands: ["shell-exec wgdotw.exe rawaccel-toggle"]
     bindings: ["lwin+shift+m", "rwin+shift+m"]
 
-  # Single-instance WGDot theme selector. No GlazeWM reload.
-  - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe theme-toggle']
+  - commands: ['shell-exec wt.exe -w new new-tab --title "Win Glaze Themes" --suppressApplicationTitle wgdot.exe theme']
     bindings: ["lwin+t", "rwin+t"]
-
-  # Awtarchy-style bar auto-hide. WGDot switches YASB native auto-hide and
-  # the live GlazeWM top gap together, then reloads both configs.
-  - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe bar-autohide-toggle']
+  # Standalone script coordinates YASB auto-hide with the GlazeWM top gap.
+  - commands: ["shell-exec wgdotw.exe bar-autohide-toggle"]
     bindings: ["alt+ctrl+b"]
 
   - commands: ['shell-exec C:\Program Files (x86)\SpeedCrunch\speedcrunch.exe']
@@ -477,14 +452,11 @@ keybindings:
   - commands: ["resize --height -2%"]
     bindings: ["alt+u", "alt+ctrl+down"]
 
-  - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe glazewm-binding-mode-set noalt']
+  - commands: ["wm-enable-binding-mode --name noalt"]
     bindings: ["lwin+alt+n", "rwin+alt+n"]
 
-  - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe glazewm-binding-mode-set vm']
+  - commands: ["wm-enable-binding-mode --name vm"]
     bindings: ["lwin+alt+v", "rwin+alt+v"]
-
-  - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe mouse-mode-toggle']
-    bindings: ["lwin+alt+m", "rwin+alt+m"]
 
   # Real GlazeWM pause. While paused, GlazeWM intentionally keeps only
   # wm-toggle-pause bindings active, so this same key always unpauses.
@@ -514,7 +486,7 @@ keybindings:
   - commands: ["wm-exit"]
     bindings: ["alt+ctrl+shift+k"]
 
-  - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe glazewm-reload-config']
+  - commands: ["wm-reload-config"]
     bindings: ["alt+ctrl+shift+r"]
 
   - commands: ["wm-redraw"]

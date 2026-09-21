@@ -21,7 +21,7 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-59";
+    const string Version = "native-preview-65";
     const int WingetPreflightTimeoutMs = 30000;
     const string RepoFullName = "dillacorn/win-glaze-dots";
     const string RepoUrl = "https://github.com/dillacorn/win-glaze-dots.git";
@@ -46,13 +46,9 @@ internal static class WgdotNative
     static readonly string GpuStatePath = Path.Combine(StateRoot, "gpu-maintenance.json");
     static readonly string BrowserStatePath = Path.Combine(StateRoot, "browser-management.json");
     static readonly string ThemeStatePath = Path.Combine(StateRoot, "theme.json");
-    static readonly string AppearanceStatePath = Path.Combine(StateRoot, "yasb-appearance.json");
+    static readonly string GlazeBindingModeStatePath = Path.Combine(StateRoot, "glazewm-binding-mode.json");
     static readonly string StartupStatePath = Path.Combine(StateRoot, "startup.json");
     static readonly string CursorStatePath = Path.Combine(StateRoot, "cursor.json");
-    static readonly string ClipboardHistoryStatePath = Path.Combine(StateRoot, "clipboard-history.json");
-    static readonly string ClipboardHistoryImageRoot = Path.Combine(StateRoot, "clipboard-history-images");
-    static readonly string GlazeBindingModeStatePath = Path.Combine(StateRoot, "glazewm-binding-mode.json");
-    static readonly string RawAccelStatePath = Path.Combine(StateRoot, "rawaccel.json");
     static readonly JavaScriptSerializer Json = new JavaScriptSerializer { MaxJsonLength = int.MaxValue, RecursionLimit = 100 };
 
     static readonly IntPtr HwndBroadcast = new IntPtr(0xffff);
@@ -75,62 +71,8 @@ internal static class WgdotNative
     [DllImport("user32.dll")]
     static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, UIntPtr dwExtraInfo);
 
-    [DllImport("user32.dll", SetLastError = true)]
-    static extern uint SendInput(uint nInputs, INPUT[] pInputs, int cbSize);
-
     [DllImport("user32.dll")]
     static extern short GetAsyncKeyState(int vKey);
-
-    [StructLayout(LayoutKind.Sequential)]
-    struct INPUT
-    {
-        public uint type;
-        public INPUTUNION data;
-    }
-
-    [StructLayout(LayoutKind.Explicit)]
-    struct INPUTUNION
-    {
-        // INPUT is a native union. Include every native member so its size
-        // matches Win32 INPUT on both x86 and x64 even when WGDot only sends
-        // keyboard input. Omitting MOUSEINPUT makes x64 INPUT 32 bytes instead
-        // of the required 40 and causes SendInput to reject the whole batch.
-        [FieldOffset(0)]
-        public MOUSEINPUT mouse;
-        [FieldOffset(0)]
-        public KEYBDINPUT keyboard;
-        [FieldOffset(0)]
-        public HARDWAREINPUT hardware;
-    }
-
-    [StructLayout(LayoutKind.Sequential)]
-    struct MOUSEINPUT
-    {
-        public int dx;
-        public int dy;
-        public uint mouseData;
-        public uint dwFlags;
-        public uint time;
-        public UIntPtr dwExtraInfo;
-    }
-
-    [StructLayout(LayoutKind.Sequential)]
-    struct KEYBDINPUT
-    {
-        public ushort wVk;
-        public ushort wScan;
-        public uint dwFlags;
-        public uint time;
-        public UIntPtr dwExtraInfo;
-    }
-
-    [StructLayout(LayoutKind.Sequential)]
-    struct HARDWAREINPUT
-    {
-        public uint uMsg;
-        public ushort wParamL;
-        public ushort wParamH;
-    }
 
     [StructLayout(LayoutKind.Sequential)]
     struct POINT
@@ -160,6 +102,7 @@ internal static class WgdotNative
 
     delegate IntPtr LowLevelMouseProc(int nCode, IntPtr wParam, IntPtr lParam);
 
+
     [StructLayout(LayoutKind.Sequential)]
     struct KBDLLHOOKSTRUCT
     {
@@ -171,30 +114,6 @@ internal static class WgdotNative
     }
 
     delegate IntPtr LowLevelKeyboardProc(int nCode, IntPtr wParam, IntPtr lParam);
-
-    [StructLayout(LayoutKind.Sequential)]
-    struct MONITORINFO
-    {
-        public uint cbSize;
-        public RECT rcMonitor;
-        public RECT rcWork;
-        public uint dwFlags;
-    }
-
-    [DllImport("user32.dll", CharSet = CharSet.Auto)]
-    static extern bool GetMonitorInfo(IntPtr hMonitor, ref MONITORINFO lpmi);
-
-    [DllImport("user32.dll")]
-    static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
-
-    [DllImport("user32.dll")]
-    static extern bool MoveWindow(
-        IntPtr hWnd,
-        int x,
-        int y,
-        int width,
-        int height,
-        bool repaint);
 
     delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
 
@@ -220,6 +139,24 @@ internal static class WgdotNative
         IntPtr hMod,
         uint dwThreadId);
 
+    [DllImport("user32.dll")]
+    static extern IntPtr WindowFromPoint(POINT point);
+
+    [DllImport("user32.dll")]
+    static extern IntPtr GetAncestor(IntPtr hWnd, uint gaFlags);
+
+    [DllImport("user32.dll")]
+    static extern bool SetForegroundWindow(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    static extern bool IsWindow(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    static extern uint SetThreadExecutionState(uint esFlags);
+
     [DllImport("user32.dll", EntryPoint = "SetWindowsHookEx", SetLastError = true)]
     static extern IntPtr SetWindowsHookExKeyboard(
         int idHook,
@@ -240,53 +177,14 @@ internal static class WgdotNative
     [DllImport("kernel32.dll", CharSet = CharSet.Auto)]
     static extern IntPtr GetModuleHandle(string lpModuleName);
 
-    [DllImport("user32.dll")]
-    static extern IntPtr WindowFromPoint(POINT point);
-
-    [DllImport("user32.dll")]
-    static extern IntPtr GetAncestor(IntPtr hWnd, uint gaFlags);
-
-    [DllImport("user32.dll")]
-    static extern bool SetForegroundWindow(IntPtr hWnd);
-
     [DllImport("user32.dll", CharSet = CharSet.Auto)]
     static extern int GetClassName(IntPtr hWnd, StringBuilder className, int maxCount);
 
     [DllImport("user32.dll")]
-    static extern IntPtr GetForegroundWindow();
-
-    [DllImport("user32.dll")]
-    static extern IntPtr MonitorFromWindow(IntPtr hWnd, uint flags);
-
-    [DllImport("user32.dll")]
     static extern bool PostMessage(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
-
-    [DllImport("user32.dll", SetLastError = true)]
-    static extern bool PostThreadMessage(uint idThread, uint msg, UIntPtr wParam, IntPtr lParam);
-
-    [DllImport("user32.dll", SetLastError = true)]
-    static extern bool AddClipboardFormatListener(IntPtr hwnd);
-
-    [DllImport("user32.dll", SetLastError = true)]
-    static extern bool RemoveClipboardFormatListener(IntPtr hwnd);
-
-    [DllImport("user32.dll")]
-    static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
-
-    [DllImport("user32.dll")]
-    static extern bool IsWindow(IntPtr hWnd);
 
     [DllImport("dwmapi.dll")]
     static extern int DwmGetWindowAttribute(IntPtr hWnd, int attribute, out int value, int valueSize);
-
-    [DllImport("user32.dll", SetLastError = true)]
-    static extern bool LockWorkStation();
-
-    [DllImport("powrprof.dll", SetLastError = true)]
-    static extern bool SetSuspendState(bool hibernate, bool forceCritical, bool disableWakeEvent);
-
-    [DllImport("kernel32.dll", SetLastError = true)]
-    static extern uint SetThreadExecutionState(uint esFlags);
 
     const uint WmClose = 0x0010;
     const uint WmNcLButtonDown = 0x00A1;
@@ -299,9 +197,6 @@ internal static class WgdotNative
     const int WmKeyUp = 0x0101;
     const int WmSysKeyDown = 0x0104;
     const int WmSysKeyUp = 0x0105;
-    const int WmClipboardUpdate = 0x031D;
-    const int WmHotkey = 0x0312;
-    const int SwRestore = 9;
     const int WhKeyboardLl = 13;
     const int WhMouseLl = 14;
     const uint GaRoot = 2;
@@ -312,12 +207,12 @@ internal static class WgdotNative
     const int HtTopRight = 14;
     const int HtBottomLeft = 16;
     const int HtBottomRight = 17;
-    const uint MonitorDefaultToNearest = 0x00000002;
     const int DwmwaCloaked = 14;
 
     const uint EsSystemRequired = 0x00000001;
     const uint EsDisplayRequired = 0x00000002;
     const uint EsContinuous = 0x80000000;
+
     const string IdleInhibitorMutexName = @"Local\WGDot.IdleInhibitor";
     const string IdleInhibitorStopEventName = @"Local\WGDot.IdleInhibitorStop";
 
@@ -328,34 +223,21 @@ internal static class WgdotNative
 
     const string DesktopWorkerMutexName = @"Local\WGDot.DesktopWorker";
     const string DesktopWorkerStopEventName = @"Local\WGDot.DesktopWorkerStop";
-    const string ClipboardHistoryDataMutexName = @"Local\WGDot.ClipboardHistoryData";
     const string ClipboardHistoryWindowTitle = "WGDot Clipboard History";
 
     static LowLevelMouseProc MouseModeHookProc;
     static IntPtr MouseModeHookHandle = IntPtr.Zero;
     static IntPtr MouseModeResizeTarget = IntPtr.Zero;
+
     static LowLevelKeyboardProc SuperLHookProc;
     static IntPtr SuperLHookHandle = IntPtr.Zero;
     static bool SuperLLeftWinDown;
     static bool SuperLRightWinDown;
     static bool SuperLSuppressKeyUp;
-    static LowLevelKeyboardProc DesktopWorkerKeyboardProc;
-    static IntPtr DesktopWorkerKeyboardHookHandle = IntPtr.Zero;
-    static bool DesktopWorkerLeftWinDown;
-    static bool DesktopWorkerRightWinDown;
-    static bool DesktopWorkerSuperChordUsed;
-    static bool DesktopWorkerVmMode;
 
-    const byte VkShift = 0x10;
-    const byte VkControl = 0x11;
-    const byte VkMenu = 0x12;
-    const byte VkD = 0x44;
     const byte VkL = 0x4C;
     const byte VkLwin = 0x5B;
     const byte VkRwin = 0x5C;
-    const byte VkV = 0x56;
-    const uint InputKeyboard = 1;
-    const uint KeyeventfKeyup = 0x0002;
 
     [DllImport("shell32.dll")]
     static extern void SHChangeNotify(uint wEventId, uint uFlags, IntPtr dwItem1, IntPtr dwItem2);
@@ -463,369 +345,6 @@ internal static class WgdotNative
         public Dictionary<string, object> Manifest;
     }
 
-    sealed class ClipboardHistoryEntry
-    {
-        public string Id { get; set; }
-        public string Kind { get; set; }
-        public string Text { get; set; }
-        public string ImageFile { get; set; }
-        public string CreatedAt { get; set; }
-        public string Preview { get; set; }
-    }
-
-    sealed class DesktopWorkerForm : System.Windows.Forms.Form
-    {
-        protected override void SetVisibleCore(bool value)
-        {
-            base.SetVisibleCore(false);
-        }
-
-        protected override void OnHandleCreated(EventArgs e)
-        {
-            base.OnHandleCreated(e);
-            if (!AddClipboardFormatListener(Handle))
-                throw new System.ComponentModel.Win32Exception(
-                    Marshal.GetLastWin32Error(),
-                    "Failed to register WGDot clipboard listener.");
-        }
-
-        protected override void OnHandleDestroyed(EventArgs e)
-        {
-            if (Handle != IntPtr.Zero)
-                RemoveClipboardFormatListener(Handle);
-            base.OnHandleDestroyed(e);
-        }
-
-        protected override void WndProc(ref System.Windows.Forms.Message message)
-        {
-            if (message.Msg == WmClipboardUpdate)
-                CaptureClipboardHistorySnapshot();
-            base.WndProc(ref message);
-        }
-    }
-
-    sealed class ClipboardHistoryForm : System.Windows.Forms.Form
-    {
-        readonly System.Windows.Forms.ListBox _list;
-        readonly System.Windows.Forms.TextBox _editor;
-        readonly System.Windows.Forms.PictureBox _image;
-        readonly System.Windows.Forms.Button _copy;
-        readonly System.Windows.Forms.Button _save;
-        readonly System.Windows.Forms.Button _delete;
-        List<ClipboardHistoryEntry> _entries = new List<ClipboardHistoryEntry>();
-
-        public ClipboardHistoryForm()
-        {
-            YasbTheme theme = FindYasbTheme(CurrentYasbThemeId()) ?? FindYasbTheme("carbon-night");
-            Color background = ParseThemeColor(theme == null ? "#353535" : theme.Background, Color.FromArgb(53, 53, 53));
-            Color foreground = ParseThemeColor(theme == null ? "#d0d0d0" : theme.Foreground, Color.Gainsboro);
-            Color hover = ParseThemeColor(theme == null ? "#404040" : theme.Hover, Color.FromArgb(64, 64, 64));
-            Color active = ParseThemeColor(theme == null ? "#2b2b2b" : theme.Active, Color.FromArgb(43, 43, 43));
-
-            Text = ClipboardHistoryWindowTitle;
-            ClientSize = new Size(860, 520);
-            MinimumSize = new Size(680, 420);
-            StartPosition = System.Windows.Forms.FormStartPosition.Manual;
-            FormBorderStyle = System.Windows.Forms.FormBorderStyle.Sizable;
-            MaximizeBox = false;
-            ShowInTaskbar = false;
-            TopMost = true;
-            BackColor = background;
-            ForeColor = foreground;
-            KeyPreview = true;
-            Font = new Font("JetBrainsMono Nerd Font Mono", 9.5f, FontStyle.Regular, GraphicsUnit.Point);
-
-            System.Windows.Forms.Screen screen =
-                System.Windows.Forms.Screen.FromHandle(GetForegroundWindow());
-            Rectangle area = screen.WorkingArea;
-            Location = new Point(
-                area.Left + Math.Max(0, (area.Width - Width) / 2),
-                area.Top + Math.Max(0, (area.Height - Height) / 2));
-
-            _list = new System.Windows.Forms.ListBox();
-            _list.Dock = System.Windows.Forms.DockStyle.Left;
-            _list.Width = 330;
-            _list.DrawMode = System.Windows.Forms.DrawMode.OwnerDrawFixed;
-            _list.ItemHeight = 52;
-            _list.IntegralHeight = false;
-            _list.BorderStyle = System.Windows.Forms.BorderStyle.None;
-            _list.BackColor = active;
-            _list.ForeColor = foreground;
-            _list.DrawItem += delegate(object sender, System.Windows.Forms.DrawItemEventArgs e)
-            {
-                if (e.Index < 0 || e.Index >= _list.Items.Count)
-                    return;
-
-                ClipboardHistoryEntry entry = (ClipboardHistoryEntry)_list.Items[e.Index];
-                bool selected = (e.State & System.Windows.Forms.DrawItemState.Selected) != 0;
-                using (var bg = new SolidBrush(selected ? hover : active))
-                    e.Graphics.FillRectangle(bg, e.Bounds);
-
-                string title = entry.Kind == "image" ? "[IMAGE] " + (entry.Preview ?? "") : (entry.Preview ?? "");
-                string stamp = ClipboardHistoryTimestampLabel(entry.CreatedAt);
-                Rectangle titleRect = new Rectangle(e.Bounds.Left + 10, e.Bounds.Top + 6, e.Bounds.Width - 20, 22);
-                Rectangle stampRect = new Rectangle(e.Bounds.Left + 10, e.Bounds.Top + 29, e.Bounds.Width - 20, 18);
-                using (var fg = new SolidBrush(foreground))
-                    e.Graphics.DrawString(title, Font, fg, titleRect);
-                using (var muted = new SolidBrush(Color.FromArgb(160, foreground)))
-                using (var stampFont = new Font(Font.FontFamily, 8.0f))
-                    e.Graphics.DrawString(stamp, stampFont, muted, stampRect);
-                e.DrawFocusRectangle();
-            };
-            _list.SelectedIndexChanged += delegate { LoadSelectedEntry(); };
-            _list.DoubleClick += delegate { CopySelectedEntry(); };
-
-            var right = new System.Windows.Forms.Panel();
-            right.Dock = System.Windows.Forms.DockStyle.Fill;
-            right.Padding = new System.Windows.Forms.Padding(10);
-            right.BackColor = background;
-
-            _editor = new System.Windows.Forms.TextBox();
-            _editor.Dock = System.Windows.Forms.DockStyle.Fill;
-            _editor.Multiline = true;
-            _editor.AcceptsReturn = true;
-            _editor.AcceptsTab = true;
-            _editor.ScrollBars = System.Windows.Forms.ScrollBars.Both;
-            _editor.WordWrap = true;
-            _editor.BackColor = active;
-            _editor.ForeColor = foreground;
-            _editor.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-            _editor.Font = Font;
-
-            _image = new System.Windows.Forms.PictureBox();
-            _image.Dock = System.Windows.Forms.DockStyle.Fill;
-            _image.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
-            _image.BackColor = active;
-            _image.Visible = false;
-
-            var buttons = new System.Windows.Forms.FlowLayoutPanel();
-            buttons.Dock = System.Windows.Forms.DockStyle.Bottom;
-            buttons.Height = 42;
-            buttons.Padding = new System.Windows.Forms.Padding(0, 7, 0, 0);
-            buttons.FlowDirection = System.Windows.Forms.FlowDirection.LeftToRight;
-            buttons.WrapContents = false;
-            buttons.BackColor = background;
-
-            _copy = MakeClipboardButton("Copy", background, foreground, hover);
-            _save = MakeClipboardButton("Save edit", background, foreground, hover);
-            _delete = MakeClipboardButton("Delete", background, foreground, hover);
-            var clear = MakeClipboardButton("Clear all", background, foreground, hover);
-            var close = MakeClipboardButton("Close", background, foreground, hover);
-
-            _copy.Click += delegate { CopySelectedEntry(); };
-            _save.Click += delegate { SaveSelectedEdit(); };
-            _delete.Click += delegate { DeleteSelectedEntry(); };
-            clear.Click += delegate
-            {
-                if (System.Windows.Forms.MessageBox.Show(
-                        this,
-                        "Delete all WGDot clipboard history?",
-                        ClipboardHistoryWindowTitle,
-                        System.Windows.Forms.MessageBoxButtons.YesNo,
-                        System.Windows.Forms.MessageBoxIcon.Warning) ==
-                    System.Windows.Forms.DialogResult.Yes)
-                {
-                    ClearClipboardHistory();
-                    RefreshEntries();
-                }
-            };
-            close.Click += delegate { Close(); };
-
-            buttons.Controls.Add(_copy);
-            buttons.Controls.Add(_save);
-            buttons.Controls.Add(_delete);
-            buttons.Controls.Add(clear);
-            buttons.Controls.Add(close);
-
-            right.Controls.Add(_editor);
-            right.Controls.Add(_image);
-            right.Controls.Add(buttons);
-            Controls.Add(right);
-            Controls.Add(_list);
-
-            KeyDown += delegate(object sender, System.Windows.Forms.KeyEventArgs e)
-            {
-                if (e.KeyCode == System.Windows.Forms.Keys.Escape)
-                {
-                    Close();
-                    e.Handled = true;
-                }
-                else if (e.Control && e.KeyCode == System.Windows.Forms.Keys.Enter)
-                {
-                    CopySelectedEntry();
-                    e.Handled = true;
-                }
-            };
-
-            FormClosed += delegate
-            {
-                if (_image.Image != null)
-                {
-                    Image old = _image.Image;
-                    _image.Image = null;
-                    old.Dispose();
-                }
-            };
-
-            RefreshEntries();
-        }
-
-        static System.Windows.Forms.Button MakeClipboardButton(
-            string textValue,
-            Color background,
-            Color foreground,
-            Color hover)
-        {
-            var button = new System.Windows.Forms.Button();
-            button.Text = textValue;
-            button.AutoSize = true;
-            button.Height = 28;
-            button.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            button.FlatAppearance.BorderSize = 1;
-            button.FlatAppearance.BorderColor = hover;
-            button.FlatAppearance.MouseOverBackColor = hover;
-            button.FlatAppearance.MouseDownBackColor = hover;
-            button.BackColor = background;
-            button.ForeColor = foreground;
-            button.TabStop = false;
-            return button;
-        }
-
-        void RefreshEntries()
-        {
-            string selectedId = CurrentEntry() == null ? "" : CurrentEntry().Id;
-            _entries = ReadClipboardHistoryEntries();
-            _list.BeginUpdate();
-            try
-            {
-                _list.Items.Clear();
-                foreach (ClipboardHistoryEntry entry in _entries)
-                    _list.Items.Add(entry);
-            }
-            finally
-            {
-                _list.EndUpdate();
-            }
-
-            int selectedIndex = -1;
-            for (int i = 0; i < _entries.Count; i++)
-            {
-                if (String.Equals(_entries[i].Id, selectedId, StringComparison.OrdinalIgnoreCase))
-                {
-                    selectedIndex = i;
-                    break;
-                }
-            }
-            if (selectedIndex < 0 && _entries.Count > 0)
-                selectedIndex = 0;
-            _list.SelectedIndex = selectedIndex;
-            LoadSelectedEntry();
-        }
-
-        ClipboardHistoryEntry CurrentEntry()
-        {
-            return _list.SelectedItem as ClipboardHistoryEntry;
-        }
-
-        void LoadSelectedEntry()
-        {
-            ClipboardHistoryEntry entry = CurrentEntry();
-            if (_image.Image != null)
-            {
-                Image old = _image.Image;
-                _image.Image = null;
-                old.Dispose();
-            }
-
-            bool isText = entry != null && entry.Kind == "text";
-            _editor.Visible = isText;
-            _image.Visible = entry != null && entry.Kind == "image";
-            _copy.Enabled = entry != null;
-            _save.Enabled = isText;
-            _delete.Enabled = entry != null;
-
-            if (entry == null)
-            {
-                _editor.Text = "";
-                return;
-            }
-
-            if (isText)
-            {
-                _editor.Text = entry.Text ?? "";
-                _editor.SelectionStart = 0;
-                _editor.SelectionLength = 0;
-            }
-            else
-            {
-                string path = ClipboardHistoryImagePath(entry);
-                if (File.Exists(path))
-                {
-                    try
-                    {
-                        using (Image source = Image.FromFile(path))
-                            _image.Image = new Bitmap(source);
-                    }
-                    catch
-                    {
-                    }
-                }
-            }
-        }
-
-        void CopySelectedEntry()
-        {
-            ClipboardHistoryEntry entry = CurrentEntry();
-            if (entry == null)
-                return;
-
-            try
-            {
-                if (entry.Kind == "text")
-                {
-                    System.Windows.Forms.Clipboard.SetText(_editor.Text ?? "");
-                }
-                else if (entry.Kind == "image")
-                {
-                    string path = ClipboardHistoryImagePath(entry);
-                    if (File.Exists(path))
-                    {
-                        using (Image source = Image.FromFile(path))
-                        using (var copy = new Bitmap(source))
-                            System.Windows.Forms.Clipboard.SetImage(copy);
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                System.Windows.Forms.MessageBox.Show(
-                    this,
-                    "Could not copy clipboard entry: " + ex.Message,
-                    ClipboardHistoryWindowTitle,
-                    System.Windows.Forms.MessageBoxButtons.OK,
-                    System.Windows.Forms.MessageBoxIcon.Error);
-            }
-        }
-
-        void SaveSelectedEdit()
-        {
-            ClipboardHistoryEntry entry = CurrentEntry();
-            if (entry == null || entry.Kind != "text")
-                return;
-            UpdateClipboardHistoryText(entry.Id, _editor.Text ?? "");
-            RefreshEntries();
-        }
-
-        void DeleteSelectedEntry()
-        {
-            ClipboardHistoryEntry entry = CurrentEntry();
-            if (entry == null)
-                return;
-            DeleteClipboardHistoryEntry(entry.Id);
-            RefreshEntries();
-        }
-    }
-
     sealed class GpuAdapterInfo
     {
         public string Vendor;
@@ -838,22 +357,8 @@ internal static class WgdotNative
         public string DriverKey;
     }
 
-    sealed class PowerAction
-    {
-        public char Key;
-        public string Icon;
-        public string Label;
-        public Action Invoke;
-
-        public PowerAction(char key, string icon, string label, Action invoke)
-        {
-            Key = key;
-            Icon = icon;
-            Label = label;
-            Invoke = invoke;
-        }
-    }
-
+    // Windows/YASB equivalents of the current Awtarchy theme palettes.
+    // GlazeWM is intentionally excluded so applying a theme never reloads the WM.
     sealed class YasbTheme
     {
         public string Id;
@@ -1002,6 +507,8 @@ internal static class WgdotNative
             if (command == "runtime-swap-stop") return RuntimeSwapStopFromArgs(args.Skip(1).ToArray());
             if (command == "runtime-swap-restore") return RuntimeSwapRestoreFromArgs(args.Skip(1).ToArray());
             if (command == "maintenance-self-test") return MaintenanceSelfTest();
+            if (command == "source-self-test") return SourceSelfTestFromArgs(args.Skip(1).ToArray());
+            if (command == "dots-only") return DotsOnlyFromArgs(args.Skip(1).ToArray());
             if (command == "software") return SoftwareManager();
             if (command == "software-reconcile") return SoftwareReconcile();
             if (command == "software-uninstall") return SoftwareUninstallManager();
@@ -1011,37 +518,20 @@ internal static class WgdotNative
             if (command == "ensure-winget") return EnsureWingetAvailable();
             if (command == "acceptance-audit") return AcceptanceAudit();
             if (command == "software-elevated") return SoftwareElevatedFromArgs(args.Skip(1).ToArray());
-            if (command == "quick-launch") return OpenYasbQuickLaunch();
-            if (command == "flow-open") return OpenFlowLauncher();
-            if (command == "eartrumpet-mixer") return OpenEarTrumpetMixer();
-            if (command == "clipboard-history") return OpenWindowsClipboardHistory();
-            if (command == "desktop-worker") return DesktopWorker();
-            if (command == "desktop-worker-stop") return StopDesktopWorker();
-            if (command == "idle-inhibitor-status") return IdleInhibitorStatus();
-            if (command == "idle-inhibitor-toggle") return IdleInhibitorToggle();
-            if (command == "idle-inhibitor-worker") return IdleInhibitorWorker();
             if (command == "cursor") return CursorManagerFromArgs(args.Skip(1).ToArray());
-            if (command == "flameshot-gui") return OpenFlameshotGui();
-            if (command == "rawaccel-open") return OpenRawAccel();
-            if (command == "display-settings") return OpenDisplaySettings();
-            if (command == "bar-autohide-toggle") return BarAutoHideToggle();
-            if (command == "yasb-running-apps-toggle") return ToggleYasbRunningApps();
-            if (command == "yasb-running-apps-shade-toggle") return ToggleYasbRunningAppsShade();
             if (command == "window-audit") return WindowAudit();
             if (command == "super-l-test") return SuperLTestFromArgs(args.Skip(1).ToArray());
             if (command == "super-l-hook") return SuperLHookWorker();
+            if (command == "idle-inhibitor-status") return IdleInhibitorStatus();
+            if (command == "idle-inhibitor-toggle") return IdleInhibitorToggle();
+            if (command == "idle-inhibitor-worker") return IdleInhibitorWorker();
+            if (command == "bar-autohide-toggle") return BarAutoHideToggle();
+            if (command == "glazewm-binding-mode-toggle") return GlazeWmBindingModeToggleFromArgs(args.Skip(1).ToArray());
             if (command == "mouse-mode-toggle") return MouseModeToggle();
             if (command == "mouse-mode-disable") return MouseModeDisable();
-            if (command == "mouse-mode-switch") return MouseModeSwitchFromArgs(args.Skip(1).ToArray());
             if (command == "mouse-mode-hook") return MouseModeHook();
-            if (command == "glazewm-binding-mode-toggle") return GlazeWmBindingModeToggleFromArgs(args.Skip(1).ToArray());
-            if (command == "glazewm-binding-mode-set") return GlazeWmBindingModeSetFromArgs(args.Skip(1).ToArray());
-            if (command == "glazewm-reload-config") return GlazeWmReloadConfig();
-            if (command == "glazewm-pause-status") return GlazeWmPauseStatus();
-            if (command == "glazewm-pause-toggle") return GlazeWmPauseToggle();
-            if (command == "theme-toggle") return ThemeToggle();
-            if (command == "power-menu") return PowerMenu();
             if (command == "theme") return ThemeManagerFromArgs(args.Skip(1).ToArray());
+            if (command == "rawaccel-toggle") return RawAccelToggle();
             if (command == "gpu-driver") return GpuDriverMaintenance();
             if (command == "gpu-stage-safe") return GpuStageSafeFromArgs(args.Skip(1).ToArray());
             if (command == "gpu-safe-resume") return GpuSafeResume();
@@ -1057,7 +547,6 @@ internal static class WgdotNative
         catch (Exception ex)
         {
             Console.Error.WriteLine("WGDot native error: " + ex.Message);
-            ReportDesktopHelperFailure(command, ex);
             return 1;
         }
         finally
@@ -1076,63 +565,6 @@ internal static class WgdotNative
         }
     }
 
-    static bool ShouldSurfaceDesktopHelperFailure(string command)
-    {
-        return
-            String.Equals(command, "quick-launch", StringComparison.OrdinalIgnoreCase) ||
-            String.Equals(command, "clipboard-history", StringComparison.OrdinalIgnoreCase) ||
-            String.Equals(command, "mouse-mode-toggle", StringComparison.OrdinalIgnoreCase) ||
-            String.Equals(command, "mouse-mode-disable", StringComparison.OrdinalIgnoreCase) ||
-            String.Equals(command, "mouse-mode-switch", StringComparison.OrdinalIgnoreCase) ||
-            String.Equals(command, "glazewm-binding-mode-toggle", StringComparison.OrdinalIgnoreCase) ||
-            String.Equals(command, "glazewm-binding-mode-set", StringComparison.OrdinalIgnoreCase) ||
-            String.Equals(command, "glazewm-reload-config", StringComparison.OrdinalIgnoreCase) ||
-            String.Equals(command, "glazewm-pause-toggle", StringComparison.OrdinalIgnoreCase) ||
-            String.Equals(command, "rawaccel-open", StringComparison.OrdinalIgnoreCase) ||
-            String.Equals(command, "desktop-worker", StringComparison.OrdinalIgnoreCase);
-    }
-
-    static void ReportDesktopHelperFailure(string command, Exception error)
-    {
-        if (!ShouldSurfaceDesktopHelperFailure(command))
-            return;
-
-        string detail =
-            error == null || String.IsNullOrWhiteSpace(error.Message)
-                ? "Unknown desktop helper failure."
-                : error.Message;
-        string logPath = Path.Combine(StateRoot, "desktop-helper-errors.log");
-
-        try
-        {
-            Directory.CreateDirectory(StateRoot);
-            File.AppendAllText(
-                logPath,
-                DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture) +
-                " " + command + ": " + detail + Environment.NewLine,
-                Encoding.UTF8);
-        }
-        catch
-        {
-        }
-
-        try
-        {
-            System.Windows.Forms.MessageBox.Show(
-                "WGDot " + command + " failed." +
-                Environment.NewLine + Environment.NewLine +
-                detail +
-                Environment.NewLine + Environment.NewLine +
-                "Diagnostic log:" + Environment.NewLine + logPath,
-                "WGDot desktop helper error",
-                System.Windows.Forms.MessageBoxButtons.OK,
-                System.Windows.Forms.MessageBoxIcon.Error);
-        }
-        catch
-        {
-        }
-    }
-
     static bool ShouldAutoRefreshRuntime(string command)
     {
         return
@@ -1141,6 +573,7 @@ internal static class WgdotNative
             String.Equals(command, "git-review", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "git-update", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "git-reset", StringComparison.OrdinalIgnoreCase) ||
+            String.Equals(command, "dots-only", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "apply-tweak", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "super-l-test", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "window-audit", StringComparison.OrdinalIgnoreCase) ||
@@ -1151,7 +584,6 @@ internal static class WgdotNative
             String.Equals(command, "startup-disable-all", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "software-audit", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "acceptance-audit", StringComparison.OrdinalIgnoreCase) ||
-            String.Equals(command, "theme", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "cursor", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "gpu-driver", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "update", StringComparison.OrdinalIgnoreCase) ||
@@ -1265,85 +697,49 @@ internal static class WgdotNative
                 Path.GetFullPath(targetExe),
                 StringComparison.OrdinalIgnoreCase);
 
-        bool idleInhibitorWasActive = false;
-        bool mouseModeHookWasActive = false;
-        bool superLTestHookWasActive = false;
-        bool desktopWorkerWasActive = false;
-
         if (replacingInstalledRuntime && File.Exists(targetExe))
         {
-            idleInhibitorWasActive = NamedMutexExists(IdleInhibitorMutexName);
-            mouseModeHookWasActive = NamedMutexExists(MouseModeMutexName);
-            superLTestHookWasActive = NamedMutexExists(SuperLTestMutexName);
-            desktopWorkerWasActive = NamedMutexExists(DesktopWorkerMutexName);
+            // Migration cleanup only: stop any workers left behind by an older
+            // WGDot desktop-helper build. The management-only runtime never
+            // restores these workers after replacement.
+            bool idle = NamedMutexExists(IdleInhibitorMutexName);
+            bool mouse = NamedMutexExists(MouseModeMutexName);
+            bool superL = NamedMutexExists(SuperLTestMutexName);
+            bool desktop = NamedMutexExists(DesktopWorkerMutexName);
 
             IntPtr clipboardWindow = FindTopLevelWindowByExactTitle(ClipboardHistoryWindowTitle);
             if (clipboardWindow != IntPtr.Zero)
                 PostMessage(clipboardWindow, WmClose, IntPtr.Zero, IntPtr.Zero);
 
-            if (idleInhibitorWasActive) SignalIdleInhibitorStop();
-            if (mouseModeHookWasActive) SignalMouseModeHookStop();
-            if (superLTestHookWasActive) SignalSuperLTestStop();
-            if (desktopWorkerWasActive) SignalDesktopWorkerStop();
+            if (idle) SignalIdleInhibitorStop();
+            if (mouse) SignalMouseModeHookStop();
+            if (superL) SignalSuperLTestStop();
+            if (desktop) SignalDesktopWorkerStop();
 
-            if (idleInhibitorWasActive)
-                WaitForRuntimeWorkerState(IdleInhibitorMutexName, false, "idle inhibitor");
-            if (mouseModeHookWasActive)
-                WaitForRuntimeWorkerState(MouseModeMutexName, false, "mouse-mode");
-            if (superLTestHookWasActive)
-                WaitForRuntimeWorkerState(SuperLTestMutexName, false, "Super+L test");
-            if (desktopWorkerWasActive)
-                WaitForRuntimeWorkerState(DesktopWorkerMutexName, false, "desktop");
+            if (idle) WaitForRuntimeWorkerState(IdleInhibitorMutexName, false, "legacy idle inhibitor");
+            if (mouse) WaitForRuntimeWorkerState(MouseModeMutexName, false, "legacy mouse-mode");
+            if (superL) WaitForRuntimeWorkerState(SuperLTestMutexName, false, "Super+L test");
+            if (desktop) WaitForRuntimeWorkerState(DesktopWorkerMutexName, false, "legacy desktop worker");
         }
 
-        try
-        {
-            if (replacingInstalledRuntime)
-                CopyRuntimeWithRetry(currentExe, targetExe);
+        if (replacingInstalledRuntime)
+            CopyRuntimeWithRetry(currentExe, targetExe);
 
-            string cmd = "@echo off\r\n\"%~dp0wgdot.exe\" %*\r\n";
-            File.WriteAllText(Path.Combine(BinRoot, "wgdot.cmd"), cmd, Encoding.ASCII);
-            AddUserPath(BinRoot);
+        EnsureHiddenLauncher();
 
-            var state = new Dictionary<string, object>();
-            state["version"] = Version;
-            state["installedAt"] = DateTime.UtcNow.ToString("o");
-            state["sourceRoot"] = sourceRoot;
-            state["sourceRef"] = sourceRef;
-            state["sourceRevision"] = sourceRevision;
-            state["sourceExplicit"] = sourceExplicit;
-            state["executionPolicyIndependent"] = true;
-            WriteJson(BootstrapStatePath, state);
-        }
-        finally
-        {
-            if (replacingInstalledRuntime && File.Exists(targetExe))
-            {
-                if (idleInhibitorWasActive)
-                {
-                    StartRuntimeWorkerFrom(targetExe, "idle-inhibitor-worker");
-                    WaitForRuntimeWorkerState(IdleInhibitorMutexName, true, "idle inhibitor");
-                }
+        string cmd = "@echo off\r\n\"%~dp0wgdot.exe\" %*\r\n";
+        File.WriteAllText(Path.Combine(BinRoot, "wgdot.cmd"), cmd, Encoding.ASCII);
+        AddUserPath(BinRoot);
 
-                if (mouseModeHookWasActive)
-                {
-                    StartRuntimeWorkerFrom(targetExe, "mouse-mode-hook");
-                    WaitForRuntimeWorkerState(MouseModeMutexName, true, "mouse-mode");
-                }
-
-                if (superLTestHookWasActive)
-                {
-                    StartRuntimeWorkerFrom(targetExe, "super-l-hook");
-                    WaitForRuntimeWorkerState(SuperLTestMutexName, true, "Super+L test");
-                }
-
-                if (desktopWorkerWasActive)
-                {
-                    StartRuntimeWorkerFrom(targetExe, "desktop-worker");
-                    WaitForRuntimeWorkerState(DesktopWorkerMutexName, true, "desktop");
-                }
-            }
-        }
+        var state = new Dictionary<string, object>();
+        state["version"] = Version;
+        state["installedAt"] = DateTime.UtcNow.ToString("o");
+        state["sourceRoot"] = sourceRoot;
+        state["sourceRef"] = sourceRef;
+        state["sourceRevision"] = sourceRevision;
+        state["sourceExplicit"] = sourceExplicit;
+        state["executionPolicyIndependent"] = true;
+        WriteJson(BootstrapStatePath, state);
 
         Console.WriteLine("WGDot native runtime installed to:");
         Console.WriteLine("  " + BinRoot);
@@ -1385,18 +781,7 @@ internal static class WgdotNative
         Console.WriteLine("Managed selection: " + (File.Exists(InstallStatePath) ? "configured" : "not configured"));
         Console.WriteLine("Baseline: " + (File.Exists(BaselineIndexPath) ? "present" : "not initialized"));
         Console.WriteLine("Recorded backups: " + CountRecordedBackups().ToString(CultureInfo.InvariantCulture));
-        Console.WriteLine("YASB / Terminal theme: " + CurrentYasbThemeId());
         Console.WriteLine("Cursor theme: " + CurrentCursorThemeId());
-        Console.WriteLine("Idle inhibitor: " + (NamedMutexExists(IdleInhibitorMutexName) ? "active" : "inactive"));
-        Console.WriteLine("Desktop worker: " + (NamedMutexExists(DesktopWorkerMutexName) ? "active" : "inactive"));
-        Console.WriteLine("Clipboard history items: " + ReadClipboardHistoryEntries().Count.ToString(CultureInfo.InvariantCulture));
-        Console.WriteLine("Tracked GlazeWM mode: " + (String.IsNullOrWhiteSpace(ReadTrackedGlazeBindingMode()) ? "normal" : ReadTrackedGlazeBindingMode()));
-        Dictionary<string, object> appearance = ReadYasbAppearanceState();
-        Console.WriteLine(
-            "YASB running apps: " +
-            (GetBool(appearance, "runningAppsVisible") ? "shown" : "hidden") +
-            ", shading " +
-            (GetBool(appearance, "shadeRunningApps") ? "on" : "off"));
 
         var gpuState = ReadJson(GpuStatePath);
         if (gpuState != null)
@@ -1418,7 +803,6 @@ internal static class WgdotNative
             "Update managed dots",
             "Software / startup manager",
             "GPU driver maintenance",
-            "YASB / Windows Terminal theme switcher",
             "Cursor theme switcher",
             "Windows tweaks / integrations",
             "Reset / reconfigure managed dots",
@@ -1433,7 +817,7 @@ internal static class WgdotNative
         while (true)
         {
             int choice = ReadSingleChoice("Maintenance", items, 0);
-            if (choice < 0 || choice == 12) return 0;
+            if (choice < 0 || choice == 11) return 0;
 
             try
             {
@@ -1444,32 +828,31 @@ internal static class WgdotNative
                 }
                 else if (choice == 1) SoftwareManager();
                 else if (choice == 2) GpuDriverMaintenance();
-                else if (choice == 3) ThemeManager();
-                else if (choice == 4) CursorManager();
-                else if (choice == 5) TweakManager();
-                else if (choice == 6)
+                else if (choice == 3) CursorManager();
+                else if (choice == 4) TweakManager();
+                else if (choice == 5)
                 {
                     ManagedOperation("reset", ResolveDefaultSource());
                     Pause();
                 }
-                else if (choice == 7)
+                else if (choice == 6)
                 {
                     ManagedOperation("review", ResolveDefaultSource());
                     Pause();
                 }
-                else if (choice == 8) BackupManager();
-                else if (choice == 9)
+                else if (choice == 7) BackupManager();
+                else if (choice == 8)
                 {
                     ShowManualFallback();
                     Pause();
                 }
-                else if (choice == 10)
+                else if (choice == 9)
                 {
                     WriteTitle("Version / status");
                     Status();
                     Pause();
                 }
-                else if (choice == 11) ShowDevelopmentMenu();
+                else if (choice == 10) ShowDevelopmentMenu();
             }
             catch (Exception ex)
             {
@@ -1514,6 +897,22 @@ internal static class WgdotNative
         }
     }
 
+    static void AppendRuntimeRefreshDiagnostic(string message)
+    {
+        try
+        {
+            Directory.CreateDirectory(StateRoot);
+            File.AppendAllText(
+                Path.Combine(StateRoot, "runtime-refresh.log"),
+                DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture) +
+                " " + (message ?? "") + Environment.NewLine,
+                new UTF8Encoding(false));
+        }
+        catch
+        {
+        }
+    }
+
     static bool TryRefreshRuntimeAndRun(string[] originalArgs, out int exitCode)
     {
         exitCode = 0;
@@ -1526,7 +925,21 @@ internal static class WgdotNative
         ValidateBranchName(sourceRef);
 
         string installedRevision = GetString(state, "sourceRevision");
-        string remoteRevision = ResolveBranchHeadViaApi(sourceRef);
+        string remoteRevision;
+        try
+        {
+            remoteRevision = ResolveBranchHeadViaApi(sourceRef);
+        }
+        catch (Exception ex)
+        {
+            // Some managed/corporate networks allow raw.githubusercontent.com
+            // while blocking api.github.com. A refresh check is optional; an
+            // already-installed exact runtime must remain usable offline from
+            // the API rather than failing every user-facing command.
+            AppendRuntimeRefreshDiagnostic(
+                "Runtime refresh check skipped for " + sourceRef + ": " + ex.Message);
+            return false;
+        }
 
         if (String.Equals(installedRevision, remoteRevision, StringComparison.OrdinalIgnoreCase))
             return false;
@@ -1604,10 +1017,8 @@ internal static class WgdotNative
         bool superL = NamedMutexExists(SuperLTestMutexName);
         bool desktop = NamedMutexExists(DesktopWorkerMutexName);
 
-        state["idleInhibitor"] = idle;
-        state["mouseMode"] = mouse;
-        state["superLTest"] = superL;
-        state["desktopWorker"] = desktop;
+        // State file is retained only as a staged-swap handoff marker. Legacy
+        // desktop workers are stopped below and deliberately never restored.
         state["createdAt"] = DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture);
         WriteJson(statePath, state);
 
@@ -1631,38 +1042,8 @@ internal static class WgdotNative
     static int RuntimeSwapRestoreFromArgs(string[] args)
     {
         string statePath = NormalizeRuntimeSwapStatePath(GetOption(args, "--state"));
-        Dictionary<string, object> state = ReadJson(statePath);
-        if (state == null)
-            return 0;
-
-        string installedExe = Path.Combine(BinRoot, "wgdot.exe");
-        if (!File.Exists(installedExe))
-            throw new Exception("Installed WGDot runtime is missing during worker restore.");
-
-        if (GetBool(state, "idleInhibitor") && !NamedMutexExists(IdleInhibitorMutexName))
-        {
-            StartRuntimeWorkerFrom(installedExe, "idle-inhibitor-worker");
-            WaitForRuntimeWorkerState(IdleInhibitorMutexName, true, "idle inhibitor");
-        }
-
-        if (GetBool(state, "mouseMode") && !NamedMutexExists(MouseModeMutexName))
-        {
-            StartRuntimeWorkerFrom(installedExe, "mouse-mode-hook");
-            WaitForRuntimeWorkerState(MouseModeMutexName, true, "mouse-mode");
-        }
-
-        if (GetBool(state, "superLTest") && !NamedMutexExists(SuperLTestMutexName))
-        {
-            StartRuntimeWorkerFrom(installedExe, "super-l-hook");
-            WaitForRuntimeWorkerState(SuperLTestMutexName, true, "Super+L test");
-        }
-
-        if (GetBool(state, "desktopWorker") && !NamedMutexExists(DesktopWorkerMutexName))
-        {
-            StartRuntimeWorkerFrom(installedExe, "desktop-worker");
-            WaitForRuntimeWorkerState(DesktopWorkerMutexName, true, "desktop");
-        }
-
+        // Compatibility endpoint for swap helpers created by older runtimes.
+        // The management-only architecture never restarts desktop workers.
         SafeDeleteFile(statePath);
         return 0;
     }
@@ -1741,6 +1122,63 @@ internal static class WgdotNative
         ProcResult compile = Run(csc, args, null);
         if (compile.ExitCode != 0)
             throw new Exception("Runtime compilation failed: " + LastUsefulLine(compile.StdErr + "\n" + compile.StdOut));
+    }
+
+    static string HiddenLauncherPath()
+    {
+        return Path.Combine(BinRoot, "wgdotw.exe");
+    }
+
+    static void EnsureHiddenLauncher()
+    {
+        string destination = HiddenLauncherPath();
+        if (File.Exists(destination))
+            return;
+
+        Directory.CreateDirectory(BinRoot);
+        Directory.CreateDirectory(CacheRoot);
+        string sourcePath = Path.Combine(CacheRoot, "wgdotw-wrapper.cs");
+        string source = @"
+using System;
+using System.Diagnostics;
+using System.IO;
+
+class WgdotHidden
+{
+    static int Main(string[] args)
+    {
+        string exe = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, ""wgdot.exe"");
+        if (!File.Exists(exe))
+            return 127;
+
+        var psi = new ProcessStartInfo();
+        psi.FileName = exe;
+        psi.Arguments = String.Join("" "", args ?? new string[0]);
+        psi.UseShellExecute = false;
+        psi.CreateNoWindow = true;
+
+        using (Process process = Process.Start(psi))
+        {
+            process.WaitForExit();
+            return process.ExitCode;
+        }
+    }
+}
+";
+        File.WriteAllText(sourcePath, source, new UTF8Encoding(false));
+
+        string csc = GetCscPath();
+        if (String.IsNullOrWhiteSpace(csc))
+            throw new Exception("Windows .NET Framework C# compiler was not found for wgdotw.exe.");
+
+        ProcResult compile = Run(
+            csc,
+            "/nologo /optimize+ /target:winexe /out:" + Q(destination) + " " + Q(sourcePath),
+            null);
+        if (compile.ExitCode != 0)
+            throw new Exception(
+                "Hidden WGDot launcher compilation failed: " +
+                LastUsefulLine((compile.StdErr ?? "") + "\n" + (compile.StdOut ?? "")));
     }
 
     static string GetCscPath()
@@ -1897,6 +1335,90 @@ internal static class WgdotNative
         return ManagedOperation(operation, context);
     }
 
+    static int DotsOnlyFromArgs(string[] args)
+    {
+        string profile = GetOption(args ?? new string[0], "--profile");
+        profile = (profile ?? "").Trim().ToLowerInvariant();
+        if (profile != "normal" && profile != "work")
+            throw new Exception("dots-only requires --profile normal or --profile work.");
+
+        bool apply = (args ?? new string[0]).Any(
+            x => String.Equals(x, "--yes", StringComparison.OrdinalIgnoreCase));
+
+        SourceContext source = ResolveDefaultSource();
+        InstallationSelection existing = ReadInstallationSelection();
+        InstallationSelection selection = BuildDotsOnlySelection(source.Manifest, profile, existing);
+        List<PlanItem> plan = GetPlan(source.Manifest, source.SourceRoot, selection, "reset");
+
+        WriteTitle("Dots-only managed configuration");
+        Console.WriteLine("Profile: " + (profile == "work" ? "Work PC" : "Normal / personal PC"));
+        Console.WriteLine("GlazeWM profile: " + selection.GlazeProfile);
+        Console.WriteLine("Software operations: disabled");
+        Console.WriteLine("Package, tweak, and browser selection state: " +
+            (existing == null ? "left empty" : "preserved"));
+        Console.WriteLine();
+        ShowPlan(plan);
+
+        if (!apply)
+        {
+            Console.WriteLine();
+            Console.ForegroundColor = ConsoleColor.DarkGray;
+            Console.WriteLine("Review only. No managed files, backups, baselines, or selection state were changed.");
+            Console.ResetColor();
+            return 0;
+        }
+
+        ApplyPlan(plan, source.Manifest, selection, source, true);
+        WriteInstallationSelection(selection);
+        UpdateSourceStateAfterApply(source);
+
+        Console.ForegroundColor = ConsoleColor.Green;
+        Console.WriteLine("WGDot managed dots applied. Software was not installed, upgraded, reconciled, or uninstalled.");
+        Console.ResetColor();
+        return 0;
+    }
+
+    static InstallationSelection BuildDotsOnlySelection(
+        Dictionary<string, object> manifest,
+        string profile,
+        InstallationSelection existing)
+    {
+        var result = new InstallationSelection();
+        result.Scope = profile;
+        result.GlazeProfile = profile;
+
+        string defaultKey = profile == "work" ? "defaultWork" : "defaultNormal";
+        foreach (object rawComponent in GetList(manifest, "components"))
+        {
+            Dictionary<string, object> component = AsDictionary(rawComponent);
+            if (!GetBool(component, defaultKey))
+                continue;
+
+            // Strict dots-only means file-backed managed configuration. Components
+            // that exist only to apply registry/system post-actions (for example
+            // cursor themes) are deliberately excluded.
+            if (GetList(component, "files").Count == 0)
+                continue;
+
+            string id = GetString(component, "id");
+            if (!String.IsNullOrWhiteSpace(id))
+                result.Components.Add(id);
+        }
+
+        if (existing != null)
+        {
+            result.Packages = new List<string>(existing.Packages);
+            result.Tweaks = new List<string>(existing.Tweaks);
+            result.TweaksConfigured = existing.TweaksConfigured;
+            result.BrowserOptionsConfigured = existing.BrowserOptionsConfigured;
+            result.BrowserOptions = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+            foreach (KeyValuePair<string, List<string>> pair in existing.BrowserOptions)
+                result.BrowserOptions[pair.Key] = new List<string>(pair.Value);
+        }
+
+        return result;
+    }
+
     static SourceContext ResolveDefaultSource()
     {
         var bootstrap = ReadJson(BootstrapStatePath);
@@ -1911,7 +1433,13 @@ internal static class WgdotNative
 
             if (useRuntimeRef)
             {
-                string revision = ResolveBranchHeadViaApi(sourceRef);
+                string recordedRevision = GetString(bootstrap, "sourceRevision");
+                string revision =
+                    explicitRefTesting &&
+                    Regex.IsMatch(recordedRevision ?? "", "^[0-9a-fA-F]{40}$")
+                        ? recordedRevision.ToLowerInvariant()
+                        : ResolveBranchHeadViaApi(sourceRef);
+
                 string sourceRoot = PrepareRevisionArchive(revision);
                 return new SourceContext
                 {
@@ -2020,19 +1548,175 @@ internal static class WgdotNative
         }
     }
 
+    static string RawRepositoryUrl(string revision, string relativePath)
+    {
+        string normalized = (relativePath ?? "").Replace('\\', '/').Trim('/');
+        if (String.IsNullOrWhiteSpace(normalized))
+            throw new Exception("Raw repository path is empty.");
+
+        string[] segments = normalized.Split('/');
+        if (segments.Any(
+                segment =>
+                    String.IsNullOrWhiteSpace(segment) ||
+                    segment == "." ||
+                    segment == ".."))
+            throw new Exception("Unsafe raw repository path: " + relativePath);
+
+        string encoded = String.Join(
+            "/",
+            segments.Select(segment => Uri.EscapeDataString(segment)).ToArray());
+
+        return "https://raw.githubusercontent.com/" +
+            RepoFullName + "/" + revision + "/" + encoded;
+    }
+
+    static string SafeRawSourceDestination(string root, string relativePath)
+    {
+        string normalized = (relativePath ?? "").Replace('\\', '/').Trim('/');
+        if (String.IsNullOrWhiteSpace(normalized))
+            throw new Exception("Managed source path is empty.");
+
+        string fullRoot = Path.GetFullPath(root)
+            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) +
+            Path.DirectorySeparatorChar;
+        string destination = Path.GetFullPath(
+            Path.Combine(
+                root,
+                normalized.Replace('/', Path.DirectorySeparatorChar)));
+
+        if (!destination.StartsWith(fullRoot, StringComparison.OrdinalIgnoreCase))
+            throw new Exception("Managed source escaped the raw revision cache: " + relativePath);
+
+        return destination;
+    }
+
+    static void DownloadRawRevisionFile(
+        WebClient client,
+        string revision,
+        string relativePath,
+        string root)
+    {
+        string destination = SafeRawSourceDestination(root, relativePath);
+        string parent = Path.GetDirectoryName(destination);
+        if (!String.IsNullOrWhiteSpace(parent))
+            Directory.CreateDirectory(parent);
+
+        client.DownloadFile(
+            RawRepositoryUrl(revision, relativePath),
+            destination);
+    }
+
+    static string PrepareRawRevisionSource(string revision)
+    {
+        string rawRoot = Path.Combine(CacheRoot, "raw-revision-" + revision);
+        string marker = Path.Combine(rawRoot, ".wgdot-raw-source");
+        string manifestPath = Path.Combine(rawRoot, "wgdot", "manifest.json");
+
+        if (File.Exists(marker) && File.Exists(manifestPath))
+            return rawRoot;
+
+        SafeDeleteDirectory(rawRoot);
+        Directory.CreateDirectory(rawRoot);
+
+        try
+        {
+            using (var client = new WebClient())
+            {
+                client.Headers[HttpRequestHeader.UserAgent] = "wgdot";
+                DownloadRawRevisionFile(
+                    client,
+                    revision,
+                    "wgdot/manifest.json",
+                    rawRoot);
+
+                Dictionary<string, object> manifest = ReadManifest(rawRoot);
+                var sources = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+                foreach (object rawComponent in GetList(manifest, "components"))
+                {
+                    Dictionary<string, object> component = AsDictionary(rawComponent);
+                    foreach (object rawFile in GetList(component, "files"))
+                    {
+                        Dictionary<string, object> file = AsDictionary(rawFile);
+                        string source = GetString(file, "source");
+                        if (!String.IsNullOrWhiteSpace(source))
+                            sources.Add(source);
+
+                        object byProfileRaw;
+                        if (file.TryGetValue("sourceByGlazeProfile", out byProfileRaw) &&
+                            byProfileRaw != null)
+                        {
+                            Dictionary<string, object> byProfile = AsDictionary(byProfileRaw);
+                            foreach (object value in byProfile.Values)
+                            {
+                                string profileSource = Convert.ToString(
+                                    value,
+                                    CultureInfo.InvariantCulture);
+                                if (!String.IsNullOrWhiteSpace(profileSource))
+                                    sources.Add(profileSource);
+                            }
+                        }
+                    }
+                }
+
+                foreach (string source in sources.OrderBy(x => x, StringComparer.OrdinalIgnoreCase))
+                    DownloadRawRevisionFile(client, revision, source, rawRoot);
+            }
+
+            File.WriteAllText(
+                marker,
+                revision + Environment.NewLine,
+                Encoding.ASCII);
+            return rawRoot;
+        }
+        catch
+        {
+            SafeDeleteDirectory(rawRoot);
+            throw;
+        }
+    }
+
+    static int SourceSelfTestFromArgs(string[] args)
+    {
+        string revision = GetOption(args, "--revision");
+        if (!Regex.IsMatch(revision ?? "", "^[0-9a-fA-F]{40}$"))
+            throw new Exception("source-self-test requires --revision <full 40-character SHA>.");
+
+        string sourceRoot = PrepareRevisionArchive(revision.ToLowerInvariant());
+        Dictionary<string, object> manifest = ReadManifest(sourceRoot);
+
+        int componentCount = GetList(manifest, "components").Count;
+        if (componentCount == 0)
+            throw new Exception("Source self-test resolved a manifest with no components.");
+
+        Console.WriteLine("WGDot source self-test passed.");
+        Console.WriteLine("Revision: " + revision.ToLowerInvariant());
+        Console.WriteLine("Source:   " + sourceRoot);
+        Console.WriteLine("Components: " + componentCount.ToString(CultureInfo.InvariantCulture));
+        return 0;
+    }
+
     static string PrepareRevisionArchive(string revision)
     {
         if (!Regex.IsMatch(revision ?? "", "^[0-9a-fA-F]{40}$"))
             throw new Exception("Source revision must be a full 40-character SHA.");
 
         revision = revision.ToLowerInvariant();
+
+        if (String.Equals(
+                Environment.GetEnvironmentVariable("WGDOT_FORCE_RAW_SOURCE"),
+                "1",
+                StringComparison.Ordinal))
+            return PrepareRawRevisionSource(revision);
+
         string revisionRoot = Path.Combine(CacheRoot, "revision-" + revision);
         string marker = Path.Combine(revisionRoot, ".wgdot-source");
 
         if (File.Exists(marker))
         {
             string cached = File.ReadAllText(marker).Trim();
-            if (Directory.Exists(cached) && File.Exists(Path.Combine(cached, "wgdot", "manifest.json")))
+            if (Directory.Exists(cached) &&
+                File.Exists(Path.Combine(cached, "wgdot", "manifest.json")))
                 return cached;
         }
 
@@ -2044,26 +1728,51 @@ internal static class WgdotNative
         SafeDeleteDirectory(revisionRoot);
         Directory.CreateDirectory(extractRoot);
 
-        string url = "https://github.com/" + RepoFullName + "/archive/" + revision + ".zip";
-        using (var client = new WebClient())
+        Exception archiveFailure = null;
+        try
         {
-            client.Headers[HttpRequestHeader.UserAgent] = "wgdot";
-            client.DownloadFile(url, zipPath);
+            string url =
+                "https://github.com/" + RepoFullName + "/archive/" + revision + ".zip";
+            using (var client = new WebClient())
+            {
+                client.Headers[HttpRequestHeader.UserAgent] = "wgdot";
+                client.DownloadFile(url, zipPath);
+            }
+
+            ZipFile.ExtractToDirectory(zipPath, extractRoot);
+            string[] children = Directory.GetDirectories(extractRoot);
+            if (children.Length != 1)
+                throw new Exception("Unexpected GitHub archive layout.");
+
+            string source = children[0];
+            if (!File.Exists(Path.Combine(source, "wgdot", "manifest.json")))
+                throw new Exception("Revision " + revision + " is not WGDot-compatible.");
+
+            Directory.CreateDirectory(revisionRoot);
+            File.WriteAllText(marker, source, Encoding.ASCII);
+            SafeDeleteFile(zipPath);
+            return source;
+        }
+        catch (Exception ex)
+        {
+            archiveFailure = ex;
+            SafeDeleteFile(zipPath);
+            SafeDeleteDirectory(extractRoot);
+            SafeDeleteDirectory(revisionRoot);
         }
 
-        ZipFile.ExtractToDirectory(zipPath, extractRoot);
-        string[] children = Directory.GetDirectories(extractRoot);
-        if (children.Length != 1)
-            throw new Exception("Unexpected GitHub archive layout.");
-
-        string source = children[0];
-        if (!File.Exists(Path.Combine(source, "wgdot", "manifest.json")))
-            throw new Exception("Revision " + revision + " is not WGDot-compatible.");
-
-        Directory.CreateDirectory(revisionRoot);
-        File.WriteAllText(marker, source, Encoding.ASCII);
-        SafeDeleteFile(zipPath);
-        return source;
+        try
+        {
+            return PrepareRawRevisionSource(revision);
+        }
+        catch (Exception rawFailure)
+        {
+            throw new Exception(
+                "Could not acquire WGDot revision " + revision +
+                " from either the GitHub archive endpoint or raw.githubusercontent.com. " +
+                "Archive error: " + archiveFailure.Message +
+                " Raw error: " + rawFailure.Message);
+        }
     }
 
     static Dictionary<string, object> ReadManifest(string sourceRoot)
@@ -2111,9 +1820,7 @@ internal static class WgdotNative
             component["id"] = "selftest";
             component["name"] = "Self Test";
             component["files"] = new object[] { file };
-            var themePostAction = new Dictionary<string, object>();
-            themePostAction["type"] = "ensure-yasb-theme";
-            component["postActions"] = new object[] { themePostAction };
+            component["postActions"] = new object[0];
 
             var manifest = new Dictionary<string, object>();
             manifest["schemaVersion"] = 1;
@@ -2139,36 +1846,7 @@ internal static class WgdotNative
                 Manifest = manifest
             };
 
-            string terminalSelfTestPath = WindowsTerminalSettingsPath();
-            Directory.CreateDirectory(Path.GetDirectoryName(terminalSelfTestPath));
-            File.WriteAllText(
-                terminalSelfTestPath,
-                "{\"profiles\":{\"defaults\":{}},\"schemes\":[{\"name\":\"External\"}],\"themes\":[{\"name\":\"External UI\"}],\"theme\":\"External UI\"}",
-                new UTF8Encoding(false));
-
             ApplyPlan(resetPlan, manifest, selection, context);
-
-            Dictionary<string, object> terminalSelfTest = ReadJson(terminalSelfTestPath);
-            if (terminalSelfTest == null ||
-                !String.Equals(GetString(terminalSelfTest, "theme"), "WGDot Carbon Night UI", StringComparison.OrdinalIgnoreCase) ||
-                !GetList(terminalSelfTest, "schemes").Select(AsDictionary).Any(
-                    x => String.Equals(GetString(x, "name"), "External", StringComparison.OrdinalIgnoreCase)) ||
-                !GetList(terminalSelfTest, "schemes").Select(AsDictionary).Any(
-                    x => String.Equals(GetString(x, "name"), "WGDot Carbon Night", StringComparison.OrdinalIgnoreCase)))
-                throw new Exception("Windows Terminal theme synchronization self-test failed.");
-
-            string postApplyThemeCss = YasbThemeCssPath();
-            if (!File.Exists(postApplyThemeCss) ||
-                File.ReadAllText(postApplyThemeCss).IndexOf("--background: #353535;", StringComparison.OrdinalIgnoreCase) < 0 ||
-                !String.Equals(CurrentYasbThemeId(), "carbon-night", StringComparison.OrdinalIgnoreCase))
-                throw new Exception("YASB theme post-action self-test failed.");
-
-            string postApplyAppearanceCss = YasbAppearanceCssPath();
-            if (!File.Exists(postApplyAppearanceCss) ||
-                File.ReadAllText(postApplyAppearanceCss).IndexOf(
-                    "YASB live appearance toggles",
-                    StringComparison.OrdinalIgnoreCase) < 0)
-                throw new Exception("YASB appearance post-action self-test failed.");
 
             if (File.ReadAllText(live) != "release-two")
                 throw new Exception("Apply self-test did not replace the live file.");
@@ -2434,23 +2112,6 @@ internal static class WgdotNative
                 beforeDefault,
                 StringComparison.OrdinalIgnoreCase))
                 throw new Exception("Firefox default-profile rollback self-test failed.");
-
-            // Theme writes are redirected by WGDOT_TEST_ROOT, so exercise the
-            // real live-palette path without touching the user's profile.
-            if (ApplyYasbTheme("electric-blue") != 0)
-                throw new Exception("YASB theme apply self-test failed.");
-
-            string themeCssSelfTest = YasbThemeCssPath();
-            if (!File.Exists(themeCssSelfTest))
-                throw new Exception("YASB theme CSS generation self-test failed.");
-
-            string themeCssText = File.ReadAllText(themeCssSelfTest);
-            if (themeCssText.IndexOf("--foreground: #89b4fa;", StringComparison.OrdinalIgnoreCase) < 0 ||
-                themeCssText.IndexOf("--background: #1e1e2e;", StringComparison.OrdinalIgnoreCase) < 0 ||
-                !String.Equals(CurrentYasbThemeId(), "electric-blue", StringComparison.OrdinalIgnoreCase))
-                throw new Exception("YASB theme state/content self-test failed.");
-
-            SafeDeleteFile(themeCssSelfTest);
 
             Console.WriteLine("WGDot native maintenance self-test passed.");
             return 0;
@@ -3740,6 +3401,7 @@ internal static class WgdotNative
             "git-review",
             "git-update",
             "git-reset",
+            "dots-only",
             "software",
             "software-reconcile",
             "software-uninstall",
@@ -3747,7 +3409,6 @@ internal static class WgdotNative
             "startup-disable-all",
             "software-audit",
             "acceptance-audit",
-            "theme",
             "cursor",
             "gpu-driver",
             "update",
@@ -5249,6 +4910,12 @@ internal static class WgdotNative
         result.Components = GetStringList(state, "components");
         result.Packages = GetStringList(state, "packages");
         result.Tweaks = GetStringList(state, "tweaks");
+        // One-time selection migration from the old WGDot runtime-helper model.
+        // Flow's own Alt+P global hotkey conflicts with VM pass-through, so drop it.
+        result.Tweaks.RemoveAll(x => String.Equals(x, "flow-launcher-alt-p", StringComparison.OrdinalIgnoreCase));
+        if (result.Tweaks.RemoveAll(x => String.Equals(x, "eartrumpet-mixer-alt-v", StringComparison.OrdinalIgnoreCase)) > 0 &&
+            !result.Tweaks.Contains("eartrumpet-mixer-super-v", StringComparer.OrdinalIgnoreCase))
+            result.Tweaks.Add("eartrumpet-mixer-super-v");
         result.TweaksConfigured = state.ContainsKey("tweaks");
         result.BrowserOptions = ReadBrowserOptionsState(state);
         result.BrowserOptionsConfigured = state.ContainsKey("browserOptions");
@@ -6436,10 +6103,8 @@ internal static class WgdotNative
     {
         if (String.Equals(id, "micro-text-defaults", StringComparison.OrdinalIgnoreCase))
             ApplyMicroTextDefaults(enable);
-        else if (String.Equals(id, "flow-launcher-alt-p", StringComparison.OrdinalIgnoreCase))
-            ApplyFlowLauncherAltP(enable);
-        else if (String.Equals(id, "eartrumpet-mixer-alt-v", StringComparison.OrdinalIgnoreCase))
-            ApplyEarTrumpetMixerAltV(enable);
+        else if (String.Equals(id, "eartrumpet-mixer-super-v", StringComparison.OrdinalIgnoreCase))
+            ApplyEarTrumpetMixerSuperV(enable);
         else if (String.Equals(id, "disable-windows-shell-hotkeys", StringComparison.OrdinalIgnoreCase))
             ApplyWindowsShellHotkeysPolicy(enable);
         else if (String.Equals(id, "clean-taskbar-items", StringComparison.OrdinalIgnoreCase))
@@ -6866,36 +6531,6 @@ internal static class WgdotNative
         return null;
     }
 
-    static string GetFlowLauncherSettingsPath()
-    {
-        return Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "FlowLauncher",
-            "Settings",
-            "Settings.json");
-    }
-
-    static string FindFlowLauncherExe()
-    {
-        string root = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "FlowLauncher");
-
-        string direct = Path.Combine(root, "Flow.Launcher.exe");
-        if (File.Exists(direct)) return direct;
-
-        if (Directory.Exists(root))
-        {
-            foreach (string dir in Directory.GetDirectories(root, "app-*").OrderByDescending(x => x))
-            {
-                string candidate = Path.Combine(dir, "Flow.Launcher.exe");
-                if (File.Exists(candidate)) return candidate;
-            }
-        }
-
-        return "";
-    }
-
     static bool StopProcessesByName(string processName)
     {
         bool found = false;
@@ -6916,15 +6551,6 @@ internal static class WgdotNative
             }
         }
         return found;
-    }
-
-    static void StartFlowLauncher(string exe)
-    {
-        if (String.IsNullOrWhiteSpace(exe) || !File.Exists(exe)) return;
-        var psi = new ProcessStartInfo();
-        psi.FileName = exe;
-        psi.UseShellExecute = true;
-        Process.Start(psi);
     }
 
     static YasbTheme FindYasbTheme(string id)
@@ -6951,165 +6577,6 @@ internal static class WgdotNative
             profileRoot = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
 
         return Path.Combine(profileRoot, ".config", "yasb", "theme.css");
-    }
-
-    static string HiddenLauncherPath()
-    {
-        return Path.Combine(BinRoot, "wgdotw.exe");
-    }
-
-    static void EnsureHiddenLauncher()
-    {
-        string destination = HiddenLauncherPath();
-        if (File.Exists(destination))
-            return;
-
-        Directory.CreateDirectory(BinRoot);
-        Directory.CreateDirectory(CacheRoot);
-        string sourcePath = Path.Combine(CacheRoot, "wgdotw-wrapper.cs");
-        string source = @"
-using System;
-using System.Diagnostics;
-using System.IO;
-
-class WgdotHidden
-{
-    static int Main(string[] args)
-    {
-        string exe = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, ""wgdot.exe"");
-        if (!File.Exists(exe))
-            return 127;
-
-        var psi = new ProcessStartInfo();
-        psi.FileName = exe;
-        psi.Arguments = String.Join("" "", args ?? new string[0]);
-        psi.UseShellExecute = false;
-        psi.CreateNoWindow = true;
-
-        using (Process process = Process.Start(psi))
-        {
-            process.WaitForExit();
-            return process.ExitCode;
-        }
-    }
-}
-";
-        File.WriteAllText(sourcePath, source, new UTF8Encoding(false));
-
-        string csc = GetCscPath();
-        if (String.IsNullOrWhiteSpace(csc))
-            throw new Exception("Windows .NET Framework C# compiler was not found for wgdotw.exe.");
-
-        ProcResult compile = Run(
-            csc,
-            "/nologo /optimize+ /target:winexe /out:" + Q(destination) + " " + Q(sourcePath),
-            null);
-        if (compile.ExitCode != 0)
-            throw new Exception(
-                "Hidden WGDot launcher compilation failed: " +
-                LastUsefulLine((compile.StdErr ?? "") + "\n" + (compile.StdOut ?? "")));
-    }
-
-    static string YasbAppearanceCssPath()
-    {
-        string profileRoot;
-        if (!String.IsNullOrWhiteSpace(TestRootOverride))
-            profileRoot = Path.Combine(TestRootOverride, "user-profile");
-        else
-            profileRoot = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-
-        return Path.Combine(profileRoot, ".config", "yasb", "appearance.css");
-    }
-
-    static Dictionary<string, object> ReadYasbAppearanceState()
-    {
-        Dictionary<string, object> state =
-            ReadJson(AppearanceStatePath) ??
-            new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
-
-        if (!state.ContainsKey("runningAppsVisible"))
-            state["runningAppsVisible"] = true;
-        if (!state.ContainsKey("shadeRunningApps"))
-            state["shadeRunningApps"] = false;
-
-        return state;
-    }
-
-    static string BuildYasbAppearanceCss(bool runningAppsVisible, bool shadeRunningApps)
-    {
-        var lines = new List<string>();
-        lines.Add("/* Generated by WGDot. YASB live appearance toggles. */");
-
-        if (!runningAppsVisible)
-        {
-            lines.Add(".taskbar-widget,");
-            lines.Add(".taskbar-widget .widget-container,");
-            lines.Add(".taskbar-widget .app-container {");
-            lines.Add("    min-width: 0;");
-            lines.Add("    max-width: 0;");
-            lines.Add("    margin: 0;");
-            lines.Add("    padding: 0;");
-            lines.Add("    border: none;");
-            lines.Add("}");
-        }
-        else if (shadeRunningApps)
-        {
-            lines.Add(".taskbar-widget .app-container.running {");
-            lines.Add("    background-color: var(--subtle-hover);");
-            lines.Add("}");
-            lines.Add(".taskbar-widget .app-container.foreground {");
-            lines.Add("    background-color: var(--subtle-active);");
-            lines.Add("}");
-            lines.Add(".taskbar-widget .app-container.running.minimized {");
-            lines.Add("    background-color: var(--active);");
-            lines.Add("    opacity: 0.55;");
-            lines.Add("}");
-        }
-
-        lines.Add("");
-        return String.Join("\r\n", lines.ToArray());
-    }
-
-    static void WriteYasbAppearance(Dictionary<string, object> state)
-    {
-        bool visible = GetBool(state, "runningAppsVisible");
-        bool shaded = GetBool(state, "shadeRunningApps");
-        string cssPath = YasbAppearanceCssPath();
-
-        WriteTextAtomic(cssPath, BuildYasbAppearanceCss(visible, shaded));
-        File.AppendAllText(cssPath, Environment.NewLine, new UTF8Encoding(false));
-
-        state["updatedAt"] = DateTime.UtcNow.ToString("o");
-        state["cssPath"] = cssPath;
-        WriteJson(AppearanceStatePath, state);
-    }
-
-    static void EnsureYasbAppearance()
-    {
-        Dictionary<string, object> state = ReadYasbAppearanceState();
-        state["runningAppsVisible"] = true;
-        state["shadeRunningApps"] = false;
-        WriteYasbAppearance(state);
-    }
-
-    static int ToggleYasbRunningApps()
-    {
-        Dictionary<string, object> state = ReadYasbAppearanceState();
-        bool next = !GetBool(state, "runningAppsVisible");
-        state["runningAppsVisible"] = next;
-        WriteYasbAppearance(state);
-        Console.WriteLine("YASB running applications: " + (next ? "shown" : "hidden"));
-        return 0;
-    }
-
-    static int ToggleYasbRunningAppsShade()
-    {
-        Dictionary<string, object> state = ReadYasbAppearanceState();
-        bool next = !GetBool(state, "shadeRunningApps");
-        state["shadeRunningApps"] = next;
-        WriteYasbAppearance(state);
-        Console.WriteLine("YASB running-app shading: " + (next ? "enabled" : "disabled"));
-        return 0;
     }
 
     static int ThemeManagerFromArgs(string[] args)
@@ -7383,6 +6850,16 @@ class WgdotHidden
         return true;
     }
 
+    static void SignalIdleInhibitorStop()
+    {
+        try
+        {
+            using (var stop = System.Threading.EventWaitHandle.OpenExisting(IdleInhibitorStopEventName))
+                stop.Set();
+        }
+        catch (System.Threading.WaitHandleCannotBeOpenedException) { }
+    }
+
     static int IdleInhibitorStatus()
     {
         bool active = NamedMutexExists(IdleInhibitorMutexName);
@@ -7395,16 +6872,6 @@ class WgdotHidden
                 ? "{\"icon\":\"\\uf06e\",\"active\":true,\"tooltip\":\"Keep Awake: activated - click to deactivate\"}"
                 : "{\"icon\":\"\\uf070\",\"active\":false,\"tooltip\":\"Idle inhibitor: deactivated - click to activate Keep Awake\"}");
         return 0;
-    }
-
-    static void SignalIdleInhibitorStop()
-    {
-        try
-        {
-            using (var stop = System.Threading.EventWaitHandle.OpenExisting(IdleInhibitorStopEventName))
-                stop.Set();
-        }
-        catch (System.Threading.WaitHandleCannotBeOpenedException) { }
     }
 
     static void StartIdleInhibitorWorker()
@@ -7702,477 +7169,6 @@ class WgdotHidden
             throw new Exception("Failed to apply the remembered cursor theme.");
     }
 
-    static void SendKeyChord(params byte[] virtualKeys)
-    {
-        if (virtualKeys == null || virtualKeys.Length == 0)
-            return;
-
-        var inputs = new List<INPUT>();
-        foreach (byte key in virtualKeys)
-        {
-            var input = new INPUT();
-            input.type = InputKeyboard;
-            input.data.keyboard.wVk = key;
-            inputs.Add(input);
-        }
-
-        for (int i = virtualKeys.Length - 1; i >= 0; i--)
-        {
-            var input = new INPUT();
-            input.type = InputKeyboard;
-            input.data.keyboard.wVk = virtualKeys[i];
-            input.data.keyboard.dwFlags = KeyeventfKeyup;
-            inputs.Add(input);
-        }
-
-        INPUT[] batch = inputs.ToArray();
-        uint sent = SendInput((uint)batch.Length, batch, Marshal.SizeOf(typeof(INPUT)));
-        if (sent != batch.Length)
-            throw new System.ComponentModel.Win32Exception(
-                Marshal.GetLastWin32Error(),
-                "Windows SendInput did not inject the complete shortcut.");
-    }
-
-    static int OpenFlowLauncher()
-    {
-        string exe = FindFlowLauncherExe();
-        if (String.IsNullOrWhiteSpace(exe))
-            throw new Exception("Flow Launcher executable could not be found.");
-
-        // Flow Launcher is single-instance. Starting it again asks the existing
-        // instance to show its main window.
-        StartFlowLauncher(exe);
-        return 0;
-    }
-
-    static int OpenYasbQuickLaunch()
-    {
-        Process[] processes = Process.GetProcessesByName("yasb");
-        if (processes.Length == 0)
-            throw new Exception("YASB is not running; Quick Launch cannot be opened.");
-
-        // YASB registers all configured widget hotkeys on a dedicated
-        // HotkeyListener thread and dispatches WM_HOTKEY by numeric binding ID.
-        // The managed config deliberately keeps Quick Launch as the first YASB
-        // keybinding, so it is ID 1. Post that event directly instead of
-        // synthesizing Win+Alt+F24 through SendInput. This avoids GlazeWM's
-        // keyboard hook entirely, so no temporary WM pause, modifier-release
-        // wait, or artificial sleep is needed.
-        bool posted = false;
-        foreach (Process process in processes)
-        {
-            try
-            {
-                foreach (ProcessThread thread in process.Threads)
-                {
-                    if (PostThreadMessage(
-                            unchecked((uint)thread.Id),
-                            WmHotkey,
-                            new UIntPtr(1),
-                            IntPtr.Zero))
-                        posted = true;
-                }
-            }
-            catch
-            {
-            }
-        }
-
-        if (!posted)
-            throw new System.ComponentModel.Win32Exception(
-                Marshal.GetLastWin32Error(),
-                "Could not dispatch Quick Launch directly to YASB.");
-
-        return 0;
-    }
-
-    static void WaitForWindowsModifierRelease()
-    {
-        // GlazeWM launches Super aliases before the physical Windows key has
-        // necessarily been released. Injecting another shell shortcut while
-        // that modifier is still down can turn Super+C into another Windows
-        // shell action. Wait for the real key-up before synthesizing a shortcut.
-        for (int i = 0; i < 200; i++)
-        {
-            bool leftDown = (GetAsyncKeyState(VkLwin) & 0x8000) != 0;
-            bool rightDown = (GetAsyncKeyState(VkRwin) & 0x8000) != 0;
-            if (!leftDown && !rightDown)
-                return;
-            System.Threading.Thread.Sleep(10);
-        }
-
-        throw new Exception("Windows key is still held; release it and retry the shortcut.");
-    }
-
-    static Color ParseThemeColor(string value, Color fallback)
-    {
-        try
-        {
-            return ColorTranslator.FromHtml(value ?? "");
-        }
-        catch
-        {
-            return fallback;
-        }
-    }
-
-    static string ClipboardHistoryTimestampLabel(string value)
-    {
-        DateTime timestamp;
-        if (DateTime.TryParse(
-                value ?? "",
-                CultureInfo.InvariantCulture,
-                DateTimeStyles.RoundtripKind,
-                out timestamp))
-            return timestamp.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
-        return "";
-    }
-
-    static string Sha256Bytes(byte[] bytes)
-    {
-        using (var sha = SHA256.Create())
-        {
-            byte[] hash = sha.ComputeHash(bytes ?? new byte[0]);
-            var builder = new StringBuilder(hash.Length * 2);
-            foreach (byte b in hash)
-                builder.Append(b.ToString("x2", CultureInfo.InvariantCulture));
-            return builder.ToString();
-        }
-    }
-
-    static T WithClipboardHistoryLock<T>(Func<T> action)
-    {
-        bool entered = false;
-        using (var mutex = new System.Threading.Mutex(false, ClipboardHistoryDataMutexName))
-        {
-            try
-            {
-                try
-                {
-                    entered = mutex.WaitOne(3000);
-                }
-                catch (System.Threading.AbandonedMutexException)
-                {
-                    entered = true;
-                }
-
-                if (!entered)
-                    throw new Exception("Timed out waiting for WGDot clipboard history storage.");
-
-                return action();
-            }
-            finally
-            {
-                if (entered)
-                    mutex.ReleaseMutex();
-            }
-        }
-    }
-
-    static List<ClipboardHistoryEntry> LoadClipboardHistoryEntriesUnlocked()
-    {
-        if (!File.Exists(ClipboardHistoryStatePath))
-            return new List<ClipboardHistoryEntry>();
-
-        try
-        {
-            string raw = File.ReadAllText(ClipboardHistoryStatePath, Encoding.UTF8);
-            List<ClipboardHistoryEntry> entries =
-                Json.Deserialize<List<ClipboardHistoryEntry>>(raw);
-            return entries ?? new List<ClipboardHistoryEntry>();
-        }
-        catch
-        {
-            return new List<ClipboardHistoryEntry>();
-        }
-    }
-
-    static string ClipboardHistoryImagePath(ClipboardHistoryEntry entry)
-    {
-        if (entry == null || String.IsNullOrWhiteSpace(entry.ImageFile))
-            return "";
-        return Path.Combine(ClipboardHistoryImageRoot, Path.GetFileName(entry.ImageFile));
-    }
-
-    static void SaveClipboardHistoryEntriesUnlocked(List<ClipboardHistoryEntry> entries)
-    {
-        Directory.CreateDirectory(StateRoot);
-        Directory.CreateDirectory(ClipboardHistoryImageRoot);
-
-        entries = (entries ?? new List<ClipboardHistoryEntry>())
-            .Where(x => x != null)
-            .Take(60)
-            .ToList();
-
-        var keepImages = new HashSet<string>(
-            entries
-                .Where(x => x.Kind == "image" && !String.IsNullOrWhiteSpace(x.ImageFile))
-                .Select(x => Path.GetFileName(x.ImageFile)),
-            StringComparer.OrdinalIgnoreCase);
-
-        foreach (string image in Directory.GetFiles(ClipboardHistoryImageRoot, "*.png"))
-        {
-            if (!keepImages.Contains(Path.GetFileName(image)))
-                SafeDeleteFile(image);
-        }
-
-        string temp = ClipboardHistoryStatePath + ".tmp-" + Guid.NewGuid().ToString("N");
-        File.WriteAllText(temp, Json.Serialize(entries), new UTF8Encoding(false));
-        File.Copy(temp, ClipboardHistoryStatePath, true);
-        SafeDeleteFile(temp);
-    }
-
-    static List<ClipboardHistoryEntry> ReadClipboardHistoryEntries()
-    {
-        return WithClipboardHistoryLock(
-            delegate
-            {
-                return LoadClipboardHistoryEntriesUnlocked();
-            });
-    }
-
-    static void AddClipboardHistoryEntry(ClipboardHistoryEntry entry, byte[] imageBytes)
-    {
-        if (entry == null || String.IsNullOrWhiteSpace(entry.Id))
-            return;
-
-        WithClipboardHistoryLock(
-            delegate
-            {
-                List<ClipboardHistoryEntry> entries = LoadClipboardHistoryEntriesUnlocked();
-                entries.RemoveAll(x => String.Equals(x.Id, entry.Id, StringComparison.OrdinalIgnoreCase));
-
-                if (entry.Kind == "image" && imageBytes != null && imageBytes.Length > 0)
-                {
-                    Directory.CreateDirectory(ClipboardHistoryImageRoot);
-                    entry.ImageFile = entry.Id + ".png";
-                    File.WriteAllBytes(Path.Combine(ClipboardHistoryImageRoot, entry.ImageFile), imageBytes);
-                }
-
-                entries.Insert(0, entry);
-                SaveClipboardHistoryEntriesUnlocked(entries);
-                return true;
-            });
-    }
-
-    static void CaptureClipboardHistorySnapshot()
-    {
-        try
-        {
-            if (System.Windows.Forms.Clipboard.ContainsImage())
-            {
-                using (Image image = System.Windows.Forms.Clipboard.GetImage())
-                {
-                    if (image == null)
-                        return;
-
-                    byte[] bytes;
-                    using (var stream = new MemoryStream())
-                    {
-                        image.Save(stream, ImageFormat.Png);
-                        bytes = stream.ToArray();
-                    }
-
-                    string hash = Sha256Bytes(bytes);
-                    AddClipboardHistoryEntry(
-                        new ClipboardHistoryEntry
-                        {
-                            Id = "image-" + hash,
-                            Kind = "image",
-                            Text = "",
-                            CreatedAt = DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture),
-                            Preview = image.Width.ToString(CultureInfo.InvariantCulture) +
-                                " x " + image.Height.ToString(CultureInfo.InvariantCulture)
-                        },
-                        bytes);
-                }
-                return;
-            }
-
-            if (System.Windows.Forms.Clipboard.ContainsText(
-                    System.Windows.Forms.TextDataFormat.UnicodeText))
-            {
-                string textValue = System.Windows.Forms.Clipboard.GetText(
-                    System.Windows.Forms.TextDataFormat.UnicodeText) ?? "";
-                if (textValue.Length == 0)
-                    return;
-                if (textValue.Length > 1000000)
-                    textValue = textValue.Substring(0, 1000000);
-
-                string preview = textValue
-                    .Replace("\r", " ")
-                    .Replace("\n", " ")
-                    .Replace("\t", " ")
-                    .Trim();
-                if (preview.Length > 90)
-                    preview = preview.Substring(0, 87) + "...";
-
-                byte[] bytes = Encoding.UTF8.GetBytes(textValue);
-                AddClipboardHistoryEntry(
-                    new ClipboardHistoryEntry
-                    {
-                        Id = "text-" + Sha256Bytes(bytes),
-                        Kind = "text",
-                        Text = textValue,
-                        CreatedAt = DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture),
-                        Preview = preview
-                    },
-                    null);
-            }
-        }
-        catch (System.Runtime.InteropServices.ExternalException)
-        {
-            // Clipboard ownership can be transient while another application is
-            // still publishing formats. A later WM_CLIPBOARDUPDATE will retry.
-        }
-        catch
-        {
-        }
-    }
-
-    static void UpdateClipboardHistoryText(string id, string textValue)
-    {
-        WithClipboardHistoryLock(
-            delegate
-            {
-                List<ClipboardHistoryEntry> entries = LoadClipboardHistoryEntriesUnlocked();
-                ClipboardHistoryEntry entry = entries.FirstOrDefault(
-                    x => String.Equals(x.Id, id, StringComparison.OrdinalIgnoreCase));
-                if (entry == null || entry.Kind != "text")
-                    return false;
-
-                entry.Text = textValue ?? "";
-                string preview = entry.Text
-                    .Replace("\r", " ")
-                    .Replace("\n", " ")
-                    .Replace("\t", " ")
-                    .Trim();
-                if (preview.Length > 90)
-                    preview = preview.Substring(0, 87) + "...";
-                entry.Preview = preview;
-                entry.CreatedAt = DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture);
-                SaveClipboardHistoryEntriesUnlocked(entries);
-                return true;
-            });
-    }
-
-    static void DeleteClipboardHistoryEntry(string id)
-    {
-        WithClipboardHistoryLock(
-            delegate
-            {
-                List<ClipboardHistoryEntry> entries = LoadClipboardHistoryEntriesUnlocked();
-                ClipboardHistoryEntry entry = entries.FirstOrDefault(
-                    x => String.Equals(x.Id, id, StringComparison.OrdinalIgnoreCase));
-                if (entry != null && entry.Kind == "image")
-                    SafeDeleteFile(ClipboardHistoryImagePath(entry));
-                entries.RemoveAll(x => String.Equals(x.Id, id, StringComparison.OrdinalIgnoreCase));
-                SaveClipboardHistoryEntriesUnlocked(entries);
-                return true;
-            });
-    }
-
-    static void ClearClipboardHistory()
-    {
-        WithClipboardHistoryLock(
-            delegate
-            {
-                SafeDeleteDirectory(ClipboardHistoryImageRoot);
-                Directory.CreateDirectory(ClipboardHistoryImageRoot);
-                SaveClipboardHistoryEntriesUnlocked(new List<ClipboardHistoryEntry>());
-                return true;
-            });
-    }
-
-    static void WriteTrackedGlazeBindingMode(string mode)
-    {
-        var state = new Dictionary<string, object>();
-        state["mode"] = (mode ?? "").Trim().ToLowerInvariant();
-        state["updatedAt"] = DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture);
-        WriteJson(GlazeBindingModeStatePath, state);
-    }
-
-    static string ReadTrackedGlazeBindingMode()
-    {
-        Dictionary<string, object> state = ReadJson(GlazeBindingModeStatePath);
-        return state == null ? "" : GetString(state, "mode").Trim().ToLowerInvariant();
-    }
-
-    static void SendSuppressedSuperRelease(byte winKey)
-    {
-        var batch = new INPUT[3];
-
-        batch[0].type = InputKeyboard;
-        batch[0].data.keyboard.wVk = VkControl;
-
-        batch[1].type = InputKeyboard;
-        batch[1].data.keyboard.wVk = winKey;
-        batch[1].data.keyboard.dwFlags = KeyeventfKeyup;
-
-        batch[2].type = InputKeyboard;
-        batch[2].data.keyboard.wVk = VkControl;
-        batch[2].data.keyboard.dwFlags = KeyeventfKeyup;
-
-        SendInput((uint)batch.Length, batch, Marshal.SizeOf(typeof(INPUT)));
-    }
-
-    static IntPtr DesktopWorkerKeyboardCallback(int nCode, IntPtr wParam, IntPtr lParam)
-    {
-        if (nCode < 0)
-            return CallNextHookEx(DesktopWorkerKeyboardHookHandle, nCode, wParam, lParam);
-
-        KBDLLHOOKSTRUCT data =
-            (KBDLLHOOKSTRUCT)Marshal.PtrToStructure(lParam, typeof(KBDLLHOOKSTRUCT));
-
-        if ((data.flags & LlKhfInjected) != 0)
-            return CallNextHookEx(DesktopWorkerKeyboardHookHandle, nCode, wParam, lParam);
-
-        int message = unchecked((int)wParam.ToInt64());
-        bool down = message == WmKeyDown || message == WmSysKeyDown;
-        bool up = message == WmKeyUp || message == WmSysKeyUp;
-
-        if (data.vkCode == VkLwin || data.vkCode == VkRwin)
-        {
-            if (down)
-            {
-                if (data.vkCode == VkLwin) DesktopWorkerLeftWinDown = true;
-                if (data.vkCode == VkRwin) DesktopWorkerRightWinDown = true;
-
-                DesktopWorkerSuperChordUsed =
-                    (GetAsyncKeyState(VkControl) & 0x8000) != 0 ||
-                    (GetAsyncKeyState(VkShift) & 0x8000) != 0 ||
-                    (GetAsyncKeyState(VkMenu) & 0x8000) != 0;
-            }
-            else if (up)
-            {
-                bool suppressStart =
-                    !DesktopWorkerVmMode &&
-                    !DesktopWorkerSuperChordUsed;
-
-                if (data.vkCode == VkLwin) DesktopWorkerLeftWinDown = false;
-                if (data.vkCode == VkRwin) DesktopWorkerRightWinDown = false;
-
-                if (suppressStart)
-                {
-                    try { SendSuppressedSuperRelease((byte)data.vkCode); }
-                    catch { }
-                    DesktopWorkerSuperChordUsed = false;
-                    return new IntPtr(1);
-                }
-
-                if (!DesktopWorkerLeftWinDown && !DesktopWorkerRightWinDown)
-                    DesktopWorkerSuperChordUsed = false;
-            }
-
-            return CallNextHookEx(DesktopWorkerKeyboardHookHandle, nCode, wParam, lParam);
-        }
-
-        if (down && (DesktopWorkerLeftWinDown || DesktopWorkerRightWinDown))
-            DesktopWorkerSuperChordUsed = true;
-
-        return CallNextHookEx(DesktopWorkerKeyboardHookHandle, nCode, wParam, lParam);
-    }
-
     static void SignalDesktopWorkerStop()
     {
         try
@@ -8183,126 +7179,6 @@ class WgdotHidden
         catch (System.Threading.WaitHandleCannotBeOpenedException)
         {
         }
-    }
-
-    static void StartDesktopWorkerIfNeeded()
-    {
-        if (NamedMutexExists(DesktopWorkerMutexName))
-            return;
-
-        string exe = Process.GetCurrentProcess().MainModule.FileName;
-        StartRuntimeWorkerFrom(exe, "desktop-worker");
-        WaitForRuntimeWorkerState(DesktopWorkerMutexName, true, "desktop");
-    }
-
-    static int StopDesktopWorker()
-    {
-        SignalDesktopWorkerStop();
-        if (NamedMutexExists(DesktopWorkerMutexName))
-            WaitForRuntimeWorkerState(DesktopWorkerMutexName, false, "desktop");
-        return 0;
-    }
-
-    static int DesktopWorker()
-    {
-        bool createdNew;
-        using (var mutex = new System.Threading.Mutex(true, DesktopWorkerMutexName, out createdNew))
-        {
-            if (!createdNew)
-                return 0;
-
-            using (var stop = new System.Threading.EventWaitHandle(
-                false,
-                System.Threading.EventResetMode.ManualReset,
-                DesktopWorkerStopEventName))
-            {
-                stop.Reset();
-
-                try
-                {
-                    string activeMode = GetActiveGlazeWmBindingMode();
-                    WriteTrackedGlazeBindingMode(activeMode);
-                }
-                catch
-                {
-                }
-
-                DesktopWorkerVmMode =
-                    String.Equals(ReadTrackedGlazeBindingMode(), "vm", StringComparison.OrdinalIgnoreCase);
-                DesktopWorkerLeftWinDown = false;
-                DesktopWorkerRightWinDown = false;
-                DesktopWorkerSuperChordUsed = false;
-
-                DesktopWorkerKeyboardProc = DesktopWorkerKeyboardCallback;
-                DesktopWorkerKeyboardHookHandle = SetWindowsHookExKeyboard(
-                    WhKeyboardLl,
-                    DesktopWorkerKeyboardProc,
-                    GetModuleHandle(null),
-                    0);
-                if (DesktopWorkerKeyboardHookHandle == IntPtr.Zero)
-                    throw new System.ComponentModel.Win32Exception(
-                        Marshal.GetLastWin32Error(),
-                        "Failed to install WGDot standalone-Super filter.");
-
-                var form = new DesktopWorkerForm();
-                IntPtr workerHandle = form.Handle;
-                var timer = new System.Windows.Forms.Timer();
-                timer.Interval = 250;
-                timer.Tick += delegate
-                {
-                    DesktopWorkerVmMode =
-                        String.Equals(ReadTrackedGlazeBindingMode(), "vm", StringComparison.OrdinalIgnoreCase);
-                    if (stop.WaitOne(0))
-                        System.Windows.Forms.Application.ExitThread();
-                };
-
-                try
-                {
-                    CaptureClipboardHistorySnapshot();
-                    timer.Start();
-                    System.Windows.Forms.Application.Run(form);
-                }
-                finally
-                {
-                    timer.Stop();
-                    timer.Dispose();
-                    form.Dispose();
-                    if (DesktopWorkerKeyboardHookHandle != IntPtr.Zero)
-                    {
-                        UnhookWindowsHookEx(DesktopWorkerKeyboardHookHandle);
-                        DesktopWorkerKeyboardHookHandle = IntPtr.Zero;
-                    }
-                    DesktopWorkerKeyboardProc = null;
-                    DesktopWorkerLeftWinDown = false;
-                    DesktopWorkerRightWinDown = false;
-                    DesktopWorkerSuperChordUsed = false;
-                    DesktopWorkerVmMode = false;
-                }
-            }
-        }
-
-        return 0;
-    }
-
-    static int OpenWindowsClipboardHistory()
-    {
-        // Windows' native Win+V history proved unreliable on the maintainer's
-        // Windows 11 / IoT Enterprise LTSC build even with its package, policy,
-        // and clipboard service healthy. WGDot now owns history capture and UI.
-        StartDesktopWorkerIfNeeded();
-
-        IntPtr existing = FindTopLevelWindowByExactTitle(ClipboardHistoryWindowTitle);
-        if (existing != IntPtr.Zero)
-        {
-            ShowWindow(existing, SwRestore);
-            SetForegroundWindow(existing);
-            return 0;
-        }
-
-        System.Windows.Forms.Application.EnableVisualStyles();
-        System.Windows.Forms.Application.SetCompatibleTextRenderingDefault(false);
-        System.Windows.Forms.Application.Run(new ClipboardHistoryForm());
-        return 0;
     }
 
     static string FindRegisteredAppPath(string fileName)
@@ -8325,246 +7201,6 @@ class WgdotHidden
             }
         }
         return "";
-    }
-
-    static string FindFlameshotExe()
-    {
-        string registered = FindRegisteredAppPath("flameshot.exe");
-        if (!String.IsNullOrWhiteSpace(registered))
-            return registered;
-
-        ProcResult where = Run("where.exe", "flameshot.exe", null);
-        if (where.ExitCode == 0)
-        {
-            foreach (string line in (where.StdOut ?? "").Replace("\r", "").Split('\n'))
-            {
-                string candidate = line.Trim();
-                if (!String.IsNullOrWhiteSpace(candidate) && File.Exists(candidate))
-                    return candidate;
-            }
-        }
-
-        var roots = new[]
-        {
-            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
-            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),
-            Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                "Programs")
-        }
-        .Where(x => !String.IsNullOrWhiteSpace(x))
-        .Distinct(StringComparer.OrdinalIgnoreCase);
-
-        foreach (string root in roots)
-        {
-            string[] candidates =
-            {
-                Path.Combine(root, "Flameshot", "bin", "flameshot.exe"),
-                Path.Combine(root, "Flameshot", "flameshot.exe"),
-                Path.Combine(root, "flameshot", "bin", "flameshot.exe"),
-                Path.Combine(root, "flameshot", "flameshot.exe")
-            };
-            string found = candidates.FirstOrDefault(File.Exists);
-            if (!String.IsNullOrWhiteSpace(found))
-                return found;
-        }
-
-        return "";
-    }
-
-    static int OpenFlameshotGui()
-    {
-        string exe = FindFlameshotExe();
-        if (String.IsNullOrWhiteSpace(exe))
-            throw new Exception("Flameshot executable could not be found.");
-
-        var psi = new ProcessStartInfo();
-        psi.FileName = exe;
-        psi.Arguments = "gui";
-        psi.UseShellExecute = true;
-        Process.Start(psi);
-        return 0;
-    }
-
-    static void RememberRawAccelExe(string exe)
-    {
-        if (String.IsNullOrWhiteSpace(exe) || !File.Exists(exe))
-            return;
-
-        var state = new Dictionary<string, object>();
-        state["exe"] = Path.GetFullPath(exe);
-        state["updatedAt"] = DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture);
-        WriteJson(RawAccelStatePath, state);
-    }
-
-    static string ResolveRawAccelExe(bool allowPrompt)
-    {
-        Dictionary<string, object> state = ReadJson(RawAccelStatePath);
-        if (state != null)
-        {
-            string remembered = GetString(state, "exe");
-            if (!String.IsNullOrWhiteSpace(remembered) && File.Exists(remembered))
-                return remembered;
-        }
-
-        foreach (Process process in Process.GetProcessesByName("rawaccel"))
-        {
-            try
-            {
-                string running = process.MainModule.FileName;
-                if (!String.IsNullOrWhiteSpace(running) && File.Exists(running))
-                {
-                    RememberRawAccelExe(running);
-                    return running;
-                }
-            }
-            catch
-            {
-            }
-        }
-
-        string managed = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "Programs",
-            "RawAccel",
-            "rawaccel.exe");
-        if (File.Exists(managed))
-        {
-            RememberRawAccelExe(managed);
-            return managed;
-        }
-
-        string registered = FindRegisteredAppPath("rawaccel.exe");
-        if (!String.IsNullOrWhiteSpace(registered))
-        {
-            RememberRawAccelExe(registered);
-            return registered;
-        }
-
-        ProcResult where = Run("where.exe", "rawaccel.exe", null);
-        if (where.ExitCode == 0)
-        {
-            foreach (string line in (where.StdOut ?? "").Replace("\r", "").Split('\n'))
-            {
-                string candidate = line.Trim();
-                if (!String.IsNullOrWhiteSpace(candidate) && File.Exists(candidate))
-                {
-                    RememberRawAccelExe(candidate);
-                    return candidate;
-                }
-            }
-        }
-
-        string profile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        string[] roots =
-        {
-            Path.Combine(profile, "Downloads"),
-            Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory),
-            Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)
-        };
-
-        foreach (string root in roots.Where(Directory.Exists))
-        {
-            try
-            {
-                string found = Directory
-                    .EnumerateFiles(root, "rawaccel.exe", SearchOption.AllDirectories)
-                    .OrderBy(path => path.Length)
-                    .FirstOrDefault();
-                if (!String.IsNullOrWhiteSpace(found))
-                {
-                    RememberRawAccelExe(found);
-                    return found;
-                }
-            }
-            catch
-            {
-            }
-        }
-
-        if (!allowPrompt)
-            return "";
-
-        using (var dialog = new System.Windows.Forms.OpenFileDialog())
-        {
-            dialog.Title = "Locate RawAccel GUI";
-            dialog.Filter = "RawAccel GUI (rawaccel.exe)|rawaccel.exe|Executable files (*.exe)|*.exe";
-            dialog.FileName = "rawaccel.exe";
-            string downloads = Path.Combine(profile, "Downloads");
-            if (Directory.Exists(downloads))
-                dialog.InitialDirectory = downloads;
-
-            if (dialog.ShowDialog() != System.Windows.Forms.DialogResult.OK)
-                return "";
-
-            string selected = dialog.FileName;
-            if (!String.Equals(
-                    Path.GetFileName(selected),
-                    "rawaccel.exe",
-                    StringComparison.OrdinalIgnoreCase))
-                throw new Exception("Select RawAccel's rawaccel.exe GUI executable.");
-
-            RememberRawAccelExe(selected);
-            return selected;
-        }
-    }
-
-    static int OpenRawAccel()
-    {
-        Process[] running = Process.GetProcessesByName("rawaccel");
-        if (running.Length > 0)
-        {
-            foreach (Process process in running)
-            {
-                try
-                {
-                    if (process.MainWindowHandle != IntPtr.Zero)
-                        PostMessage(process.MainWindowHandle, WmClose, IntPtr.Zero, IntPtr.Zero);
-                    else
-                        process.CloseMainWindow();
-                }
-                catch
-                {
-                }
-            }
-
-            foreach (Process process in running)
-            {
-                try
-                {
-                    if (!process.WaitForExit(700))
-                        process.Kill();
-                }
-                catch
-                {
-                }
-            }
-            return 0;
-        }
-
-        string exe = ResolveRawAccelExe(true);
-        if (String.IsNullOrWhiteSpace(exe))
-            throw new Exception(
-                "RawAccel GUI was not found. Select rawaccel.exe from the extracted RawAccel release folder.");
-
-        var psi = new ProcessStartInfo();
-        psi.FileName = exe;
-        psi.WorkingDirectory = Path.GetDirectoryName(exe);
-        psi.UseShellExecute = true;
-        Process processStarted = Process.Start(psi);
-        if (processStarted == null)
-            throw new Exception("RawAccel GUI did not start.");
-
-        return 0;
-    }
-
-    static int OpenDisplaySettings()
-    {
-        var psi = new ProcessStartInfo();
-        psi.FileName = "ms-settings:display";
-        psi.UseShellExecute = true;
-        Process.Start(psi);
-        return 0;
     }
 
     static int BarAutoHideToggle()
@@ -8647,6 +7283,67 @@ class WgdotHidden
             "YASB auto-hide " + (enableAutoHide ? "enabled" : "disabled") +
             "; GlazeWM top gap set to " + (enableAutoHide ? "5px" : "35px") + ".");
         Console.WriteLine("YASB and GlazeWM reloaded.");
+        return 0;
+    }
+
+    static int RawAccelToggle()
+    {
+        Process[] running = Process.GetProcessesByName("rawaccel");
+        if (running.Length > 0)
+        {
+            var failures = new List<string>();
+            foreach (Process process in running)
+            {
+                try
+                {
+                    process.Kill();
+                }
+                catch (Exception ex)
+                {
+                    failures.Add(process.Id.ToString(CultureInfo.InvariantCulture) + ": " + ex.Message);
+                }
+            }
+
+            if (failures.Count > 0)
+                throw new Exception("Failed to close RawAccel GUI process(es): " + String.Join("; ", failures.ToArray()));
+
+            return 0;
+        }
+
+        var candidates = new List<string>();
+
+        ProcResult where = Run("where.exe", "rawaccel.exe", null);
+        if (where.ExitCode == 0)
+        {
+            foreach (string line in (where.StdOut ?? "").Replace("\r", "").Split('\n'))
+            {
+                string candidate = line.Trim();
+                if (!String.IsNullOrWhiteSpace(candidate))
+                    candidates.Add(candidate);
+            }
+        }
+
+        string localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        string programFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
+
+        candidates.Add(Path.Combine(localAppData, "RawAccel", "rawaccel.exe"));
+        candidates.Add(Path.Combine(localAppData, "Programs", "RawAccel", "rawaccel.exe"));
+        if (!String.IsNullOrWhiteSpace(programFiles))
+            candidates.Add(Path.Combine(programFiles, "RawAccel", "rawaccel.exe"));
+
+        string exe = candidates.FirstOrDefault(path =>
+            !String.IsNullOrWhiteSpace(path) && File.Exists(path));
+        if (String.IsNullOrWhiteSpace(exe))
+            throw new Exception("RawAccel GUI executable was not found.");
+
+        var psi = new ProcessStartInfo();
+        psi.FileName = exe;
+        psi.WorkingDirectory = Path.GetDirectoryName(exe);
+        psi.UseShellExecute = true;
+        Process started = Process.Start(psi);
+        if (started == null)
+            throw new Exception("RawAccel GUI did not start.");
+
         return 0;
     }
 
@@ -8736,6 +7433,45 @@ class WgdotHidden
         return 0;
     }
 
+    static void SignalMouseModeHookStop()
+    {
+        try
+        {
+            using (var stop = System.Threading.EventWaitHandle.OpenExisting(MouseModeStopEventName))
+                stop.Set();
+        }
+        catch (System.Threading.WaitHandleCannotBeOpenedException)
+        {
+        }
+    }
+
+    static bool NamedMutexExists(string name)
+    {
+        try
+        {
+            using (System.Threading.Mutex mutex = System.Threading.Mutex.OpenExisting(name))
+                return true;
+        }
+        catch (System.Threading.WaitHandleCannotBeOpenedException)
+        {
+            return false;
+        }
+    }
+
+    static void WriteTrackedGlazeBindingMode(string mode)
+    {
+        var state = new Dictionary<string, object>();
+        state["mode"] = (mode ?? "").Trim().ToLowerInvariant();
+        state["updatedAt"] = DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture);
+        WriteJson(GlazeBindingModeStatePath, state);
+    }
+
+    static string ReadTrackedGlazeBindingMode()
+    {
+        Dictionary<string, object> state = ReadJson(GlazeBindingModeStatePath);
+        return state == null ? "" : GetString(state, "mode").Trim().ToLowerInvariant();
+    }
+
     static string GetActiveGlazeWmBindingMode()
     {
         ProcResult result = Run("glazewm.exe", "query binding-modes", null);
@@ -8820,18 +7556,6 @@ class WgdotHidden
                      StringComparison.OrdinalIgnoreCase))
         {
             WriteTrackedGlazeBindingMode("");
-        }
-    }
-
-    static void SignalMouseModeHookStop()
-    {
-        try
-        {
-            using (var stop = System.Threading.EventWaitHandle.OpenExisting(MouseModeStopEventName))
-                stop.Set();
-        }
-        catch (System.Threading.WaitHandleCannotBeOpenedException)
-        {
         }
     }
 
@@ -9119,17 +7843,110 @@ class WgdotHidden
         return new IntPtr(1);
     }
 
-    static bool NamedMutexExists(string name)
+    static int MouseModeHook()
     {
+        bool createdNew;
+        using (var mutex = new System.Threading.Mutex(true, MouseModeMutexName, out createdNew))
+        {
+            if (!createdNew)
+                return 0;
+
+            using (var stop = new System.Threading.EventWaitHandle(
+                false,
+                System.Threading.EventResetMode.ManualReset,
+                MouseModeStopEventName))
+            {
+                stop.Reset();
+
+                MouseModeHookProc = MouseModeHookCallback;
+                MouseModeHookHandle = SetWindowsHookEx(
+                    WhMouseLl,
+                    MouseModeHookProc,
+                    GetModuleHandle(null),
+                    0);
+
+                if (MouseModeHookHandle == IntPtr.Zero)
+                    throw new System.ComponentModel.Win32Exception(
+                        Marshal.GetLastWin32Error(),
+                        "Failed to install WGDot mouse-mode hook.");
+
+                var timer = new System.Windows.Forms.Timer();
+                timer.Interval = 750;
+                timer.Tick += delegate
+                {
+                    if (stop.WaitOne(0) || !GlazeWmBindingModeActive("mouse"))
+                        System.Windows.Forms.Application.ExitThread();
+                };
+
+                try
+                {
+                    timer.Start();
+                    System.Windows.Forms.Application.Run();
+                }
+                finally
+                {
+                    timer.Stop();
+                    timer.Dispose();
+
+                    if (MouseModeHookHandle != IntPtr.Zero)
+                    {
+                        UnhookWindowsHookEx(MouseModeHookHandle);
+                        MouseModeHookHandle = IntPtr.Zero;
+                    }
+
+                    MouseModeResizeTarget = IntPtr.Zero;
+                    MouseModeHookProc = null;
+                }
+            }
+        }
+
+        return 0;
+    }
+
+    static Dictionary<string, object> RequireGlazeWmSuccess(
+        ProcResult result,
+        string operation)
+    {
+        if (result == null)
+            throw new Exception(operation + " failed: no GlazeWM process result.");
+
+        if (result.ExitCode != 0)
+        {
+            string detail = LastUsefulLine((result.StdErr ?? "") + "\n" + (result.StdOut ?? ""));
+            throw new Exception(
+                operation + " failed with exit " +
+                result.ExitCode.ToString(CultureInfo.InvariantCulture) +
+                (String.IsNullOrWhiteSpace(detail) ? "." : ": " + detail));
+        }
+
+        if (String.IsNullOrWhiteSpace(result.StdOut))
+            throw new Exception(operation + " failed: GlazeWM returned no IPC response.");
+
+        Dictionary<string, object> response;
         try
         {
-            using (System.Threading.Mutex mutex = System.Threading.Mutex.OpenExisting(name))
-                return true;
+            response = AsDictionary(Json.DeserializeObject(result.StdOut.Trim()));
         }
-        catch (System.Threading.WaitHandleCannotBeOpenedException)
+        catch (Exception ex)
         {
-            return false;
+            throw new Exception(operation + " failed: invalid GlazeWM IPC JSON: " + ex.Message);
         }
+
+        object rawSuccess;
+        if (!response.TryGetValue("success", out rawSuccess) || !(rawSuccess is bool))
+            throw new Exception(operation + " failed: GlazeWM IPC response is missing a boolean success field.");
+
+        if (!(bool)rawSuccess)
+        {
+            string error = GetString(response, "error");
+            if (String.IsNullOrWhiteSpace(error))
+                error = GetString(response, "clientMessage");
+            if (String.IsNullOrWhiteSpace(error))
+                error = "GlazeWM rejected the request.";
+            throw new Exception(operation + " failed: " + error);
+        }
+
+        return response;
     }
 
     static void SignalSuperLTestStop()
@@ -9332,147 +8149,6 @@ class WgdotHidden
         return 0;
     }
 
-    static int MouseModeHook()
-    {
-        bool createdNew;
-        using (var mutex = new System.Threading.Mutex(true, MouseModeMutexName, out createdNew))
-        {
-            if (!createdNew)
-                return 0;
-
-            using (var stop = new System.Threading.EventWaitHandle(
-                false,
-                System.Threading.EventResetMode.ManualReset,
-                MouseModeStopEventName))
-            {
-                stop.Reset();
-
-                MouseModeHookProc = MouseModeHookCallback;
-                MouseModeHookHandle = SetWindowsHookEx(
-                    WhMouseLl,
-                    MouseModeHookProc,
-                    GetModuleHandle(null),
-                    0);
-
-                if (MouseModeHookHandle == IntPtr.Zero)
-                    throw new System.ComponentModel.Win32Exception(
-                        Marshal.GetLastWin32Error(),
-                        "Failed to install WGDot mouse-mode hook.");
-
-                var timer = new System.Windows.Forms.Timer();
-                timer.Interval = 750;
-                timer.Tick += delegate
-                {
-                    if (stop.WaitOne(0) || !GlazeWmBindingModeActive("mouse"))
-                        System.Windows.Forms.Application.ExitThread();
-                };
-
-                try
-                {
-                    timer.Start();
-                    System.Windows.Forms.Application.Run();
-                }
-                finally
-                {
-                    timer.Stop();
-                    timer.Dispose();
-
-                    if (MouseModeHookHandle != IntPtr.Zero)
-                    {
-                        UnhookWindowsHookEx(MouseModeHookHandle);
-                        MouseModeHookHandle = IntPtr.Zero;
-                    }
-
-                    MouseModeResizeTarget = IntPtr.Zero;
-                    MouseModeHookProc = null;
-                }
-            }
-        }
-
-        return 0;
-    }
-
-    static Dictionary<string, object> RequireGlazeWmSuccess(
-        ProcResult result,
-        string operation)
-    {
-        if (result == null)
-            throw new Exception(operation + " failed: no GlazeWM process result.");
-
-        if (result.ExitCode != 0)
-        {
-            string detail = LastUsefulLine((result.StdErr ?? "") + "\n" + (result.StdOut ?? ""));
-            throw new Exception(
-                operation + " failed with exit " +
-                result.ExitCode.ToString(CultureInfo.InvariantCulture) +
-                (String.IsNullOrWhiteSpace(detail) ? "." : ": " + detail));
-        }
-
-        if (String.IsNullOrWhiteSpace(result.StdOut))
-            throw new Exception(operation + " failed: GlazeWM returned no IPC response.");
-
-        Dictionary<string, object> response;
-        try
-        {
-            response = AsDictionary(Json.DeserializeObject(result.StdOut.Trim()));
-        }
-        catch (Exception ex)
-        {
-            throw new Exception(operation + " failed: invalid GlazeWM IPC JSON: " + ex.Message);
-        }
-
-        object rawSuccess;
-        if (!response.TryGetValue("success", out rawSuccess) || !(rawSuccess is bool))
-            throw new Exception(operation + " failed: GlazeWM IPC response is missing a boolean success field.");
-
-        if (!(bool)rawSuccess)
-        {
-            string error = GetString(response, "error");
-            if (String.IsNullOrWhiteSpace(error))
-                error = GetString(response, "clientMessage");
-            if (String.IsNullOrWhiteSpace(error))
-                error = "GlazeWM rejected the request.";
-            throw new Exception(operation + " failed: " + error);
-        }
-
-        return response;
-    }
-
-    static int GlazeWmReloadConfig()
-    {
-        ProcResult result = Run("glazewm.exe", "command wm-reload-config", null);
-        RequireGlazeWmSuccess(result, "GlazeWM config reload");
-        // Upstream reload clears all active binding modes.
-        WriteTrackedGlazeBindingMode("");
-        return 0;
-    }
-
-    static bool GlazeWmIsPaused()
-    {
-        ProcResult result = Run("glazewm.exe", "query paused", null);
-        Dictionary<string, object> response =
-            RequireGlazeWmSuccess(result, "GlazeWM pause query");
-
-        object data;
-        if (!response.TryGetValue("data", out data) || !(data is bool))
-            throw new Exception("GlazeWM pause query returned invalid pause data.");
-
-        return (bool)data;
-    }
-
-    static int GlazeWmPauseStatus()
-    {
-        if (GlazeWmIsPaused()) Console.Write("PAUSED");
-        return 0;
-    }
-
-    static int GlazeWmPauseToggle()
-    {
-        ProcResult result = Run("glazewm.exe", "command wm-toggle-pause", null);
-        RequireGlazeWmSuccess(result, "GlazeWM pause toggle");
-        return 0;
-    }
-
     static IntPtr FindTopLevelWindowByExactTitle(string title)
     {
         IntPtr found = IntPtr.Zero;
@@ -9498,433 +8174,6 @@ class WgdotHidden
         return hWnd != IntPtr.Zero &&
             DwmGetWindowAttribute(hWnd, DwmwaCloaked, out cloaked, sizeof(int)) == 0 &&
             cloaked != 0;
-    }
-
-    static void CenterWindowOnMonitor(IntPtr window, IntPtr monitor)
-    {
-        if (window == IntPtr.Zero || monitor == IntPtr.Zero)
-            return;
-
-        var info = new MONITORINFO();
-        info.cbSize = (uint)Marshal.SizeOf(typeof(MONITORINFO));
-        RECT rect;
-        if (!GetMonitorInfo(monitor, ref info) || !GetWindowRect(window, out rect))
-            return;
-
-        int width = Math.Max(1, rect.Right - rect.Left);
-        int height = Math.Max(1, rect.Bottom - rect.Top);
-        int workWidth = Math.Max(1, info.rcWork.Right - info.rcWork.Left);
-        int workHeight = Math.Max(1, info.rcWork.Bottom - info.rcWork.Top);
-        int x = info.rcWork.Left + Math.Max(0, (workWidth - width) / 2);
-        int y = info.rcWork.Top + Math.Max(0, (workHeight - height) / 2);
-        MoveWindow(window, x, y, width, height, true);
-    }
-
-    static int LaunchThemeTerminal(IntPtr targetMonitor)
-    {
-        var psi = new ProcessStartInfo();
-        psi.FileName = "wt.exe";
-        psi.Arguments = "-w new --size 72,22 nt --title \"WGDot Themes\" --suppressApplicationTitle wgdot theme";
-        psi.UseShellExecute = true;
-        Process.Start(psi);
-
-        if (targetMonitor != IntPtr.Zero)
-        {
-            for (int i = 0; i < 80; i++)
-            {
-                IntPtr window = FindTopLevelWindowByExactTitle("WGDot Themes");
-                if (window != IntPtr.Zero)
-                {
-                    CenterWindowOnMonitor(window, targetMonitor);
-                    break;
-                }
-                System.Threading.Thread.Sleep(25);
-            }
-        }
-
-        return 0;
-    }
-
-    static int ThemeToggle()
-    {
-        IntPtr foreground = GetForegroundWindow();
-        IntPtr focusedMonitor = foreground == IntPtr.Zero
-            ? IntPtr.Zero
-            : MonitorFromWindow(foreground, MonitorDefaultToNearest);
-
-        IntPtr existing = FindTopLevelWindowByExactTitle("WGDot Themes");
-        if (existing == IntPtr.Zero)
-            return LaunchThemeTerminal(focusedMonitor);
-
-        IntPtr existingMonitor = MonitorFromWindow(existing, MonitorDefaultToNearest);
-
-        // A visible, uncloaked selector on the focused monitor is the same
-        // user-visible location, so Super+T behaves as a true toggle.
-        bool closeOnly =
-            focusedMonitor != IntPtr.Zero &&
-            existingMonitor == focusedMonitor &&
-            !IsDwmCloaked(existing);
-
-        PostMessage(existing, WmClose, IntPtr.Zero, IntPtr.Zero);
-
-        if (closeOnly)
-            return 0;
-
-        // If the old selector lives on another monitor or a cloaked GlazeWM
-        // workspace, close it and spawn exactly one replacement in the
-        // currently focused Windows context.
-        for (int i = 0; i < 20 && IsWindow(existing); i++)
-            System.Threading.Thread.Sleep(25);
-
-        return LaunchThemeTerminal(focusedMonitor);
-    }
-
-    static System.Drawing.Color WgdotDrawingColor(string hex, System.Drawing.Color fallback)
-    {
-        try
-        {
-            return System.Drawing.ColorTranslator.FromHtml(hex);
-        }
-        catch
-        {
-            return fallback;
-        }
-    }
-
-    static void StartShutdownCommand(string arguments)
-    {
-        var psi = new ProcessStartInfo();
-        psi.FileName = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.System),
-            "shutdown.exe");
-        psi.Arguments = arguments;
-        psi.UseShellExecute = false;
-        psi.CreateNoWindow = true;
-        Process.Start(psi);
-    }
-
-    static List<PowerAction> BuildPowerActions()
-    {
-        return new List<PowerAction>
-        {
-            new PowerAction('l', "", "Lock (L)", delegate
-            {
-                if (!LockWorkStation())
-                    throw new Exception("Windows lock request failed.");
-            }),
-            new PowerAction('h', "", "Hibernate (H)", delegate
-            {
-                StartShutdownCommand("/h");
-            }),
-            new PowerAction('r', "", "Reboot (R)", delegate
-            {
-                StartShutdownCommand("/r /t 0");
-            }),
-            new PowerAction('s', "", "Shutdown (S)", delegate
-            {
-                StartShutdownCommand("/s /t 0");
-            }),
-            new PowerAction('o', "", "Sign out (O)", delegate
-            {
-                StartShutdownCommand("/l");
-            }),
-            new PowerAction('z', "", "Sleep (Z)", delegate
-            {
-                if (!SetSuspendState(false, false, false))
-                    throw new Exception("Windows sleep request failed.");
-            })
-        };
-    }
-
-    static void InvokePowerAction(System.Windows.Forms.Form form, PowerAction action)
-    {
-        if (form != null && !form.IsDisposed)
-        {
-            form.Hide();
-            form.Close();
-            System.Windows.Forms.Application.DoEvents();
-        }
-
-        if (action != null && action.Invoke != null)
-            action.Invoke();
-    }
-
-    static System.Windows.Forms.Control CreatePowerTile(
-        System.Windows.Forms.Form form,
-        PowerAction action,
-        System.Drawing.Color foreground,
-        System.Drawing.Color background,
-        System.Drawing.Color hover)
-    {
-        var tile = new System.Windows.Forms.Panel();
-        tile.Dock = System.Windows.Forms.DockStyle.Fill;
-        tile.Margin = new System.Windows.Forms.Padding(8);
-        tile.BackColor = background;
-        tile.Cursor = System.Windows.Forms.Cursors.Hand;
-
-        var grid = new System.Windows.Forms.TableLayoutPanel();
-        grid.Dock = System.Windows.Forms.DockStyle.Fill;
-        grid.ColumnCount = 1;
-        grid.RowCount = 2;
-        grid.Margin = new System.Windows.Forms.Padding(0);
-        grid.Padding = new System.Windows.Forms.Padding(0);
-        grid.BackColor = System.Drawing.Color.Transparent;
-        grid.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 65f));
-        grid.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 35f));
-
-        var icon = new System.Windows.Forms.Label();
-        icon.Text = action.Icon;
-        icon.Dock = System.Windows.Forms.DockStyle.Fill;
-        icon.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
-        icon.ForeColor = foreground;
-        icon.BackColor = System.Drawing.Color.Transparent;
-        icon.Font = new System.Drawing.Font("JetBrainsMono NFP", 42f, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel);
-        icon.Cursor = System.Windows.Forms.Cursors.Hand;
-
-        var label = new System.Windows.Forms.Label();
-        label.Text = action.Label;
-        label.Dock = System.Windows.Forms.DockStyle.Fill;
-        label.TextAlign = System.Drawing.ContentAlignment.TopCenter;
-        label.ForeColor = foreground;
-        label.BackColor = System.Drawing.Color.Transparent;
-        label.Font = new System.Drawing.Font("JetBrainsMono NFP", 17f, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Pixel);
-        label.Cursor = System.Windows.Forms.Cursors.Hand;
-
-        grid.Controls.Add(icon, 0, 0);
-        grid.Controls.Add(label, 0, 1);
-        tile.Controls.Add(grid);
-
-        EventHandler enter = delegate { tile.BackColor = hover; };
-        EventHandler leave = delegate { tile.BackColor = background; };
-        EventHandler click = delegate { InvokePowerAction(form, action); };
-
-        foreach (System.Windows.Forms.Control control in new System.Windows.Forms.Control[] { tile, grid, icon, label })
-        {
-            control.MouseEnter += enter;
-            control.MouseLeave += leave;
-            control.Click += click;
-        }
-
-        return tile;
-    }
-
-    static int PowerMenu()
-    {
-        const string title = "WGDot Power Menu";
-        IntPtr existing = FindTopLevelWindowByExactTitle(title);
-        if (existing != IntPtr.Zero)
-        {
-            PostMessage(existing, WmClose, IntPtr.Zero, IntPtr.Zero);
-            return 0;
-        }
-
-        YasbTheme theme = FindYasbTheme(CurrentYasbThemeId()) ?? YasbThemes[0];
-        System.Drawing.Color background = WgdotDrawingColor(theme.Background, System.Drawing.Color.FromArgb(53, 53, 53));
-        System.Drawing.Color foreground = WgdotDrawingColor(theme.Foreground, System.Drawing.Color.Gainsboro);
-        System.Drawing.Color tileBackground = WgdotDrawingColor(theme.Active, System.Drawing.Color.FromArgb(43, 43, 43));
-        System.Drawing.Color tileHover = WgdotDrawingColor(theme.Hover, System.Drawing.Color.FromArgb(64, 64, 64));
-
-        IntPtr foregroundWindow = GetForegroundWindow();
-        System.Windows.Forms.Screen screen = foregroundWindow == IntPtr.Zero
-            ? System.Windows.Forms.Screen.PrimaryScreen
-            : System.Windows.Forms.Screen.FromHandle(foregroundWindow);
-
-        var form = new System.Windows.Forms.Form();
-        form.Text = title;
-        form.FormBorderStyle = System.Windows.Forms.FormBorderStyle.None;
-        form.StartPosition = System.Windows.Forms.FormStartPosition.Manual;
-        form.Bounds = screen.Bounds;
-        form.TopMost = true;
-        form.ShowInTaskbar = false;
-        form.KeyPreview = true;
-        form.BackColor = background;
-        form.Opacity = 0.92;
-        form.Cursor = System.Windows.Forms.Cursors.Default;
-
-        int gridWidth = Math.Min(1000, Math.Max(690, (int)(screen.Bounds.Width * 0.58)));
-        int gridHeight = Math.Min(500, Math.Max(360, (int)(screen.Bounds.Height * 0.43)));
-
-        var grid = new System.Windows.Forms.TableLayoutPanel();
-        grid.ColumnCount = 3;
-        grid.RowCount = 2;
-        grid.Size = new System.Drawing.Size(gridWidth, gridHeight);
-        grid.Location = new System.Drawing.Point(
-            Math.Max(0, (screen.Bounds.Width - gridWidth) / 2),
-            Math.Max(0, (screen.Bounds.Height - gridHeight) / 2));
-        grid.BackColor = System.Drawing.Color.Transparent;
-        grid.Margin = new System.Windows.Forms.Padding(0);
-        grid.Padding = new System.Windows.Forms.Padding(0);
-        for (int i = 0; i < 3; i++)
-            grid.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 33.333f));
-        for (int i = 0; i < 2; i++)
-            grid.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 50f));
-
-        List<PowerAction> actions = BuildPowerActions();
-        for (int i = 0; i < actions.Count; i++)
-            grid.Controls.Add(CreatePowerTile(form, actions[i], foreground, tileBackground, tileHover), i % 3, i / 3);
-
-        form.Controls.Add(grid);
-
-        form.KeyDown += delegate(object sender, System.Windows.Forms.KeyEventArgs e)
-        {
-            if (e.KeyCode == System.Windows.Forms.Keys.Escape)
-            {
-                form.Close();
-                e.Handled = true;
-                return;
-            }
-
-            char typed = Char.ToLowerInvariant((char)e.KeyValue);
-            PowerAction action = actions.FirstOrDefault(x => x.Key == typed);
-            if (action != null)
-            {
-                e.Handled = true;
-                InvokePowerAction(form, action);
-            }
-        };
-
-        form.MouseDown += delegate(object sender, System.Windows.Forms.MouseEventArgs e)
-        {
-            form.Close();
-        };
-
-        System.Windows.Forms.Application.EnableVisualStyles();
-        System.Windows.Forms.Application.Run(form);
-        return 0;
-    }
-
-    static int OpenEarTrumpetMixer()
-    {
-        if (Process.GetProcessesByName("EarTrumpet").Length == 0)
-        {
-            RestartEarTrumpet();
-            for (int i = 0; i < 40 && Process.GetProcessesByName("EarTrumpet").Length == 0; i++)
-                System.Threading.Thread.Sleep(100);
-            System.Threading.Thread.Sleep(500);
-        }
-
-        // Match Awtarchy's Super+V alias without mixing the still-held Super
-        // modifier into EarTrumpet's native Alt+V hotkey.
-        WaitForWindowsModifierRelease();
-        keybd_event(VkMenu, 0, 0, UIntPtr.Zero);
-        keybd_event(VkV, 0, 0, UIntPtr.Zero);
-        keybd_event(VkV, 0, KeyeventfKeyup, UIntPtr.Zero);
-        keybd_event(VkMenu, 0, KeyeventfKeyup, UIntPtr.Zero);
-        return 0;
-    }
-
-    static bool RestoreLegacyFlowHotkey(
-        Dictionary<string, object> settings,
-        Dictionary<string, object> original)
-    {
-        if (settings == null || original == null)
-            return false;
-
-        if (!String.Equals(
-                GetString(settings, "Hotkey"),
-                "Alt + P",
-                StringComparison.OrdinalIgnoreCase))
-            return false;
-
-        object rawExists;
-        if (!original.TryGetValue("exists", out rawExists) || rawExists == null)
-            return false;
-
-        bool existed;
-        try
-        {
-            existed = Convert.ToBoolean(rawExists);
-        }
-        catch
-        {
-            return false;
-        }
-
-        if (!existed)
-        {
-            settings.Remove("Hotkey");
-            return true;
-        }
-
-        string originalValue = GetString(original, "value");
-        if (String.IsNullOrWhiteSpace(originalValue) ||
-            String.Equals(originalValue, "Alt + P", StringComparison.OrdinalIgnoreCase))
-            return false;
-
-        settings["Hotkey"] = originalValue;
-        return true;
-    }
-
-    static void ApplyFlowLauncherAltP(bool enable)
-    {
-        const string originalKey = "flow-launcher-alt-p|Hotkey";
-        string settingsPath = GetFlowLauncherSettingsPath();
-        string exe = FindFlowLauncherExe();
-        bool wasRunning = Process.GetProcessesByName("Flow.Launcher").Length > 0;
-        bool initializedHere = false;
-
-        if (enable && !File.Exists(settingsPath))
-        {
-            if (String.IsNullOrWhiteSpace(exe))
-                throw new Exception("Flow Launcher is installed/selected but its executable could not be found.");
-
-            StartFlowLauncher(exe);
-            initializedHere = true;
-
-            for (int i = 0; i < 40 && !File.Exists(settingsPath); i++)
-                System.Threading.Thread.Sleep(250);
-
-            if (!File.Exists(settingsPath))
-                throw new Exception("Flow Launcher did not create its settings file after launch.");
-        }
-
-        if (!File.Exists(settingsPath))
-        {
-            Console.WriteLine("Flow Launcher settings are not present; nothing to restore.");
-            return;
-        }
-
-        StopProcessesByName("Flow.Launcher");
-
-        var settings = ReadJson(settingsPath);
-        if (settings == null)
-            throw new Exception("Flow Launcher settings JSON could not be read.");
-
-        if (enable)
-        {
-            bool existed = settings.ContainsKey("Hotkey");
-            CaptureExternalSettingOriginal(
-                originalKey,
-                existed,
-                existed ? GetString(settings, "Hotkey") : "");
-
-            CreateBackup(settingsPath, "tweak-flow-launcher");
-            settings["Hotkey"] = "Alt + P";
-            WriteJson(settingsPath, settings);
-            Console.WriteLine("Flow Launcher hotkey set to Alt+P.");
-        }
-        else
-        {
-            var original = GetExternalSettingOriginal(originalKey);
-            if (original == null)
-            {
-                Console.WriteLine("No pre-WGDot Flow Launcher hotkey snapshot exists; leaving current setting unchanged.");
-            }
-            else if (RestoreLegacyFlowHotkey(settings, original))
-            {
-                CreateBackup(settingsPath, "tweak-flow-launcher");
-                WriteJson(settingsPath, settings);
-                Console.WriteLine("Flow Launcher hotkey restored to its pre-WGDot value.");
-            }
-            else
-            {
-                Console.WriteLine(
-                    "Flow Launcher hotkey is no longer the WGDot-owned Alt+P value; leaving it unchanged.");
-            }
-        }
-
-        if (wasRunning || initializedHere || enable)
-            StartFlowLauncher(exe);
     }
 
     static string EnsureEarTrumpetStorageHelper()
@@ -9988,9 +8237,9 @@ public static class Program
             return 0;
         }
 
-        if (args[0] == ""set-alt-v"")
+        if (args[0] == ""set-win-v"")
         {
-            var hotkey = new HotkeyData { Modifiers = Keys.Alt, Key = Keys.V };
+            var hotkey = new HotkeyData { Modifiers = Keys.LWin, Key = Keys.V };
             var serializer = new XmlSerializer(typeof(HotkeyData));
             using (var writer = new StringWriter())
             {
@@ -10135,9 +8384,9 @@ public static class Program
         Process.Start(psi);
     }
 
-    static void ApplyEarTrumpetMixerAltV(bool enable)
+    static void ApplyEarTrumpetMixerSuperV(bool enable)
     {
-        const string originalKey = "eartrumpet-mixer-alt-v|MixerHotkey";
+        const string originalKey = "eartrumpet-mixer-alt-v|MixerHotkey"; // preserve existing snapshot ownership key
         string helper = EnsureEarTrumpetStorageHelper();
         bool wasRunning = StopProcessesByName("EarTrumpet");
 
@@ -10151,11 +8400,11 @@ public static class Program
             bool existed = !String.Equals(original, "__MISSING__", StringComparison.Ordinal);
             CaptureExternalSettingOriginal(originalKey, existed, existed ? original : "");
 
-            ProcResult set = Run(helper, "set-alt-v", null);
+            ProcResult set = Run(helper, "set-win-v", null);
             if (set.ExitCode != 0)
                 throw new Exception("Could not set EarTrumpet mixer hotkey.");
 
-            Console.WriteLine("EarTrumpet Open Mixer hotkey set to Alt+V.");
+            Console.WriteLine("EarTrumpet Open Mixer hotkey set to Super+V.");
             RestartEarTrumpet();
             return;
         }
@@ -11153,6 +9402,16 @@ public static class Program
         InstallationSelection selection,
         SourceContext source)
     {
+        ApplyPlan(plan, manifest, selection, source, false);
+    }
+
+    static void ApplyPlan(
+        List<PlanItem> plan,
+        Dictionary<string, object> manifest,
+        InstallationSelection selection,
+        SourceContext source,
+        bool dotsOnly)
+    {
         foreach (PlanItem item in plan)
         {
             if (item.Action == "NONE" || item.Action == "PRESERVE") continue;
@@ -11170,8 +9429,9 @@ public static class Program
             AtomicCopy(item.Target, item.Destination, item.Validator);
         }
 
-        ShowMigrations(manifest, selection, false);
-        RunPostActions(manifest, selection);
+        if (!dotsOnly)
+            ShowMigrations(manifest, selection, false);
+        RunPostActions(manifest, selection, dotsOnly);
         CommitBaseline(plan, source, selection);
     }
 
@@ -11408,7 +9668,17 @@ public static class Program
         return raw.IndexOf(fragment, StringComparison.OrdinalIgnoreCase) >= 0;
     }
 
-    static void RunPostActions(Dictionary<string, object> manifest, InstallationSelection selection)
+    static bool IsDotsOnlyPostAction(string type)
+    {
+        // Strict config-only migration copies managed files only. Desktop runtime
+        // behavior is implemented by the copied configs/scripts, not WGDot post-actions.
+        return false;
+    }
+
+    static void RunPostActions(
+        Dictionary<string, object> manifest,
+        InstallationSelection selection,
+        bool dotsOnly)
     {
         var selected = new HashSet<string>(selection.Components, StringComparer.OrdinalIgnoreCase);
 
@@ -11421,6 +9691,14 @@ public static class Program
             {
                 var post = AsDictionary(rawPost);
                 string type = GetString(post, "type");
+
+                if (dotsOnly && !IsDotsOnlyPostAction(type))
+                {
+                    Console.ForegroundColor = ConsoleColor.DarkGray;
+                    Console.WriteLine("Dots-only: skipped non-file post-action " + type + ".");
+                    Console.ResetColor();
+                    continue;
+                }
 
                 if (String.Equals(type, "set-yazi-file-one", StringComparison.OrdinalIgnoreCase))
                 {
@@ -11468,24 +9746,6 @@ public static class Program
                 else if (String.Equals(type, "migrate-legacy-windows-hotkeys", StringComparison.OrdinalIgnoreCase))
                 {
                     MigrateLegacyWindowsShellHotkeys(true);
-                }
-                else if (String.Equals(type, "ensure-desktop-worker", StringComparison.OrdinalIgnoreCase))
-                {
-                    StartDesktopWorkerIfNeeded();
-                }
-                else if (String.Equals(type, "ensure-hidden-launcher", StringComparison.OrdinalIgnoreCase))
-                {
-                    EnsureHiddenLauncher();
-                }
-                else if (String.Equals(type, "ensure-yasb-theme", StringComparison.OrdinalIgnoreCase))
-                {
-                    // styles.css imports theme.css. Generate the remembered palette
-                    // during every YASB apply so a fresh install never starts with
-                    // a missing import, while preserving the user's selected theme.
-                    string themeId = CurrentYasbThemeId();
-                    if (ApplyYasbTheme(themeId) != 0)
-                        throw new Exception("Failed to generate the YASB theme stylesheet.");
-                    EnsureYasbAppearance();
                 }
                 else if (String.Equals(type, "ensure-cursor-theme", StringComparison.OrdinalIgnoreCase))
                 {
@@ -13700,14 +11960,6 @@ public static class Program
             if (String.IsNullOrWhiteSpace(expanded) || expanded.IndexOf("wgdot", StringComparison.OrdinalIgnoreCase) < 0)
                 throw new Exception("Environment expansion self-test failed.");
 
-            int expectedInputSize = IntPtr.Size == 8 ? 40 : 28;
-            if (Marshal.SizeOf(typeof(INPUT)) != expectedInputSize)
-                throw new Exception(
-                    "Win32 INPUT layout self-test failed. Expected " +
-                    expectedInputSize.ToString(CultureInfo.InvariantCulture) +
-                    " bytes, got " +
-                    Marshal.SizeOf(typeof(INPUT)).ToString(CultureInfo.InvariantCulture) +
-                    ".");
 
             string runtimeCopySource = Path.Combine(temp, "runtime-copy-source.bin");
             string runtimeCopyDestination = Path.Combine(temp, "runtime-copy-destination.bin");

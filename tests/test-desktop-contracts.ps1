@@ -1,22 +1,38 @@
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version 2.0
+
 $repo = Split-Path -Parent $PSScriptRoot
 $temp = Join-Path ([IO.Path]::GetTempPath()) ('wgdot-desktop-' + [guid]::NewGuid().ToString('N'))
 $savedPath = $env:PATH
 $savedRoot = $env:WGDOT_TEST_ROOT
-$savedResponse = $env:WGDOT_FIXTURE_RESPONSE
 $savedWindir = $env:WINDIR
 $originalDirectory = [Environment]::CurrentDirectory
 $csc = Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319\csc.exe'
 if (-not (Test-Path $csc)) { $csc = Join-Path $env:WINDIR 'Microsoft.NET\Framework\v4.0.30319\csc.exe' }
+
 $failures = New-Object 'System.Collections.Generic.List[string]'
+
 function Check($name, [scriptblock]$test) {
-    try { & $test; Write-Host ('PASS: ' + $name) }
-    catch { $failures.Add($name + ': ' + $_.Exception.Message); Write-Host ('FAIL: ' + $name + ': ' + $_.Exception.Message) }
+    try {
+        & $test
+        Write-Host ('PASS: ' + $name)
+    }
+    catch {
+        $failures.Add($name + ': ' + $_.Exception.Message)
+        Write-Host ('FAIL: ' + $name + ': ' + $_.Exception.Message)
+    }
 }
-function Require([bool]$condition, [string]$message) { if (-not $condition) { throw $message } }
+
+function Require([bool]$condition, [string]$message) {
+    if (-not $condition) { throw $message }
+}
+
+function Get-NativeMethod([string]$name) {
+    return $script:native.GetMethod($name, [Reflection.BindingFlags]'Static,NonPublic')
+}
+
 function Invoke-Native([string]$name, [object[]]$arguments = @()) {
-    $method = $script:native.GetMethod($name, [Reflection.BindingFlags]'Static,NonPublic')
+    $method = Get-NativeMethod $name
     if ($null -eq $method) { throw ('Missing native method: ' + $name) }
 
     $invokeArguments = @(
@@ -29,112 +45,185 @@ function Invoke-Native([string]$name, [object[]]$arguments = @()) {
     try { return $method.Invoke($null, [object[]]$invokeArguments) }
     catch [Reflection.TargetInvocationException] { throw $_.Exception.InnerException }
 }
-function Expect-Failure([scriptblock]$action, [string]$expected) {
-    $message = ''
-    try { & $action | Out-Null } catch { $message = $_.Exception.Message }
-    Require ($message -like ('*' + $expected + '*')) ('Expected failure containing ' + $expected + ', got: ' + $message)
-}
+
 try {
     New-Item -ItemType Directory -Path $temp | Out-Null
     $env:WGDOT_TEST_ROOT = $temp
+
     $source = Join-Path $repo 'wgdot\wgdot-native.cs'
+    $nativeSource = Get-Content -LiteralPath $source -Raw -Encoding UTF8
     $assembly = Join-Path $temp 'wgdot.exe'
+
     & $csc /nologo /target:exe "/out:$assembly" /r:System.Web.Extensions.dll /r:System.IO.Compression.dll /r:System.IO.Compression.FileSystem.dll /r:System.Xml.dll /r:System.Windows.Forms.dll /r:System.Drawing.dll $source
     Require ($LASTEXITCODE -eq 0) 'Native compilation failed'
     $script:native = [Reflection.Assembly]::LoadFile($assembly).GetType('WgdotNative')
-    $fakeSource = Join-Path $temp 'glazewm.cs'
-    @'
-using System;
-class FakeGlaze {
-    static int Main(string[] args) {
-        string command = String.Join(" ", args);
-        if (command != "query paused" &&
-            command != "query binding-modes" &&
-            command != "command wm-toggle-pause" &&
-            command != "command wm-disable-binding-mode --name mouse" &&
-            command != "command wm-enable-binding-mode --name mouse" &&
-            command != "command wm-disable-binding-mode --name noalt" &&
-            command != "command wm-enable-binding-mode --name noalt" &&
-            command != "command wm-disable-binding-mode --name vm" &&
-            command != "command wm-enable-binding-mode --name vm") return 64;
-        Console.WriteLine(Environment.GetEnvironmentVariable("WGDOT_FIXTURE_RESPONSE"));
-        return 0;
+
+    Check 'hybrid WGDot runtime exposes only approved custom helpers' {
+        foreach ($name in @(
+            'EnsureHiddenLauncher',
+            'ThemeManagerFromArgs',
+            'IdleInhibitorStatus',
+            'IdleInhibitorToggle',
+            'IdleInhibitorWorker',
+            'BarAutoHideToggle',
+            'MouseModeToggle',
+            'GlazeWmBindingModeToggleFromArgs',
+            'RawAccelToggle'
+        )) {
+            Require ($null -ne (Get-NativeMethod $name)) ('Approved scoped native desktop helper is missing: ' + $name)
+        }
+
+        foreach ($name in @(
+            'ShouldSurfaceDesktopHelperFailure',
+            'ReportDesktopHelperFailure',
+            'OpenFlowLauncher',
+            'OpenYasbQuickLaunch',
+            'OpenWindowsClipboardHistory',
+            'OpenFlameshotGui',
+            'OpenRawAccel',
+            'OpenDisplaySettings',
+            'GlazeWmReloadConfig',
+            'GlazeWmIsPaused',
+            'GlazeWmPauseStatus',
+            'GlazeWmPauseToggle',
+            'ThemeToggle',
+            'PowerMenu',
+            'OpenEarTrumpetMixer',
+            'RestoreLegacyFlowHotkey',
+            'ApplyFlowLauncherAltP'
+        )) {
+            Require ($null -eq (Get-NativeMethod $name)) ('Native-capable desktop helper must stay absent: ' + $name)
+        }
     }
-}
-'@ | Set-Content -LiteralPath $fakeSource -Encoding UTF8
-    & $csc /nologo /target:exe "/out:$(Join-Path $temp 'glazewm.exe')" $fakeSource
-    Require ($LASTEXITCODE -eq 0) 'IPC fixture compilation failed'
-    $env:PATH = $temp + ';' + $savedPath
-    [Environment]::CurrentDirectory = $temp
-    Check 'hidden launcher and clipboard helpers surface failures' {
-        Require ([bool](Invoke-Native 'ShouldSurfaceDesktopHelperFailure' @('quick-launch'))) 'Quick Launch failure stayed hidden'
-        Require ([bool](Invoke-Native 'ShouldSurfaceDesktopHelperFailure' @('clipboard-history'))) 'Clipboard failure stayed hidden'
-        Require ([bool](Invoke-Native 'ShouldSurfaceDesktopHelperFailure' @('mouse-mode-toggle'))) 'Mouse-mode toggle failure stayed hidden'
-        Require ([bool](Invoke-Native 'ShouldSurfaceDesktopHelperFailure' @('mouse-mode-disable'))) 'Mouse-mode escape failure stayed hidden'
-        Require (-not [bool](Invoke-Native 'ShouldSurfaceDesktopHelperFailure' @('status'))) 'Normal status command should not show desktop error UI'
+
+    Check 'legacy runtime replacement stop signals are preserved' {
+        foreach ($name in @('SignalIdleInhibitorStop', 'SignalMouseModeHookStop', 'SignalDesktopWorkerStop')) {
+            Require ($null -ne (Get-NativeMethod $name)) ('Legacy cleanup signal is missing: ' + $name)
+        }
+        Require ($nativeSource -match 'Local\\WGDot\.IdleInhibitor') 'Legacy idle-inhibitor mutex identity changed'
+        Require ($nativeSource -match 'Local\\WGDot\.MouseModeHook') 'Legacy mouse-mode mutex identity changed'
+        Require ($nativeSource -match 'Local\\WGDot\.DesktopWorker') 'Legacy desktop-worker mutex identity changed'
     }
-    Check 'GlazeWM rejected command is not treated as success even with exit zero' {
-        $env:WGDOT_FIXTURE_RESPONSE = '{"clientMessage":"command wm-toggle-pause","data":null,"error":"fixture denied","success":false}'
-        Expect-Failure { Invoke-Native 'GlazeWmPauseToggle' } 'fixture denied'
+
+    Check 'Super+L remains development-only native testing support' {
+        Require ($null -ne (Get-NativeMethod 'SuperLTestFromArgs')) 'super-l-test command implementation is missing'
+        Require ($null -ne (Get-NativeMethod 'SuperLHookWorker')) 'super-l-hook worker implementation is missing'
     }
-    Check 'unknown pause state is not silently treated as running' {
-        $env:WGDOT_FIXTURE_RESPONSE = '{"clientMessage":"query paused","data":null,"error":"fixture disconnected","success":false}'
-        Expect-Failure { Invoke-Native 'GlazeWmIsPaused' } 'fixture disconnected'
+
+    $desktopRuntimeFiles = @(
+        'UserProfile/.glzr/glazewm/config.yaml',
+        'UserProfile/.glzr/glazewm/custom_work_config.yaml',
+        'UserProfile/.config/yasb/config.yaml',
+        'UserProfile/.config/yasb/custom_work_config.yaml'
+    )
+
+    Check 'managed desktop runtime obeys hybrid ownership boundary' {
+        foreach ($relative in $desktopRuntimeFiles) {
+            $path = Join-Path $repo ($relative -replace '/', '\')
+            Require (Test-Path -LiteralPath $path -PathType Leaf) ('Missing managed desktop runtime file: ' + $relative)
+            $text = Get-Content -LiteralPath $path -Raw -Encoding UTF8
+            Require ($text -notmatch '\.ps1') ('Desktop runtime depends on a PowerShell script file: ' + $relative)
+            Require ($text -notmatch '(?i)wgdotw?\.exe\s+(?:quick-launch|flow-open|eartrumpet-mixer|clipboard-history|flameshot-gui|display-settings|power-menu)') ('Native-capable action routed through WGDot in: ' + $relative)
+        }
+
+        $normalGlaze = Get-Content -LiteralPath (Join-Path $repo 'UserProfile\.glzr\glazewm\config.yaml') -Raw -Encoding UTF8
+        $workGlaze = Get-Content -LiteralPath (Join-Path $repo 'UserProfile\.glzr\glazewm\custom_work_config.yaml') -Raw -Encoding UTF8
+        $normalYasb = Get-Content -LiteralPath (Join-Path $repo 'UserProfile\.config\yasb\config.yaml') -Raw -Encoding UTF8
+        $workYasb = Get-Content -LiteralPath (Join-Path $repo 'UserProfile\.config\yasb\custom_work_config.yaml') -Raw -Encoding UTF8
+        foreach ($text in @($normalGlaze, $workGlaze, $normalYasb, $workYasb)) {
+            Require ($text -notmatch '\.ps1') 'Normal and Work desktop runtime configs must contain zero .ps1 references'
+        }
     }
-    Check 'malformed pause data fails closed' {
-        $env:WGDOT_FIXTURE_RESPONSE = '{"clientMessage":"query paused","data":{},"error":null,"success":true}'
-        Expect-Failure { Invoke-Native 'GlazeWmIsPaused' } 'pause'
+
+    Check 'GlazeWM owns modes pause and desktop launch paths directly' {
+        foreach ($relative in @(
+            'UserProfile/.glzr/glazewm/config.yaml',
+            'UserProfile/.glzr/glazewm/custom_work_config.yaml'
+        )) {
+            $text = Get-Content -LiteralPath (Join-Path $repo ($relative -replace '/', '\')) -Raw -Encoding UTF8
+            Require ($text -match 'wm-enable-binding-mode --name noalt') ('NoAlt native transition missing: ' + $relative)
+            Require ($text -match 'wm-enable-binding-mode --name vm') ('VM native transition missing: ' + $relative)
+            Require ($text -match 'name:\s*"mouse"') ('Native mouse binding mode missing: ' + $relative)
+            Require ($text -match 'wgdotw\.exe mouse-mode-toggle') ('Scoped mouse-mode helper missing: ' + $relative)
+            Require ($text -match 'bindings:\s*\["lwin\+alt\+m",\s*"rwin\+alt\+m"\]') ('Super+Alt+M mouse binding missing: ' + $relative)
+            Require ($text -match 'wm-disable-binding-mode --name') ('Native mode escape missing: ' + $relative)
+            Require ($text -match 'wm-toggle-pause') ('Native pause binding missing: ' + $relative)
+            Require ($text -match 'flameshot\.exe gui') ('Direct Flameshot launch missing: ' + $relative)
+            Require ($text -match 'wgdot\.exe theme') ('Compiled theme implementation missing: ' + $relative)
+            Require ($text -match 'wgdotw\.exe bar-autohide-toggle') ('Compiled coordinated auto-hide implementation missing: ' + $relative)
+            Require ($text -match 'wgdotw\.exe rawaccel-toggle') ('Scoped RawAccel toggle missing: ' + $relative)
+            Require ($text -match 'bindings:\s*\["lwin\+shift\+m",\s*"rwin\+shift\+m"\]') ('Super+Shift+M RawAccel binding missing: ' + $relative)
+            Require ($text -notmatch 'bindings:\s*\["alt\+shift\+m"') ('RawAccel must not capture Alt+Shift+M: ' + $relative)
+            Require ($text -notmatch 'wgdotw?\.exe\s+(?:quick-launch|flow-open|eartrumpet-mixer|clipboard-history|flameshot-gui|display-settings|power-menu)') ('Native-capable action routed through WGDot: ' + $relative)
+        }
     }
-    Check 'real GlazeWM bool pause payload is understood in both states' {
-        $env:WGDOT_FIXTURE_RESPONSE = '{"clientMessage":"query paused","data":true,"error":null,"success":true}'
-        Require ([bool](Invoke-Native 'GlazeWmIsPaused')) 'Paused was lost'
-        $env:WGDOT_FIXTURE_RESPONSE = '{"clientMessage":"query paused","data":false,"error":null,"success":true}'
-        Require (-not [bool](Invoke-Native 'GlazeWmIsPaused')) 'Running was lost'
+
+    Check 'YASB owns native widget integrations' {
+        foreach ($relative in @(
+            'UserProfile/.config/yasb/config.yaml',
+            'UserProfile/.config/yasb/custom_work_config.yaml'
+        )) {
+            $text = Get-Content -LiteralPath (Join-Path $repo ($relative -replace '/', '\')) -Raw -Encoding UTF8
+            Require ($text -match 'yasb\.power_menu\.PowerMenuWidget') ('Native power menu missing: ' + $relative)
+            Require ($text -match 'menu_style:\s*"popup"') ('Native power menu popup mode missing: ' + $relative)
+            Require ($text -match 'keys:\s*"win\+p"[\s\S]*?action:\s*"toggle_power_menu"') ('Win+P does not use the native YASB power menu: ' + $relative)
+            Require ($text -match 'on_left:\s*"toggle_power_menu"') ('Power icon left click does not use native YASB toggle: ' + $relative)
+            Require ($text -match 'on_left:\s*"disable_binding_mode"') ('Binding-mode label does not disable the active mode: ' + $relative)
+            Require ($text -match 'on_right:\s*"disable_binding_mode"') ('Binding-mode label right click does not disable the active mode: ' + $relative)
+            Require ($text -match 'on_middle:\s*"do_nothing"') ('Binding-mode label middle click must do nothing: ' + $relative)
+            Require ($text -notmatch 'next_binding_mode') ('Binding-mode label must not cycle modes: ' + $relative)
+            Require ($text -match 'wgdotw\.exe mouse-mode-toggle') ('Mouse icon does not toggle the scoped mouse helper: ' + $relative)
+            Require ($text -notmatch 'wgdotw?\.exe power-menu') ('Power menu was incorrectly routed through WGDot: ' + $relative)
+            Require ($text -match 'glazewm\.binding_mode\.GlazewmBindingModeWidget') ('Native binding-mode widget missing: ' + $relative)
+            Require ($text -notmatch 'keys:\s*"f24"') ('Synthetic F24 Quick Launch relay returned: ' + $relative)
+            Require ($text -match 'binding_modes_to_cycle_through:\s*\["none",\s*"noalt",\s*"mouse",\s*"vm"\]') ('YASB binding-mode widget does not expose mouse mode: ' + $relative)
+            Require ($text -match 'class_name:\s*"workspace-mouse-hub"') ('Passive workspace mouse icon missing: ' + $relative)
+            Require ($text -notmatch 'border_color:\s*None') ('Invalid null popup border_color returned: ' + $relative)
+            Require ($text -notmatch 'cmd\.exe /c start ms-settings') ('YASB settings callback spawns cmd.exe: ' + $relative)
+            Require ($text -notmatch 'glazewm-pause-status|glazewm-pause-toggle') ('Retired pause helper reference returned: ' + $relative)
+        }
     }
-    Check 'binding-mode query reads the real GlazeWM response shape' {
-        $env:WGDOT_FIXTURE_RESPONSE = '{"clientMessage":"query binding-modes","data":{"bindingModes":[{"name":"mouse","keybindings":[]}]},"error":null,"success":true}'
-        Require ([bool](Invoke-Native 'GlazeWmBindingModeActive' @('mouse'))) 'Active mouse mode was missed'
-        Require (-not [bool](Invoke-Native 'GlazeWmBindingModeActive' @('vm'))) 'Inactive VM mode was reported active'
+
+    Check 'Flow launcher migration no longer owns Alt+P globally' {
+        Require ($nativeSource -notmatch 'ApplyFlowLauncherAltP|RestoreLegacyFlowHotkey') 'Retired Flow hotkey implementation remains'
+        Require ($nativeSource -match 'result\.Tweaks\.RemoveAll\(x => String\.Equals\(x, "flow-launcher-alt-p"') 'Saved selections no longer retire the old Flow hotkey tweak'
     }
-    Check 'binding-mode IPC rejection fails closed' {
-        $env:WGDOT_FIXTURE_RESPONSE = '{"clientMessage":"query binding-modes","data":null,"error":"fixture mode query denied","success":false}'
-        Expect-Failure { Invoke-Native 'GlazeWmBindingModeActive' @('mouse') } 'fixture mode query denied'
-        $env:WGDOT_FIXTURE_RESPONSE = '{"clientMessage":"command wm-disable-binding-mode --name mouse","data":null,"error":"fixture mode disable denied","success":false}'
-        Expect-Failure { Invoke-Native 'MouseModeDisable' } 'fixture mode disable denied'
+
+    Check 'launcher bindings avoid relay scripts and synthetic keys' {
+        $normal = Get-Content -LiteralPath (Join-Path $repo 'UserProfile\.glzr\glazewm\config.yaml') -Raw -Encoding UTF8
+        $work = Get-Content -LiteralPath (Join-Path $repo 'UserProfile\.glzr\glazewm\custom_work_config.yaml') -Raw -Encoding UTF8
+        foreach ($text in @($normal, $work)) {
+            Require ($text -notmatch 'flow-launcher\.ps1|yasb-quick-launch\.ps1') 'Launcher relay script returned to GlazeWM'
+        }
+        Require ($work -match 'shell-exec %LOCALAPPDATA%/FlowLauncher/Flow\.Launcher\.exe') 'Work Alt+P no longer launches Flow directly'
+        Require ($work -match 'bindings:\s*\["alt\+p"\]') 'Work Alt+P binding is missing'
+        Require ($work -notmatch 'bindings:\s*\["lwin\+d",\s*"rwin\+d"\]') 'Work Super+D synthetic YASB relay returned'
     }
-    Check 'quick-settings binding-mode toggle is exposed' {
-        $method = $script:native.GetMethod('GlazeWmBindingModeToggleFromArgs', [Reflection.BindingFlags]'Static,NonPublic')
-        Require ($null -ne $method) 'Binding-mode toggle helper is missing'
+
+    Check 'EarTrumpet direct Super+V configuration remains management-time only' {
+        Require ($null -ne (Get-NativeMethod 'ApplyEarTrumpetMixerSuperV')) 'EarTrumpet management integration is missing'
+        Require ($nativeSource -match 'eartrumpet-mixer-super-v') 'EarTrumpet direct-hotkey tweak ID is missing'
+        Require ($nativeSource -notmatch 'OpenEarTrumpetMixer') 'Retired EarTrumpet synthetic runtime bridge remains'
     }
-    Check 'Flow migration restores only WGDot-owned Alt+P and preserves unrelated settings' {
-        $settings = New-Object 'System.Collections.Generic.Dictionary[string,object]'
-        $settings['Hotkey'] = 'Alt + P'; $settings['Theme'] = 'keep-me'
-        $original = New-Object 'System.Collections.Generic.Dictionary[string,object]'
-        $original['exists'] = $true; $original['value'] = 'Ctrl + Space'
-        Require ([bool](Invoke-Native 'RestoreLegacyFlowHotkey' @($settings, $original))) 'Owned shortcut was not retired'
-        Require ($settings['Hotkey'] -eq 'Ctrl + Space' -and $settings['Theme'] -eq 'keep-me') 'Settings were not preserved'
-        $settings['Hotkey'] = 'Ctrl + K'
-        Require (-not [bool](Invoke-Native 'RestoreLegacyFlowHotkey' @($settings, $original))) 'User-edited shortcut changed'
-        $settings['Hotkey'] = 'Alt + P'
-        Require (-not [bool](Invoke-Native 'RestoreLegacyFlowHotkey' @($settings, $null))) 'Unowned shortcut changed'
-        $original['value'] = 'Alt + P'
-        Require (-not [bool](Invoke-Native 'RestoreLegacyFlowHotkey' @($settings, $original))) 'Conflicting original was accepted'
-    }
+
     Check 'legacy YASB startup cleanup recognizes only the old direct executable command' {
         Require ([bool](Invoke-Native 'IsLegacyYasbStartupCommand' @('"C:\Program Files\YASB\yasb.exe"'))) 'Old WGDot command was missed'
         Require (-not [bool](Invoke-Native 'IsLegacyYasbStartupCommand' @('cmd.exe /c yasb.exe'))) 'Custom command was accepted'
         Require (-not [bool](Invoke-Native 'IsLegacyYasbStartupCommand' @('"C:\YASB\yasb.exe" --custom'))) 'User arguments were accepted'
         Require (-not [bool](Invoke-Native 'IsLegacyYasbStartupCommand' @('yasb.exe'))) 'Unidentified relative command was accepted'
     }
+
     Check 'bootstrap propagates failure of required WinGet setup' {
         $fakeWindows = Join-Path $temp 'windows'
         $compilerDir = Join-Path $fakeWindows 'Microsoft.NET\Framework64\v4.0.30319'
         New-Item -ItemType Directory -Path $compilerDir -Force | Out-Null
+
         $workerSource = Join-Path $temp 'worker.cs'
         'class Worker { static int Main(string[] args) { return args[0] == "ensure-winget" ? 23 : 0; } }' | Set-Content $workerSource
         $worker = Join-Path $temp 'worker.exe'
         & $csc /nologo /target:exe "/out:$worker" $workerSource
         Require ($LASTEXITCODE -eq 0) 'Worker fixture compilation failed'
+
         $compilerSource = Join-Path $temp 'compiler.cs'
         @'
 using System;
@@ -151,6 +240,7 @@ class Compiler {
 '@ | Set-Content $compilerSource
         & $csc /nologo /target:exe "/out:$(Join-Path $compilerDir 'csc.exe')" $compilerSource
         Require ($LASTEXITCODE -eq 0) 'Compiler fixture compilation failed'
+
         Copy-Item (Join-Path $repo 'wgdot\bootstrap.cmd') (Join-Path $temp 'bootstrap.cmd')
         Copy-Item $source (Join-Path $temp 'wgdot-native.cs')
         $env:WGDOT_FIXTURE_WORKER = $worker
@@ -159,14 +249,15 @@ class Compiler {
         Require ($LASTEXITCODE -eq 23) ('Required setup failed but bootstrap returned ' + $LASTEXITCODE)
         $env:WINDIR = $savedWindir
     }
-} finally {
+}
+finally {
     $env:PATH = $savedPath
     $env:WGDOT_TEST_ROOT = $savedRoot
-    $env:WGDOT_FIXTURE_RESPONSE = $savedResponse
     $env:WINDIR = $savedWindir
     Remove-Item Env:WGDOT_FIXTURE_WORKER -ErrorAction SilentlyContinue
     [Environment]::CurrentDirectory = $originalDirectory
     Remove-Item -LiteralPath $temp -Recurse -Force -ErrorAction SilentlyContinue
 }
+
 if ($failures.Count) { throw ($failures -join [Environment]::NewLine) }
 Write-Host 'Desktop integration contracts passed. Interactive Windows behavior is not covered.'

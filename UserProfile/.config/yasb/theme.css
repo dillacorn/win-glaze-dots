@@ -1,0 +1,16 @@
+/* Active YASB theme: Carbon Night */
+:root {
+    --background: #353535;
+    --foreground: #d0d0d0;
+    --hover: #404040;
+    --focus: #4a4a4a;
+    --active: #2b2b2b;
+    --urgent: #ff5555;
+    --dark: #1a1a1a;
+    --charging: #6a9955;
+    --critical: #ff5555;
+    --muted: #5c5c5c;
+    --subtle-hover: rgba(208, 208, 208, 20);
+    --subtle-active: rgba(208, 208, 208, 26);
+    --strong-hover: rgba(115, 121, 148, 64);
+}
