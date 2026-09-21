@@ -67,7 +67,8 @@ try {
             'IdleInhibitorWorker',
             'BarAutoHideToggle',
             'MouseModeToggle',
-            'GlazeWmBindingModeToggleFromArgs'
+            'GlazeWmBindingModeToggleFromArgs',
+            'RawAccelToggle'
         )) {
             Require ($null -ne (Get-NativeMethod $name)) ('Approved scoped native desktop helper is missing: ' + $name)
         }
@@ -113,11 +114,7 @@ try {
         'UserProfile/.glzr/glazewm/config.yaml',
         'UserProfile/.glzr/glazewm/custom_work_config.yaml',
         'UserProfile/.config/yasb/config.yaml',
-        'UserProfile/.config/yasb/custom_work_config.yaml',
-        'UserProfile/.config/win-glaze/scripts/theme-switcher.ps1',
-        'UserProfile/.config/win-glaze/scripts/bar-autohide.ps1',
-        'UserProfile/.config/win-glaze/scripts/idle-inhibitor.ps1',
-        'UserProfile/.config/win-glaze/scripts/rawaccel-toggle.ps1'
+        'UserProfile/.config/yasb/custom_work_config.yaml'
     )
 
     Check 'managed desktop runtime obeys hybrid ownership boundary' {
@@ -125,13 +122,17 @@ try {
             $path = Join-Path $repo ($relative -replace '/', '\')
             Require (Test-Path -LiteralPath $path -PathType Leaf) ('Missing managed desktop runtime file: ' + $relative)
             $text = Get-Content -LiteralPath $path -Raw -Encoding UTF8
+            Require ($text -notmatch '\.ps1') ('Desktop runtime depends on a PowerShell script file: ' + $relative)
             Require ($text -notmatch '(?i)wgdotw?\.exe\s+(?:quick-launch|flow-open|eartrumpet-mixer|clipboard-history|flameshot-gui|display-settings|power-menu)') ('Native-capable action routed through WGDot in: ' + $relative)
         }
 
+        $normalGlaze = Get-Content -LiteralPath (Join-Path $repo 'UserProfile\.glzr\glazewm\config.yaml') -Raw -Encoding UTF8
         $workGlaze = Get-Content -LiteralPath (Join-Path $repo 'UserProfile\.glzr\glazewm\custom_work_config.yaml') -Raw -Encoding UTF8
+        $normalYasb = Get-Content -LiteralPath (Join-Path $repo 'UserProfile\.config\yasb\config.yaml') -Raw -Encoding UTF8
         $workYasb = Get-Content -LiteralPath (Join-Path $repo 'UserProfile\.config\yasb\custom_work_config.yaml') -Raw -Encoding UTF8
-        Require ($workGlaze -notmatch '\.ps1') 'Work GlazeWM depends on blocked .ps1 runtime files'
-        Require ($workYasb -notmatch '\.ps1') 'Work YASB depends on blocked .ps1 runtime files'
+        foreach ($text in @($normalGlaze, $workGlaze, $normalYasb, $workYasb)) {
+            Require ($text -notmatch '\.ps1') 'Normal and Work desktop runtime configs must contain zero .ps1 references'
+        }
     }
 
     Check 'GlazeWM owns modes pause and desktop launch paths directly' {
@@ -148,8 +149,11 @@ try {
             Require ($text -match 'wm-disable-binding-mode --name') ('Native mode escape missing: ' + $relative)
             Require ($text -match 'wm-toggle-pause') ('Native pause binding missing: ' + $relative)
             Require ($text -match 'flameshot\.exe gui') ('Direct Flameshot launch missing: ' + $relative)
-            Require ($text -match '(?:theme-switcher\.ps1|wgdot\.exe theme)') ('Approved theme implementation missing: ' + $relative)
-            Require ($text -match '(?:bar-autohide\.ps1|wgdotw\.exe bar-autohide-toggle)') ('Approved coordinated auto-hide implementation missing: ' + $relative)
+            Require ($text -match 'wgdot\.exe theme') ('Compiled theme implementation missing: ' + $relative)
+            Require ($text -match 'wgdotw\.exe bar-autohide-toggle') ('Compiled coordinated auto-hide implementation missing: ' + $relative)
+            Require ($text -match 'wgdotw\.exe rawaccel-toggle') ('Scoped RawAccel toggle missing: ' + $relative)
+            Require ($text -match 'bindings:\s*\["lwin\+shift\+m",\s*"rwin\+shift\+m"\]') ('Super+Shift+M RawAccel binding missing: ' + $relative)
+            Require ($text -notmatch 'bindings:\s*\["alt\+shift\+m"') ('RawAccel must not capture Alt+Shift+M: ' + $relative)
             Require ($text -notmatch 'wgdotw?\.exe\s+(?:quick-launch|flow-open|eartrumpet-mixer|clipboard-history|flameshot-gui|display-settings|power-menu)') ('Native-capable action routed through WGDot: ' + $relative)
         }
     }
@@ -162,7 +166,12 @@ try {
             $text = Get-Content -LiteralPath (Join-Path $repo ($relative -replace '/', '\')) -Raw -Encoding UTF8
             Require ($text -match 'yasb\.power_menu\.PowerMenuWidget') ('Native power menu missing: ' + $relative)
             Require ($text -match 'menu_style:\s*"popup"') ('Native power menu popup mode missing: ' + $relative)
+            Require ($text -match 'keys:\s*"win\+p"[\s\S]*?action:\s*"toggle_power_menu"') ('Win+P does not use the native YASB power menu: ' + $relative)
+            Require ($text -match 'on_left:\s*"toggle_power_menu"') ('Power icon left click does not use native YASB toggle: ' + $relative)
             Require ($text -match 'on_left:\s*"disable_binding_mode"') ('Binding-mode label does not disable the active mode: ' + $relative)
+            Require ($text -match 'on_right:\s*"disable_binding_mode"') ('Binding-mode label right click does not disable the active mode: ' + $relative)
+            Require ($text -match 'on_middle:\s*"do_nothing"') ('Binding-mode label middle click must do nothing: ' + $relative)
+            Require ($text -notmatch 'next_binding_mode') ('Binding-mode label must not cycle modes: ' + $relative)
             Require ($text -match 'wgdotw\.exe mouse-mode-toggle') ('Mouse icon does not toggle the scoped mouse helper: ' + $relative)
             Require ($text -notmatch 'wgdotw?\.exe power-menu') ('Power menu was incorrectly routed through WGDot: ' + $relative)
             Require ($text -match 'glazewm\.binding_mode\.GlazewmBindingModeWidget') ('Native binding-mode widget missing: ' + $relative)
