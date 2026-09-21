@@ -21,7 +21,7 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-60";
+    const string Version = "native-preview-61";
     const int WingetPreflightTimeoutMs = 30000;
     const string RepoFullName = "dillacorn/win-glaze-dots";
     const string RepoUrl = "https://github.com/dillacorn/win-glaze-dots.git";
@@ -1003,6 +1003,7 @@ internal static class WgdotNative
             if (command == "runtime-swap-restore") return RuntimeSwapRestoreFromArgs(args.Skip(1).ToArray());
             if (command == "maintenance-self-test") return MaintenanceSelfTest();
             if (command == "source-self-test") return SourceSelfTestFromArgs(args.Skip(1).ToArray());
+            if (command == "dots-only") return DotsOnlyFromArgs(args.Skip(1).ToArray());
             if (command == "software") return SoftwareManager();
             if (command == "software-reconcile") return SoftwareReconcile();
             if (command == "software-uninstall") return SoftwareUninstallManager();
@@ -1142,6 +1143,7 @@ internal static class WgdotNative
             String.Equals(command, "git-review", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "git-update", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "git-reset", StringComparison.OrdinalIgnoreCase) ||
+            String.Equals(command, "dots-only", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "apply-tweak", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "super-l-test", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "window-audit", StringComparison.OrdinalIgnoreCase) ||
@@ -1926,6 +1928,90 @@ internal static class WgdotNative
             Manifest = ReadManifest(sourceRoot)
         };
         return ManagedOperation(operation, context);
+    }
+
+    static int DotsOnlyFromArgs(string[] args)
+    {
+        string profile = GetOption(args ?? new string[0], "--profile");
+        profile = (profile ?? "").Trim().ToLowerInvariant();
+        if (profile != "normal" && profile != "work")
+            throw new Exception("dots-only requires --profile normal or --profile work.");
+
+        bool apply = (args ?? new string[0]).Any(
+            x => String.Equals(x, "--yes", StringComparison.OrdinalIgnoreCase));
+
+        SourceContext source = ResolveDefaultSource();
+        InstallationSelection existing = ReadInstallationSelection();
+        InstallationSelection selection = BuildDotsOnlySelection(source.Manifest, profile, existing);
+        List<PlanItem> plan = GetPlan(source.Manifest, source.SourceRoot, selection, "reset");
+
+        WriteTitle("Dots-only managed configuration");
+        Console.WriteLine("Profile: " + (profile == "work" ? "Work PC" : "Normal / personal PC"));
+        Console.WriteLine("GlazeWM profile: " + selection.GlazeProfile);
+        Console.WriteLine("Software operations: disabled");
+        Console.WriteLine("Package, tweak, and browser selection state: " +
+            (existing == null ? "left empty" : "preserved"));
+        Console.WriteLine();
+        ShowPlan(plan);
+
+        if (!apply)
+        {
+            Console.WriteLine();
+            Console.ForegroundColor = ConsoleColor.DarkGray;
+            Console.WriteLine("Review only. No managed files, backups, baselines, or selection state were changed.");
+            Console.ResetColor();
+            return 0;
+        }
+
+        ApplyPlan(plan, source.Manifest, selection, source, true);
+        WriteInstallationSelection(selection);
+        UpdateSourceStateAfterApply(source);
+
+        Console.ForegroundColor = ConsoleColor.Green;
+        Console.WriteLine("WGDot managed dots applied. Software was not installed, upgraded, reconciled, or uninstalled.");
+        Console.ResetColor();
+        return 0;
+    }
+
+    static InstallationSelection BuildDotsOnlySelection(
+        Dictionary<string, object> manifest,
+        string profile,
+        InstallationSelection existing)
+    {
+        var result = new InstallationSelection();
+        result.Scope = profile;
+        result.GlazeProfile = profile;
+
+        string defaultKey = profile == "work" ? "defaultWork" : "defaultNormal";
+        foreach (object rawComponent in GetList(manifest, "components"))
+        {
+            Dictionary<string, object> component = AsDictionary(rawComponent);
+            if (!GetBool(component, defaultKey))
+                continue;
+
+            // Strict dots-only means file-backed managed configuration. Components
+            // that exist only to apply registry/system post-actions (for example
+            // cursor themes) are deliberately excluded.
+            if (GetList(component, "files").Count == 0)
+                continue;
+
+            string id = GetString(component, "id");
+            if (!String.IsNullOrWhiteSpace(id))
+                result.Components.Add(id);
+        }
+
+        if (existing != null)
+        {
+            result.Packages = new List<string>(existing.Packages);
+            result.Tweaks = new List<string>(existing.Tweaks);
+            result.TweaksConfigured = existing.TweaksConfigured;
+            result.BrowserOptionsConfigured = existing.BrowserOptionsConfigured;
+            result.BrowserOptions = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+            foreach (KeyValuePair<string, List<string>> pair in existing.BrowserOptions)
+                result.BrowserOptions[pair.Key] = new List<string>(pair.Value);
+        }
+
+        return result;
     }
 
     static SourceContext ResolveDefaultSource()
@@ -11371,6 +11457,16 @@ public static class Program
         InstallationSelection selection,
         SourceContext source)
     {
+        ApplyPlan(plan, manifest, selection, source, false);
+    }
+
+    static void ApplyPlan(
+        List<PlanItem> plan,
+        Dictionary<string, object> manifest,
+        InstallationSelection selection,
+        SourceContext source,
+        bool dotsOnly)
+    {
         foreach (PlanItem item in plan)
         {
             if (item.Action == "NONE" || item.Action == "PRESERVE") continue;
@@ -11388,8 +11484,9 @@ public static class Program
             AtomicCopy(item.Target, item.Destination, item.Validator);
         }
 
-        ShowMigrations(manifest, selection, false);
-        RunPostActions(manifest, selection);
+        if (!dotsOnly)
+            ShowMigrations(manifest, selection, false);
+        RunPostActions(manifest, selection, dotsOnly);
         CommitBaseline(plan, source, selection);
     }
 
@@ -11626,7 +11723,18 @@ public static class Program
         return raw.IndexOf(fragment, StringComparison.OrdinalIgnoreCase) >= 0;
     }
 
-    static void RunPostActions(Dictionary<string, object> manifest, InstallationSelection selection)
+    static bool IsDotsOnlyPostAction(string type)
+    {
+        return
+            String.Equals(type, "ensure-desktop-worker", StringComparison.OrdinalIgnoreCase) ||
+            String.Equals(type, "ensure-hidden-launcher", StringComparison.OrdinalIgnoreCase) ||
+            String.Equals(type, "ensure-yasb-theme", StringComparison.OrdinalIgnoreCase);
+    }
+
+    static void RunPostActions(
+        Dictionary<string, object> manifest,
+        InstallationSelection selection,
+        bool dotsOnly)
     {
         var selected = new HashSet<string>(selection.Components, StringComparer.OrdinalIgnoreCase);
 
@@ -11639,6 +11747,14 @@ public static class Program
             {
                 var post = AsDictionary(rawPost);
                 string type = GetString(post, "type");
+
+                if (dotsOnly && !IsDotsOnlyPostAction(type))
+                {
+                    Console.ForegroundColor = ConsoleColor.DarkGray;
+                    Console.WriteLine("Dots-only: skipped non-file post-action " + type + ".");
+                    Console.ResetColor();
+                    continue;
+                }
 
                 if (String.Equals(type, "set-yazi-file-one", StringComparison.OrdinalIgnoreCase))
                 {
