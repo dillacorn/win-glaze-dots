@@ -154,22 +154,3 @@ jobs:
         run: |
           set "WGDOT_TEST_ROOT=%TEMP%\wgdot-native-maintenance-state"
           "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" maintenance-self-test
-) { exit 1 }"
-      - name: Verify persistent user PATH
-        shell: cmd
-        run: |
-          reg query HKCU\Environment /v Path | findstr /I /C:"wgdot\bin"
-      - name: Seed non-mutating Git review selection
-        shell: cmd
-        run: |
-          if not exist "%LOCALAPPDATA%\wgdot\state" mkdir "%LOCALAPPDATA%\wgdot\state"
-          >"%LOCALAPPDATA%\wgdot\state\installation.json" echo {"scope":"normal","glazewmProfile":"normal","components":["glazewm","yazi"],"packages":[]}
-      - name: Validate native Git review planner
-        shell: cmd
-        run: |
-          "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" git-review --branch "${{ github.head_ref || github.ref_name }}" --revision ${{ github.event.pull_request.head.sha || github.sha }}
-      - name: Validate native maintenance mutations in isolated state
-        shell: cmd
-        run: |
-          set "WGDOT_TEST_ROOT=%TEMP%\wgdot-native-maintenance-state"
-          "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" maintenance-self-test
