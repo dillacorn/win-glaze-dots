@@ -219,11 +219,8 @@ binding_modes:
         bindings: ["lwin+alt+p", "rwin+alt+p"]
       - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe bar-autohide-toggle']
         bindings: ["alt+ctrl+b"]
-      - commands: ["wm-redraw"]
-        bindings: ["lwin", "rwin"]
-
-      # Keep ordinary launcher keys out of VM mode. This helper forwards to
-      # YASB's private Win+Alt+F24 RegisterHotKey bridge.
+      # Keep ordinary launcher keys out of VM mode. WGDot dispatches directly
+      # to YASB's private hotkey listener without pausing GlazeWM.
       - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe quick-launch']
         bindings: ["alt+p", "lwin+d", "rwin+d"]
 
@@ -404,14 +401,12 @@ binding_modes:
 
 
 keybindings:
-  # Consume a lone Windows key so Start does not open while GlazeWM is active.
-  # This is intentionally absent from VM mode so guest applications can receive
-  # their normal Windows key. Real Windows behavior still needs runtime testing.
-  - commands: ["wm-redraw"]
-    bindings: ["lwin", "rwin"]
+  # WGDot's desktop worker suppresses an otherwise-unmodified lone Super release
+  # so Start stays closed while preserving normal Super chords. VM mode is
+  # tracked separately and bypasses that suppression for guest input.
 
-  # Alt+P/Super+D are host launcher aliases outside VM mode. YASB itself owns
-  # only a private Win+Alt+F24 bridge so ordinary guest chords remain untouched.
+  # Alt+P/Super+D are host launcher aliases outside VM mode. WGDot dispatches
+  # directly to YASB's private hotkey listener; no temporary Glaze pause is used.
   - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe quick-launch']
     bindings: ["alt+p", "lwin+d", "rwin+d"]
 
