@@ -770,6 +770,11 @@ Assert-True ($glazeNormalText -match 'bindings:\s*\["alt\+shift\+c"\]') "Normal 
 Assert-True ($glazeNormalText -match 'bindings:\s*\["lwin\+shift\+c",\s*"rwin\+shift\+c"\]') "Normal profile keeps Awtarchy Super+Shift+C SpeedCrunch"
 Assert-True ($glazeNormalText -match '(?ms)cursor_jump:\s*\r?\n\s+enabled:\s*true') "Normal profile enables cursor jump by default"
 Assert-True ($glazeNormalText -notmatch '(?ms)- name: "1"\r?\n\s+display_name: "1: Flame"\r?\n\s+keep_alive:\s*true') "normal GlazeWM workspace 1 is not pinned alive"
+Assert-True ($glazeNormalText -match '(?s)wgdot\.exe quick-launch''\]\s*\r?\n\s*bindings:\s*\["alt\+p",\s*"lwin\+d",\s*"rwin\+d"\]') "Normal profile keeps Alt+P and Super+D on YASB Quick Launch"
+Assert-True ($glazeNormalText -notmatch 'wgdot\.exe flow-open') "Normal profile keeps Flow Launcher out of managed launcher bindings"
+Assert-True ($glazeWorkText -match '(?s)wgdot\.exe flow-open''\]\s*\r?\n\s*bindings:\s*\["alt\+p"\]') "Work profile routes Alt+P to Flow Launcher"
+Assert-True ($glazeWorkText -match '(?s)wgdot\.exe quick-launch''\]\s*\r?\n\s*bindings:\s*\["lwin\+d",\s*"rwin\+d"\]') "Work profile keeps Super+D on YASB Quick Launch"
+Assert-True ($glazeWorkText -notmatch 'bindings:\s*\["alt\+p",\s*"lwin\+d",\s*"rwin\+d"\]') "Work profile no longer aliases Alt+P and Super+D to the same launcher"
 foreach ($text in @($glazeNormalText, $glazeWorkText)) {
     $globalMarker = [Environment]::NewLine + "keybindings:" + [Environment]::NewLine
     $globalIndex = $text.LastIndexOf($globalMarker)
@@ -780,7 +785,6 @@ foreach ($text in @($glazeNormalText, $glazeWorkText)) {
     Assert-True (-not (($bindingModesIndex -ge 0) -and ($flameshotIndex -gt $bindingModesIndex) -and ($flameshotIndex -lt $globalIndex))) "Flameshot bind is not trapped inside a binding mode"
     Assert-True ($text -notmatch 'win\+shift\+f') "old Win+Shift+F Flameshot bind is removed"
     Assert-True ($text -match 'wgdot\.exe quick-launch') "GlazeWM launcher aliases route through the WGDot YASB helper"
-    Assert-True ($text -match 'bindings:\s*\["alt\+p",\s*"lwin\+d",\s*"rwin\+d"\]') "GlazeWM owns Alt+P and Super+D outside VM mode"
     Assert-True ($text -match 'bindings:\s*\["lwin\+v",\s*"rwin\+v"\]') "GlazeWM owns Super+V for the EarTrumpet mixer"
     Assert-True ($text -match 'bindings:\s*\["lwin\+c",\s*"rwin\+c"\]') "GlazeWM adds Super+C for WGDot Clipboard History"
     Assert-True ($text -match 'bindings:\s*\["lwin\+p",\s*"rwin\+p"\]') "Super+P opens the WGDot power menu"
@@ -1039,10 +1043,8 @@ foreach ($text in @($glazeNormalText, $glazeWorkText)) {
     Assert-True (-not (($bindingModesIndex -ge 0) -and ($flameshotIndex -gt $bindingModesIndex) -and ($flameshotIndex -lt $globalIndex))) "Flameshot bind is not trapped inside a binding mode"
     Assert-True ($text -notmatch 'win\+shift\+f') "old Win+Shift+F Flameshot bind is removed"
     Assert-True ($text -match 'wgdot\.exe quick-launch') "GlazeWM launcher aliases route through the WGDot YASB helper"
-    Assert-True ($text -match 'bindings:\s*\["alt\+p",\s*"lwin\+d",\s*"rwin\+d"\]') "GlazeWM owns Alt+P and Super+D outside VM mode"
     Assert-True ($text -match 'bindings:\s*\["lwin\+v",\s*"rwin\+v"\]') "GlazeWM owns Super+V for the EarTrumpet mixer"
     Assert-True ($text -match 'bindings:\s*\["lwin\+c",\s*"rwin\+c"\]') "Super+C opens WGDot Clipboard History"
-    Assert-True ($text -notmatch 'wgdot\.exe flow-open') "managed GlazeWM profiles no longer invoke Flow Launcher"
     Assert-True ($text -notmatch 'shell-exec --hide-window "%LOCALAPPDATA%\\wgdot\\bin\\wgdot\.exe"') "WGDot GlazeWM helper paths avoid parser-breaking executable quotes"
     Assert-True ($text -match 'name:\s*"noalt"') "GlazeWM noalt mode is restored"
     Assert-True ($text -match 'glazewm-binding-mode-set noalt') "noalt mode transitions route through WGDot tracked state"
