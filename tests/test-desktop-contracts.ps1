@@ -48,7 +48,11 @@ using System;
 class FakeGlaze {
     static int Main(string[] args) {
         string command = String.Join(" ", args);
-        if (command != "query paused" && command != "command wm-toggle-pause") return 64;
+        if (command != "query paused" &&
+            command != "query binding-modes" &&
+            command != "command wm-toggle-pause" &&
+            command != "command wm-disable-binding-mode --name mouse" &&
+            command != "command wm-enable-binding-mode --name mouse") return 64;
         Console.WriteLine(Environment.GetEnvironmentVariable("WGDOT_FIXTURE_RESPONSE"));
         return 0;
     }
@@ -82,6 +86,17 @@ class FakeGlaze {
         Require ([bool](Invoke-Native 'GlazeWmIsPaused')) 'Paused was lost'
         $env:WGDOT_FIXTURE_RESPONSE = '{"clientMessage":"query paused","data":false,"error":null,"success":true}'
         Require (-not [bool](Invoke-Native 'GlazeWmIsPaused')) 'Running was lost'
+    }
+    Check 'binding-mode query reads the real GlazeWM response shape' {
+        $env:WGDOT_FIXTURE_RESPONSE = '{"clientMessage":"query binding-modes","data":{"bindingModes":[{"name":"mouse","keybindings":[]}]},"error":null,"success":true}'
+        Require ([bool](Invoke-Native 'GlazeWmBindingModeActive' @('mouse'))) 'Active mouse mode was missed'
+        Require (-not [bool](Invoke-Native 'GlazeWmBindingModeActive' @('vm'))) 'Inactive VM mode was reported active'
+    }
+    Check 'binding-mode IPC rejection fails closed' {
+        $env:WGDOT_FIXTURE_RESPONSE = '{"clientMessage":"query binding-modes","data":null,"error":"fixture mode query denied","success":false}'
+        Expect-Failure { Invoke-Native 'GlazeWmBindingModeActive' @('mouse') } 'fixture mode query denied'
+        $env:WGDOT_FIXTURE_RESPONSE = '{"clientMessage":"command wm-disable-binding-mode --name mouse","data":null,"error":"fixture mode disable denied","success":false}'
+        Expect-Failure { Invoke-Native 'MouseModeDisable' } 'fixture mode disable denied'
     }
     Check 'Flow migration restores only WGDot-owned Alt+P and preserves unrelated settings' {
         $settings = New-Object 'System.Collections.Generic.Dictionary[string,object]'

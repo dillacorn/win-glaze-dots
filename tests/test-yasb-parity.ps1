@@ -250,11 +250,13 @@ $taskContainerBlock = [regex]::Match($style, '(?ms)^\.taskbar-widget \.app-conta
 Assert-Contains $taskContainerBlock 'min-width: 14px;' "task content width matches its 14 px Awtarchy icon"
 Assert-Contains $taskContainerBlock 'max-width: 14px;' "task content width is fixed so the padded slot remains 26 px"
 Assert-Contains $taskContainerBlock 'padding: 0 6px;' "task slot totals Awtarchy's 26 px width"
+$mouseHubBlock = [regex]::Match($style, '(?ms)^\.workspace-mouse-hub \{\r?\n.*?^\}').Value
 $moverStripBlock = [regex]::Match($style, '(?ms)^\.workspace-move-buttons \{\r?\n.*?^\}').Value
-$moverHoverBlock = [regex]::Match($style, '(?ms)^\.workspace-move-buttons:hover \{\r?\n.*?^\}').Value
-$moverButtonBlock = [regex]::Match($style, '(?ms)^\.workspace-move-buttons \.label \{\r?\n.*?^\}').Value
-Assert-Contains $moverStripBlock 'max-width: 28px;' "workspace mover is clipped to the mouse hub at rest"
-Assert-Contains $moverHoverBlock 'max-width: 156px;' "workspace mover expands its arrows from native QSS hover"
+$moverHoverBlock = [regex]::Match($style, '(?ms)^\.workspace-move-grouper:hover \.workspace-move-buttons \{\r?\n.*?^\}').Value
+$moverButtonBlock = [regex]::Match($style, '(?ms)^\.workspace-mouse-hub \.label,\r?\n\.workspace-move-buttons \.label \{\r?\n.*?^\}').Value
+Assert-Contains $mouseHubBlock 'max-width: 28px;' "mouse hub remains a fixed visible Awtarchy-sized slot"
+Assert-Contains $moverStripBlock 'max-width: 0;' "workspace arrows are collapsed at rest without hiding the mouse hub"
+Assert-Contains $moverHoverBlock 'max-width: 112px;' "workspace mover reveals four compact arrows from the parent hover state"
 Assert-Contains $moverButtonBlock 'font-size: 14px;' "workspace mover icons retain Awtarchy's compact symbol size"
 Assert-Contains $moverButtonBlock 'padding: 0 7px;' "workspace mover keeps compact horizontal slots"
 Assert-Contains $style '.workspace-move-grouper:hover .workspace-move-buttons' "hovering the mouse hub group reveals workspace arrows"
