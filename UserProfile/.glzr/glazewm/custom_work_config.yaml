@@ -199,9 +199,7 @@ binding_modes:
         bindings: ["escape", "enter"]
       - commands: ["wm-toggle-pause"]
         bindings: ["lwin+alt+p", "rwin+alt+p"]
-      - commands:
-          - "wm-disable-binding-mode --name resize"
-          - "wm-enable-binding-mode --name mouse"
+      - commands: ["shell-exec wgdotw.exe mouse-mode-toggle"]
         bindings: ["lwin+alt+m", "rwin+alt+m"]
 
   # Gaming-friendly mode based on Awtarchy's noalt submap.
@@ -216,13 +214,11 @@ binding_modes:
           - "wm-disable-binding-mode --name noalt"
           - "wm-enable-binding-mode --name vm"
         bindings: ["lwin+alt+v", "rwin+alt+v"]
-      - commands:
-          - "wm-disable-binding-mode --name noalt"
-          - "wm-enable-binding-mode --name mouse"
+      - commands: ["shell-exec wgdotw.exe mouse-mode-toggle"]
         bindings: ["lwin+alt+m", "rwin+alt+m"]
       - commands: ["wm-toggle-pause"]
         bindings: ["lwin+alt+p", "rwin+alt+p"]
-      - commands: ['shell-exec --hide-window powershell.exe -NoLogo -NoProfile -WindowStyle Hidden -Command "& (Join-Path $env:USERPROFILE ''.config\win-glaze\scripts\bar-autohide.ps1'') toggle"']
+      - commands: ["shell-exec wgdotw.exe bar-autohide-toggle"]
         bindings: ["alt+ctrl+b"]
       # Work profile: GlazeWM launches Flow Launcher directly. YASB Quick
       # Launch remains available from its native bar widget; upstream YASB
@@ -230,7 +226,7 @@ binding_modes:
       - commands: ['shell-exec %LOCALAPPDATA%/FlowLauncher/Flow.Launcher.exe']
         bindings: ["alt+p"]
 
-      - commands: ['shell-exec wt.exe -w new new-tab --title "Win Glaze Themes" --suppressApplicationTitle powershell.exe -NoLogo -NoProfile -Command "& (Join-Path $env:USERPROFILE ''.config\win-glaze\scripts\theme-switcher.ps1'')"']
+      - commands: ['shell-exec wt.exe -w new new-tab --title "Win Glaze Themes" --suppressApplicationTitle wgdot.exe theme']
         bindings: ["lwin+t", "rwin+t"]
       - commands: ["shell-exec explorer.exe ms-settings:display"]
         bindings: ["lwin+ctrl+m", "rwin+ctrl+m"]
@@ -313,20 +309,16 @@ binding_modes:
         bindings: ["lwin+shift+0", "rwin+shift+0"]
 
 
-  # Native GlazeWM mouse binding mode. Super+Alt+M enters it; the same chord
-  # exits it from inside the mode. GlazeWM 3.10.x still does not expose mouse
-  # buttons themselves, so this restores mode state/visibility without a hook.
+  # GlazeWM owns mouse-mode state. WGDot supplies only the scoped low-level
+  # pointer hook that GlazeWM 3.10.x cannot express, and the hook self-stops
+  # whenever GlazeWM leaves mouse mode.
   - name: "mouse"
     keybindings:
-      - commands: ["wm-disable-binding-mode --name mouse"]
+      - commands: ["shell-exec wgdotw.exe mouse-mode-toggle"]
         bindings: ["lwin+alt+m", "rwin+alt+m"]
-      - commands:
-          - "wm-disable-binding-mode --name mouse"
-          - "wm-enable-binding-mode --name noalt"
+      - commands: ["shell-exec wgdotw.exe glazewm-binding-mode-toggle noalt"]
         bindings: ["lwin+alt+n", "rwin+alt+n"]
-      - commands:
-          - "wm-disable-binding-mode --name mouse"
-          - "wm-enable-binding-mode --name vm"
+      - commands: ["shell-exec wgdotw.exe glazewm-binding-mode-toggle vm"]
         bindings: ["lwin+alt+v", "rwin+alt+v"]
       - commands: ["wm-toggle-pause"]
         bindings: ["lwin+alt+p", "rwin+alt+p"]
@@ -342,9 +334,7 @@ binding_modes:
           - "wm-disable-binding-mode --name vm"
           - "wm-enable-binding-mode --name noalt"
         bindings: ["lwin+alt+n", "rwin+alt+n"]
-      - commands:
-          - "wm-disable-binding-mode --name vm"
-          - "wm-enable-binding-mode --name mouse"
+      - commands: ["shell-exec wgdotw.exe mouse-mode-toggle"]
         bindings: ["lwin+alt+m", "rwin+alt+m"]
       - commands: ["wm-toggle-pause"]
         bindings: ["lwin+alt+p", "rwin+alt+p"]
@@ -410,7 +400,7 @@ binding_modes:
 
 keybindings:
 
-  - commands: ["wm-enable-binding-mode --name mouse"]
+  - commands: ["shell-exec wgdotw.exe mouse-mode-toggle"]
     bindings: ["lwin+alt+m", "rwin+alt+m"]
 
   # Work profile: direct application launch owned by GlazeWM.
@@ -423,10 +413,10 @@ keybindings:
   - commands: ["shell-exec explorer.exe ms-settings:display"]
     bindings: ["lwin+ctrl+m", "rwin+ctrl+m"]
 
-  - commands: ['shell-exec wt.exe -w new new-tab --title "Win Glaze Themes" --suppressApplicationTitle powershell.exe -NoLogo -NoProfile -Command "& (Join-Path $env:USERPROFILE ''.config\win-glaze\scripts\theme-switcher.ps1'')"']
+  - commands: ['shell-exec wt.exe -w new new-tab --title "Win Glaze Themes" --suppressApplicationTitle wgdot.exe theme']
     bindings: ["lwin+t", "rwin+t"]
   # Standalone script coordinates YASB auto-hide with the GlazeWM top gap.
-  - commands: ['shell-exec --hide-window powershell.exe -NoLogo -NoProfile -WindowStyle Hidden -Command "& (Join-Path $env:USERPROFILE ''.config\win-glaze\scripts\bar-autohide.ps1'') toggle"']
+  - commands: ["shell-exec wgdotw.exe bar-autohide-toggle"]
     bindings: ["alt+ctrl+b"]
 
   - commands: ["shell-exec C:\\Program Files (x86)\\SpeedCrunch\\speedcrunch.exe"]
