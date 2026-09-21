@@ -3,6 +3,7 @@ Set-StrictMode -Version 2.0
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $configPath = Join-Path $repoRoot "UserProfile\.config\yasb\config.yaml"
+$workConfigPath = Join-Path $repoRoot "UserProfile\.config\yasb\custom_work_config.yaml"
 $stylePath = Join-Path $repoRoot "UserProfile\.config\yasb\styles.css"
 $readmePath = Join-Path $repoRoot "UserProfile\.config\yasb\README.md"
 $glazeNormalPath = Join-Path $repoRoot "UserProfile\.glzr\glazewm\config.yaml"
@@ -27,6 +28,7 @@ foreach ($path in @($configPath, $workConfigPath, $stylePath, $readmePath, $glaz
 }
 
 $config = Get-Content -LiteralPath $configPath -Raw
+$workConfig = Get-Content -LiteralPath $workConfigPath -Raw
 $style = Get-Content -LiteralPath $stylePath -Raw
 $readme = Get-Content -LiteralPath $readmePath -Raw
 $glazeNormal = Get-Content -LiteralPath $glazeNormalPath -Raw
@@ -127,7 +129,6 @@ Assert-NotContains $config 'use_hook: true' "systray DLL injection is never enab
 $clockBlock = [regex]::Match($config, '(?ms)^  clock:\r?\n.*?(?=^  wifi:)').Value
 $wifiBlock = [regex]::Match($config, '(?ms)^  wifi:\r?\n.*?(?=^  bluetooth:)').Value
 $bluetoothBlock = [regex]::Match($config, '(?ms)^  bluetooth:\r?\n.*?(?=^  systray:)').Value
-$clipboardBlock = [regex]::Match($config, '(?ms)^  clipboard_history:\r?\n.*?(?=^  dnd:)').Value
 Assert-Contains $clockBlock '{%a %#m/%#d}' "clock alternate date matches Awtarchy's non-zero-padded M/d"
 Assert-Contains $wifiBlock '"󰤯"' "Wi-Fi zero-strength glyph matches Awtarchy"
 Assert-Contains $wifiBlock 'ethernet_icon: "󰈀"' "active Ethernet glyph matches Awtarchy"
@@ -142,8 +143,8 @@ Assert-Contains $config 'idle-inhibitor.ps1" status' "idle inhibitor polls the s
 Assert-Contains $config 'label: "{data[icon]}"' "idle inhibitor renders its JSON-decoded Awtarchy eye glyph"
 Assert-Contains $config 'return_format: "json"' "idle inhibitor avoids Windows console glyph encoding loss"
 Assert-Contains $config 'idle-inhibitor.ps1" toggle' "idle inhibitor toggles the standalone Keep Awake script"
-Assert-Contains $launcherBlock 'clipboard_history:' "Quick Launch clipboard provider remains explicitly configured"
 $launcherBlock = [regex]::Match($config, '(?ms)^  launcher:\r?\n.*?(?=^  glazewm_workspaces:)').Value
+Assert-Contains $launcherBlock 'clipboard_history:' "Quick Launch clipboard provider remains explicitly configured"
 Assert-Contains $launcherBlock 'yasb.quick_launch.QuickLaunchWidget' "native Quick Launch replaces the old Flow launcher surface"
 Assert-Contains $launcherBlock 'clipboard_history:' "Quick Launch clipboard provider remains explicitly configured"
 Assert-Contains $launcherBlock 'enabled: false' "Quick Launch clipboard provider remains disabled while no standalone history surface is configured"
@@ -252,10 +253,10 @@ foreach ($widgetType in @(
     Assert-Contains $config $widgetType "supported YASB widget is present: $widgetType"
 }
 
-Assert-Contains $style '.glazewm-workspaces .ws-btn.empty' "inactive empty workspace buttons collapse"
-Assert-Contains $style 'min-height: 28px;' "workspace shading spans the full 28 px bar height"
-Assert-Contains $style 'margin-left: 2px;' "CPU and memory icons have a tiny separation from their values"
-Assert-Contains $style '.tooltip,' "YASB custom rich tooltips receive an opaque themed background"
+Assert-Contains -Text $style -Needle ".glazewm-workspaces .ws-btn.empty" -Message "inactive empty workspace buttons collapse"
+Assert-Contains -Text $style -Needle "min-height: 28px;" -Message "workspace shading spans the full 28 px bar height"
+Assert-Contains -Text $style -Needle "margin-left: 2px;" -Message "CPU and memory icons have a tiny separation from their values"
+Assert-Contains -Text $style -Needle ".tooltip," -Message "YASB custom rich tooltips receive an opaque themed background"
 Assert-Contains $style '#353535' "Awtarchy background color is retained"
 Assert-Contains $style '#d0d0d0' "Awtarchy foreground color is retained"
 Assert-Contains $style '#ff5555' "Awtarchy critical color is retained"
