@@ -153,6 +153,8 @@ try {
             Require ($text -match 'wgdotw\.exe rawaccel-toggle') ('Scoped RawAccel toggle missing: ' + $relative)
             Require ($text -match 'wgdotw\.exe power-menu') ('Compiled Awtarchy-style power surface missing: ' + $relative)
             Require ($text -match 'bindings:\s*\["lwin\+p",\s*"rwin\+p"\]') ('Super+P compiled power binding missing: ' + $relative)
+            Require ($text -match 'wgdotw\.exe launcher hotkey') ('Compiled Awtarchy-style launcher missing: ' + $relative)
+            Require ($text -match 'bindings:\s*\["alt\+p",\s*"lwin\+d",\s*"rwin\+d"\]') ('Global Alt+P/Super+D launcher binding missing: ' + $relative)
             Require ($text -match 'bindings:\s*\["lwin\+shift\+m",\s*"rwin\+shift\+m"\]') ('Super+Shift+M RawAccel binding missing: ' + $relative)
             Require ($text -notmatch 'bindings:\s*\["alt\+shift\+m"') ('RawAccel must not capture Alt+Shift+M: ' + $relative)
             Require ($text -notmatch 'wgdotw?\.exe\s+(?:quick-launch|flow-open|eartrumpet-mixer|clipboard-history|flameshot-gui|display-settings)') ('Native-capable action routed through WGDot: ' + $relative)
@@ -168,6 +170,8 @@ try {
             Require ($text -match 'yasb\.custom\.CustomWidget') ('YASB custom power button missing: ' + $relative)
             Require ($text -match 'on_left:\s*"exec wgdotw\.exe power-menu"') ('Power icon left click does not open the compiled power surface: ' + $relative)
             Require ($text -match 'on_right:\s*"exec wgdotw\.exe power-menu"') ('Power icon right click does not open the compiled power surface: ' + $relative)
+            Require ($text -match 'class_name:\s*"awtarchy-launcher"') ('Compiled launcher bar control missing: ' + $relative)
+            Require ($text -match 'on_left:\s*"exec wgdotw\.exe launcher bar"') ('Launcher button does not open the bar-relative compiled surface: ' + $relative)
             Require ($text -match 'on_left:\s*"disable_binding_mode"') ('Binding-mode label does not disable the active mode: ' + $relative)
             Require ($text -match 'on_right:\s*"disable_binding_mode"') ('Binding-mode label right click does not disable the active mode: ' + $relative)
             Require ($text -match 'on_middle:\s*"do_nothing"') ('Binding-mode label middle click must do nothing: ' + $relative)
@@ -188,15 +192,19 @@ try {
         Require ($nativeSource -match 'result\.Tweaks\.RemoveAll\(x => String\.Equals\(x, "flow-launcher-alt-p"') 'Saved selections no longer retire the old Flow hotkey tweak'
     }
 
-    Check 'launcher bindings avoid relay scripts and synthetic keys' {
+    Check 'launcher bindings use the scoped compiled surface without relay scripts' {
         $normal = Get-Content -LiteralPath (Join-Path $repo 'UserProfile\.glzr\glazewm\config.yaml') -Raw -Encoding UTF8
         $work = Get-Content -LiteralPath (Join-Path $repo 'UserProfile\.glzr\glazewm\custom_work_config.yaml') -Raw -Encoding UTF8
         foreach ($text in @($normal, $work)) {
             Require ($text -notmatch 'flow-launcher\.ps1|yasb-quick-launch\.ps1') 'Launcher relay script returned to GlazeWM'
+            Require ($text -match 'wgdotw\.exe launcher hotkey') 'Compiled launcher hotkey surface is missing'
+            Require ($text -match 'bindings:\s*\["alt\+p",\s*"lwin\+d",\s*"rwin\+d"\]') 'Alt+P/Super+D compiled launcher binding is missing'
         }
-        Require ($work -match 'shell-exec %LOCALAPPDATA%/FlowLauncher/Flow\.Launcher\.exe') 'Work Alt+P no longer launches Flow directly'
-        Require ($work -match 'bindings:\s*\["alt\+p"\]') 'Work Alt+P binding is missing'
-        Require ($work -notmatch 'bindings:\s*\["lwin\+d",\s*"rwin\+d"\]') 'Work Super+D synthetic YASB relay returned'
+        Require ($work -notmatch 'shell-exec %LOCALAPPDATA%/FlowLauncher/Flow\.Launcher\.exe') 'Work launcher still defaults to Flow Launcher'
+        Require ($nativeSource -match 'if \(command == "launcher"\) return LauncherFromArgs') 'Native compiled launcher command is missing'
+        Require ($nativeSource -match 'LauncherLocation') 'Launcher placement logic is missing'
+        Require ($nativeSource -match 'YasbAutoHideEnabled') 'Launcher auto-hide placement override is missing'
+        Require ($nativeSource -match 'ForegroundWindowFillsScreen') 'Launcher fullscreen placement override is missing'
     }
 
     Check 'EarTrumpet direct Super+V configuration remains management-time only' {
