@@ -216,6 +216,8 @@ binding_modes:
         bindings: ["lwin+alt+m", "rwin+alt+m"]
       - commands: ["wm-toggle-pause"]
         bindings: ["lwin+alt+p", "rwin+alt+p"]
+      - commands: ["shell-exec wgdotw.exe power-menu"]
+        bindings: ["lwin+p", "rwin+p"]
       - commands: ["shell-exec wgdotw.exe bar-autohide-toggle"]
         bindings: ["alt+ctrl+b"]
 
@@ -409,7 +411,10 @@ keybindings:
 
   - commands: ['shell-exec wt.exe -w new new-tab --title "Win Glaze Themes" --suppressApplicationTitle wgdot.exe theme']
     bindings: ["lwin+t", "rwin+t"]
-  # Standalone script coordinates YASB auto-hide with the GlazeWM top gap.
+
+  - commands: ["shell-exec wgdotw.exe power-menu"]
+    bindings: ["lwin+p", "rwin+p"]
+  # Compiled WGDot coordinates YASB auto-hide with the GlazeWM top gap.
   - commands: ["shell-exec wgdotw.exe bar-autohide-toggle"]
     bindings: ["alt+ctrl+b"]
 
