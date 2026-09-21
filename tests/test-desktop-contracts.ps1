@@ -62,6 +62,10 @@ try {
         foreach ($name in @(
             'EnsureHiddenLauncher',
             'ThemeManagerFromArgs',
+            'ThemeWindowToggle',
+            'ClipboardAnchorFromArgs',
+            'LauncherFromArgs',
+            'PowerMenu',
             'IdleInhibitorStatus',
             'IdleInhibitorToggle',
             'IdleInhibitorWorker',
@@ -93,6 +97,18 @@ try {
         )) {
             Require ($null -eq (Get-NativeMethod $name)) ('Native-capable desktop helper must stay absent: ' + $name)
         }
+    }
+
+    Check 'mouse hook tolerates GlazeWM IPC reads and uses native interactive move' {
+        $bindingModeActiveBlock = [regex]::Match($nativeSource, '(?ms)^    static bool GlazeWmBindingModeActive\(string name\)\r?\n    \{.*?^    \}').Value
+        Require ($bindingModeActiveBlock -match 'TryGetActiveGlazeWmBindingMode') 'Mouse-mode liveness still calls the throwing binding-mode query directly'
+        Require ($bindingModeActiveBlock -match 'ReadTrackedGlazeBindingMode') 'Mouse-mode liveness has no safe tracked-state fallback'
+
+        $moveBlock = [regex]::Match($nativeSource, '(?ms)^    static void BeginMouseMove\(IntPtr window, POINT point\)\r?\n    \{.*?^    \}').Value
+        Require ($moveBlock -match 'SendMessage') 'Left drag does not enter the native Windows move loop'
+
+        $hookBlock = [regex]::Match($nativeSource, '(?ms)^    static IntPtr MouseModeHookCallback\(.*?^    \}').Value
+        Require ($hookBlock -match 'ThreadPool\.QueueUserWorkItem') 'Left drag blocks the low-level mouse hook thread'
     }
 
     Check 'legacy runtime replacement stop signals are preserved' {
@@ -148,7 +164,7 @@ try {
             Require ($text -match 'wm-disable-binding-mode --name') ('Native mode escape missing: ' + $relative)
             Require ($text -match 'wm-toggle-pause') ('Native pause binding missing: ' + $relative)
             Require ($text -match 'flameshot\.exe gui') ('Direct Flameshot launch missing: ' + $relative)
-            Require ($text -match 'wgdot\.exe theme') ('Compiled theme implementation missing: ' + $relative)
+            Require ($text -match 'wgdotw\.exe theme-window-toggle') ('Windowless theme toggle dispatch missing: ' + $relative)
             Require ($text -match 'wgdotw\.exe bar-autohide-toggle') ('Compiled coordinated auto-hide implementation missing: ' + $relative)
             Require ($text -match 'wgdotw\.exe rawaccel-toggle') ('Scoped RawAccel toggle missing: ' + $relative)
             Require ($text -match 'wgdotw\.exe power-menu') ('Compiled Awtarchy-style power surface missing: ' + $relative)
@@ -172,6 +188,12 @@ try {
             Require ($text -match 'on_right:\s*"exec wgdotw\.exe power-menu"') ('Power icon right click does not open the compiled power surface: ' + $relative)
             Require ($text -match 'class_name:\s*"awtarchy-launcher"') ('Compiled launcher bar control missing: ' + $relative)
             Require ($text -match 'on_left:\s*"exec wgdotw\.exe launcher bar"') ('Launcher button does not open the bar-relative compiled surface: ' + $relative)
+            Require ($text -match 'wgdotw\.exe theme-window-toggle') ('Quick Settings theme-window toggle missing: ' + $relative)
+            Require ($text -match 'wgdotw\.exe clipboard-anchor bar') ('Clipboard History bar anchor missing: ' + $relative)
+            $wifiBlock = [regex]::Match($text, '(?ms)^  wifi:\r?\n.*?(?=^  bluetooth:)').Value
+            $bluetoothBlock = [regex]::Match($text, '(?ms)^  bluetooth:\r?\n.*?(?=^  systray:)').Value
+            Require ($wifiBlock -match 'on_left:\s*"toggle_menu"') ('Wi-Fi/Ethernet native toggle menu missing: ' + $relative)
+            Require ($bluetoothBlock -match 'on_left:\s*"toggle_menu"') ('Bluetooth native toggle menu missing: ' + $relative)
             Require ($text -match 'on_left:\s*"disable_binding_mode"') ('Binding-mode label does not disable the active mode: ' + $relative)
             Require ($text -match 'on_right:\s*"disable_binding_mode"') ('Binding-mode label right click does not disable the active mode: ' + $relative)
             Require ($text -match 'on_middle:\s*"do_nothing"') ('Binding-mode label middle click must do nothing: ' + $relative)
