@@ -1033,6 +1033,7 @@ internal static class WgdotNative
             if (command == "mouse-mode-switch") return MouseModeSwitchFromArgs(args.Skip(1).ToArray());
             if (command == "mouse-mode-hook") return MouseModeHook();
             if (command == "glazewm-binding-mode-toggle") return GlazeWmBindingModeToggleFromArgs(args.Skip(1).ToArray());
+            if (command == "glazewm-binding-mode-set") return GlazeWmBindingModeSetFromArgs(args.Skip(1).ToArray());
             if (command == "glazewm-pause-status") return GlazeWmPauseStatus();
             if (command == "glazewm-pause-toggle") return GlazeWmPauseToggle();
             if (command == "theme-toggle") return ThemeToggle();
@@ -8531,6 +8532,18 @@ class WgdotHidden
         RequireGlazeWmSuccess(
             result,
             "GlazeWM binding mode " + (enabled ? "enable" : "disable") + " '" + name + "'");
+
+        if (enabled)
+        {
+            WriteTrackedGlazeBindingMode(name);
+        }
+        else if (String.Equals(
+                     ReadTrackedGlazeBindingMode(),
+                     name,
+                     StringComparison.OrdinalIgnoreCase))
+        {
+            WriteTrackedGlazeBindingMode("");
+        }
     }
 
     static void SignalMouseModeHookStop()
@@ -8625,37 +8638,68 @@ class WgdotHidden
 
         string mode = args[0].ToLowerInvariant();
         string activeMode;
-
         if (TryGetActiveGlazeWmBindingMode(out activeMode))
-        {
-            if (String.Equals(activeMode, mode, StringComparison.OrdinalIgnoreCase))
-            {
-                SetGlazeWmBindingMode(mode, false);
-                return 0;
-            }
+            WriteTrackedGlazeBindingMode(activeMode);
+        else
+            activeMode = ReadTrackedGlazeBindingMode();
 
-            // GlazeWM's enable command replaces the current binding mode.
-            // Always stop a stale mouse hook before switching to a keyboard mode.
-            SignalMouseModeHookStop();
-            SetGlazeWmBindingMode(mode, true);
+        if (String.Equals(activeMode, mode, StringComparison.OrdinalIgnoreCase))
+        {
+            SetGlazeWmBindingMode(mode, false);
             return 0;
         }
 
-        // Runtime-tested GlazeWM can lose the CLI response for
-        // 'query binding-modes' while a large mode is active. Disable the
-        // requested mode unconditionally, then query again:
-        //   - query now succeeds with no mode => requested mode was active;
-        //   - another mode remains or query still cannot return => switch to
-        //     the requested mode, which atomically replaces the active mode.
-        SetGlazeWmBindingMode(mode, false);
-        System.Threading.Thread.Sleep(75);
+        if (String.Equals(activeMode, "mouse", StringComparison.OrdinalIgnoreCase) ||
+            NamedMutexExists(MouseModeMutexName))
+            MouseModeDisable();
+        else
+            SignalMouseModeHookStop();
 
-        string remainingMode;
-        if (TryGetActiveGlazeWmBindingMode(out remainingMode) &&
-            String.IsNullOrWhiteSpace(remainingMode))
+        SetGlazeWmBindingMode(mode, true);
+        return 0;
+    }
+
+    static int GlazeWmBindingModeSetFromArgs(string[] args)
+    {
+        if (args.Length != 1)
+            throw new Exception("glazewm-binding-mode-set requires exactly one target: normal, noalt, or vm.");
+
+        string mode = args[0].Trim().ToLowerInvariant();
+        if (!(mode == "normal" || mode == "noalt" || mode == "vm"))
+            throw new Exception("glazewm-binding-mode-set requires exactly one target: normal, noalt, or vm.");
+
+        string tracked = ReadTrackedGlazeBindingMode();
+
+        if (mode == "normal")
+        {
+            if (String.Equals(tracked, "mouse", StringComparison.OrdinalIgnoreCase) ||
+                NamedMutexExists(MouseModeMutexName))
+            {
+                MouseModeDisable();
+            }
+            else
+            {
+                SignalMouseModeHookStop();
+                if (String.Equals(tracked, "noalt", StringComparison.OrdinalIgnoreCase) ||
+                    String.Equals(tracked, "vm", StringComparison.OrdinalIgnoreCase))
+                    SetGlazeWmBindingMode(tracked, false);
+                else
+                {
+                    SetGlazeWmBindingMode("noalt", false);
+                    SetGlazeWmBindingMode("vm", false);
+                }
+            }
+
+            WriteTrackedGlazeBindingMode("");
             return 0;
+        }
 
-        SignalMouseModeHookStop();
+        if (String.Equals(tracked, "mouse", StringComparison.OrdinalIgnoreCase) ||
+            NamedMutexExists(MouseModeMutexName))
+            MouseModeDisable();
+        else
+            SignalMouseModeHookStop();
+
         SetGlazeWmBindingMode(mode, true);
         return 0;
     }
