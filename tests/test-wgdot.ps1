@@ -493,6 +493,7 @@ Assert-True ((Get-Command Get-WgdotYasbThemeCss -ErrorAction SilentlyContinue) -
 Assert-True ((Get-Command Set-WgdotYasbTheme -ErrorAction SilentlyContinue) -ne $null) "PowerShell fallback exposes YASB theme writer"
 Assert-True ((Get-Command Set-WgdotWindowsTerminalTheme -ErrorAction SilentlyContinue) -ne $null) "PowerShell fallback exposes Windows Terminal theme writer"
 Assert-True ((Get-Command Get-WgdotYasbThemeManualPowerShell -ErrorAction SilentlyContinue) -ne $null) "PowerShell fallback can emit standalone theme recovery commands"
+Assert-True ((Get-Command Get-WgdotWindowsTerminalThemeManualPowerShell -ErrorAction SilentlyContinue) -ne $null) "PowerShell fallback can emit standalone Terminal theme recovery commands"
 
 $expectedThemeRows = @(
     "carbon-night|Carbon Night|#353535|#d0d0d0|#404040|#4a4a4a|#2b2b2b|#ff5555|#1a1a1a|#6a9955|#ff5555|#5c5c5c",
@@ -549,6 +550,9 @@ try {
     Assert-True ($manualThemeText -match 'theme\.css') "generated manual recovery includes theme.css"
     Assert-True ($manualThemeText -match 'theme\.json') "generated manual recovery includes theme state"
     Assert-True ($manualThemeText -match 'electric-blue') "generated manual recovery preserves selected theme id"
+    Assert-True ($manualThemeText -match 'terminalSettingsPath') "generated manual recovery includes Windows Terminal settings"
+    Assert-True ($manualThemeText -match 'terminalSynced') "generated manual recovery records Terminal synchronization state"
+    Assert-True ($manualThemeText -match 'WGDot Electric Blue') "generated manual recovery includes the selected Terminal scheme"
     Assert-True ($manualThemeText -match 'glazewmReloaded = \$false') "generated manual recovery never reloads GlazeWM"
     [scriptblock]::Create($manualThemeText) | Out-Null
 } finally {

@@ -305,6 +305,49 @@ function Set-WgdotYasbTheme {
 }
 
 
+function Get-WgdotWindowsTerminalThemeManualPowerShell {
+    param([Parameter(Mandatory = $true)][string]$Id)
+
+    $theme = Get-WgdotYasbTheme -Id $Id
+    if ($null -eq $theme) { throw "Unknown YASB theme '$Id'." }
+
+    $safeLabel = ([string]$theme.label).Replace("'", "''")
+    $background = [string]$theme.background
+    $red = [Convert]::ToInt32($background.Substring(1, 2), 16)
+    $green = [Convert]::ToInt32($background.Substring(3, 2), 16)
+    $blue = [Convert]::ToInt32($background.Substring(5, 2), 16)
+    $applicationTheme = if (((0.2126 * $red) + (0.7152 * $green) + (0.0722 * $blue)) -ge 155) { "light" } else { "dark" }
+
+    return @(
+        "# Windows Terminal generated theme sync",
+        '$terminalSynced = $false',
+        '$terminalSettingsPath = Join-Path $env:LOCALAPPDATA ''Packages\Microsoft.WindowsTerminal_8wekyb3d8bbwe\LocalState\settings.json''',
+        'if (Test-Path -LiteralPath $terminalSettingsPath -PathType Leaf) {',
+        '    $terminal = Get-Content -LiteralPath $terminalSettingsPath -Raw | ConvertFrom-Json',
+        '    if (-not ($terminal.PSObject.Properties.Name -contains ''profiles'')) { $terminal | Add-Member -NotePropertyName profiles -NotePropertyValue ([pscustomobject]@{}) }',
+        '    if (-not ($terminal.profiles.PSObject.Properties.Name -contains ''defaults'')) { $terminal.profiles | Add-Member -NotePropertyName defaults -NotePropertyValue ([pscustomobject]@{}) }',
+        "    \$schemeName = 'WGDot $safeLabel'",
+        '    $terminal.profiles.defaults | Add-Member -NotePropertyName colorScheme -NotePropertyValue $schemeName -Force',
+        '    $terminalSchemes = @()',
+        '    if ($terminal.PSObject.Properties.Name -contains ''schemes'') { $terminalSchemes = @($terminal.schemes | Where-Object { -not ([string]$_.name).StartsWith(''WGDot '', [StringComparison]::OrdinalIgnoreCase) }) }',
+        "    \$terminalScheme = [pscustomobject][ordered]@{ name = \$schemeName; background = '$($theme.background)'; foreground = '$($theme.foreground)'; cursorColor = '$($theme.foreground)'; selectionBackground = '$($theme.focus)'; black = '$($theme.dark)'; red = '$($theme.urgent)'; green = '$($theme.charging)'; yellow = '$($theme.critical)'; blue = '$($theme.focus)'; purple = '$($theme.active)'; cyan = '$($theme.hover)'; white = '$($theme.foreground)'; brightBlack = '$($theme.muted)'; brightRed = '$($theme.urgent)'; brightGreen = '$($theme.charging)'; brightYellow = '$($theme.critical)'; brightBlue = '$($theme.focus)'; brightPurple = '$($theme.active)'; brightCyan = '$($theme.hover)'; brightWhite = '$($theme.foreground)' }",
+        '    $terminal | Add-Member -NotePropertyName schemes -NotePropertyValue @($terminalSchemes + $terminalScheme) -Force',
+        '    $terminalThemes = @()',
+        '    if ($terminal.PSObject.Properties.Name -contains ''themes'') { $terminalThemes = @($terminal.themes | Where-Object { -not ([string]$_.name).StartsWith(''WGDot '', [StringComparison]::OrdinalIgnoreCase) }) }',
+        "    \$terminalUiTheme = [pscustomobject][ordered]@{ name = \"\$schemeName UI\"; window = [pscustomobject][ordered]@{ applicationTheme = '$applicationTheme'; useMica = \$false }; tab = [pscustomobject][ordered]@{ background = 'terminalBackground'; unfocusedBackground = '$($theme.background)' }; tabRow = [pscustomobject][ordered]@{ background = '$($theme.background)'; unfocusedBackground = '$($theme.background)' } }",
+        '    $terminal | Add-Member -NotePropertyName themes -NotePropertyValue @($terminalThemes + $terminalUiTheme) -Force',
+        '    $terminal | Add-Member -NotePropertyName theme -NotePropertyValue "$schemeName UI" -Force',
+        '    $terminalTmp = "$terminalSettingsPath.tmp-$([guid]::NewGuid().ToString(''N''))"',
+        '    $utf8NoBom = New-Object System.Text.UTF8Encoding($false)',
+        '    try {',
+        '        [IO.File]::WriteAllText($terminalTmp, (($terminal | ConvertTo-Json -Depth 32) + [Environment]::NewLine), $utf8NoBom)',
+        '        Move-Item -LiteralPath $terminalTmp -Destination $terminalSettingsPath -Force',
+        '    } finally { if (Test-Path -LiteralPath $terminalTmp) { Remove-Item -LiteralPath $terminalTmp -Force } }',
+        '    $terminalSynced = $true',
+        '}'
+    )
+}
+
 function Get-WgdotYasbThemeManualPowerShell {
     param([string]$Id = (Get-WgdotCurrentYasbThemeId))
 
@@ -316,17 +359,21 @@ function Get-WgdotYasbThemeManualPowerShell {
     $safeId = ([string]$theme.id).Replace("'", "''")
     $safeLabel = ([string]$theme.label).Replace("'", "''")
 
-    return @(
+    $lines = @(
         "# YASB generated theme post-action",
         '$themePath = Join-Path $env:USERPROFILE ''.config\yasb\theme.css''',
         'New-Item -ItemType Directory -Force -Path (Split-Path -Parent $themePath) | Out-Null',
-        "[IO.File]::WriteAllBytes(`$themePath, [Convert]::FromBase64String('$encoded'))",
+        "[IO.File]::WriteAllBytes(\$themePath, [Convert]::FromBase64String('$encoded'))"
+    )
+    $lines += @(Get-WgdotWindowsTerminalThemeManualPowerShell -Id ([string]$theme.id))
+    $lines += @(
         '$themeStatePath = Join-Path $env:LOCALAPPDATA ''wgdot\state\theme.json''',
         'New-Item -ItemType Directory -Force -Path (Split-Path -Parent $themeStatePath) | Out-Null',
-        "`$themeState = [pscustomobject]@{ id = '$safeId'; label = '$safeLabel'; appliedAt = (Get-Date).ToUniversalTime().ToString('o'); cssPath = `$themePath; glazewmReloaded = `$false }",
+        "\$themeState = [pscustomobject]@{ id = '$safeId'; label = '$safeLabel'; appliedAt = (Get-Date).ToUniversalTime().ToString('o'); cssPath = \$themePath; terminalSynced = [bool]\$terminalSynced; terminalSettingsPath = \$terminalSettingsPath; glazewmReloaded = \$false }",
         '$themeState | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $themeStatePath -Encoding UTF8',
-        'Write-Host "YASB theme generated: $themePath"'
+        'Write-Host "YASB / Windows Terminal theme generated: $themePath"'
     )
+    return $lines
 }
 
 function Invoke-WgdotApi {
