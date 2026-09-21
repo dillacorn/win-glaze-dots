@@ -690,7 +690,7 @@ Assert-True ($nativeSourceText -match 'SendInput') "desktop shortcut bridges use
 Assert-True ($nativeSourceText -match 'VkF24') "Quick Launch bridge avoids Windows-reserved Win+Alt+D"
 Assert-True ($nativeSourceText -match 'EnsureHiddenLauncher') "native runtime installs the GUI-subsystem wgdotw helper"
 Assert-True ($nativeSourceText -match '/target:winexe') "wgdotw is compiled without a console window"
-Assert-True ($manifestText -match 'ensure-hidden-launcher') "YASB apply ensures wgdotw exists"
+Assert-True (@($yasb.postActions | Where-Object { $_.type -eq "ensure-hidden-launcher" }).Count -eq 1) "YASB apply ensures wgdotw exists"
 Assert-True ($nativeSourceText -match 'ReadableTerminalColor') "Windows Terminal ANSI colors are contrast-checked"
 Assert-True ($nativeSourceText -match 'command == "yasb-running-apps-toggle"') "native runtime exposes the running-app visibility toggle"
 Assert-True ($nativeSourceText -match 'command == "yasb-running-apps-shade-toggle"') "native runtime exposes the themed running-app shading toggle"
