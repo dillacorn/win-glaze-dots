@@ -129,13 +129,45 @@ jobs:
           findstr /C:"GlazeWM profile: work" "%TEMP%\wgdot-dots-only-plan.txt"
           findstr /C:"Software operations: disabled" "%TEMP%\wgdot-dots-only-plan.txt"
           findstr /C:"Review only. No managed files, backups, baselines, or selection state were changed." "%TEMP%\wgdot-dots-only-plan.txt"
-      - name: Validate automatic runtime refresh handoff
+      - name: Trigger automatic runtime refresh handoff
         shell: cmd
         run: |
           "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" mark-runtime --ref "${{ github.head_ref || github.ref_name }}" --revision 0000000000000000000000000000000000000001
           "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" status
-          ping 127.0.0.1 -n 4 >nul
-          findstr /C:"0000000000000000000000000000000000000001" "%LOCALAPPDATA%\wgdot\state\native-bootstrap.json" && exit /b 1 || echo Runtime refresh updated revision.
+      - name: Verify automatic runtime refresh completed
+        shell: powershell
+        run: |
+          $statePath = Join-Path $env:LOCALAPPDATA 'wgdot\state\native-bootstrap.json'
+          $deadline = (Get-Date).AddSeconds(20)
+          do {
+              Start-Sleep -Milliseconds 500
+              $state = Get-Content -Raw -LiteralPath $statePath | ConvertFrom-Json
+          } while ($state.sourceRevision -eq '0000000000000000000000000000000000000001' -and (Get-Date) -lt $deadline)
+          if ($state.sourceRevision -eq '0000000000000000000000000000000000000001') {
+              throw 'Automatic WGDot runtime refresh did not complete.'
+          }
+          if ([string]$state.sourceRevision -notmatch '^[0-9a-fA-F]{40}
+      - name: Verify persistent user PATH
+        shell: cmd
+        run: |
+          reg query HKCU\Environment /v Path | findstr /I /C:"wgdot\bin"
+      - name: Seed non-mutating Git review selection
+        shell: cmd
+        run: |
+          if not exist "%LOCALAPPDATA%\wgdot\state" mkdir "%LOCALAPPDATA%\wgdot\state"
+          >"%LOCALAPPDATA%\wgdot\state\installation.json" echo {"scope":"normal","glazewmProfile":"normal","components":["glazewm","yazi"],"packages":[]}
+      - name: Validate native Git review planner
+        shell: cmd
+        run: |
+          "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" git-review --branch "${{ github.head_ref || github.ref_name }}" --revision ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Validate native maintenance mutations in isolated state
+        shell: cmd
+        run: |
+          set "WGDOT_TEST_ROOT=%TEMP%\wgdot-native-maintenance-state"
+          "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" maintenance-self-test
+) {
+              throw "Unexpected refreshed revision: $($state.sourceRevision)"
+          }
       - name: Verify persistent user PATH
         shell: cmd
         run: |
