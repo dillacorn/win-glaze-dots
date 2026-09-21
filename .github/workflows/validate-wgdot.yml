@@ -103,6 +103,14 @@ jobs:
         shell: cmd
         run: |
           "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" status
+      - name: Reinstall exact runtime through PowerShell WebClient fallback
+        shell: cmd
+        env:
+          WGDOT_FORCE_POWERSHELL_DOWNLOAD: "1"
+        run: |
+          cd /d "%TEMP%"
+          call wgdot-bootstrap-test.cmd --ref "${{ github.head_ref || github.ref_name }}" --revision ${{ github.event.pull_request.head.sha || github.sha }}
+          "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" status
       - name: Validate raw-only exact revision source acquisition
         shell: cmd
         env:
