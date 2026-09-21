@@ -27,14 +27,14 @@ foreach ($path in @($configPath, $workConfigPath, $stylePath, $readmePath, $glaz
     }
 }
 
-$config = Get-Content -LiteralPath $configPath -Raw
-$workConfig = Get-Content -LiteralPath $workConfigPath -Raw
-$style = Get-Content -LiteralPath $stylePath -Raw
-$readme = Get-Content -LiteralPath $readmePath -Raw
-$glazeNormal = Get-Content -LiteralPath $glazeNormalPath -Raw
-$glazeWork = Get-Content -LiteralPath $glazeWorkPath -Raw
-$themeScript = Get-Content -LiteralPath $themeScriptPath -Raw
-$manifest = Get-Content -LiteralPath $manifestPath -Raw
+$config = Get-Content -LiteralPath $configPath -Raw -Encoding UTF8
+$workConfig = Get-Content -LiteralPath $workConfigPath -Raw -Encoding UTF8
+$style = Get-Content -LiteralPath $stylePath -Raw -Encoding UTF8
+$readme = Get-Content -LiteralPath $readmePath -Raw -Encoding UTF8
+$glazeNormal = Get-Content -LiteralPath $glazeNormalPath -Raw -Encoding UTF8
+$glazeWork = Get-Content -LiteralPath $glazeWorkPath -Raw -Encoding UTF8
+$themeScript = Get-Content -LiteralPath $themeScriptPath -Raw -Encoding UTF8
+$manifest = Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8
 
 Assert-Contains $config "height: 28" "bar height stays at Awtarchy horizontal default"
 Assert-Contains $config "always_on_top: true" "YASB remains above normal windows without changing reservation models"
