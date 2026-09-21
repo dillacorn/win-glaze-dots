@@ -197,9 +197,9 @@ widgets:
       tooltip: true
       tooltip_label: "Workspace mover"
       callbacks:
-        on_left: "do_nothing"
+        on_left: "exec wgdotw.exe mouse-mode-toggle"
         on_middle: "do_nothing"
-        on_right: "do_nothing"
+        on_right: "exec wgdotw.exe mouse-mode-toggle"
 
   workspace_move:
     type: "yasb.applications.ApplicationsWidget"
@@ -286,8 +286,8 @@ widgets:
         vm: ""
       binding_modes_to_cycle_through: ["none", "noalt", "mouse", "vm"]
       callbacks:
-        on_left: "next_binding_mode"
-        on_middle: "toggle_label"
+        on_left: "disable_binding_mode"
+        on_middle: "do_nothing"
         on_right: "disable_binding_mode"
 
   active_window:
@@ -310,21 +310,20 @@ widgets:
   idle_inhibitor:
     type: "yasb.custom.CustomWidget"
     options:
-      # The standalone script emits the same eye/eye-slash state JSON.
       label: "{data[icon]}"
       class_name: "awtarchy-idle"
       tooltip: true
       tooltip_label: "{data[tooltip]}"
       exec_options:
-        run_cmd: 'powershell.exe -NoLogo -NoProfile -Command "& (Join-Path $env:USERPROFILE ''.config\win-glaze\scripts\idle-inhibitor.ps1'') status"'
+        run_cmd: "wgdot.exe idle-inhibitor-status"
         run_once: false
         run_interval: 1000
         return_format: "json"
         hide_empty: false
       callbacks:
-        on_left: 'exec powershell.exe -NoLogo -NoProfile -WindowStyle Hidden -Command "& (Join-Path $env:USERPROFILE ''.config\win-glaze\scripts\idle-inhibitor.ps1'') toggle"'
+        on_left: "exec wgdotw.exe idle-inhibitor-toggle"
         on_middle: "do_nothing"
-        on_right: 'exec powershell.exe -NoLogo -NoProfile -WindowStyle Hidden -Command "& (Join-Path $env:USERPROFILE ''.config\win-glaze\scripts\idle-inhibitor.ps1'') toggle"'
+        on_right: "exec wgdotw.exe idle-inhibitor-toggle"
 
   cpu:
     type: "yasb.cpu.CpuWidget"
@@ -401,19 +400,19 @@ widgets:
             - id: "themes"
               label: "Themes"
               icon: ""
-              command: 'wt.exe -w new new-tab --title "Win Glaze Themes" --suppressApplicationTitle powershell.exe -NoLogo -NoProfile -Command "& (Join-Path $env:USERPROFILE ''.config\win-glaze\scripts\theme-switcher.ps1'')"'
+              command: 'wt.exe -w new new-tab --title "Win Glaze Themes" --suppressApplicationTitle wgdot.exe theme'
             - id: "bar_autohide"
               label: "Auto Hide"
               icon: "󰘖"
-              command: 'powershell.exe -NoLogo -NoProfile -WindowStyle Hidden -Command "& (Join-Path $env:USERPROFILE ''.config\win-glaze\scripts\bar-autohide.ps1'') toggle"'
+              command: "wgdotw.exe bar-autohide-toggle"
             - id: "noalt_mode"
               label: "NoAlt Mode"
               icon: "󰌌"
-              command: 'powershell.exe -NoLogo -NoProfile -WindowStyle Hidden -Command "Start-Process -WindowStyle Hidden -FilePath glazewm.exe -ArgumentList ''command wm-enable-binding-mode --name noalt''"'
+              command: "wgdotw.exe glazewm-binding-mode-toggle noalt"
             - id: "vm_mode"
               label: "VM Mode"
               icon: "󰢹"
-              command: 'powershell.exe -NoLogo -NoProfile -WindowStyle Hidden -Command "Start-Process -WindowStyle Hidden -FilePath glazewm.exe -ArgumentList ''command wm-enable-binding-mode --name vm''"'
+              command: "wgdotw.exe glazewm-binding-mode-toggle vm"
             - id: "display_settings"
               label: "Displays"
               icon: "󰍹"
@@ -679,6 +678,16 @@ widgets:
       blur_background: false
       animation_duration: 0
       button_row: 3
+      menu_style: "popup"
+      popup:
+        blur: false
+        round_corners: false
+        round_corners_type: "none"
+        border_color: "None"
+        alignment: "right"
+        direction: "down"
+        offset_top: 0
+        offset_left: 0
       buttons:
         lock: ["", "Lock"]
         signout: ["󰗽", "Sign out"]
