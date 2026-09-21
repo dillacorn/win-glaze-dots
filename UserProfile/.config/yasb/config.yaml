@@ -686,7 +686,7 @@ widgets:
       label: "<span></span>"
       class_name: "awtarchy-clipboard"
       tooltip: true
-      tooltip_label: "Windows Clipboard History (Super+C)"
+      tooltip_label: "WGDot Clipboard History (Super+C)"
       exec_options:
         run_once: true
         return_format: "string"
