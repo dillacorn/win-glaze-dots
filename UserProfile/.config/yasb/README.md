@@ -80,6 +80,8 @@ The compiled WGDot theme manager is launched as `wgdot.exe theme` inside Windows
 
 The selector uses the title `Win Glaze Themes`, and both GlazeWM profiles float/center that window.
 
+`Super+Alt+T` opens themes. `Super+T` toggles tiling, as does global `Alt+T`; `noalt` intentionally leaves plain `Alt+T` unbound while retaining `Super+T`.
+
 GlazeWM focused borders stay neutral `#a1a1a1` so a theme change never requires a layout-disrupting GlazeWM reload.
 
 ## Coordinated bar auto-hide
