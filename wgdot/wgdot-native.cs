@@ -1240,85 +1240,47 @@ internal static class WgdotNative
                 Path.GetFullPath(targetExe),
                 StringComparison.OrdinalIgnoreCase);
 
-        bool idleInhibitorWasActive = false;
-        bool mouseModeHookWasActive = false;
-        bool superLTestHookWasActive = false;
-        bool desktopWorkerWasActive = false;
-
         if (replacingInstalledRuntime && File.Exists(targetExe))
         {
-            idleInhibitorWasActive = NamedMutexExists(IdleInhibitorMutexName);
-            mouseModeHookWasActive = NamedMutexExists(MouseModeMutexName);
-            superLTestHookWasActive = NamedMutexExists(SuperLTestMutexName);
-            desktopWorkerWasActive = NamedMutexExists(DesktopWorkerMutexName);
+            // Migration cleanup only: stop any workers left behind by an older
+            // WGDot desktop-helper build. The management-only runtime never
+            // restores these workers after replacement.
+            bool idle = NamedMutexExists(IdleInhibitorMutexName);
+            bool mouse = NamedMutexExists(MouseModeMutexName);
+            bool superL = NamedMutexExists(SuperLTestMutexName);
+            bool desktop = NamedMutexExists(DesktopWorkerMutexName);
 
             IntPtr clipboardWindow = FindTopLevelWindowByExactTitle(ClipboardHistoryWindowTitle);
             if (clipboardWindow != IntPtr.Zero)
                 PostMessage(clipboardWindow, WmClose, IntPtr.Zero, IntPtr.Zero);
 
-            if (idleInhibitorWasActive) SignalIdleInhibitorStop();
-            if (mouseModeHookWasActive) SignalMouseModeHookStop();
-            if (superLTestHookWasActive) SignalSuperLTestStop();
-            if (desktopWorkerWasActive) SignalDesktopWorkerStop();
+            if (idle) SignalIdleInhibitorStop();
+            if (mouse) SignalMouseModeHookStop();
+            if (superL) SignalSuperLTestStop();
+            if (desktop) SignalDesktopWorkerStop();
 
-            if (idleInhibitorWasActive)
-                WaitForRuntimeWorkerState(IdleInhibitorMutexName, false, "idle inhibitor");
-            if (mouseModeHookWasActive)
-                WaitForRuntimeWorkerState(MouseModeMutexName, false, "mouse-mode");
-            if (superLTestHookWasActive)
-                WaitForRuntimeWorkerState(SuperLTestMutexName, false, "Super+L test");
-            if (desktopWorkerWasActive)
-                WaitForRuntimeWorkerState(DesktopWorkerMutexName, false, "desktop");
+            if (idle) WaitForRuntimeWorkerState(IdleInhibitorMutexName, false, "legacy idle inhibitor");
+            if (mouse) WaitForRuntimeWorkerState(MouseModeMutexName, false, "legacy mouse-mode");
+            if (superL) WaitForRuntimeWorkerState(SuperLTestMutexName, false, "Super+L test");
+            if (desktop) WaitForRuntimeWorkerState(DesktopWorkerMutexName, false, "legacy desktop worker");
         }
 
-        try
-        {
-            if (replacingInstalledRuntime)
-                CopyRuntimeWithRetry(currentExe, targetExe);
+        if (replacingInstalledRuntime)
+            CopyRuntimeWithRetry(currentExe, targetExe);
 
-            string cmd = "@echo off\r\n\"%~dp0wgdot.exe\" %*\r\n";
-            File.WriteAllText(Path.Combine(BinRoot, "wgdot.cmd"), cmd, Encoding.ASCII);
-            AddUserPath(BinRoot);
+        string cmd = "@echo off\r\n\"%~dp0wgdot.exe\" %*\r\n";
+        File.WriteAllText(Path.Combine(BinRoot, "wgdot.cmd"), cmd, Encoding.ASCII);
+        AddUserPath(BinRoot);
 
-            var state = new Dictionary<string, object>();
-            state["version"] = Version;
-            state["installedAt"] = DateTime.UtcNow.ToString("o");
-            state["sourceRoot"] = sourceRoot;
-            state["sourceRef"] = sourceRef;
-            state["sourceRevision"] = sourceRevision;
-            state["sourceExplicit"] = sourceExplicit;
-            state["executionPolicyIndependent"] = true;
-            WriteJson(BootstrapStatePath, state);
-        }
-        finally
-        {
-            if (replacingInstalledRuntime && File.Exists(targetExe))
-            {
-                if (idleInhibitorWasActive)
-                {
-                    StartRuntimeWorkerFrom(targetExe, "idle-inhibitor-worker");
-                    WaitForRuntimeWorkerState(IdleInhibitorMutexName, true, "idle inhibitor");
-                }
-
-                if (mouseModeHookWasActive)
-                {
-                    StartRuntimeWorkerFrom(targetExe, "mouse-mode-hook");
-                    WaitForRuntimeWorkerState(MouseModeMutexName, true, "mouse-mode");
-                }
-
-                if (superLTestHookWasActive)
-                {
-                    StartRuntimeWorkerFrom(targetExe, "super-l-hook");
-                    WaitForRuntimeWorkerState(SuperLTestMutexName, true, "Super+L test");
-                }
-
-                if (desktopWorkerWasActive)
-                {
-                    StartRuntimeWorkerFrom(targetExe, "desktop-worker");
-                    WaitForRuntimeWorkerState(DesktopWorkerMutexName, true, "desktop");
-                }
-            }
-        }
+        var state = new Dictionary<string, object>();
+        state["version"] = Version;
+        state["installedAt"] = DateTime.UtcNow.ToString("o");
+        state["sourceRoot"] = sourceRoot;
+        state["sourceRef"] = sourceRef;
+        state["sourceRevision"] = sourceRevision;
+        state["sourceExplicit"] = sourceExplicit;
+        state["executionPolicyIndependent"] = true;
+        WriteJson(BootstrapStatePath, state);
 
         Console.WriteLine("WGDot native runtime installed to:");
         Console.WriteLine("  " + BinRoot);
@@ -1596,10 +1558,8 @@ internal static class WgdotNative
         bool superL = NamedMutexExists(SuperLTestMutexName);
         bool desktop = NamedMutexExists(DesktopWorkerMutexName);
 
-        state["idleInhibitor"] = idle;
-        state["mouseMode"] = mouse;
-        state["superLTest"] = superL;
-        state["desktopWorker"] = desktop;
+        // State file is retained only as a staged-swap handoff marker. Legacy
+        // desktop workers are stopped below and deliberately never restored.
         state["createdAt"] = DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture);
         WriteJson(statePath, state);
 
@@ -1623,38 +1583,8 @@ internal static class WgdotNative
     static int RuntimeSwapRestoreFromArgs(string[] args)
     {
         string statePath = NormalizeRuntimeSwapStatePath(GetOption(args, "--state"));
-        Dictionary<string, object> state = ReadJson(statePath);
-        if (state == null)
-            return 0;
-
-        string installedExe = Path.Combine(BinRoot, "wgdot.exe");
-        if (!File.Exists(installedExe))
-            throw new Exception("Installed WGDot runtime is missing during worker restore.");
-
-        if (GetBool(state, "idleInhibitor") && !NamedMutexExists(IdleInhibitorMutexName))
-        {
-            StartRuntimeWorkerFrom(installedExe, "idle-inhibitor-worker");
-            WaitForRuntimeWorkerState(IdleInhibitorMutexName, true, "idle inhibitor");
-        }
-
-        if (GetBool(state, "mouseMode") && !NamedMutexExists(MouseModeMutexName))
-        {
-            StartRuntimeWorkerFrom(installedExe, "mouse-mode-hook");
-            WaitForRuntimeWorkerState(MouseModeMutexName, true, "mouse-mode");
-        }
-
-        if (GetBool(state, "superLTest") && !NamedMutexExists(SuperLTestMutexName))
-        {
-            StartRuntimeWorkerFrom(installedExe, "super-l-hook");
-            WaitForRuntimeWorkerState(SuperLTestMutexName, true, "Super+L test");
-        }
-
-        if (GetBool(state, "desktopWorker") && !NamedMutexExists(DesktopWorkerMutexName))
-        {
-            StartRuntimeWorkerFrom(installedExe, "desktop-worker");
-            WaitForRuntimeWorkerState(DesktopWorkerMutexName, true, "desktop");
-        }
-
+        // Compatibility endpoint for swap helpers created by older runtimes.
+        // The management-only architecture never restarts desktop workers.
         SafeDeleteFile(statePath);
         return 0;
     }
