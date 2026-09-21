@@ -315,6 +315,8 @@ Assert-True ($launcherText -match '(?i)AllSigned') "launcher handles AllSigned p
 Assert-True ($manualText -notmatch '(?i)-ExecutionPolicy\s+Bypass') "manual path does not bypass execution policy"
 Assert-True ($manualText -match 'theme\.css') "paste-only manual workflow generates YASB theme.css"
 Assert-True ($manualText -match 'theme\.json') "paste-only manual workflow preserves YASB theme state"
+Assert-True ($manualText -match 'Microsoft\.WindowsTerminal_8wekyb3d8bbwe') "paste-only manual workflow synchronizes Windows Terminal"
+Assert-True ($manualText -match 'terminalSynced') "paste-only manual workflow records Terminal theme synchronization state"
 Assert-True ($manualText -match 'appearance\.css') "paste-only manual workflow generates YASB appearance.css"
 Assert-True ($manualText -match 'yasb-appearance\.json') "paste-only manual workflow preserves YASB appearance state"
 Assert-True ($manualText -match 'Microsoft\.WinGet\.Client') "paste-only manual workflow can bootstrap missing WinGet from Microsoft's module"
