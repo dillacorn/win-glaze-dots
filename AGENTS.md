@@ -89,6 +89,7 @@ WGDot runtime and managed configuration intentionally have different lifecycles.
 - Normal user-facing WGDot invocations compare the recorded runtime revision with the configured runtime branch head before dispatch and run the refreshed runtime immediately when they differ.
 - Every newly added direct user-facing maintenance command must be added to the runtime auto-refresh policy before dispatch. Direct subcommands must not require the user to run plain `wgdot` first to receive current runtime behavior.
 - Because Windows cannot reliably overwrite the currently running executable, a refreshed staged runtime schedules its own post-exit replacement of the installed `wgdot.exe` and records the exact revision only after that swap succeeds.
+- Direct bootstrap/runtime installation must also tolerate WGDot-owned long-lived workers and YASB polling holding `wgdot.exe` open. Gracefully stop active idle-inhibitor, mouse-mode, and Super+L test workers through their owned stop events, retry replacement across transient locks, then restore workers that were active before the install.
 - Normal managed-config update/reset/review operations must use an exact published stable release, never the current `main` config tree.
 - A runtime refresh from `main` must not silently change the release manifest used for a stable config operation.
 - The selected stable release supplies its own `wgdot/manifest.json` and managed source files.
