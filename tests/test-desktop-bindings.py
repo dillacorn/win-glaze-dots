@@ -126,6 +126,45 @@ for name in ("config.yaml", "custom_work_config.yaml"):
             power_keys,
         )
 
+        theme_keys = {
+            key
+            for binding in bindings
+            if any("wgdot.exe theme" in command for command in binding["commands"])
+            for key in binding["bindings"]
+        }
+        assert {"lwin+alt+t", "rwin+alt+t"} <= theme_keys, (
+            name,
+            mode,
+            "Super+Alt+T must open themes",
+            theme_keys,
+        )
+        tiling_keys = {
+            key
+            for binding in bindings
+            if any(command == "toggle-tiling" for command in binding["commands"])
+            for key in binding["bindings"]
+        }
+        if mode == "normal":
+            assert {"alt+t", "lwin+t", "rwin+t"} <= tiling_keys, (
+                name,
+                mode,
+                "normal mode must bind Alt+T and Super+T to tiling",
+                tiling_keys,
+            )
+        else:
+            assert {"lwin+t", "rwin+t"} <= tiling_keys, (
+                name,
+                mode,
+                "noalt must keep Super+T tiling",
+                tiling_keys,
+            )
+            assert "alt+t" not in tiling_keys, (
+                name,
+                mode,
+                "noalt must leave plain Alt+T uncaptured",
+                tiling_keys,
+            )
+
         rawaccel_keys = {
             key
             for binding in bindings
