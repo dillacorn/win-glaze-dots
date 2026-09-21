@@ -183,6 +183,15 @@ internal static class WgdotNative
     [DllImport("user32.dll")]
     static extern bool PostMessage(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
 
+    [DllImport("user32.dll")]
+    static extern IntPtr GetForegroundWindow();
+
+    [DllImport("user32.dll", SetLastError = true)]
+    static extern bool LockWorkStation();
+
+    [DllImport("powrprof.dll", SetLastError = true)]
+    static extern bool SetSuspendState(bool hibernate, bool forceCritical, bool disableWakeEvent);
+
     [DllImport("dwmapi.dll")]
     static extern int DwmGetWindowAttribute(IntPtr hWnd, int attribute, out int value, int valueSize);
 
@@ -355,6 +364,31 @@ internal static class WgdotNative
         public string DriverVendor;
         public string DriverVersion;
         public string DriverKey;
+    }
+
+    sealed class PowerAction
+    {
+        public char Key;
+        public string Icon;
+        public string Label;
+        public Action Invoke;
+
+        public PowerAction(char key, string icon, string label, Action invoke)
+        {
+            Key = key;
+            Icon = icon;
+            Label = label;
+            Invoke = invoke;
+        }
+    }
+
+    sealed class PowerMenuAnimationState
+    {
+        public bool AllowClose;
+        public bool FadingOut;
+        public Action AfterClose;
+        public System.Windows.Forms.Timer FadeInTimer;
+        public System.Windows.Forms.Timer FadeOutTimer;
     }
 
     // Windows/YASB equivalents of the current Awtarchy theme palettes.
@@ -531,6 +565,7 @@ internal static class WgdotNative
             if (command == "mouse-mode-disable") return MouseModeDisable();
             if (command == "mouse-mode-hook") return MouseModeHook();
             if (command == "theme") return ThemeManagerFromArgs(args.Skip(1).ToArray());
+            if (command == "power-menu") return PowerMenu();
             if (command == "rawaccel-toggle") return RawAccelToggle();
             if (command == "gpu-driver") return GpuDriverMaintenance();
             if (command == "gpu-stage-safe") return GpuStageSafeFromArgs(args.Skip(1).ToArray());
@@ -6659,6 +6694,364 @@ class WgdotHidden
             ? "Windows Terminal theme applied: " + theme.Label
             : "Windows Terminal settings were not found; terminal theme sync was skipped.");
         Console.WriteLine("GlazeWM was not reloaded; window tiling/layout state is untouched.");
+        return 0;
+    }
+
+
+    static System.Drawing.Color WgdotDrawingColor(string hex, System.Drawing.Color fallback)
+    {
+        try
+        {
+            return System.Drawing.ColorTranslator.FromHtml(hex);
+        }
+        catch
+        {
+            return fallback;
+        }
+    }
+
+    static void StartShutdownCommand(string arguments)
+    {
+        var psi = new ProcessStartInfo();
+        psi.FileName = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.System),
+            "shutdown.exe");
+        psi.Arguments = arguments;
+        psi.UseShellExecute = false;
+        psi.CreateNoWindow = true;
+        Process.Start(psi);
+    }
+
+    static List<PowerAction> BuildPowerActions()
+    {
+        return new List<PowerAction>
+        {
+            new PowerAction('l', "", "Lock (L)", delegate
+            {
+                if (!LockWorkStation())
+                    throw new Exception("Windows lock request failed.");
+            }),
+            new PowerAction('h', "", "Hibernate (H)", delegate
+            {
+                StartShutdownCommand("/h");
+            }),
+            new PowerAction('r', "", "Reboot (R)", delegate
+            {
+                StartShutdownCommand("/r /t 0");
+            }),
+            new PowerAction('s', "", "Shutdown (S)", delegate
+            {
+                StartShutdownCommand("/s /t 0");
+            }),
+            new PowerAction('o', "", "Sign out (O)", delegate
+            {
+                StartShutdownCommand("/l");
+            }),
+            new PowerAction('z', "", "Sleep (Z)", delegate
+            {
+                if (!SetSuspendState(false, false, false))
+                    throw new Exception("Windows sleep request failed.");
+            })
+        };
+    }
+
+    static void StopPowerFadeTimer(System.Windows.Forms.Timer timer)
+    {
+        if (timer == null) return;
+        timer.Stop();
+        timer.Dispose();
+    }
+
+    static void StartPowerMenuFadeIn(
+        System.Windows.Forms.Form form,
+        PowerMenuAnimationState state)
+    {
+        if (form == null || form.IsDisposed || state == null) return;
+
+        StopPowerFadeTimer(state.FadeInTimer);
+        state.FadeInTimer = new System.Windows.Forms.Timer();
+        state.FadeInTimer.Interval = 15;
+        state.FadeInTimer.Tick += delegate
+        {
+            if (form.IsDisposed || state.FadingOut)
+            {
+                StopPowerFadeTimer(state.FadeInTimer);
+                state.FadeInTimer = null;
+                return;
+            }
+
+            form.Opacity = Math.Min(0.92, form.Opacity + 0.075);
+            if (form.Opacity >= 0.919)
+            {
+                form.Opacity = 0.92;
+                StopPowerFadeTimer(state.FadeInTimer);
+                state.FadeInTimer = null;
+            }
+        };
+        state.FadeInTimer.Start();
+    }
+
+    static void BeginPowerMenuFadeOut(
+        System.Windows.Forms.Form form,
+        Action afterClose)
+    {
+        if (form == null || form.IsDisposed)
+        {
+            if (afterClose != null) afterClose();
+            return;
+        }
+
+        PowerMenuAnimationState state = form.Tag as PowerMenuAnimationState;
+        if (state == null)
+        {
+            form.Close();
+            if (afterClose != null) afterClose();
+            return;
+        }
+
+        if (afterClose != null && state.AfterClose == null)
+            state.AfterClose = afterClose;
+
+        if (state.FadingOut) return;
+        state.FadingOut = true;
+
+        StopPowerFadeTimer(state.FadeInTimer);
+        state.FadeInTimer = null;
+
+        state.FadeOutTimer = new System.Windows.Forms.Timer();
+        state.FadeOutTimer.Interval = 15;
+        state.FadeOutTimer.Tick += delegate
+        {
+            if (form.IsDisposed)
+            {
+                StopPowerFadeTimer(state.FadeOutTimer);
+                state.FadeOutTimer = null;
+                return;
+            }
+
+            form.Opacity = Math.Max(0.0, form.Opacity - 0.075);
+            if (form.Opacity <= 0.001)
+            {
+                StopPowerFadeTimer(state.FadeOutTimer);
+                state.FadeOutTimer = null;
+                state.AllowClose = true;
+                form.Close();
+            }
+        };
+        state.FadeOutTimer.Start();
+    }
+
+    static void InvokePowerAction(
+        System.Windows.Forms.Form form,
+        PowerAction action)
+    {
+        BeginPowerMenuFadeOut(
+            form,
+            action == null ? null : action.Invoke);
+    }
+
+    static System.Windows.Forms.Control CreatePowerTile(
+        System.Windows.Forms.Form form,
+        PowerAction action,
+        System.Drawing.Color foreground,
+        System.Drawing.Color background,
+        System.Drawing.Color hover)
+    {
+        var tile = new System.Windows.Forms.Panel();
+        tile.Dock = System.Windows.Forms.DockStyle.Fill;
+        tile.Margin = new System.Windows.Forms.Padding(8);
+        tile.BackColor = background;
+        tile.Cursor = System.Windows.Forms.Cursors.Hand;
+
+        var grid = new System.Windows.Forms.TableLayoutPanel();
+        grid.Dock = System.Windows.Forms.DockStyle.Fill;
+        grid.ColumnCount = 1;
+        grid.RowCount = 2;
+        grid.Margin = new System.Windows.Forms.Padding(0);
+        grid.Padding = new System.Windows.Forms.Padding(0);
+        grid.BackColor = System.Drawing.Color.Transparent;
+        grid.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 65f));
+        grid.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 35f));
+
+        var icon = new System.Windows.Forms.Label();
+        icon.Text = action.Icon;
+        icon.Dock = System.Windows.Forms.DockStyle.Fill;
+        icon.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+        icon.ForeColor = foreground;
+        icon.BackColor = System.Drawing.Color.Transparent;
+        icon.Font = new System.Drawing.Font(
+            "JetBrainsMono NFP",
+            42f,
+            System.Drawing.FontStyle.Regular,
+            System.Drawing.GraphicsUnit.Pixel);
+        icon.Cursor = System.Windows.Forms.Cursors.Hand;
+
+        var label = new System.Windows.Forms.Label();
+        label.Text = action.Label;
+        label.Dock = System.Windows.Forms.DockStyle.Fill;
+        label.TextAlign = System.Drawing.ContentAlignment.TopCenter;
+        label.ForeColor = foreground;
+        label.BackColor = System.Drawing.Color.Transparent;
+        label.Font = new System.Drawing.Font(
+            "JetBrainsMono NFP",
+            17f,
+            System.Drawing.FontStyle.Regular,
+            System.Drawing.GraphicsUnit.Pixel);
+        label.Cursor = System.Windows.Forms.Cursors.Hand;
+
+        grid.Controls.Add(icon, 0, 0);
+        grid.Controls.Add(label, 0, 1);
+        tile.Controls.Add(grid);
+
+        EventHandler enter = delegate { tile.BackColor = hover; };
+        EventHandler leave = delegate { tile.BackColor = background; };
+        EventHandler click = delegate { InvokePowerAction(form, action); };
+
+        foreach (System.Windows.Forms.Control control in new System.Windows.Forms.Control[] { tile, grid, icon, label })
+        {
+            control.MouseEnter += enter;
+            control.MouseLeave += leave;
+            control.Click += click;
+        }
+
+        return tile;
+    }
+
+    static int PowerMenu()
+    {
+        const string title = "WGDot Power Menu";
+        IntPtr existing = FindTopLevelWindowByExactTitle(title);
+        if (existing != IntPtr.Zero)
+        {
+            PostMessage(existing, WmClose, IntPtr.Zero, IntPtr.Zero);
+            return 0;
+        }
+
+        System.Windows.Forms.Application.EnableVisualStyles();
+
+        YasbTheme theme = FindYasbTheme(CurrentYasbThemeId()) ?? YasbThemes[0];
+        System.Drawing.Color background = WgdotDrawingColor(
+            theme.Background,
+            System.Drawing.Color.FromArgb(53, 53, 53));
+        System.Drawing.Color foreground = WgdotDrawingColor(
+            theme.Foreground,
+            System.Drawing.Color.Gainsboro);
+        System.Drawing.Color tileBackground = WgdotDrawingColor(
+            theme.Active,
+            System.Drawing.Color.FromArgb(43, 43, 43));
+        System.Drawing.Color tileHover = WgdotDrawingColor(
+            theme.Hover,
+            System.Drawing.Color.FromArgb(64, 64, 64));
+
+        IntPtr foregroundWindow = GetForegroundWindow();
+        System.Windows.Forms.Screen screen = foregroundWindow == IntPtr.Zero
+            ? System.Windows.Forms.Screen.PrimaryScreen
+            : System.Windows.Forms.Screen.FromHandle(foregroundWindow);
+
+        var state = new PowerMenuAnimationState();
+        var form = new System.Windows.Forms.Form();
+        form.Text = title;
+        form.FormBorderStyle = System.Windows.Forms.FormBorderStyle.None;
+        form.StartPosition = System.Windows.Forms.FormStartPosition.Manual;
+        form.Bounds = screen.Bounds;
+        form.TopMost = true;
+        form.ShowInTaskbar = false;
+        form.KeyPreview = true;
+        form.BackColor = background;
+        form.Opacity = 0.0;
+        form.Cursor = System.Windows.Forms.Cursors.Default;
+        form.Tag = state;
+
+        int gridWidth = Math.Min(1000, Math.Max(690, (int)(screen.Bounds.Width * 0.58)));
+        int gridHeight = Math.Min(500, Math.Max(360, (int)(screen.Bounds.Height * 0.43)));
+
+        var grid = new System.Windows.Forms.TableLayoutPanel();
+        grid.ColumnCount = 3;
+        grid.RowCount = 2;
+        grid.Size = new System.Drawing.Size(gridWidth, gridHeight);
+        grid.Location = new System.Drawing.Point(
+            Math.Max(0, (screen.Bounds.Width - gridWidth) / 2),
+            Math.Max(0, (screen.Bounds.Height - gridHeight) / 2));
+        grid.BackColor = System.Drawing.Color.Transparent;
+        grid.Margin = new System.Windows.Forms.Padding(0);
+        grid.Padding = new System.Windows.Forms.Padding(0);
+
+        for (int i = 0; i < 3; i++)
+            grid.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(
+                System.Windows.Forms.SizeType.Percent,
+                33.333f));
+        for (int i = 0; i < 2; i++)
+            grid.RowStyles.Add(new System.Windows.Forms.RowStyle(
+                System.Windows.Forms.SizeType.Percent,
+                50f));
+
+        List<PowerAction> actions = BuildPowerActions();
+        for (int i = 0; i < actions.Count; i++)
+            grid.Controls.Add(
+                CreatePowerTile(
+                    form,
+                    actions[i],
+                    foreground,
+                    tileBackground,
+                    tileHover),
+                i % 3,
+                i / 3);
+
+        form.Controls.Add(grid);
+
+        form.Shown += delegate
+        {
+            StartPowerMenuFadeIn(form, state);
+        };
+
+        form.FormClosing += delegate(
+            object sender,
+            System.Windows.Forms.FormClosingEventArgs e)
+        {
+            if (state.AllowClose) return;
+            e.Cancel = true;
+            BeginPowerMenuFadeOut(form, null);
+        };
+
+        form.FormClosed += delegate
+        {
+            StopPowerFadeTimer(state.FadeInTimer);
+            StopPowerFadeTimer(state.FadeOutTimer);
+            state.FadeInTimer = null;
+            state.FadeOutTimer = null;
+
+            Action afterClose = state.AfterClose;
+            state.AfterClose = null;
+            if (afterClose != null)
+                afterClose();
+        };
+
+        form.KeyDown += delegate(
+            object sender,
+            System.Windows.Forms.KeyEventArgs e)
+        {
+            if (e.KeyCode == System.Windows.Forms.Keys.Escape)
+            {
+                form.Close();
+                e.Handled = true;
+                return;
+            }
+
+            char typed = Char.ToLowerInvariant((char)e.KeyValue);
+            PowerAction action = actions.FirstOrDefault(x => x.Key == typed);
+            if (action != null)
+            {
+                e.Handled = true;
+                InvokePowerAction(form, action);
+            }
+        };
+
+        form.MouseDown += delegate
+        {
+            form.Close();
+        };
+
+        System.Windows.Forms.Application.Run(form);
         return 0;
     }
 
