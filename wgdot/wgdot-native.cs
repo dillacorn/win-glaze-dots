@@ -21,7 +21,7 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-66";
+    const string Version = "native-preview-67";
     const int WingetPreflightTimeoutMs = 30000;
     const string RepoFullName = "dillacorn/win-glaze-dots";
     const string RepoUrl = "https://github.com/dillacorn/win-glaze-dots.git";
@@ -185,6 +185,9 @@ internal static class WgdotNative
 
     [DllImport("user32.dll")]
     static extern bool PostMessage(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
+
+    [DllImport("user32.dll", CharSet = CharSet.Auto)]
+    static extern IntPtr SendMessage(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
 
     [DllImport("user32.dll")]
     static extern IntPtr GetForegroundWindow();
@@ -8864,8 +8867,22 @@ class WgdotHidden
 
     static bool GlazeWmBindingModeActive(string name)
     {
+        string activeMode;
+        if (TryGetActiveGlazeWmBindingMode(out activeMode))
+        {
+            WriteTrackedGlazeBindingMode(activeMode);
+            return String.Equals(
+                activeMode,
+                name,
+                StringComparison.OrdinalIgnoreCase);
+        }
+
+        // GlazeWM 3.10 returns the full active BindingModeConfig for
+        // "query binding-modes". Large modes can make the CLI client fail
+        // to receive that response even while command IPC still works.
+        // Never crash a desktop worker for that transient read failure.
         return String.Equals(
-            GetActiveGlazeWmBindingMode(),
+            ReadTrackedGlazeBindingMode(),
             name,
             StringComparison.OrdinalIgnoreCase);
     }
@@ -9108,6 +9125,24 @@ class WgdotHidden
         return HtBottomRight;
     }
 
+    static void BeginMouseMove(IntPtr window, POINT point)
+    {
+        if (!IsWindow(window))
+            return;
+
+        // WM_NCLBUTTONDOWN enters Windows' normal interactive move loop.
+        // Send it from a worker thread because SendMessage does not return
+        // until that modal move finishes; blocking the low-level hook thread
+        // can make Windows remove the hook. GlazeWM then receives the normal
+        // EVENT_SYSTEM_MOVESIZESTART/END events and owns tiled drag/drop.
+        SetForegroundWindow(window);
+        SendMessage(
+            window,
+            WmNcLButtonDown,
+            new IntPtr(HtCaption),
+            MousePointLParam(point));
+    }
+
     static void ToggleFloatingWindowUnderMouse(IntPtr window)
     {
         SetForegroundWindow(window);
@@ -9154,11 +9189,9 @@ class WgdotHidden
 
         if (message == WmLButtonDown)
         {
-            PostMessage(
-                window,
-                WmNcLButtonDown,
-                new IntPtr(HtCaption),
-                MousePointLParam(data.pt));
+            POINT movePoint = data.pt;
+            System.Threading.ThreadPool.QueueUserWorkItem(
+                delegate { BeginMouseMove(window, movePoint); });
             return new IntPtr(1);
         }
 
