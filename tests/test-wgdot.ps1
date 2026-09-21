@@ -703,10 +703,10 @@ Assert-True ($runtimeText -notmatch '(?i)rmdir\s+/s') "runtime does not use dest
 $yasbConfigText = Get-Content -LiteralPath (Join-Path $repoRoot "UserProfile\.config\yasb\config.yaml") -Raw
 $yasbWorkConfigText = Get-Content -LiteralPath (Join-Path $repoRoot "UserProfile\.config\yasb\custom_work_config.yaml") -Raw
 Assert-True ($yasbConfigText -match 'context_menu:\s*false') "YASB blank-bar context menu is disabled while Alt+Ctrl+B keeps coordinated auto-hide"
-Assert-True ($yasbConfigText -match 'idle-inhibitor\.ps1" status') "YASB bar polls the standalone idle-inhibitor script"
+Assert-True ($yasbConfigText -match 'idle-inhibitor\.ps1.*status') "YASB bar polls the standalone idle-inhibitor script"
 Assert-True ($yasbConfigText -match 'label:\s*"\{data\[icon\]\}"') "YASB idle inhibitor renders JSON-decoded eye state"
 Assert-True ($yasbConfigText -match 'return_format:\s*"json"') "YASB idle inhibitor uses JSON to preserve Nerd Font glyphs"
-Assert-True ($yasbConfigText -match 'idle-inhibitor\.ps1" toggle') "YASB bar toggles the standalone idle inhibitor"
+Assert-True ($yasbConfigText -match 'idle-inhibitor\.ps1.*toggle') "YASB bar toggles the standalone idle inhibitor"
 Assert-True ($yasbConfigText -match 'glazewm_tiling_direction') "YASB exposes GlazeWM tiling direction"
 Assert-True ($yasbConfigText -match 'GlazewmTilingDirectionWidget') "YASB uses its native GlazeWM tiling-direction widget"
 Assert-True ($yasbConfigText -notmatch 'keys:\s*"f24"') "Normal YASB has no synthetic F24 Quick Launch bridge"
@@ -726,6 +726,13 @@ Assert-True ($yasbConfigText -match 'theme-switcher\.ps1') "YASB themes use the 
 Assert-True ($yasbConfigText -match 'bar-autohide\.ps1') "YASB auto-hide uses the standalone coordination script"
 Assert-True ($yasbConfigText -notmatch '(?i)wgdotw?|%LOCALAPPDATA%\\wgdot\\bin\\wgdot\.exe') "Normal YASB has no WGDot runtime dependency"
 Assert-True ($yasbWorkConfigText -notmatch '(?i)wgdotw?|%LOCALAPPDATA%\\wgdot\\bin\\wgdot\.exe') "Work YASB has no WGDot runtime dependency"
+Assert-True ($yasbConfigText -notmatch 'border_color:\s*None') "YASB popup border colors are not invalid YAML nulls"
+Assert-True ($yasbWorkConfigText -notmatch 'border_color:\s*None') "Work YASB popup border colors are not invalid YAML nulls"
+Assert-True ($yasbConfigText -match 'ms-settings:network-status') "YASB Wi-Fi/Ethernet opens Windows Network settings"
+Assert-True ($yasbConfigText -match 'ms-settings:bluetooth') "YASB Bluetooth opens Windows Bluetooth settings"
+Assert-True ($yasbConfigText -notmatch 'cmd\.exe /c start ms-settings') "YASB settings callbacks do not spawn cmd.exe"
+Assert-True ($yasbConfigText -notmatch '%USERPROFILE%\\\.config\\win-glaze\\scripts') "YASB custom actions do not rely on percent-style USERPROFILE expansion"
+
 
 $flameshotConfigText = Get-Content -LiteralPath (Join-Path $repoRoot "UserProfile\AppData\Roaming\flameshot\flameshot.ini") -Raw
 Assert-True ($flameshotConfigText -match '(?m)^captureActiveMonitor=true') "Flameshot defaults to capturing the active monitor without monitor selection"
@@ -776,7 +783,9 @@ foreach ($text in @($glazeNormalText, $glazeWorkText)) {
     Assert-True ($text -notmatch 'bindings:\s*\["lwin\+v",\s*"rwin\+v"\]') "GlazeWM leaves Super+V to EarTrumpet"
     Assert-True ($text -notmatch 'bindings:\s*\["lwin\+c",\s*"rwin\+c"\]') "GlazeWM no longer depends on WGDot clipboard runtime"
     Assert-True ($text -notmatch 'bindings:\s*\["lwin\+p",\s*"rwin\+p"\]') "GlazeWM leaves Super+P to YASB power menu"
-    Assert-True ($text -notmatch 'name:\s*"mouse"') "GlazeWM config does not depend on the retired WGDot mouse runtime"
+    Assert-True ($text -match 'name:\s*"mouse"') "GlazeWM owns a native mouse binding mode without WGDot runtime"
+    Assert-True ($text -match 'bindings:\s*\["lwin\+alt\+m",\s*"rwin\+alt\+m"\]') "Win+Alt+M enters/exits the native mouse binding mode"
+    Assert-True ($text -notmatch 'mouse-mode-(?:toggle|disable|switch|hook)') "GlazeWM mouse binding mode has no retired WGDot mouse helper"
     Assert-True ($text -match 'bindings:\s*\["lwin\+ctrl\+m",\s*"rwin\+ctrl\+m"\]') "Super+Ctrl+M opens Windows display settings"
     Assert-True ($text -match 'shell-exec flameshot\.exe gui') "Flameshot bindings launch Flameshot directly"
     Assert-True ($text -match 'bindings:\s*\["alt\+ctrl\+shift\+r"\]') "Alt+Ctrl+Shift+R reloads GlazeWM"
