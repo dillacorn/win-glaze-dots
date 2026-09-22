@@ -54,6 +54,15 @@ Assert-True ($componentIds -contains "glazewm") "GlazeWM component exists"
 Assert-True ($componentIds -contains "yasb") "YASB component exists"
 Assert-True ($componentIds -contains "cursor") "cursor component exists"
 Assert-True ($componentIds -contains "yazi") "Yazi component exists"
+
+$yaziKeymapPath = Join-Path $repoRoot "UserProfile\AppData\Roaming\yazi\config\keymap.toml"
+$yaziKeymapText = Get-Content -LiteralPath $yaziKeymapPath -Raw
+Assert-True (([regex]::Matches($yaziKeymapText, 'run = "arrow prev"')).Count -eq 2) "Yazi Up and k use native wraparound previous navigation"
+Assert-True (([regex]::Matches($yaziKeymapText, 'run = "arrow next"')).Count -eq 2) "Yazi Down and j use native wraparound next navigation"
+Assert-True ($yaziKeymapText -match 'on = \["g", "g"\], run = "arrow top"') "Yazi gg still jumps to top"
+Assert-True ($yaziKeymapText -match 'on = \["G"\],\s+run = "arrow bot"') "Yazi G still jumps to bottom"
+Assert-True ($yaziKeymapText -notmatch 'run = "arrow -1"') "Yazi old non-wrapping previous navigation is removed"
+Assert-True ($yaziKeymapText -notmatch 'run = "arrow 1"') "Yazi old non-wrapping next navigation is removed"
 Assert-True ($componentIds -notcontains "desktop-scripts") "obsolete desktop scripts component is removed"
 
 $yasb = $manifest.components | Where-Object { $_.id -eq "yasb" } | Select-Object -First 1
