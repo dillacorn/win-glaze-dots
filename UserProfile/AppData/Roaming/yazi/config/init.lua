@@ -27,3 +27,36 @@ function Linemode:size_and_mtime()
 
     return string.format("%9s  %8s", size_text, date_text)
 end
+
+function Status:modified_time()
+    local hovered = self._current.hovered
+    if not hovered then
+        return ""
+    end
+
+    local time = math.floor(hovered.cha.mtime or 0)
+    if time <= 0 then
+        return ""
+    end
+
+    local parts = os.date("*t", time)
+    local hour = parts.hour % 12
+    if hour == 0 then
+        hour = 12
+    end
+
+    local meridiem = parts.hour < 12 and "AM" or "PM"
+    return string.format(
+        " Modified: %d/%d/%02d %d:%02d %s ",
+        parts.month,
+        parts.day,
+        parts.year % 100,
+        hour,
+        parts.min,
+        meridiem
+    )
+end
+
+Status:children_add(function(self)
+    return self:modified_time()
+end, 500, Status.RIGHT)
