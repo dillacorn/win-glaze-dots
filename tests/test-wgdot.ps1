@@ -97,6 +97,7 @@ Assert-True ($packageIds.ContainsKey("xiph.flac")) "correct FLAC ID is cataloged
 Assert-True ($packageIds.ContainsKey("itchio.itch")) "correct itch ID is cataloged"
 Assert-True (-not $packageIds.ContainsKey("microsoft.sysinternals.processexplorer")) "Process Explorer is not offered; System Informer is the preferred process manager"
 Assert-True (-not $packageIds.ContainsKey("alexx2000.doublecommander")) "Double Commander is not offered by WGDot"
+Assert-True ($installSoftwareText -match 'Yazi \+ Explorer') "software guide records Yazi + Explorer as the preferred file-manager path"
 Assert-True ($packageIds.ContainsKey("mozilla.firefox")) "Firefox is cataloged"
 Assert-True ($packageIds.ContainsKey("vencord.vesktop")) "Vesktop is cataloged"
 Assert-True ($packageIds.ContainsKey("softfever.orcaslicer")) "OrcaSlicer is cataloged"
@@ -345,6 +346,11 @@ Assert-True ($launcherText -match 'Get-ExecutionPolicy') "launcher checks effect
 Assert-True ($launcherText -match '(?i)Restricted') "launcher handles Restricted policy"
 Assert-True ($launcherText -match '(?i)AllSigned') "launcher handles AllSigned policy"
 Assert-True ($manualText -notmatch '(?i)-ExecutionPolicy\s+Bypass') "manual path does not bypass execution policy"
+Assert-True ($manualText -match 'raw\.githubusercontent\.com') "paste-only manual workflow supports raw.githubusercontent.com-only corporate networks"
+Assert-True ($manualText -notmatch 'https://api\.github\.com') "paste-only manual workflow does not call api.github.com"
+Assert-True ($manualText -notmatch '(?im)^\s*git clone\b') "paste-only manual workflow does not depend on git clone"
+Assert-True ($manualText -match '\$releaseRevision\s*=\s*"[0-9a-f]{40}"') "paste-only manual workflow pins an immutable stable release revision"
+Assert-True ($manualText -notmatch '"doublecmd"') "paste-only manual workflow contains no retired Double Commander component"
 Assert-True ($manualText -match 'theme\.css') "paste-only manual workflow generates YASB theme.css"
 Assert-True ($manualText -match 'theme\.json') "paste-only manual workflow preserves YASB theme state"
 Assert-True ($manualText -match 'Microsoft\.WindowsTerminal_8wekyb3d8bbwe') "paste-only manual workflow synchronizes Windows Terminal"
@@ -364,6 +370,12 @@ $manualManagedBlock = [regex]::Match(
 )
 Assert-True $manualManagedBlock.Success "paste-only managed-files PowerShell block can be extracted"
 [scriptblock]::Create($manualManagedBlock.Groups[1].Value) | Out-Null
+$manualSoftwareBlock = [regex]::Match(
+    $manualText,
+    '(?s)## Install selected software from the same release manifest.*?```powershell\r?\n(.*?)\r?\n```'
+)
+Assert-True $manualSoftwareBlock.Success "paste-only software PowerShell block can be extracted"
+[scriptblock]::Create($manualSoftwareBlock.Groups[1].Value) | Out-Null
 Assert-True ($nativeBootstrapText -notmatch '(?i)Set-ExecutionPolicy|-ExecutionPolicy\s+(Bypass|Unrestricted)') "native bootstrap does not change or bypass execution policy"
 Assert-True ($nativeSourceText -notmatch '(?i)Set-ExecutionPolicy|-ExecutionPolicy\s+(Bypass|Unrestricted)') "native bootstrap source does not change or bypass execution policy"
 Assert-True ($nativeSourceText -match 'WmSettingChange') "native installer broadcasts environment changes"
@@ -433,6 +445,8 @@ Assert-True ($nativeSourceText -match 'GetWingetInstallTimeoutMs') "package-spec
 $flowPackage = @($manifest.packages | Where-Object { $_.id -eq 'Flow-Launcher.Flow-Launcher' })[0]
 Assert-True ($null -eq $flowPackage) "Flow Launcher is retired from the WGDot software catalog"
 Assert-True ($nativeSourceText -match 'result\.Packages\.RemoveAll\(x => String\.Equals\(x, "Flow-Launcher\.Flow-Launcher"') "older saved Flow Launcher package selections are retired without uninstalling the app"
+Assert-True ($nativeSourceText -match 'result\.Packages\.RemoveAll\(x => String\.Equals\(x, "Alexx2000\.DoubleCommander"') "older saved Double Commander package selections are retired without uninstalling the app"
+Assert-True ($runtimeText -match 'Alexx2000\.DoubleCommander') "compatibility updater also retires saved Double Commander selections"
 Assert-True ($nativeSourceText -match 'TweakRunsInElevatedBatch') "registry-heavy setup tweaks are grouped into the one elevated software worker"
 Assert-True ($nativeSourceText -match 'clean-taskbar-items') "taskbar cleanup is eligible for elevated batching"
 Assert-True ($nativeSourceText -match 'FirefoxExtensionInstallPolicyNeedsMutation') "Firefox extension policy is preflighted before deciding whether elevation is needed"

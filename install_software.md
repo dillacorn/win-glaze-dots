@@ -208,7 +208,8 @@ Mullvad Browser is intentionally left untouched. WGDot does not install extensio
 - OrcaSlicer, PrusaSlicer, and Cura are all optional and default OFF.
 - WireGuard is available under Networking / remote and defaults OFF.
 - Steam, itch.io, GOG Galaxy, Prism Launcher, r2modman, and Epic Games Launcher are all optional and default OFF.
-- Signal, Bitwarden, Betaflight Configurator, PDF-XChange Editor, Spotify, Process Explorer, and Double Commander are intentionally not offered.
+- Signal, Bitwarden, Betaflight Configurator, PDF-XChange Editor, Spotify, and Process Explorer are intentionally not offered.
+- Double Commander is intentionally not offered. Yazi + Explorer are the preferred file-manager path for WGDot.
 - Deselecting an installed package does not uninstall it.
 - WGDot never runs `winget upgrade --all`; upgrade checks are opt-in and each selected package requires approval.
 

@@ -5335,10 +5335,11 @@ class WgdotHidden
         result.Components = GetStringList(state, "components");
         result.Packages = GetStringList(state, "packages");
         result.Tweaks = GetStringList(state, "tweaks");
-        // One-time selection migration from retired launcher/audio integrations.
-        // Flow Launcher is no longer part of the WGDot software catalog; preserve an
-        // existing installation, but stop carrying its package/tweak selections forward.
+        // One-time selection migration from retired software/desktop integrations.
+        // Preserve existing installations, but stop carrying retired package/tweak
+        // selections forward into the current installer/updater state.
         result.Packages.RemoveAll(x => String.Equals(x, "Flow-Launcher.Flow-Launcher", StringComparison.OrdinalIgnoreCase));
+        result.Packages.RemoveAll(x => String.Equals(x, "Alexx2000.DoubleCommander", StringComparison.OrdinalIgnoreCase));
         result.Tweaks.RemoveAll(x => String.Equals(x, "flow-launcher-alt-p", StringComparison.OrdinalIgnoreCase));
         result.Tweaks.RemoveAll(x =>
             String.Equals(x, "eartrumpet-mixer-alt-v", StringComparison.OrdinalIgnoreCase) ||

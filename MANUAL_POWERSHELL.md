@@ -8,11 +8,14 @@ The normal `wgdot` runtime should be preferred where local policy allows it beca
 
 ## Apply managed files from the latest stable WGDot release
 
-Paste the complete block into PowerShell. Change `$scope`, `$glazeProfile`, or `$selectedComponents` before running it if needed.
+Paste the complete block into PowerShell. It is one script block so a source/download failure aborts before any later theme or Yazi post-step can run. Change `$scope`, `$glazeProfile`, or `$selectedComponents` before running it if needed. The stable tag and exact immutable release revision are pinned here deliberately so this path does not require `api.github.com`, `github.com`, Git, `.ps1`, or `.cmd` execution.
 
 ```powershell
+& {
 $ErrorActionPreference = "Stop"
 $repoName = "dillacorn/win-glaze-dots"
+$releaseTag = "v4.5.0"
+$releaseRevision = "56212e80a220635ba1246cbfee95570f99cac23b"
 $scope = "work"              # work or normal
 $glazeProfile = "work"       # work or normal
 $selectedComponents = @(
@@ -21,24 +24,80 @@ $selectedComponents = @(
     "yazi",
     "terminal",
     "altsnap",
-    "flameshot",
-    "doublecmd"
+    "flameshot"
 )
 
-$headers = @{ "User-Agent" = "wgdot-manual"; "Accept" = "application/vnd.github+json" }
-$release = Invoke-RestMethod -Uri "https://api.github.com/repos/$repoName/releases/latest" -Headers $headers -UseBasicParsing
-if ($release.draft -or $release.prerelease -or $release.tag_name -notmatch '^v\d+\.\d+\.\d+$') {
-    throw "Latest published release is not a normal WGDot semantic stable release."
+[Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+$rawBase = "https://raw.githubusercontent.com/$repoName/$releaseRevision"
+
+function Get-WgdotRawFile {
+    param(
+        [Parameter(Mandatory = $true)][string]$Relative,
+        [Parameter(Mandatory = $true)][string]$Destination
+    )
+
+    $encodedRelative = (($Relative -replace '\\', '/') -split '/' | ForEach-Object {
+        [Uri]::EscapeDataString($_)
+    }) -join '/'
+    $uri = "$rawBase/$encodedRelative"
+    New-Item -ItemType Directory -Force -Path (Split-Path -Parent $Destination) | Out-Null
+
+    $client = New-Object Net.WebClient
+    try {
+        $client.Headers["User-Agent"] = "wgdot-manual"
+        $client.DownloadFile($uri, $Destination)
+    } catch {
+        throw "Could not download '$Relative' from raw.githubusercontent.com: $($_.Exception.Message)"
+    } finally {
+        $client.Dispose()
+    }
+
+    if (-not (Test-Path -LiteralPath $Destination -PathType Leaf)) {
+        throw "Downloaded source is missing: $Relative"
+    }
 }
 
 $work = Join-Path ([IO.Path]::GetTempPath()) ("wgdot-manual-" + [guid]::NewGuid().ToString("N"))
-git clone --depth 1 --branch $release.tag_name "https://github.com/$repoName.git" $work
-if ($LASTEXITCODE -ne 0) { throw "Could not clone stable release $($release.tag_name)." }
 
-$manifestPath = Join-Path $work "wgdot\manifest.json"
-if (-not (Test-Path -LiteralPath $manifestPath)) { throw "This release is not WGDot-compatible." }
-$manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
-if ([int]$manifest.schemaVersion -ne 1) { throw "Unsupported WGDot manifest schema." }
+try {
+    New-Item -ItemType Directory -Force -Path $work | Out-Null
+
+    $manifestPath = Join-Path $work "wgdot\manifest.json"
+    Get-WgdotRawFile -Relative "wgdot/manifest.json" -Destination $manifestPath
+
+    $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+    if ([int]$manifest.schemaVersion -ne 1) { throw "Unsupported WGDot manifest schema." }
+
+    $componentMap = @{}
+    foreach ($component in $manifest.components) {
+        $componentMap[[string]$component.id] = $component
+    }
+
+    $unknownComponents = @($selectedComponents | Where-Object { -not $componentMap.ContainsKey([string]$_) })
+    if ($unknownComponents.Count -gt 0) {
+        throw "Unknown managed component(s): $($unknownComponents -join ', ')"
+    }
+
+    # Download every selected managed source before changing the live profile.
+    foreach ($componentId in $selectedComponents) {
+        $component = $componentMap[[string]$componentId]
+        foreach ($file in $component.files) {
+            if ($file.PSObject.Properties.Name -contains "sourceByGlazeProfile") {
+                $relative = if ($glazeProfile -eq "work") { [string]$file.sourceByGlazeProfile.work } else { [string]$file.sourceByGlazeProfile.normal }
+            } else {
+                $relative = [string]$file.source
+            }
+
+            $source = Join-Path $work ($relative -replace '/', '\\')
+            Get-WgdotRawFile -Relative $relative -Destination $source
+
+            if (($file.PSObject.Properties.Name -contains "validator") -and [string]$file.validator -eq "json") {
+                Get-Content -LiteralPath $source -Raw | ConvertFrom-Json | Out-Null
+            }
+        }
+    }
+
+    Write-Host "Source ready: $releaseTag ($releaseRevision)"
 
 foreach ($component in $manifest.components) {
     if ($selectedComponents -notcontains [string]$component.id) { continue }
@@ -323,6 +382,14 @@ if ($gitFile) {
     [Environment]::SetEnvironmentVariable("YAZI_FILE_ONE", $gitFile, "User")
     Write-Host "Set YAZI_FILE_ONE=$gitFile"
 }
+
+    Write-Host "Manual dots update completed from $releaseTag."
+} finally {
+    if (Test-Path -LiteralPath $work) {
+        Remove-Item -LiteralPath $work -Recurse -Force -ErrorAction SilentlyContinue
+    }
+}
+}
 ```
 
 ## Install selected software from the same release manifest
@@ -332,7 +399,12 @@ WinGet is a WGDot requirement. The normal native runtime handles a missing WinGe
 This example uses the profile defaults stored in the release manifest. It verifies every exact WinGet ID before installation and does not upgrade unrelated software.
 
 ```powershell
+& {
 $ErrorActionPreference = "Stop"
+$repoName = "dillacorn/win-glaze-dots"
+$releaseTag = "v4.5.0"
+$releaseRevision = "56212e80a220635ba1246cbfee95570f99cac23b"
+$manifestUri = "https://raw.githubusercontent.com/$repoName/$releaseRevision/wgdot/manifest.json"
 
 if (-not (Get-Command winget.exe -ErrorAction SilentlyContinue)) {
     Write-Host "WinGet is missing; repairing/installing Microsoft Windows Package Manager..."
@@ -353,7 +425,16 @@ if (-not (Get-Command winget.exe -ErrorAction SilentlyContinue)) {
 }
 
 $scope = "work"  # work or normal
-$manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+[Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+$client = New-Object Net.WebClient
+try {
+    $client.Headers["User-Agent"] = "wgdot-manual"
+    $manifestJson = $client.DownloadString($manifestUri)
+} finally {
+    $client.Dispose()
+}
+$manifest = $manifestJson | ConvertFrom-Json
+if ([int]$manifest.schemaVersion -ne 1) { throw "Unsupported WGDot manifest schema." }
 
 foreach ($package in $manifest.packages) {
     $selected = if ($scope -eq "work") { [bool]$package.defaultWork } else { [bool]$package.defaultNormal }
@@ -369,6 +450,8 @@ foreach ($package in $manifest.packages) {
     if ($installedOutput.IndexOf([string]$package.id, [StringComparison]::OrdinalIgnoreCase) -lt 0) {
         winget install --id $package.id --exact --source winget --accept-source-agreements --accept-package-agreements
     }
+}
+Write-Host "Software defaults read from $releaseTag."
 }
 ```
 

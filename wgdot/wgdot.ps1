@@ -84,6 +84,21 @@ function Write-WgdotJson {
     Move-Item -LiteralPath $tmp -Destination $Path -Force
 }
 
+function Read-WgdotInstallationSelection {
+    $installation = Read-WgdotJson -Path $script:InstallStatePath
+    if ($null -eq $installation) { return $null }
+
+    if ($installation.PSObject.Properties.Name -contains "packages") {
+        $installation.packages = @($installation.packages | Where-Object {
+            $id = [string]$_
+            $id -ne "Flow-Launcher.Flow-Launcher" -and
+            $id -ne "Alexx2000.DoubleCommander"
+        })
+    }
+
+    return $installation
+}
+
 
 function Get-WgdotYasbThemes {
     return @(
@@ -1242,7 +1257,7 @@ function Invoke-WgdotManagedOperation {
         $tag = $null
     }
 
-    $installation = Read-WgdotJson -Path $script:InstallStatePath
+    $installation = Read-WgdotInstallationSelection
     $existingInstallation = $installation
     $selectionChanged = $false
     if ($null -eq $installation -or $Mode -eq "reset") {
@@ -1287,7 +1302,7 @@ function Test-WgdotPackageAvailable {
 
 function Invoke-WgdotSoftwareReconcile {
     Initialize-WgdotStateDirectories
-    $installation = Read-WgdotJson -Path $script:InstallStatePath
+    $installation = Read-WgdotInstallationSelection
     $resolved = Resolve-WgdotStableSource
     $manifest = $resolved.Manifest
     if ($null -eq $installation) {
@@ -1359,7 +1374,7 @@ function Convert-WgdotPlanToPowerShell {
 
 function Show-WgdotManualCommands {
     $resolved = Resolve-WgdotStableSource
-    $installation = Read-WgdotJson -Path $script:InstallStatePath
+    $installation = Read-WgdotInstallationSelection
     if ($null -eq $installation) {
         $installation = New-WgdotInstallationSelection -Manifest $resolved.Manifest
         if ($null -eq $installation) { return }
@@ -1453,7 +1468,7 @@ function Show-WgdotStatus {
     Write-WgdotTitle -Subtitle "Version / status"
     $runtime = Read-WgdotJson -Path $script:RuntimeStatePath
     $config = Read-WgdotJson -Path $script:ConfigStatePath
-    $install = Read-WgdotJson -Path $script:InstallStatePath
+    $install = Read-WgdotInstallationSelection
     $git = Read-WgdotJson -Path $script:GitStatePath
     Write-Host "Runtime:    $($runtime | ConvertTo-Json -Compress)"
     Write-Host "Config:     $($config | ConvertTo-Json -Compress)"
