@@ -479,6 +479,19 @@ Assert-True ($rawAccelStartBlock -match 'psi\.FileName = exe;') "RawAccel startu
 Assert-True ($rawAccelStartBlock -match 'psi\.WorkingDirectory = workingDirectory;') "RawAccel startup sets the GUI working directory"
 Assert-True ($rawAccelStartBlock -match 'Path\.GetDirectoryName\(exe\)') "RawAccel startup derives working directory from the executable"
 Assert-True ($rawAccelStartBlock -notmatch 'settings\.json|\.config|File\.Write') "RawAccel startup never changes the acceleration profile/configuration"
+Assert-True ($nativeSourceText -match 'const int RawAccelHotkeyWidth = 1200;') "RawAccel hotkey window uses the approved compact width"
+Assert-True ($nativeSourceText -match 'const int RawAccelHotkeyHeight = 900;') "RawAccel hotkey window uses the approved compact height"
+$rawAccelSizeBlock = [regex]::Match($nativeSourceText, '(?ms)static void SizeRawAccelHotkeyWindow\(.*?^    }').Value
+Assert-True (-not [string]::IsNullOrWhiteSpace($rawAccelSizeBlock)) "RawAccel hotkey window sizing helper is present"
+Assert-True ($rawAccelSizeBlock -match 'SetWindowPos\(') "RawAccel hotkey launch resizes the native GUI window"
+Assert-True ($rawAccelSizeBlock -match 'RawAccelHotkeyWidth') "RawAccel hotkey sizing uses the compact width"
+Assert-True ($rawAccelSizeBlock -match 'RawAccelHotkeyHeight') "RawAccel hotkey sizing uses the compact height"
+Assert-True ($rawAccelSizeBlock -match 'SetForegroundWindow\(window\)') "RawAccel hotkey launch brings the resized GUI forward"
+$rawAccelToggleBlock = [regex]::Match($nativeSourceText, '(?ms)static int RawAccelToggle\(\).*?^    }').Value
+Assert-True ($rawAccelToggleBlock -match 'CurrentInteractionScreen\(\)') "RawAccel hotkey sizing targets the active monitor"
+Assert-True ($rawAccelToggleBlock -match 'SizeRawAccelHotkeyWindow\(started, targetScreen\)') "RawAccel toggle applies compact hotkey sizing after launch"
+$rawAccelStartupBlock = [regex]::Match($nativeSourceText, '(?ms)static int RawAccelStartup\(\).*?^    }').Value
+Assert-True ($rawAccelStartupBlock -notmatch 'SizeRawAccelHotkeyWindow') "RawAccel Windows-login startup is not resized by the hotkey-only policy"
 Assert-True ($nativeSourceText -notmatch 'return "explorer\.exe shell:AppsFolder\\\\40459File-New-Project\.EarTrumpet') "EarTrumpet startup no longer uses the Explorer/Documents-prone AppsFolder command"
 Assert-True ($nativeSourceText -match 'Q\(HiddenLauncherPath\(\)\) \+ " eartrumpet-startup"') "EarTrumpet startup uses the windowless Start Menu launcher helper"
 Assert-True ($nativeSourceText -match 'if \(command == "eartrumpet-startup"\) return EarTrumpetStartup\(\);') "EarTrumpet login startup has an explicit native command"
@@ -594,7 +607,7 @@ $rustDeskPackage = @($manifest.packages | Where-Object { $_.id -eq 'RustDesk.Rus
 Assert-True ($null -ne $rustDeskPackage) "RustDesk catalog entry exists"
 Assert-Equal ([string]$rustDeskPackage.installMode) 'official-github' "RustDesk uses its verified official GitHub source instead of a missing WinGet ID"
 Assert-Equal ([string]$rustDeskPackage.fallbackGitHubRepo) 'rustdesk/rustdesk' "RustDesk official GitHub source remains publisher-owned"
-Assert-True ($nativeSourceText -match 'const string Version = "native-preview-75"') "native runtime version tracks current WGDot maintenance changes"
+Assert-True ($nativeSourceText -match 'const string Version = "native-preview-76"') "native runtime version tracks current WGDot maintenance changes"
 Assert-True ($nativeSourceText -match 'InstallGitHubFontArchivePackage') "native runtime installs managed Nerd Font archives without inventing a WinGet ID"
 Assert-True ($nativeSourceText -match 'AddFontResourceEx') "managed Noto font is loaded into the current Windows session"
 Assert-True ($nativeSourceText -match 'Software\\Microsoft\\Windows NT\\CurrentVersion\\Fonts') "managed Noto font registers under the current-user Windows Fonts key"
