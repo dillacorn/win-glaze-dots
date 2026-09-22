@@ -417,10 +417,8 @@ Assert-True ($nativeSourceText -match 'taskkill\.exe') "timed-out WinGet install
 Assert-True ($nativeSourceText -match 'trying the approved official GitHub fallback') "WinGet install timeout/failure can fall back to an approved official GitHub release"
 Assert-True ($nativeSourceText -match 'GetWingetInstallTimeoutMs') "package-specific WinGet install timeout is manifest-driven"
 $flowPackage = @($manifest.packages | Where-Object { $_.id -eq 'Flow-Launcher.Flow-Launcher' })[0]
-Assert-True ($null -ne $flowPackage) "Flow Launcher package exists"
-Assert-Equal ([string]$flowPackage.fallbackGitHubRepo) 'Flow-Launcher/Flow.Launcher' "Flow Launcher fallback is restricted to the official upstream repository"
-Assert-Equal ([string]$flowPackage.fallbackAssetRegex) '^Flow-Launcher-Setup\.exe$' "Flow Launcher fallback accepts only the official setup asset"
-Assert-Equal ([int]$flowPackage.wingetInstallTimeoutSeconds) 180 "Flow Launcher WinGet attempt times out before indefinite stalls"
+Assert-True ($null -eq $flowPackage) "Flow Launcher is retired from the WGDot software catalog"
+Assert-True ($nativeSourceText -match 'result\.Packages\.RemoveAll\(x => String\.Equals\(x, "Flow-Launcher\.Flow-Launcher"') "older saved Flow Launcher package selections are retired without uninstalling the app"
 Assert-True ($nativeSourceText -match 'TweakRunsInElevatedBatch') "registry-heavy setup tweaks are grouped into the one elevated software worker"
 Assert-True ($nativeSourceText -match 'clean-taskbar-items') "taskbar cleanup is eligible for elevated batching"
 Assert-True ($nativeSourceText -match 'FirefoxExtensionInstallPolicyNeedsMutation') "Firefox extension policy is preflighted before deciding whether elevation is needed"
@@ -441,6 +439,13 @@ Assert-True ($nativeSourceText -match 'WGDot will not launch a second copy') "pr
 Assert-True ($nativeSourceText -match 'WaitForProcessToExit\("privacy\.sexy"\)') "WGDot waits for privacy.sexy to close before continuing"
 Assert-True ($nativeSourceText -match '"Standard \(repo guide default\)", "Strict", "Skip"') "privacy.sexy optional action is labeled Skip instead of Cancel"
 Assert-True ($nativeSourceText -match 'or disable antivirus') "privacy.sexy integration does not weaken antivirus protection"
+Assert-True ($null -ne (@($manifest.tweaks | Where-Object { $_.id -eq 'restore-clipboard-history' })[0])) "privacy.sexy Clipboard History restore action is present"
+Assert-True ([bool](@($manifest.tweaks | Where-Object { $_.id -eq 'restore-clipboard-history' })[0].actionOnly)) "Clipboard History restore is action-only"
+Assert-True ($nativeSourceText -match 'command == "restore-clipboard-history"') "Clipboard History restore has a direct elevated re-entry command"
+Assert-True ($nativeSourceText -match 'EnableClipboardHistory') "Clipboard History restore repairs the current-user history setting"
+Assert-True ($nativeSourceText -match 'AllowClipboardHistory') "Clipboard History restore removes the privacy.sexy machine deny policy"
+Assert-True ($nativeSourceText -match 'cbdhsvc') "Clipboard History restore repairs the Clipboard User Service when privacy.sexy disabled it"
+Assert-True ($nativeSourceText -match 'Cross-device clipboard sync settings were not changed') "Clipboard History restore stays narrowly scoped and does not enable cloud clipboard sync"
 Assert-True ($nativeSourceText -match 'result\["failureDetails"\] = failureDetails') "elevated worker returns human-readable failure details"
 Assert-True ($nativeSourceText -match 'Failure details:') "software reconciliation prints exact failure details in the main WGDot window"
 Assert-True ($nativeSourceText -match 'Administrator tweak') "elevated tweak failures identify the exact tweak and reason"
@@ -1053,8 +1058,6 @@ foreach ($managedDesktopRuntimeFile in $managedDesktopRuntimeFiles) {
 }
 
 Write-Host "WGDot tests passed." -ForegroundColor Green
- "Flow Launcher fallback accepts only the official setup asset"
-Assert-Equal ([int]$flowPackage.wingetInstallTimeoutSeconds) 180 "Flow Launcher WinGet attempt times out before indefinite stalls"
 Assert-True ($nativeSourceText -notmatch '(?i)sudo(?:\.exe)?\s+winget') "software batching does not depend on Windows sudo"
 Assert-True ($nativeSourceText -notmatch '(?i)winget(?:\.exe)?\s+upgrade\s+--all') "native runtime never upgrades all WinGet packages"
 Assert-True ($nativeSourceText -match '\.wgdot\.backup') "native runtime uses identifiable adjacent backup names"
