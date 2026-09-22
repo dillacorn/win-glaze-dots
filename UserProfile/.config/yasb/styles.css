@@ -13,13 +13,13 @@
     --strong-hover: rgba(115, 121, 148, 64);
 }
 
-/* theme.css is a normal dotfile and is updated live by the standalone
-   non-elevated theme-switcher.ps1 script. The fallback above keeps YASB
-   readable even if the imported file is temporarily unavailable. */
+/* theme.css is a normal managed dotfile and is updated live by the compiled
+   non-elevated WGDot theme manager. The fallback above keeps YASB readable
+   even if the imported file is temporarily unavailable. */
 @import "theme.css";
 
 * {
-    font-family: "JetBrainsMono NFP";
+    font-family: "NotoSansM Nerd Font Mono", "JetBrainsMono NFP";
     font-size: 14px;
     font-weight: 400;
     color: var(--foreground);
@@ -61,9 +61,15 @@ QToolTip,
     padding: 4px 6px;
 }
 
-/* Awtarchy-style application search using YASB Quick Launch. */
+/* Awtarchy-style application search button. */
+.awtarchy-launcher,
+.awtarchy-launcher .widget-container,
+.awtarchy-launcher .icon,
+.awtarchy-launcher .label,
 .quick-launch-widget,
 .quick-launch-widget .widget-container,
+.awtarchy-launcher .icon,
+.awtarchy-launcher .label,
 .quick-launch-widget .icon,
 .quick-launch-widget .label {
     background-color: transparent;
@@ -73,12 +79,23 @@ QToolTip,
     padding: 0;
 }
 
+.awtarchy-launcher .widget-container {
+    min-width: 28px;
+}
+
+.awtarchy-launcher .label {
+    min-width: 14px;
+    padding: 0 7px;
+    font-size: 14px;
+}
+
 .quick-launch-widget .icon,
 .quick-launch-widget .label {
     min-width: 28px;
     font-size: 14px;
 }
 
+.awtarchy-launcher:hover,
 .quick-launch-widget:hover {
     background-color: var(--strong-hover);
 }
@@ -166,14 +183,8 @@ QToolTip,
     background-color: var(--subtle-hover);
 }
 
-/* Awtarchy-style mouse/workspace mover. Collapse the ApplicationsWidget frame,
-   its container, and each arrow label because Qt child size hints can otherwise
-   keep the arrows visible even when the parent frame says max-width: 0. */
-.workspace-move-grouper,
-.workspace-move-grouper .widget-container,
-.workspace-move-grouper .container,
-.workspace-mouse-hub,
-.workspace-mouse-hub .widget-container,
+/* Awtarchy-style workspace mover. The retired mouse-mode/hub slot is gone;
+   keep the four native GlazeWM workspace arrows directly usable. */
 .workspace-move-buttons,
 .workspace-move-buttons .widget-container {
     background-color: transparent;
@@ -183,52 +194,18 @@ QToolTip,
     padding: 0;
 }
 
-.workspace-mouse-hub {
-    min-width: 28px;
-    max-width: 28px;
-}
-
-.workspace-mouse-hub .label {
+.workspace-move-buttons .label {
     color: var(--foreground);
     background-color: transparent;
     border: none;
     border-radius: 0;
     font-size: 14px;
     min-width: 14px;
-    margin: 0;
-    padding: 0 7px;
-}
-
-.workspace-move-buttons,
-.workspace-move-buttons .widget-container,
-.workspace-move-buttons .label {
-    min-width: 0;
-    max-width: 0;
-    margin: 0;
-    padding: 0;
-}
-
-.workspace-move-buttons .label {
-    color: transparent;
-    background-color: transparent;
-    border: none;
-    border-radius: 0;
-    font-size: 14px;
-}
-
-.workspace-move-grouper:hover .workspace-move-buttons,
-.workspace-move-grouper:hover .workspace-move-buttons .widget-container {
-    max-width: 112px;
-}
-
-.workspace-move-grouper:hover .workspace-move-buttons .label {
-    color: var(--foreground);
-    min-width: 14px;
     max-width: 28px;
+    margin: 0;
     padding: 0 7px;
 }
 
-.workspace-mouse-hub .label:hover,
 .workspace-move-buttons .label:hover {
     background-color: var(--strong-hover);
 }
@@ -575,7 +552,7 @@ QToolTip,
     background-color: transparent;
     border: none;
     border-radius: 0;
-    font-family: "JetBrainsMono NFP";
+    font-family: "NotoSansM Nerd Font Mono", "JetBrainsMono NFP";
     font-size: 14px;
     font-weight: 400;
     padding: 2px 0;
@@ -601,7 +578,7 @@ QToolTip,
 .quick-launch-popup .results-list-view {
     color: var(--foreground);
     background-color: transparent;
-    font-family: "JetBrainsMono NFP";
+    font-family: "NotoSansM Nerd Font Mono", "JetBrainsMono NFP";
     font-size: 14px;
     font-weight: 400;
 }
@@ -609,7 +586,7 @@ QToolTip,
 .quick-launch-popup .results-list-view .description,
 .quick-launch-popup .results-list-view .separator {
     color: var(--foreground);
-    font-family: "JetBrainsMono NFP";
+    font-family: "NotoSansM Nerd Font Mono", "JetBrainsMono NFP";
 }
 
 .quick-launch-popup .results-list-view::item {
@@ -755,22 +732,3 @@ QToolTip,
 @import "appearance.css";
 
 
-/* Windows Keep Awake control. */
-.awtarchy-idle {
-    background-color: transparent;
-    border: none;
-    border-radius: 0;
-    margin: 0;
-    padding: 0 8px;
-}
-
-.awtarchy-idle .icon,
-.awtarchy-idle .label {
-    color: var(--foreground);
-    background-color: transparent;
-    font-size: 14px;
-}
-
-.awtarchy-idle:hover {
-    background-color: var(--strong-hover);
-}

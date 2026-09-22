@@ -62,11 +62,11 @@ try {
         foreach ($name in @(
             'EnsureHiddenLauncher',
             'ThemeManagerFromArgs',
-            'IdleInhibitorStatus',
-            'IdleInhibitorToggle',
-            'IdleInhibitorWorker',
+            'ThemeWindowToggle',
+            'ClipboardHistoryOpen',
+            'LauncherFromArgs',
+            'PowerMenu',
             'BarAutoHideToggle',
-            'MouseModeToggle',
             'GlazeWmBindingModeToggleFromArgs',
             'RawAccelToggle'
         )) {
@@ -87,13 +87,19 @@ try {
             'GlazeWmPauseStatus',
             'GlazeWmPauseToggle',
             'ThemeToggle',
-            'PowerMenu',
             'OpenEarTrumpetMixer',
             'RestoreLegacyFlowHotkey',
             'ApplyFlowLauncherAltP'
         )) {
             Require ($null -eq (Get-NativeMethod $name)) ('Native-capable desktop helper must stay absent: ' + $name)
         }
+    }
+
+    Check 'retired mouse mode stays removed while legacy cleanup remains' {
+        Require ($null -eq (Get-NativeMethod 'MouseModeToggle')) 'Retired MouseModeToggle implementation returned'
+        Require ($null -eq (Get-NativeMethod 'MouseModeHook')) 'Retired MouseModeHook implementation returned'
+        Require ($nativeSource -notmatch 'command == "mouse-mode-(?:toggle|disable|hook)"') 'Retired mouse-mode command dispatch returned'
+        Require ($nativeSource -match 'SignalMouseModeHookStop') 'Legacy runtime cleanup can no longer stop an older mouse hook'
     }
 
     Check 'legacy runtime replacement stop signals are preserved' {
@@ -123,7 +129,7 @@ try {
             Require (Test-Path -LiteralPath $path -PathType Leaf) ('Missing managed desktop runtime file: ' + $relative)
             $text = Get-Content -LiteralPath $path -Raw -Encoding UTF8
             Require ($text -notmatch '\.ps1') ('Desktop runtime depends on a PowerShell script file: ' + $relative)
-            Require ($text -notmatch '(?i)wgdotw?\.exe\s+(?:quick-launch|flow-open|eartrumpet-mixer|clipboard-history|flameshot-gui|display-settings|power-menu)') ('Native-capable action routed through WGDot in: ' + $relative)
+            Require ($text -notmatch '(?i)wgdotw?\.exe\s+(?:quick-launch|flow-open|eartrumpet-mixer|clipboard-anchor(?:\s|$)|clipboard-history(?:\s|$)|flameshot-gui|display-settings)') ('Native-capable action routed through WGDot in: ' + $relative)
         }
 
         $normalGlaze = Get-Content -LiteralPath (Join-Path $repo 'UserProfile\.glzr\glazewm\config.yaml') -Raw -Encoding UTF8
@@ -143,19 +149,31 @@ try {
             $text = Get-Content -LiteralPath (Join-Path $repo ($relative -replace '/', '\')) -Raw -Encoding UTF8
             Require ($text -match 'wm-enable-binding-mode --name noalt') ('NoAlt native transition missing: ' + $relative)
             Require ($text -match 'wm-enable-binding-mode --name vm') ('VM native transition missing: ' + $relative)
-            Require ($text -match 'name:\s*"mouse"') ('Native mouse binding mode missing: ' + $relative)
-            Require ($text -match 'wgdotw\.exe mouse-mode-toggle') ('Scoped mouse-mode helper missing: ' + $relative)
-            Require ($text -match 'bindings:\s*\["lwin\+alt\+m",\s*"rwin\+alt\+m"\]') ('Super+Alt+M mouse binding missing: ' + $relative)
+            Require ($text -notmatch 'name:\s*"mouse"') ('Retired mouse binding mode returned: ' + $relative)
+            Require ($text -notmatch 'wgdotw\.exe mouse-mode-toggle') ('Retired mouse helper returned: ' + $relative)
+            Require ($text -notmatch 'bindings:\s*\["lwin\+alt\+m",\s*"rwin\+alt\+m"\]') ('Retired Super+Alt+M mouse binding returned: ' + $relative)
             Require ($text -match 'wm-disable-binding-mode --name') ('Native mode escape missing: ' + $relative)
             Require ($text -match 'wm-toggle-pause') ('Native pause binding missing: ' + $relative)
-            Require ($text -match 'flameshot\.exe gui') ('Direct Flameshot launch missing: ' + $relative)
-            Require ($text -match 'wgdot\.exe theme') ('Compiled theme implementation missing: ' + $relative)
+            Require ($text -match 'C:\\\\Program Files\\\\Flameshot\\\\bin\\\\flameshot\.exe') ('Direct Flameshot installed-path launch missing: ' + $relative)
+            Require ($text -match 'wgdotw\.exe theme-window-toggle') ('Windowless theme toggle dispatch missing: ' + $relative)
             Require ($text -match 'wgdotw\.exe bar-autohide-toggle') ('Compiled coordinated auto-hide implementation missing: ' + $relative)
             Require ($text -match 'wgdotw\.exe rawaccel-toggle') ('Scoped RawAccel toggle missing: ' + $relative)
+            Require ($text -match 'wgdotw\.exe power-menu') ('Compiled Awtarchy-style power surface missing: ' + $relative)
+            Require ($text -match 'bindings:\s*\["lwin\+p",\s*"rwin\+p"\]') ('Super+P compiled power binding missing: ' + $relative)
+            Require ($text -match 'wgdotw\.exe launcher hotkey') ('Compiled Awtarchy-style launcher missing: ' + $relative)
+            Require ($text -match '%LOCALAPPDATA%\\wgdot\\bin\\wgdotw\.exe.*launcher hotkey') ('Launcher helper path is not deterministic: ' + $relative)
+            Require ($text -match 'bindings:\s*\["alt\+p",\s*"lwin\+d",\s*"rwin\+d"\]') ('Global Alt+P/Super+D launcher binding missing: ' + $relative)
             Require ($text -match 'bindings:\s*\["lwin\+shift\+m",\s*"rwin\+shift\+m"\]') ('Super+Shift+M RawAccel binding missing: ' + $relative)
             Require ($text -notmatch 'bindings:\s*\["alt\+shift\+m"') ('RawAccel must not capture Alt+Shift+M: ' + $relative)
-            Require ($text -notmatch 'wgdotw?\.exe\s+(?:quick-launch|flow-open|eartrumpet-mixer|clipboard-history|flameshot-gui|display-settings|power-menu)') ('Native-capable action routed through WGDot: ' + $relative)
+            Require ($text -notmatch 'wgdotw?\.exe\s+(?:quick-launch|flow-open|eartrumpet-mixer|clipboard-anchor(?:\s|$)|clipboard-history(?:\s|$)|flameshot-gui|display-settings)') ('Native-capable action routed through WGDot: ' + $relative)
         }
+    }
+
+    Check 'GlazeWM focus follows cursor differs by profile intentionally' {
+        $normal = Get-Content -LiteralPath (Join-Path $repo 'UserProfile\.glzr\glazewm\config.yaml') -Raw -Encoding UTF8
+        $work = Get-Content -LiteralPath (Join-Path $repo 'UserProfile\.glzr\glazewm\custom_work_config.yaml') -Raw -Encoding UTF8
+        Require ($normal -match 'focus_follows_cursor:\s*true') 'Normal profile must default focus_follows_cursor to true'
+        Require ($work -match 'focus_follows_cursor:\s*false') 'Work profile must keep focus_follows_cursor false'
     }
 
     Check 'YASB owns native widget integrations' {
@@ -164,20 +182,30 @@ try {
             'UserProfile/.config/yasb/custom_work_config.yaml'
         )) {
             $text = Get-Content -LiteralPath (Join-Path $repo ($relative -replace '/', '\')) -Raw -Encoding UTF8
-            Require ($text -match 'yasb\.power_menu\.PowerMenuWidget') ('Native power menu missing: ' + $relative)
-            Require ($text -match 'menu_style:\s*"popup"') ('Native power menu popup mode missing: ' + $relative)
-            Require ($text -match 'keys:\s*"win\+p"[\s\S]*?action:\s*"toggle_power_menu"') ('Win+P does not use the native YASB power menu: ' + $relative)
-            Require ($text -match 'on_left:\s*"toggle_power_menu"') ('Power icon left click does not use native YASB toggle: ' + $relative)
+            Require ($text -match 'yasb\.custom\.CustomWidget') ('YASB custom power button missing: ' + $relative)
+            Require ($text -match 'on_left:\s*"exec wgdotw\.exe power-menu"') ('Power icon left click does not open the compiled power surface: ' + $relative)
+            Require ($text -match 'on_right:\s*"exec wgdotw\.exe power-menu"') ('Power icon right click does not open the compiled power surface: ' + $relative)
+            Require ($text -match 'class_name:\s*"awtarchy-launcher"') ('Compiled launcher bar control missing: ' + $relative)
+            Require ($text -match 'on_left:\s*"exec wgdotw\.exe launcher bar"') ('Launcher button does not open the bar-relative compiled surface: ' + $relative)
+            Require ($text -match 'wgdotw\.exe theme-window-toggle') ('Quick Settings theme-window toggle missing: ' + $relative)
+            Require ($text -match 'wgdotw\.exe clipboard-history-open') ('Clipboard History bar-only native Win+V helper missing: ' + $relative)
+            Require ($text -notmatch 'idle_inhibitor|idle-inhibitor-(?:status|toggle|worker)') ('Retired idle inhibitor returned: ' + $relative)
+            $wifiBlock = [regex]::Match($text, '(?ms)^  wifi:\r?\n.*?(?=^  bluetooth:)').Value
+            $bluetoothBlock = [regex]::Match($text, '(?ms)^  bluetooth:\r?\n.*?(?=^  systray:)').Value
+            Require ($wifiBlock -match 'on_left:\s*"exec explorer\.exe ms-settings:network-status"') ('Native Windows Network surface missing: ' + $relative)
+            Require ($bluetoothBlock -match 'on_left:\s*"exec explorer\.exe ms-settings:bluetooth"') ('Native Windows Bluetooth surface missing: ' + $relative)
+            Require ($wifiBlock -notmatch 'on_left:\s*"toggle_menu"') ('Rejected Wi-Fi/Ethernet mini menu returned: ' + $relative)
+            Require ($bluetoothBlock -notmatch 'on_left:\s*"toggle_menu"') ('Rejected Bluetooth mini menu returned: ' + $relative)
             Require ($text -match 'on_left:\s*"disable_binding_mode"') ('Binding-mode label does not disable the active mode: ' + $relative)
             Require ($text -match 'on_right:\s*"disable_binding_mode"') ('Binding-mode label right click does not disable the active mode: ' + $relative)
             Require ($text -match 'on_middle:\s*"do_nothing"') ('Binding-mode label middle click must do nothing: ' + $relative)
             Require ($text -notmatch 'next_binding_mode') ('Binding-mode label must not cycle modes: ' + $relative)
-            Require ($text -match 'wgdotw\.exe mouse-mode-toggle') ('Mouse icon does not toggle the scoped mouse helper: ' + $relative)
-            Require ($text -notmatch 'wgdotw?\.exe power-menu') ('Power menu was incorrectly routed through WGDot: ' + $relative)
+            Require ($text -notmatch 'wgdotw\.exe mouse-mode-toggle|workspace_mouse') ('Retired mouse-mode YASB runtime returned: ' + $relative)
             Require ($text -match 'glazewm\.binding_mode\.GlazewmBindingModeWidget') ('Native binding-mode widget missing: ' + $relative)
             Require ($text -notmatch 'keys:\s*"f24"') ('Synthetic F24 Quick Launch relay returned: ' + $relative)
-            Require ($text -match 'binding_modes_to_cycle_through:\s*\["none",\s*"noalt",\s*"mouse",\s*"vm"\]') ('YASB binding-mode widget does not expose mouse mode: ' + $relative)
-            Require ($text -match 'class_name:\s*"workspace-mouse-hub"') ('Passive workspace mouse icon missing: ' + $relative)
+            Require ($text -match 'binding_modes_to_cycle_through:\s*\["none",\s*"noalt",\s*"vm"\]') ('YASB binding-mode widget does not expose only noalt/vm: ' + $relative)
+            Require ($text -notmatch 'workspace_move_hub|workspace-move-hub|workspace_move_group|workspace-move-grouper') ('Retired workspace hub returned: ' + $relative)
+            Require ($text -match 'glazewm\.exe command move-workspace --direction left') ('Workspace mover arrows missing: ' + $relative)
             Require ($text -notmatch 'border_color:\s*None') ('Invalid null popup border_color returned: ' + $relative)
             Require ($text -notmatch 'cmd\.exe /c start ms-settings') ('YASB settings callback spawns cmd.exe: ' + $relative)
             Require ($text -notmatch 'glazewm-pause-status|glazewm-pause-toggle') ('Retired pause helper reference returned: ' + $relative)
@@ -189,21 +217,34 @@ try {
         Require ($nativeSource -match 'result\.Tweaks\.RemoveAll\(x => String\.Equals\(x, "flow-launcher-alt-p"') 'Saved selections no longer retire the old Flow hotkey tweak'
     }
 
-    Check 'launcher bindings avoid relay scripts and synthetic keys' {
+    Check 'launcher bindings use the scoped compiled surface without relay scripts' {
         $normal = Get-Content -LiteralPath (Join-Path $repo 'UserProfile\.glzr\glazewm\config.yaml') -Raw -Encoding UTF8
         $work = Get-Content -LiteralPath (Join-Path $repo 'UserProfile\.glzr\glazewm\custom_work_config.yaml') -Raw -Encoding UTF8
         foreach ($text in @($normal, $work)) {
             Require ($text -notmatch 'flow-launcher\.ps1|yasb-quick-launch\.ps1') 'Launcher relay script returned to GlazeWM'
+            Require ($text -match 'wgdotw\.exe launcher hotkey') 'Compiled launcher hotkey surface is missing'
+            Require ($text -match 'bindings:\s*\["alt\+p",\s*"lwin\+d",\s*"rwin\+d"\]') 'Alt+P/Super+D compiled launcher binding is missing'
         }
-        Require ($work -match 'shell-exec %LOCALAPPDATA%/FlowLauncher/Flow\.Launcher\.exe') 'Work Alt+P no longer launches Flow directly'
-        Require ($work -match 'bindings:\s*\["alt\+p"\]') 'Work Alt+P binding is missing'
-        Require ($work -notmatch 'bindings:\s*\["lwin\+d",\s*"rwin\+d"\]') 'Work Super+D synthetic YASB relay returned'
+        Require ($work -notmatch 'shell-exec %LOCALAPPDATA%/FlowLauncher/Flow\.Launcher\.exe') 'Work launcher still defaults to Flow Launcher'
+        Require ($nativeSource -match 'if \(command == "launcher"\) return LauncherFromArgs') 'Native compiled launcher command is missing'
+        Require ($nativeSource -match 'LauncherLocation') 'Launcher placement logic is missing'
+        Require ($nativeSource -match 'YasbAutoHideEnabled') 'Launcher auto-hide placement override is missing'
+        Require ($nativeSource -match 'ForegroundWindowFillsScreen') 'Launcher fullscreen placement override is missing'
     }
 
-    Check 'EarTrumpet direct Super+V configuration remains management-time only' {
-        Require ($null -ne (Get-NativeMethod 'ApplyEarTrumpetMixerSuperV')) 'EarTrumpet management integration is missing'
-        Require ($nativeSource -match 'eartrumpet-mixer-super-v') 'EarTrumpet direct-hotkey tweak ID is missing'
-        Require ($nativeSource -notmatch 'OpenEarTrumpetMixer') 'Retired EarTrumpet synthetic runtime bridge remains'
+    Check 'EarTrumpet and Clipboard keyboard ownership stays native' {
+        Require ($null -eq (Get-NativeMethod 'ApplyEarTrumpetMixerSuperV')) 'Retired EarTrumpet Super+V settings rewrite returned'
+        Require ($nativeSource -notmatch 'command == "clipboard-anchor"') 'Retired Clipboard History hotkey handoff returned'
+        Require ($nativeSource -match 'command == "clipboard-history-open"') 'Bar-only Clipboard History helper is missing'
+        foreach ($relative in @(
+            'UserProfile/.glzr/glazewm/config.yaml',
+            'UserProfile/.glzr/glazewm/custom_work_config.yaml'
+        )) {
+            $text = Get-Content -LiteralPath (Join-Path $repo ($relative -replace '/', '\')) -Raw -Encoding UTF8
+            Require ($text -notmatch 'EarTrumpet_1sdd7yawvg6ne!EarTrumpet') ('GlazeWM still launches EarTrumpet directly: ' + $relative)
+            Require ($text -notmatch 'bindings:\s*\["alt\+v",\s*"lwin\+v",\s*"rwin\+v"\]') ('GlazeWM still captures Alt+V/Super+V: ' + $relative)
+            Require ($text -notmatch 'bindings:\s*\["lwin\+c",\s*"rwin\+c"\]') ('Retired Super+C Clipboard binding returned: ' + $relative)
+        }
     }
 
     Check 'legacy YASB startup cleanup recognizes only the old direct executable command' {

@@ -49,7 +49,7 @@ bars:
         [
           "launcher",
           "glazewm_workspaces",
-          "workspace_move_group",
+          "workspace_move",
           "taskbar",
           "glazewm_binding_mode",
           "glazewm_tiling_direction",
@@ -57,7 +57,6 @@ bars:
       center: ["active_window"]
       right:
         [
-          "idle_inhibitor",
           "cpu",
           "memory",
           "control_center",
@@ -68,107 +67,26 @@ bars:
           "clock",
           "wifi",
           "bluetooth",
+          "clipboard_history",
           "dnd",
           "power_menu",
         ]
 
 widgets:
   launcher:
-    type: "yasb.quick_launch.QuickLaunchWidget"
+    type: "yasb.custom.CustomWidget"
     options:
       label: ""
-      search_placeholder: "Search applications..."
-      remember_last_query: false
-      max_results: 40
-      show_icons: true
-      icon_size: 28
-      home_page: false
-      compact_mode: false
-      compact_text: true
-      providers:
-        apps:
-          enabled: true
-          prefix: "*"
-          priority: 0
-          show_recent: true
-          max_recent: 10
-          show_description: false
-        bookmarks:
-          enabled: false
-        calculator:
-          enabled: true
-          prefix: "="
-        clipboard_history:
-          enabled: false
-          prefix: "cb"
-          max_items: 30
-          show_preview: true
-        color:
-          enabled: false
-        binance:
-          enabled: false
-        currency:
-          enabled: false
-        dev_tools:
-          enabled: false
-        emoji:
-          enabled: true
-          prefix: ":"
-        file_search:
-          enabled: true
-          prefix: "/"
-          backend: "auto"
-          show_path: true
-          show_preview: false
-        github_notifications:
-          enabled: false
-        hacker_news:
-          enabled: false
-        ip_info:
-          enabled: false
-        kill_process:
-          enabled: false
-        port_viewer:
-          enabled: false
-        settings:
-          enabled: true
-          prefix: "@"
-        snippets:
-          enabled: false
-        ssh:
-          enabled: false
-        system_commands:
-          enabled: true
-          prefix: ">"
-        unit_converter:
-          enabled: true
-          prefix: "~"
-        vscode:
-          enabled: false
-        web_search:
-          enabled: false
-        window_switcher:
-          enabled: true
-          prefix: "win"
-        windows_terminal:
-          enabled: true
-          prefix: "wt"
-        world_clock:
-          enabled: false
-        wsl:
-          enabled: false
-      popup:
-        width: 720
-        height: 480
-        blur: false
-        round_corners: false
-        round_corners_type: "none"
-        border_color: "None"
-        dark_mode: true
+      class_name: "awtarchy-launcher"
+      tooltip: true
+      tooltip_label: "Applications (Alt+P / Super+D)"
+      exec_options:
+        run_once: true
+        return_format: "string"
       callbacks:
-        on_left: "toggle_quick_launch"
+        on_left: "exec wgdotw.exe launcher bar"
         on_middle: "do_nothing"
-        on_right: "toggle_quick_launch"
+        on_right: "exec wgdotw.exe launcher bar"
 
   glazewm_workspaces:
     type: "glazewm.workspaces.GlazewmWorkspacesWidget"
@@ -189,18 +107,6 @@ widgets:
         enabled_active: false
         enabled_focused: false
 
-  workspace_mouse:
-    type: "yasb.custom.CustomWidget"
-    options:
-      label: "󰍽"
-      class_name: "workspace-mouse-hub"
-      tooltip: true
-      tooltip_label: "Workspace mover"
-      callbacks:
-        on_left: "exec wgdotw.exe mouse-mode-toggle"
-        on_middle: "do_nothing"
-        on_right: "exec wgdotw.exe mouse-mode-toggle"
-
   workspace_move:
     type: "yasb.applications.ApplicationsWidget"
     options:
@@ -220,16 +126,6 @@ widgets:
         - icon: "→"
           launch: "glazewm.exe command move-workspace --direction right"
           name: "Move workspace right"
-
-  workspace_move_group:
-    type: "yasb.grouper.GrouperWidget"
-    options:
-      class_name: "workspace-move-grouper"
-      widgets: ["workspace_mouse", "workspace_move"]
-      hide_empty: false
-      # Passive hover container only. Native Grouper click-collapse stays off.
-      collapse_options:
-        enabled: false
 
   glazewm_tiling_direction:
     type: "glazewm.tiling_direction.GlazewmTilingDirectionWidget"
@@ -284,7 +180,7 @@ widgets:
         none: ""
         noalt: ""
         vm: ""
-      binding_modes_to_cycle_through: ["none", "noalt", "mouse", "vm"]
+      binding_modes_to_cycle_through: ["none", "noalt", "vm"]
       callbacks:
         on_left: "disable_binding_mode"
         on_middle: "do_nothing"
@@ -306,24 +202,6 @@ widgets:
         on_left: "toggle_label"
         on_middle: "do_nothing"
         on_right: "toggle_label"
-
-  idle_inhibitor:
-    type: "yasb.custom.CustomWidget"
-    options:
-      label: "{data[icon]}"
-      class_name: "awtarchy-idle"
-      tooltip: true
-      tooltip_label: "{data[tooltip]}"
-      exec_options:
-        run_cmd: "wgdot.exe idle-inhibitor-status"
-        run_once: false
-        run_interval: 1000
-        return_format: "json"
-        hide_empty: false
-      callbacks:
-        on_left: "exec wgdotw.exe idle-inhibitor-toggle"
-        on_middle: "do_nothing"
-        on_right: "exec wgdotw.exe idle-inhibitor-toggle"
 
   cpu:
     type: "yasb.cpu.CpuWidget"
@@ -400,7 +278,7 @@ widgets:
             - id: "themes"
               label: "Themes"
               icon: ""
-              command: 'wt.exe -w new new-tab --title "Win Glaze Themes" --suppressApplicationTitle wgdot.exe theme'
+              command: "wgdotw.exe theme-window-toggle"
             - id: "bar_autohide"
               label: "Auto Hide"
               icon: "󰘖"
@@ -556,7 +434,7 @@ widgets:
       callbacks:
         on_left: "toggle_mute"
         on_middle: "toggle_label"
-        on_right: 'exec explorer.exe shell:AppsFolder\40459File-New-Project.EarTrumpet_725pr5jq8wr8a!EarTrumpet'
+        on_right: "do_nothing"
 
   clock:
     type: "yasb.clock.ClockWidget"
@@ -590,7 +468,7 @@ widgets:
       get_exact_wifi_strength: false
       callbacks:
         on_left: "exec explorer.exe ms-settings:network-status"
-        on_middle: "exec explorer.exe ms-settings:network-status"
+        on_middle: "do_nothing"
         on_right: "exec explorer.exe ms-settings:network-status"
       ethernet_label: "<span>{wifi_icon}</span>"
       ethernet_label_alt: "<span>{wifi_icon}</span> {ip_addr}"
@@ -623,7 +501,7 @@ widgets:
         bluetooth_connected: ""
       callbacks:
         on_left: "exec explorer.exe ms-settings:bluetooth"
-        on_middle: "exec explorer.exe ms-settings:bluetooth"
+        on_middle: "do_nothing"
         on_right: "exec explorer.exe ms-settings:bluetooth"
       menu_config:
         blur: false
@@ -647,6 +525,21 @@ widgets:
       use_hook: false
       hide_icons: []
 
+  clipboard_history:
+    type: "yasb.custom.CustomWidget"
+    options:
+      label: "<span></span>"
+      class_name: "awtarchy-clipboard"
+      tooltip: true
+      tooltip_label: "Windows Clipboard History (Super+V)"
+      exec_options:
+        run_once: true
+        return_format: "string"
+      callbacks:
+        on_left: "exec wgdotw.exe clipboard-history-open"
+        on_middle: "do_nothing"
+        on_right: "exec wgdotw.exe clipboard-history-open"
+
   dnd:
     type: "yasb.dnd.DndWidget"
     options:
@@ -669,37 +562,16 @@ widgets:
         on_right: "toggle_status"
 
   power_menu:
-    type: "yasb.power_menu.PowerMenuWidget"
+    type: "yasb.custom.CustomWidget"
     options:
       label: "<span></span>"
-      uptime: false
-      show_user: false
-      blur: false
-      blur_background: false
-      animation_duration: 0
-      button_row: 3
-      menu_style: "popup"
-      popup:
-        blur: false
-        round_corners: false
-        round_corners_type: "none"
-        border_color: "None"
-        alignment: "right"
-        direction: "down"
-        offset_top: 0
-        offset_left: 0
-      buttons:
-        lock: ["", "Lock"]
-        signout: ["󰗽", "Sign out"]
-        sleep: ["󰒲", "Sleep"]
-        hibernate: ["", "Hibernate"]
-        restart: ["", "Restart"]
-        shutdown: ["", "Shut Down"]
-        cancel: ["󰅖", "Cancel"]
-      keybindings:
-        - keys: "win+p"
-          action: "toggle_power_menu"
+      class_name: "awtarchy-power"
+      tooltip: true
+      tooltip_label: "Power menu (L/H/R/S/O/Z)"
+      exec_options:
+        run_once: true
+        return_format: "string"
       callbacks:
-        on_left: "toggle_power_menu"
+        on_left: "exec wgdotw.exe power-menu"
         on_middle: "do_nothing"
-        on_right: "toggle_power_menu"
+        on_right: "exec wgdotw.exe power-menu"

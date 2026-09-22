@@ -171,7 +171,7 @@
           "id": "flameshot-config",
           "source": "UserProfile/AppData/Roaming/flameshot/flameshot.ini",
           "destination": "%APPDATA%\\flameshot\\flameshot.ini",
-          "merge": true
+          "merge": false
         }
       ]
     },
@@ -497,6 +497,18 @@
       "defaultWork": true
     },
     {
+      "name": "Noto Nerd Font",
+      "id": "NerdFonts.Noto",
+      "category": "desktop",
+      "defaultNormal": true,
+      "defaultWork": true,
+      "installMode": "official-github-font-archive",
+      "fallbackGitHubRepo": "ryanoasis/nerd-fonts",
+      "fallbackAssetRegex": "^Noto\\.zip$",
+      "fontFile": "NotoSansMNerdFontMono-Regular.ttf",
+      "fontFamily": "NotoSansM Nerd Font Mono"
+    },
+    {
       "name": "System Informer",
       "id": "WinsiderSS.SystemInformer",
       "category": "system",
@@ -559,7 +571,9 @@
       "installedFile": "rawaccel.exe",
       "installedService": "rawaccel",
       "driverFileName": "rawaccel.sys",
-      "postInstallAction": "rawaccel-restart-notice"
+      "postInstallAction": "rawaccel-restart-notice",
+      "startupHandler": "rawaccel",
+      "startupDefault": false
     },
     {
       "name": "Vesktop (Vencord)",
@@ -783,8 +797,8 @@
       "name": "Open-Shell",
       "id": "Open-Shell.Open-Shell-Menu",
       "category": "desktop",
-      "defaultNormal": true,
-      "defaultWork": true,
+      "defaultNormal": false,
+      "defaultWork": false,
       "postInstallAction": "launch-open-shell"
     },
     {
@@ -864,14 +878,6 @@
       "name": "Open text/code files in Windows Terminal + Micro",
       "category": "file associations",
       "type": "micro-text-defaults",
-      "defaultNormal": true,
-      "defaultWork": true
-    },
-    {
-      "id": "eartrumpet-mixer-super-v",
-      "name": "EarTrumpet mixer: Super+V",
-      "category": "keybinds",
-      "type": "eartrumpet-mixer-super-v",
       "defaultNormal": true,
       "defaultWork": true
     },

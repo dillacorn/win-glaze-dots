@@ -21,7 +21,7 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-65";
+    const string Version = "native-preview-71";
     const int WingetPreflightTimeoutMs = 30000;
     const string RepoFullName = "dillacorn/win-glaze-dots";
     const string RepoUrl = "https://github.com/dillacorn/win-glaze-dots.git";
@@ -154,8 +154,8 @@ internal static class WgdotNative
     [DllImport("user32.dll")]
     static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
 
-    [DllImport("kernel32.dll", SetLastError = true)]
-    static extern uint SetThreadExecutionState(uint esFlags);
+    [DllImport("user32.dll")]
+    static extern bool GetCursorPos(out POINT lpPoint);
 
     [DllImport("user32.dll", EntryPoint = "SetWindowsHookEx", SetLastError = true)]
     static extern IntPtr SetWindowsHookExKeyboard(
@@ -183,6 +183,18 @@ internal static class WgdotNative
     [DllImport("user32.dll")]
     static extern bool PostMessage(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
 
+    [DllImport("user32.dll", CharSet = CharSet.Auto)]
+    static extern IntPtr SendMessage(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
+
+    [DllImport("user32.dll")]
+    static extern IntPtr GetForegroundWindow();
+
+    [DllImport("user32.dll", SetLastError = true)]
+    static extern bool LockWorkStation();
+
+    [DllImport("powrprof.dll", SetLastError = true)]
+    static extern bool SetSuspendState(bool hibernate, bool forceCritical, bool disableWakeEvent);
+
     [DllImport("dwmapi.dll")]
     static extern int DwmGetWindowAttribute(IntPtr hWnd, int attribute, out int value, int valueSize);
 
@@ -208,10 +220,13 @@ internal static class WgdotNative
     const int HtBottomLeft = 16;
     const int HtBottomRight = 17;
     const int DwmwaCloaked = 14;
-
-    const uint EsSystemRequired = 0x00000001;
-    const uint EsDisplayRequired = 0x00000002;
-    const uint EsContinuous = 0x80000000;
+    const int SwShowNormal = 1;
+    const uint SwpNoSize = 0x0001;
+    const uint SwpNoZOrder = 0x0004;
+    const uint SwpShowWindow = 0x0040;
+    const uint ShgfiIcon = 0x00000100;
+    const uint KeyeventfKeyup = 0x0002;
+    const uint WmFontChange = 0x001D;
 
     const string IdleInhibitorMutexName = @"Local\WGDot.IdleInhibitor";
     const string IdleInhibitorStopEventName = @"Local\WGDot.IdleInhibitorStop";
@@ -225,10 +240,6 @@ internal static class WgdotNative
     const string DesktopWorkerStopEventName = @"Local\WGDot.DesktopWorkerStop";
     const string ClipboardHistoryWindowTitle = "WGDot Clipboard History";
 
-    static LowLevelMouseProc MouseModeHookProc;
-    static IntPtr MouseModeHookHandle = IntPtr.Zero;
-    static IntPtr MouseModeResizeTarget = IntPtr.Zero;
-
     static LowLevelKeyboardProc SuperLHookProc;
     static IntPtr SuperLHookHandle = IntPtr.Zero;
     static bool SuperLLeftWinDown;
@@ -236,11 +247,68 @@ internal static class WgdotNative
     static bool SuperLSuppressKeyUp;
 
     const byte VkL = 0x4C;
+    const byte VkV = 0x56;
     const byte VkLwin = 0x5B;
     const byte VkRwin = 0x5C;
 
     [DllImport("shell32.dll")]
     static extern void SHChangeNotify(uint wEventId, uint uFlags, IntPtr dwItem1, IntPtr dwItem2);
+
+    [DllImport("shell32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    static extern IntPtr ShellExecute(
+        IntPtr hwnd,
+        string operation,
+        string file,
+        string parameters,
+        string directory,
+        int showCommand);
+
+    [DllImport("gdi32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    static extern int AddFontResourceEx(
+        string fileName,
+        uint flags,
+        IntPtr reserved);
+
+    [DllImport("gdi32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    static extern bool RemoveFontResourceEx(
+        string fileName,
+        uint flags,
+        IntPtr reserved);
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    struct SHFILEINFO
+    {
+        public IntPtr hIcon;
+        public int iIcon;
+        public uint dwAttributes;
+
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 260)]
+        public string szDisplayName;
+
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 80)]
+        public string szTypeName;
+    }
+
+    [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
+    static extern IntPtr SHGetFileInfo(
+        string path,
+        uint fileAttributes,
+        out SHFILEINFO fileInfo,
+        uint fileInfoSize,
+        uint flags);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    static extern bool DestroyIcon(IntPtr icon);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    static extern bool SetWindowPos(
+        IntPtr hWnd,
+        IntPtr insertAfter,
+        int x,
+        int y,
+        int width,
+        int height,
+        uint flags);
 
     [StructLayout(LayoutKind.Sequential)]
     struct SP_DEVINFO_DATA
@@ -355,6 +423,45 @@ internal static class WgdotNative
         public string DriverVendor;
         public string DriverVersion;
         public string DriverKey;
+    }
+
+    sealed class PowerAction
+    {
+        public char Key;
+        public string Icon;
+        public string Label;
+        public Action Invoke;
+
+        public PowerAction(char key, string icon, string label, Action invoke)
+        {
+            Key = key;
+            Icon = icon;
+            Label = label;
+            Invoke = invoke;
+        }
+    }
+
+    sealed class PowerMenuAnimationState
+    {
+        public bool AllowClose;
+        public bool FadingOut;
+        public Action AfterClose;
+        public System.Windows.Forms.Timer FadeInTimer;
+        public System.Windows.Forms.Timer FadeOutTimer;
+    }
+
+    sealed class LauncherApp
+    {
+        public string Name;
+        public string Path;
+        public string IconPath;
+        public System.Drawing.Image IconImage;
+        public bool IconLoaded;
+
+        public override string ToString()
+        {
+            return Name ?? "";
+        }
     }
 
     // Windows/YASB equivalents of the current Awtarchy theme palettes.
@@ -522,15 +629,13 @@ internal static class WgdotNative
             if (command == "window-audit") return WindowAudit();
             if (command == "super-l-test") return SuperLTestFromArgs(args.Skip(1).ToArray());
             if (command == "super-l-hook") return SuperLHookWorker();
-            if (command == "idle-inhibitor-status") return IdleInhibitorStatus();
-            if (command == "idle-inhibitor-toggle") return IdleInhibitorToggle();
-            if (command == "idle-inhibitor-worker") return IdleInhibitorWorker();
             if (command == "bar-autohide-toggle") return BarAutoHideToggle();
             if (command == "glazewm-binding-mode-toggle") return GlazeWmBindingModeToggleFromArgs(args.Skip(1).ToArray());
-            if (command == "mouse-mode-toggle") return MouseModeToggle();
-            if (command == "mouse-mode-disable") return MouseModeDisable();
-            if (command == "mouse-mode-hook") return MouseModeHook();
             if (command == "theme") return ThemeManagerFromArgs(args.Skip(1).ToArray());
+            if (command == "theme-window-toggle") return ThemeWindowToggle();
+            if (command == "clipboard-history-open") return ClipboardHistoryOpen();
+            if (command == "launcher") return LauncherFromArgs(args.Skip(1).ToArray());
+            if (command == "power-menu") return PowerMenu();
             if (command == "rawaccel-toggle") return RawAccelToggle();
             if (command == "gpu-driver") return GpuDriverMaintenance();
             if (command == "gpu-stage-safe") return GpuStageSafeFromArgs(args.Skip(1).ToArray());
@@ -1101,6 +1206,8 @@ internal static class WgdotNative
         state["sourceRef"] = sourceRef;
         state["sourceRevision"] = revision.ToLowerInvariant();
         state["refreshedAt"] = DateTime.UtcNow.ToString("o");
+        state.Remove("runtimeSyncPendingRevision");
+        state.Remove("runtimeSyncScheduledAt");
         WriteJson(BootstrapStatePath, state);
         return 0;
     }
@@ -1335,6 +1442,33 @@ class WgdotHidden
         return ManagedOperation(operation, context);
     }
 
+
+    static bool ManagedPlanWritesThemeState(List<PlanItem> plan)
+    {
+        if (plan == null) return false;
+
+        return plan.Any(item =>
+            item != null &&
+            (String.Equals(item.FileId, "yasb-theme", StringComparison.OrdinalIgnoreCase) ||
+             String.Equals(item.FileId, "terminal-settings", StringComparison.OrdinalIgnoreCase)) &&
+            (String.Equals(item.Action, "APPLY", StringComparison.OrdinalIgnoreCase) ||
+             String.Equals(item.Action, "REPLACE", StringComparison.OrdinalIgnoreCase) ||
+             String.Equals(item.Action, "MERGE", StringComparison.OrdinalIgnoreCase)));
+    }
+
+    static void RestoreRememberedThemeAfterManagedApply(List<PlanItem> plan)
+    {
+        if (!ManagedPlanWritesThemeState(plan))
+            return;
+
+        string rememberedTheme = CurrentYasbThemeId();
+        int result = ApplyYasbTheme(rememberedTheme);
+        if (result != 0)
+            throw new Exception("Managed dots were applied, but the selected WGDot theme could not be restored.");
+
+        Console.WriteLine("Preserved selected WGDot theme: " + rememberedTheme);
+    }
+
     static int DotsOnlyFromArgs(string[] args)
     {
         string profile = GetOption(args ?? new string[0], "--profile");
@@ -1369,6 +1503,7 @@ class WgdotHidden
         }
 
         ApplyPlan(plan, source.Manifest, selection, source, true);
+        RestoreRememberedThemeAfterManagedApply(plan);
         WriteInstallationSelection(selection);
         UpdateSourceStateAfterApply(source);
 
@@ -2275,6 +2410,54 @@ class WgdotHidden
         return File.Exists(GetPackageProgramFilePath(package, "installedFile"));
     }
 
+    static string GetUserFontFilePath(Dictionary<string, object> package)
+    {
+        string fileName = GetString(package, "fontFile");
+        if (String.IsNullOrWhiteSpace(fileName) ||
+            !String.Equals(Path.GetFileName(fileName), fileName, StringComparison.Ordinal) ||
+            !fileName.EndsWith(".ttf", StringComparison.OrdinalIgnoreCase))
+            throw new Exception("Invalid fontFile for " + GetString(package, "name") + ".");
+
+        return Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "Microsoft",
+            "Windows",
+            "Fonts",
+            fileName);
+    }
+
+    static string GetUserFontRegistryValueName(Dictionary<string, object> package)
+    {
+        string family = GetString(package, "fontFamily");
+        if (String.IsNullOrWhiteSpace(family) ||
+            family.IndexOf('\0') >= 0 ||
+            family.IndexOf('\\') >= 0 ||
+            family.IndexOf('/') >= 0)
+            throw new Exception("Invalid fontFamily for " + GetString(package, "name") + ".");
+
+        return family + " (TrueType)";
+    }
+
+    static bool IsOfficialGitHubFontArchivePackageInstalled(Dictionary<string, object> package)
+    {
+        string path = GetUserFontFilePath(package);
+        if (!File.Exists(path))
+            return false;
+
+        using (RegistryKey key = Registry.CurrentUser.OpenSubKey(
+            @"Software\Microsoft\Windows NT\CurrentVersion\Fonts",
+            false))
+        {
+            if (key == null) return false;
+            string value = Convert.ToString(
+                key.GetValue(
+                    GetUserFontRegistryValueName(package),
+                    null,
+                    RegistryValueOptions.DoNotExpandEnvironmentNames));
+            return String.Equals(value, path, StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
     static bool IsOfficialGitHubArchiveDriverPackageInstalled(Dictionary<string, object> package)
     {
         string serviceName = GetString(package, "installedService");
@@ -2371,6 +2554,84 @@ class WgdotHidden
             Console.WriteLine("Started " + name + ".");
         }
 
+        return true;
+    }
+
+    static bool InstallGitHubFontArchivePackage(Dictionary<string, object> package)
+    {
+        string name = GetString(package, "name");
+        string assetName;
+        string archivePath = DownloadOfficialGitHubPackageAsset(package, out assetName);
+        if (!assetName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+            throw new Exception(name + " font source must be a ZIP release asset.");
+
+        string staging = Path.Combine(
+            CacheRoot,
+            "font-extract",
+            Guid.NewGuid().ToString("N"));
+
+        try
+        {
+            ExtractZipToDirectorySafe(archivePath, staging);
+            string fontFile = GetString(package, "fontFile");
+            string stagedFont = FindPackageArchiveFile(staging, fontFile);
+            string target = GetUserFontFilePath(package);
+
+            Directory.CreateDirectory(Path.GetDirectoryName(target));
+            File.Copy(stagedFont, target, true);
+            if (!File.Exists(target) || new FileInfo(target).Length == 0)
+                throw new Exception(name + " font file was not installed correctly.");
+
+            const string fontsKeyPath = @"Software\Microsoft\Windows NT\CurrentVersion\Fonts";
+            using (RegistryKey key = Registry.CurrentUser.CreateSubKey(fontsKeyPath))
+            {
+                if (key == null)
+                    throw new Exception("Could not open the current-user Windows Fonts registry key.");
+
+                key.SetValue(
+                    GetUserFontRegistryValueName(package),
+                    target,
+                    RegistryValueKind.String);
+            }
+
+            if (AddFontResourceEx(target, 0, IntPtr.Zero) == 0)
+                throw new Exception("Windows did not load the installed font resource.");
+
+            PostMessage(new IntPtr(0xFFFF), WmFontChange, IntPtr.Zero, IntPtr.Zero);
+            Console.WriteLine("Installed " + name + ": " + target);
+            return true;
+        }
+        finally
+        {
+            SafeDeleteDirectory(staging);
+        }
+    }
+
+    static bool UninstallGitHubFontArchivePackage(Dictionary<string, object> package)
+    {
+        string target = GetUserFontFilePath(package);
+        string valueName = GetUserFontRegistryValueName(package);
+        const string fontsKeyPath = @"Software\Microsoft\Windows NT\CurrentVersion\Fonts";
+
+        try { RemoveFontResourceEx(target, 0, IntPtr.Zero); } catch { }
+
+        using (RegistryKey key = Registry.CurrentUser.OpenSubKey(fontsKeyPath, true))
+        {
+            if (key != null)
+            {
+                string current = Convert.ToString(
+                    key.GetValue(
+                        valueName,
+                        null,
+                        RegistryValueOptions.DoNotExpandEnvironmentNames));
+                if (String.Equals(current, target, StringComparison.OrdinalIgnoreCase))
+                    key.DeleteValue(valueName, false);
+            }
+        }
+
+        SafeDeleteFile(target);
+        PostMessage(new IntPtr(0xFFFF), WmFontChange, IntPtr.Zero, IntPtr.Zero);
+        Console.WriteLine("Uninstalled WGDot-owned font: " + GetString(package, "name"));
         return true;
     }
 
@@ -2618,13 +2879,14 @@ class WgdotHidden
                 Console.WriteLine();
                 Console.WriteLine("Installing " + id + "...");
 
-                if (IsOfficialGitHubPortablePackage(package))
+                if (IsOfficialGitHubPortablePackage(package) ||
+                    IsOfficialGitHubFontArchivePackage(package))
                 {
                     Console.ForegroundColor = ConsoleColor.Yellow;
-                    Console.WriteLine("Refusing to install a user-level portable package inside the elevated worker: " + id);
+                    Console.WriteLine("Refusing to install a user-level package inside the elevated worker: " + id);
                     Console.ResetColor();
                     failedIds.Add(id);
-                    failureDetails.Add("Portable package was incorrectly sent to the elevated worker: " + id);
+                    failureDetails.Add("User-level package was incorrectly sent to the elevated worker: " + id);
                     failures++;
                     continue;
                 }
@@ -2855,6 +3117,7 @@ class WgdotHidden
         return
             String.Equals(mode, "official-github", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(mode, "official-github-portable", StringComparison.OrdinalIgnoreCase) ||
+            String.Equals(mode, "official-github-font-archive", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(mode, "official-github-archive-driver", StringComparison.OrdinalIgnoreCase);
     }
 
@@ -2863,6 +3126,14 @@ class WgdotHidden
         return String.Equals(
             GetString(package, "installMode"),
             "official-github-portable",
+            StringComparison.OrdinalIgnoreCase);
+    }
+
+    static bool IsOfficialGitHubFontArchivePackage(Dictionary<string, object> package)
+    {
+        return String.Equals(
+            GetString(package, "installMode"),
+            "official-github-font-archive",
             StringComparison.OrdinalIgnoreCase);
     }
 
@@ -3558,6 +3829,14 @@ class WgdotHidden
             });
     }
 
+    static string RequireGlazeWmExe()
+    {
+        string exe = FindGlazeWmExe();
+        if (String.IsNullOrWhiteSpace(exe))
+            throw new Exception("GlazeWM executable could not be found.");
+        return exe;
+    }
+
     static string FindAltSnapExe()
     {
         string local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
@@ -3674,7 +3953,15 @@ class WgdotHidden
         }
 
         if (String.Equals(handler, "eartrumpet", StringComparison.OrdinalIgnoreCase))
-            return "explorer.exe shell:AppsFolder\\40459File-New-Project.EarTrumpet_725pr5jq8wr8a!EarTrumpet";
+            return "explorer.exe shell:AppsFolder\\40459File-New-Project.EarTrumpet_1sdd7yawvg6ne!EarTrumpet";
+
+        if (String.Equals(handler, "rawaccel", StringComparison.OrdinalIgnoreCase))
+        {
+            string path = GetPackageProgramFilePath(package, "installedFile");
+            if (!File.Exists(path))
+                throw new Exception("RawAccel is selected for startup, but its WGDot-managed executable is missing.");
+            return Q(path);
+        }
 
         if (String.Equals(handler, "miclocktray", StringComparison.OrdinalIgnoreCase))
         {
@@ -3894,6 +4181,9 @@ class WgdotHidden
         if (IsOfficialGitHubPortablePackage(package))
             return IsOfficialGitHubPortablePackageInstalled(package);
 
+        if (IsOfficialGitHubFontArchivePackage(package))
+            return IsOfficialGitHubFontArchivePackageInstalled(package);
+
         if (IsOfficialGitHubArchiveDriverPackage(package))
             return IsOfficialGitHubArchiveDriverPackageInstalled(package);
 
@@ -3922,6 +4212,9 @@ class WgdotHidden
             Console.ResetColor();
             return false;
         }
+
+        if (IsOfficialGitHubFontArchivePackage(package))
+            return UninstallGitHubFontArchivePackage(package);
 
         if (IsOfficialGitHubPortablePackage(package))
         {
@@ -4179,6 +4472,7 @@ class WgdotHidden
         var upgradeIds = new List<string>();
         var officialPagePending = new List<Dictionary<string, object>>();
         var portableGitHubPending = new List<Dictionary<string, object>>();
+        var fontGitHubPending = new List<Dictionary<string, object>>();
         int installed = 0;
         int already = 0;
         int unavailable = 0;
@@ -4230,6 +4524,21 @@ class WgdotHidden
                 {
                     Console.WriteLine("Official GitHub portable source selected.");
                     portableGitHubPending.Add(package);
+                }
+                continue;
+            }
+
+            if (IsOfficialGitHubFontArchivePackage(package))
+            {
+                if (IsOfficialGitHubFontArchivePackageInstalled(package))
+                {
+                    Console.WriteLine("Already installed.");
+                    already++;
+                }
+                else
+                {
+                    Console.WriteLine("Official GitHub font archive selected.");
+                    fontGitHubPending.Add(package);
                 }
                 continue;
             }
@@ -4491,6 +4800,29 @@ class WgdotHidden
                 failureDetails.Add("Official GitHub portable install failed for " + id + ": " + ex.Message);
                 Console.ForegroundColor = ConsoleColor.Yellow;
                 Console.WriteLine("Portable install failed for " + id + ": " + ex.Message);
+                Console.ResetColor();
+            }
+        }
+
+        foreach (Dictionary<string, object> package in fontGitHubPending)
+        {
+            string id = GetString(package, "id");
+            try
+            {
+                if (InstallGitHubFontArchivePackage(package))
+                    installed++;
+                else
+                {
+                    failed++;
+                    failureDetails.Add("Official GitHub font archive install failed: " + id);
+                }
+            }
+            catch (Exception ex)
+            {
+                failed++;
+                failureDetails.Add("Official GitHub font archive install failed for " + id + ": " + ex.Message);
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine("Font install failed for " + id + ": " + ex.Message);
                 Console.ResetColor();
             }
         }
@@ -4913,9 +5245,9 @@ class WgdotHidden
         // One-time selection migration from the old WGDot runtime-helper model.
         // Flow's own Alt+P global hotkey conflicts with VM pass-through, so drop it.
         result.Tweaks.RemoveAll(x => String.Equals(x, "flow-launcher-alt-p", StringComparison.OrdinalIgnoreCase));
-        if (result.Tweaks.RemoveAll(x => String.Equals(x, "eartrumpet-mixer-alt-v", StringComparison.OrdinalIgnoreCase)) > 0 &&
-            !result.Tweaks.Contains("eartrumpet-mixer-super-v", StringComparer.OrdinalIgnoreCase))
-            result.Tweaks.Add("eartrumpet-mixer-super-v");
+        result.Tweaks.RemoveAll(x =>
+            String.Equals(x, "eartrumpet-mixer-alt-v", StringComparison.OrdinalIgnoreCase) ||
+            String.Equals(x, "eartrumpet-mixer-super-v", StringComparison.OrdinalIgnoreCase));
         result.TweaksConfigured = state.ContainsKey("tweaks");
         result.BrowserOptions = ReadBrowserOptionsState(state);
         result.BrowserOptionsConfigured = state.ContainsKey("browserOptions");
@@ -6103,8 +6435,6 @@ class WgdotHidden
     {
         if (String.Equals(id, "micro-text-defaults", StringComparison.OrdinalIgnoreCase))
             ApplyMicroTextDefaults(enable);
-        else if (String.Equals(id, "eartrumpet-mixer-super-v", StringComparison.OrdinalIgnoreCase))
-            ApplyEarTrumpetMixerSuperV(enable);
         else if (String.Equals(id, "disable-windows-shell-hotkeys", StringComparison.OrdinalIgnoreCase))
             ApplyWindowsShellHotkeysPolicy(enable);
         else if (String.Equals(id, "clean-taskbar-items", StringComparison.OrdinalIgnoreCase))
@@ -6662,6 +6992,1138 @@ class WgdotHidden
         return 0;
     }
 
+
+
+
+    static System.Windows.Forms.Screen CurrentInteractionScreen()
+    {
+        IntPtr foreground = GetForegroundWindow();
+        if (foreground != IntPtr.Zero)
+            return System.Windows.Forms.Screen.FromHandle(foreground);
+
+        POINT cursor;
+        if (GetCursorPos(out cursor))
+            return System.Windows.Forms.Screen.FromPoint(
+                new System.Drawing.Point(cursor.X, cursor.Y));
+
+        return System.Windows.Forms.Screen.PrimaryScreen;
+    }
+
+    static void CenterWindowOnScreen(
+        IntPtr window,
+        System.Windows.Forms.Screen screen)
+    {
+        if (window == IntPtr.Zero || screen == null)
+            return;
+
+        RECT rect;
+        if (!GetWindowRect(window, out rect))
+            return;
+
+        int width = Math.Max(1, rect.Right - rect.Left);
+        int height = Math.Max(1, rect.Bottom - rect.Top);
+        System.Drawing.Rectangle work = screen.WorkingArea;
+        int x = work.Left + Math.Max(0, (work.Width - width) / 2);
+        int y = work.Top + Math.Max(0, (work.Height - height) / 2);
+
+        SetWindowPos(
+            window,
+            IntPtr.Zero,
+            x,
+            y,
+            0,
+            0,
+            SwpNoSize | SwpNoZOrder | SwpShowWindow);
+    }
+
+    static int LaunchThemeWindow(System.Windows.Forms.Screen targetScreen)
+    {
+        var psi = new ProcessStartInfo();
+        psi.FileName = "wt.exe";
+        psi.Arguments =
+            "-w new new-tab --title \"Win Glaze Themes\" " +
+            "--suppressApplicationTitle wgdot.exe theme";
+        psi.UseShellExecute = true;
+        Process.Start(psi);
+
+        if (targetScreen != null)
+        {
+            for (int i = 0; i < 80; i++)
+            {
+                IntPtr window = FindTopLevelWindowByExactTitle("Win Glaze Themes");
+                if (window != IntPtr.Zero)
+                {
+                    CenterWindowOnScreen(window, targetScreen);
+                    SetForegroundWindow(window);
+                    break;
+                }
+
+                System.Threading.Thread.Sleep(25);
+            }
+        }
+
+        return 0;
+    }
+
+    static int ThemeWindowToggle()
+    {
+        System.Windows.Forms.Screen targetScreen = CurrentInteractionScreen();
+        IntPtr existing = FindTopLevelWindowByExactTitle("Win Glaze Themes");
+        if (existing == IntPtr.Zero)
+            return LaunchThemeWindow(targetScreen);
+
+        System.Windows.Forms.Screen existingScreen =
+            System.Windows.Forms.Screen.FromHandle(existing);
+
+        bool sameVisibleContext =
+            targetScreen != null &&
+            existingScreen != null &&
+            String.Equals(
+                targetScreen.DeviceName,
+                existingScreen.DeviceName,
+                StringComparison.OrdinalIgnoreCase) &&
+            IsWindowVisible(existing) &&
+            !IsDwmCloaked(existing);
+
+        PostMessage(existing, WmClose, IntPtr.Zero, IntPtr.Zero);
+
+        if (sameVisibleContext)
+            return 0;
+
+        for (int i = 0; i < 20 && IsWindow(existing); i++)
+            System.Threading.Thread.Sleep(25);
+
+        return LaunchThemeWindow(targetScreen);
+    }
+
+    static void SendNativeClipboardHistoryChord()
+    {
+        keybd_event(VkLwin, 0, 0, UIntPtr.Zero);
+        keybd_event(VkV, 0, 0, UIntPtr.Zero);
+        keybd_event(VkV, 0, KeyeventfKeyup, UIntPtr.Zero);
+        keybd_event(VkLwin, 0, KeyeventfKeyup, UIntPtr.Zero);
+    }
+
+    static int ClipboardHistoryOpen()
+    {
+        // Keyboard Clipboard History stays native on Super+V. This helper exists
+        // only for the YASB mouse button, where no user key chord is being held.
+        SendNativeClipboardHistoryChord();
+        return 0;
+    }
+
+    static int LauncherFromArgs(string[] args)
+    {
+        string source = args != null && args.Length > 0
+            ? (args[0] ?? "").Trim().ToLowerInvariant()
+            : "hotkey";
+
+        if (!(String.Equals(source, "bar", StringComparison.OrdinalIgnoreCase) ||
+              String.Equals(source, "hotkey", StringComparison.OrdinalIgnoreCase)))
+            throw new Exception("Usage: wgdot launcher [bar|hotkey]");
+
+        return Launcher(source);
+    }
+
+    static bool YasbAutoHideEnabled()
+    {
+        try
+        {
+            string profile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            string path = Path.Combine(profile, ".config", "yasb", "config.yaml");
+            if (!File.Exists(path)) return false;
+            string text = File.ReadAllText(path);
+            return Regex.IsMatch(
+                text,
+                @"(?m)^\s*auto_hide:\s*true\s*$",
+                RegexOptions.IgnoreCase);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    static bool ForegroundWindowFillsScreen(IntPtr window, System.Windows.Forms.Screen screen)
+    {
+        if (window == IntPtr.Zero || screen == null)
+            return false;
+
+        try
+        {
+            System.Windows.Forms.Screen windowScreen = System.Windows.Forms.Screen.FromHandle(window);
+            if (!String.Equals(windowScreen.DeviceName, screen.DeviceName, StringComparison.OrdinalIgnoreCase))
+                return false;
+
+            RECT rect;
+            if (!GetWindowRect(window, out rect))
+                return false;
+
+            System.Drawing.Rectangle bounds = screen.Bounds;
+            const int tolerance = 3;
+            return
+                rect.Left <= bounds.Left + tolerance &&
+                rect.Top <= bounds.Top + tolerance &&
+                rect.Right >= bounds.Right - tolerance &&
+                rect.Bottom >= bounds.Bottom - tolerance;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    static System.Drawing.Point ClampLauncherLocation(
+        System.Windows.Forms.Screen screen,
+        int x,
+        int y,
+        int width,
+        int height)
+    {
+        System.Drawing.Rectangle bounds = screen.Bounds;
+        int minX = bounds.Left + 8;
+        int maxX = Math.Max(minX, bounds.Right - width - 8);
+        int minY = bounds.Top + 8;
+        int maxY = Math.Max(minY, bounds.Bottom - height - 8);
+
+        return new System.Drawing.Point(
+            Math.Max(minX, Math.Min(maxX, x)),
+            Math.Max(minY, Math.Min(maxY, y)));
+    }
+
+    static System.Drawing.Point LauncherLocation(
+        string source,
+        System.Windows.Forms.Screen screen,
+        IntPtr foreground,
+        int width,
+        int height)
+    {
+        bool centerScreen =
+            YasbAutoHideEnabled() ||
+            ForegroundWindowFillsScreen(foreground, screen);
+
+        if (centerScreen)
+        {
+            return ClampLauncherLocation(
+                screen,
+                screen.Bounds.Left + ((screen.Bounds.Width - width) / 2),
+                screen.Bounds.Top + ((screen.Bounds.Height - height) / 2),
+                width,
+                height);
+        }
+
+        if (String.Equals(source, "bar", StringComparison.OrdinalIgnoreCase))
+        {
+            return ClampLauncherLocation(
+                screen,
+                screen.Bounds.Left + 8,
+                screen.Bounds.Top + 40,
+                width,
+                height);
+        }
+
+        return ClampLauncherLocation(
+            screen,
+            screen.Bounds.Left + ((screen.Bounds.Width - width) / 2),
+            screen.Bounds.Top + 40,
+            width,
+            height);
+    }
+
+    static string ResolveLauncherShortcutIconPath(string path)
+    {
+        if (String.IsNullOrWhiteSpace(path))
+            return path;
+
+        string extension = Path.GetExtension(path);
+        if (String.Equals(extension, ".url", StringComparison.OrdinalIgnoreCase))
+        {
+            try
+            {
+                foreach (string rawLine in File.ReadAllLines(path))
+                {
+                    string line = rawLine.Trim();
+                    if (!line.StartsWith("IconFile=", StringComparison.OrdinalIgnoreCase))
+                        continue;
+
+                    string iconFile = Environment.ExpandEnvironmentVariables(
+                        line.Substring("IconFile=".Length).Trim().Trim('"'));
+                    if (File.Exists(iconFile))
+                        return iconFile;
+                }
+            }
+            catch
+            {
+            }
+
+            return path;
+        }
+
+        if (!String.Equals(extension, ".lnk", StringComparison.OrdinalIgnoreCase))
+            return path;
+
+        object shell = null;
+        object shortcut = null;
+        try
+        {
+            Type shellType = Type.GetTypeFromProgID("WScript.Shell");
+            if (shellType == null)
+                return path;
+
+            shell = Activator.CreateInstance(shellType);
+            shortcut = shellType.InvokeMember(
+                "CreateShortcut",
+                System.Reflection.BindingFlags.InvokeMethod,
+                null,
+                shell,
+                new object[] { path });
+            if (shortcut == null)
+                return path;
+
+            Type shortcutType = shortcut.GetType();
+            string targetPath = Convert.ToString(shortcutType.InvokeMember(
+                "TargetPath",
+                System.Reflection.BindingFlags.GetProperty,
+                null,
+                shortcut,
+                null));
+            if (!String.IsNullOrWhiteSpace(targetPath))
+            {
+                targetPath = Environment.ExpandEnvironmentVariables(
+                    targetPath.Trim().Trim('"'));
+                if (File.Exists(targetPath) &&
+                    !String.Equals(
+                        Path.GetFileName(targetPath),
+                        "explorer.exe",
+                        StringComparison.OrdinalIgnoreCase))
+                    return targetPath;
+            }
+
+            string iconLocation = Convert.ToString(shortcutType.InvokeMember(
+                "IconLocation",
+                System.Reflection.BindingFlags.GetProperty,
+                null,
+                shortcut,
+                null));
+            if (!String.IsNullOrWhiteSpace(iconLocation))
+            {
+                int comma = iconLocation.LastIndexOf(',');
+                string iconPath = comma > 1
+                    ? iconLocation.Substring(0, comma)
+                    : iconLocation;
+                iconPath = Environment.ExpandEnvironmentVariables(
+                    iconPath.Trim().Trim('"'));
+                if (File.Exists(iconPath))
+                    return iconPath;
+            }
+        }
+        catch
+        {
+        }
+        finally
+        {
+            if (shortcut != null && Marshal.IsComObject(shortcut))
+            {
+                try { Marshal.FinalReleaseComObject(shortcut); } catch { }
+            }
+            if (shell != null && Marshal.IsComObject(shell))
+            {
+                try { Marshal.FinalReleaseComObject(shell); } catch { }
+            }
+        }
+
+        return path;
+    }
+
+    static void AddLauncherAppsFromFolder(
+        string root,
+        Dictionary<string, LauncherApp> byName)
+    {
+        if (String.IsNullOrWhiteSpace(root) || !Directory.Exists(root))
+            return;
+
+        string[] files;
+        try
+        {
+            files = Directory.GetFiles(root, "*.*", SearchOption.AllDirectories);
+        }
+        catch
+        {
+            return;
+        }
+
+        foreach (string path in files)
+        {
+            string ext = Path.GetExtension(path);
+            if (!(String.Equals(ext, ".lnk", StringComparison.OrdinalIgnoreCase) ||
+                  String.Equals(ext, ".url", StringComparison.OrdinalIgnoreCase) ||
+                  String.Equals(ext, ".appref-ms", StringComparison.OrdinalIgnoreCase)))
+                continue;
+
+            if (path.IndexOf(
+                    Path.DirectorySeparatorChar + "Startup" + Path.DirectorySeparatorChar,
+                    StringComparison.OrdinalIgnoreCase) >= 0)
+                continue;
+
+            string name = Path.GetFileNameWithoutExtension(path);
+            if (String.IsNullOrWhiteSpace(name))
+                continue;
+
+            LauncherApp existing;
+            if (byName.TryGetValue(name, out existing))
+                continue;
+
+            byName[name] = new LauncherApp
+            {
+                Name = name.Trim(),
+                Path = path,
+                IconPath = ResolveLauncherShortcutIconPath(path)
+            };
+        }
+    }
+
+    static List<LauncherApp> GetLauncherApps()
+    {
+        var byName = new Dictionary<string, LauncherApp>(StringComparer.OrdinalIgnoreCase);
+
+        AddLauncherAppsFromFolder(
+            Environment.GetFolderPath(Environment.SpecialFolder.Programs),
+            byName);
+        AddLauncherAppsFromFolder(
+            Environment.GetFolderPath(Environment.SpecialFolder.CommonPrograms),
+            byName);
+
+        return byName.Values
+            .OrderBy(x => x.Name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    static int LauncherMatchScore(string name, string query)
+    {
+        string n = (name ?? "").Trim().ToLowerInvariant();
+        string q = (query ?? "").Trim().ToLowerInvariant();
+
+        if (q.Length == 0)
+            return 1000 + n.Length;
+
+        if (String.Equals(n, q, StringComparison.OrdinalIgnoreCase))
+            return 0;
+        if (n.StartsWith(q, StringComparison.OrdinalIgnoreCase))
+            return 10 + n.Length;
+
+        string[] tokens = q.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+        int score = 100;
+        foreach (string token in tokens)
+        {
+            int index = n.IndexOf(token, StringComparison.OrdinalIgnoreCase);
+            if (index < 0)
+                return Int32.MaxValue;
+            score += index * 5;
+        }
+
+        return score + n.Length;
+    }
+
+    static List<LauncherApp> FilterLauncherApps(
+        List<LauncherApp> apps,
+        string query,
+        int maxResults)
+    {
+        return apps
+            .Select(x => new
+            {
+                App = x,
+                Score = LauncherMatchScore(x.Name, query)
+            })
+            .Where(x => x.Score != Int32.MaxValue)
+            .OrderBy(x => x.Score)
+            .ThenBy(x => x.App.Name, StringComparer.OrdinalIgnoreCase)
+            .Take(maxResults)
+            .Select(x => x.App)
+            .ToList();
+    }
+
+    static System.Drawing.Image GetLauncherAppIcon(LauncherApp app)
+    {
+        if (app == null)
+            return null;
+
+        if (app.IconLoaded)
+            return app.IconImage;
+
+        app.IconLoaded = true;
+        SHFILEINFO info;
+        string iconPath = String.IsNullOrWhiteSpace(app.IconPath)
+            ? app.Path
+            : app.IconPath;
+        IntPtr result = SHGetFileInfo(
+            iconPath,
+            0,
+            out info,
+            (uint)Marshal.SizeOf(typeof(SHFILEINFO)),
+            ShgfiIcon);
+
+        if (result == IntPtr.Zero || info.hIcon == IntPtr.Zero)
+            return null;
+
+        try
+        {
+            using (System.Drawing.Icon icon =
+                (System.Drawing.Icon)System.Drawing.Icon.FromHandle(info.hIcon).Clone())
+            {
+                app.IconImage = icon.ToBitmap();
+            }
+        }
+        finally
+        {
+            DestroyIcon(info.hIcon);
+        }
+
+        return app.IconImage;
+    }
+
+    static void LaunchLauncherApp(
+        System.Windows.Forms.Form form,
+        LauncherApp app)
+    {
+        if (app == null || String.IsNullOrWhiteSpace(app.Path))
+            return;
+
+        var psi = new ProcessStartInfo();
+        psi.FileName = app.Path;
+        psi.UseShellExecute = true;
+        psi.ErrorDialog = false;
+
+        Process.Start(psi);
+        form.Close();
+    }
+
+    static int Launcher(string source)
+    {
+        const string title = "WGDot Launcher";
+        IntPtr existing = FindTopLevelWindowByExactTitle(title);
+        if (existing != IntPtr.Zero)
+        {
+            PostMessage(existing, WmClose, IntPtr.Zero, IntPtr.Zero);
+            return 0;
+        }
+
+        List<LauncherApp> apps = new List<LauncherApp>();
+
+        IntPtr foreground = GetForegroundWindow();
+        POINT cursor;
+        bool haveCursor = GetCursorPos(out cursor);
+
+        System.Windows.Forms.Screen screen;
+        if (String.Equals(source, "bar", StringComparison.OrdinalIgnoreCase) && haveCursor)
+            screen = System.Windows.Forms.Screen.FromPoint(new System.Drawing.Point(cursor.X, cursor.Y));
+        else if (foreground != IntPtr.Zero)
+            screen = System.Windows.Forms.Screen.FromHandle(foreground);
+        else if (haveCursor)
+            screen = System.Windows.Forms.Screen.FromPoint(new System.Drawing.Point(cursor.X, cursor.Y));
+        else
+            screen = System.Windows.Forms.Screen.PrimaryScreen;
+
+        YasbTheme theme = FindYasbTheme(CurrentYasbThemeId()) ?? YasbThemes[0];
+        System.Drawing.Color background = WgdotDrawingColor(
+            theme.Background,
+            System.Drawing.Color.FromArgb(25, 25, 25));
+        System.Drawing.Color foregroundColor = WgdotDrawingColor(
+            theme.Foreground,
+            System.Drawing.Color.Gainsboro);
+        System.Drawing.Color field = WgdotDrawingColor(
+            theme.Active,
+            System.Drawing.Color.FromArgb(43, 43, 43));
+        System.Drawing.Color hover = WgdotDrawingColor(
+            theme.Hover,
+            System.Drawing.Color.FromArgb(64, 64, 64));
+
+        const int width = 380;
+        const int height = 450;
+
+        var form = new System.Windows.Forms.Form();
+        form.Text = title;
+        form.FormBorderStyle = System.Windows.Forms.FormBorderStyle.None;
+        form.StartPosition = System.Windows.Forms.FormStartPosition.Manual;
+        form.Size = new System.Drawing.Size(width, height);
+        form.Location = LauncherLocation(source, screen, foreground, width, height);
+        form.BackColor = background;
+        form.ForeColor = foregroundColor;
+        form.ShowInTaskbar = false;
+        form.TopMost = true;
+        form.KeyPreview = true;
+        form.Opacity = 0.98;
+
+        var outer = new System.Windows.Forms.Panel();
+        outer.Dock = System.Windows.Forms.DockStyle.Fill;
+        outer.Padding = new System.Windows.Forms.Padding(12);
+        outer.BackColor = background;
+
+        var searchWrap = new System.Windows.Forms.Panel();
+        searchWrap.Dock = System.Windows.Forms.DockStyle.Top;
+        searchWrap.Height = 42;
+        searchWrap.Padding = new System.Windows.Forms.Padding(10, 7, 10, 6);
+        searchWrap.BackColor = field;
+
+        var search = new System.Windows.Forms.TextBox();
+        search.Dock = System.Windows.Forms.DockStyle.Fill;
+        search.BorderStyle = System.Windows.Forms.BorderStyle.None;
+        search.BackColor = field;
+        search.ForeColor = foregroundColor;
+        search.Font = new System.Drawing.Font(
+            "Segoe UI",
+            17f,
+            System.Drawing.FontStyle.Regular,
+            System.Drawing.GraphicsUnit.Pixel);
+
+        var results = new System.Windows.Forms.ListBox();
+        results.Dock = System.Windows.Forms.DockStyle.Fill;
+        results.BorderStyle = System.Windows.Forms.BorderStyle.None;
+        results.BackColor = background;
+        results.ForeColor = foregroundColor;
+        results.Font = new System.Drawing.Font(
+            "Segoe UI",
+            15f,
+            System.Drawing.FontStyle.Regular,
+            System.Drawing.GraphicsUnit.Pixel);
+        results.DrawMode = System.Windows.Forms.DrawMode.OwnerDrawFixed;
+        results.ItemHeight = 40;
+        results.IntegralHeight = false;
+
+        Action refresh = delegate
+        {
+            List<LauncherApp> filtered = FilterLauncherApps(apps, search.Text, 12);
+            results.BeginUpdate();
+            try
+            {
+                results.Items.Clear();
+                foreach (LauncherApp app in filtered)
+                    results.Items.Add(app);
+
+                if (results.Items.Count > 0)
+                    results.SelectedIndex = 0;
+            }
+            finally
+            {
+                results.EndUpdate();
+            }
+        };
+
+        results.DrawItem += delegate(
+            object sender,
+            System.Windows.Forms.DrawItemEventArgs e)
+        {
+            if (e.Index < 0 || e.Index >= results.Items.Count)
+                return;
+
+            bool selected = (e.State & System.Windows.Forms.DrawItemState.Selected) != 0;
+            using (var brush = new System.Drawing.SolidBrush(selected ? hover : background))
+                e.Graphics.FillRectangle(brush, e.Bounds);
+
+            LauncherApp app = results.Items[e.Index] as LauncherApp;
+            string label = app == null ? "" : app.Name;
+            System.Drawing.Image icon = GetLauncherAppIcon(app);
+            int textLeft = e.Bounds.Left + 12;
+            if (icon != null)
+            {
+                const int iconSize = 24;
+                int iconY = e.Bounds.Top + Math.Max(0, (e.Bounds.Height - iconSize) / 2);
+                e.Graphics.DrawImage(
+                    icon,
+                    new System.Drawing.Rectangle(
+                        e.Bounds.Left + 10,
+                        iconY,
+                        iconSize,
+                        iconSize));
+                textLeft = e.Bounds.Left + 44;
+            }
+
+            System.Drawing.Rectangle textBounds = new System.Drawing.Rectangle(
+                textLeft,
+                e.Bounds.Top,
+                Math.Max(1, e.Bounds.Right - textLeft - 12),
+                e.Bounds.Height);
+
+            System.Windows.Forms.TextRenderer.DrawText(
+                e.Graphics,
+                label,
+                results.Font,
+                textBounds,
+                foregroundColor,
+                System.Windows.Forms.TextFormatFlags.Left |
+                System.Windows.Forms.TextFormatFlags.VerticalCenter |
+                System.Windows.Forms.TextFormatFlags.EndEllipsis);
+        };
+
+        Action launchSelected = delegate
+        {
+            LauncherApp app = results.SelectedItem as LauncherApp;
+            if (app == null)
+                return;
+
+            try
+            {
+                LaunchLauncherApp(form, app);
+            }
+            catch (Exception ex)
+            {
+                System.Windows.Forms.MessageBox.Show(
+                    form,
+                    "Could not launch " + app.Name + ".\r\n\r\n" + ex.Message,
+                    "WGDot Launcher",
+                    System.Windows.Forms.MessageBoxButtons.OK,
+                    System.Windows.Forms.MessageBoxIcon.Error);
+                search.Focus();
+            }
+        };
+
+        search.TextChanged += delegate { refresh(); };
+        search.KeyDown += delegate(
+            object sender,
+            System.Windows.Forms.KeyEventArgs e)
+        {
+            if (e.KeyCode == System.Windows.Forms.Keys.Down)
+            {
+                if (results.Items.Count > 0)
+                    results.SelectedIndex = Math.Min(results.Items.Count - 1, results.SelectedIndex + 1);
+                e.Handled = true;
+                e.SuppressKeyPress = true;
+            }
+            else if (e.KeyCode == System.Windows.Forms.Keys.Up)
+            {
+                if (results.Items.Count > 0)
+                    results.SelectedIndex = Math.Max(0, results.SelectedIndex - 1);
+                e.Handled = true;
+                e.SuppressKeyPress = true;
+            }
+            else if (e.KeyCode == System.Windows.Forms.Keys.Enter)
+            {
+                launchSelected();
+                e.Handled = true;
+                e.SuppressKeyPress = true;
+            }
+            else if (e.KeyCode == System.Windows.Forms.Keys.Escape)
+            {
+                form.Close();
+                e.Handled = true;
+                e.SuppressKeyPress = true;
+            }
+        };
+
+        results.DoubleClick += delegate { launchSelected(); };
+        results.KeyDown += delegate(
+            object sender,
+            System.Windows.Forms.KeyEventArgs e)
+        {
+            if (e.KeyCode == System.Windows.Forms.Keys.Enter)
+            {
+                launchSelected();
+                e.Handled = true;
+            }
+            else if (e.KeyCode == System.Windows.Forms.Keys.Escape)
+            {
+                form.Close();
+                e.Handled = true;
+            }
+        };
+
+        form.Deactivate += delegate
+        {
+            if (!form.IsDisposed)
+                form.Close();
+        };
+
+        searchWrap.Controls.Add(search);
+        outer.Controls.Add(results);
+        outer.Controls.Add(searchWrap);
+        form.Controls.Add(outer);
+
+        form.Shown += delegate
+        {
+            search.Focus();
+
+            System.Threading.ThreadPool.QueueUserWorkItem(delegate
+            {
+                List<LauncherApp> loadedApps = GetLauncherApps();
+                if (form.IsDisposed)
+                    return;
+
+                try
+                {
+                    form.BeginInvoke((Action)delegate
+                    {
+                        apps = loadedApps;
+                        refresh();
+                    });
+                }
+                catch
+                {
+                }
+            });
+
+        };
+
+        System.Windows.Forms.Application.Run(form);
+        return 0;
+    }
+
+    static System.Drawing.Color WgdotDrawingColor(string hex, System.Drawing.Color fallback)
+    {
+        try
+        {
+            return System.Drawing.ColorTranslator.FromHtml(hex);
+        }
+        catch
+        {
+            return fallback;
+        }
+    }
+
+    static void StartShutdownCommand(string arguments)
+    {
+        var psi = new ProcessStartInfo();
+        psi.FileName = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.System),
+            "shutdown.exe");
+        psi.Arguments = arguments;
+        psi.UseShellExecute = false;
+        psi.CreateNoWindow = true;
+        Process.Start(psi);
+    }
+
+    static List<PowerAction> BuildPowerActions()
+    {
+        return new List<PowerAction>
+        {
+            new PowerAction('l', "", "Lock (L)", delegate
+            {
+                if (!LockWorkStation())
+                    throw new Exception("Windows lock request failed.");
+            }),
+            new PowerAction('h', "", "Hibernate (H)", delegate
+            {
+                StartShutdownCommand("/h");
+            }),
+            new PowerAction('r', "", "Reboot (R)", delegate
+            {
+                StartShutdownCommand("/r /t 0");
+            }),
+            new PowerAction('s', "", "Shutdown (S)", delegate
+            {
+                StartShutdownCommand("/s /t 0");
+            }),
+            new PowerAction('o', "", "Sign out (O)", delegate
+            {
+                StartShutdownCommand("/l");
+            }),
+            new PowerAction('z', "", "Sleep (Z)", delegate
+            {
+                if (!SetSuspendState(false, false, false))
+                    throw new Exception("Windows sleep request failed.");
+            })
+        };
+    }
+
+    static void StopPowerFadeTimer(System.Windows.Forms.Timer timer)
+    {
+        if (timer == null) return;
+        timer.Stop();
+        timer.Dispose();
+    }
+
+    static void StartPowerMenuFadeIn(
+        System.Windows.Forms.Form form,
+        PowerMenuAnimationState state)
+    {
+        if (form == null || form.IsDisposed || state == null) return;
+
+        StopPowerFadeTimer(state.FadeInTimer);
+        state.FadeInTimer = new System.Windows.Forms.Timer();
+        state.FadeInTimer.Interval = 15;
+        state.FadeInTimer.Tick += delegate
+        {
+            if (form.IsDisposed || state.FadingOut)
+            {
+                StopPowerFadeTimer(state.FadeInTimer);
+                state.FadeInTimer = null;
+                return;
+            }
+
+            form.Opacity = Math.Min(0.92, form.Opacity + 0.075);
+            if (form.Opacity >= 0.919)
+            {
+                form.Opacity = 0.92;
+                StopPowerFadeTimer(state.FadeInTimer);
+                state.FadeInTimer = null;
+            }
+        };
+        state.FadeInTimer.Start();
+    }
+
+    static void BeginPowerMenuFadeOut(
+        System.Windows.Forms.Form form,
+        Action afterClose)
+    {
+        if (form == null || form.IsDisposed)
+        {
+            if (afterClose != null) afterClose();
+            return;
+        }
+
+        PowerMenuAnimationState state = form.Tag as PowerMenuAnimationState;
+        if (state == null)
+        {
+            form.Close();
+            if (afterClose != null) afterClose();
+            return;
+        }
+
+        if (afterClose != null && state.AfterClose == null)
+            state.AfterClose = afterClose;
+
+        if (state.FadingOut) return;
+        state.FadingOut = true;
+
+        StopPowerFadeTimer(state.FadeInTimer);
+        state.FadeInTimer = null;
+
+        state.FadeOutTimer = new System.Windows.Forms.Timer();
+        state.FadeOutTimer.Interval = 15;
+        state.FadeOutTimer.Tick += delegate
+        {
+            if (form.IsDisposed)
+            {
+                StopPowerFadeTimer(state.FadeOutTimer);
+                state.FadeOutTimer = null;
+                return;
+            }
+
+            form.Opacity = Math.Max(0.0, form.Opacity - 0.075);
+            if (form.Opacity <= 0.001)
+            {
+                StopPowerFadeTimer(state.FadeOutTimer);
+                state.FadeOutTimer = null;
+                state.AllowClose = true;
+                form.Close();
+            }
+        };
+        state.FadeOutTimer.Start();
+    }
+
+    static void InvokePowerAction(
+        System.Windows.Forms.Form form,
+        PowerAction action)
+    {
+        BeginPowerMenuFadeOut(
+            form,
+            action == null ? null : action.Invoke);
+    }
+
+    static System.Windows.Forms.Control CreatePowerTile(
+        System.Windows.Forms.Form form,
+        PowerAction action,
+        System.Drawing.Color foreground,
+        System.Drawing.Color background,
+        System.Drawing.Color hover)
+    {
+        var tile = new System.Windows.Forms.Panel();
+        tile.Dock = System.Windows.Forms.DockStyle.Fill;
+        tile.Margin = new System.Windows.Forms.Padding(8);
+        tile.BackColor = background;
+        tile.Cursor = System.Windows.Forms.Cursors.Hand;
+
+        var grid = new System.Windows.Forms.TableLayoutPanel();
+        grid.Dock = System.Windows.Forms.DockStyle.Fill;
+        grid.ColumnCount = 1;
+        grid.RowCount = 2;
+        grid.Margin = new System.Windows.Forms.Padding(0);
+        grid.Padding = new System.Windows.Forms.Padding(0);
+        grid.BackColor = System.Drawing.Color.Transparent;
+        grid.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 65f));
+        grid.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 35f));
+
+        var icon = new System.Windows.Forms.Label();
+        icon.Text = action.Icon;
+        icon.Dock = System.Windows.Forms.DockStyle.Fill;
+        icon.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+        icon.ForeColor = foreground;
+        icon.BackColor = System.Drawing.Color.Transparent;
+        icon.Font = new System.Drawing.Font(
+            "JetBrainsMono NFP",
+            42f,
+            System.Drawing.FontStyle.Regular,
+            System.Drawing.GraphicsUnit.Pixel);
+        icon.Cursor = System.Windows.Forms.Cursors.Hand;
+
+        var label = new System.Windows.Forms.Label();
+        label.Text = action.Label;
+        label.Dock = System.Windows.Forms.DockStyle.Fill;
+        label.TextAlign = System.Drawing.ContentAlignment.TopCenter;
+        label.ForeColor = foreground;
+        label.BackColor = System.Drawing.Color.Transparent;
+        label.Font = new System.Drawing.Font(
+            "JetBrainsMono NFP",
+            17f,
+            System.Drawing.FontStyle.Regular,
+            System.Drawing.GraphicsUnit.Pixel);
+        label.Cursor = System.Windows.Forms.Cursors.Hand;
+
+        grid.Controls.Add(icon, 0, 0);
+        grid.Controls.Add(label, 0, 1);
+        tile.Controls.Add(grid);
+
+        EventHandler enter = delegate { tile.BackColor = hover; };
+        EventHandler leave = delegate { tile.BackColor = background; };
+        EventHandler click = delegate { InvokePowerAction(form, action); };
+
+        foreach (System.Windows.Forms.Control control in new System.Windows.Forms.Control[] { tile, grid, icon, label })
+        {
+            control.MouseEnter += enter;
+            control.MouseLeave += leave;
+            control.Click += click;
+        }
+
+        return tile;
+    }
+
+    static int PowerMenu()
+    {
+        const string title = "WGDot Power Menu";
+        IntPtr existing = FindTopLevelWindowByExactTitle(title);
+        if (existing != IntPtr.Zero)
+        {
+            PostMessage(existing, WmClose, IntPtr.Zero, IntPtr.Zero);
+            return 0;
+        }
+
+        System.Windows.Forms.Application.EnableVisualStyles();
+
+        YasbTheme theme = FindYasbTheme(CurrentYasbThemeId()) ?? YasbThemes[0];
+        System.Drawing.Color background = WgdotDrawingColor(
+            theme.Background,
+            System.Drawing.Color.FromArgb(53, 53, 53));
+        System.Drawing.Color foreground = WgdotDrawingColor(
+            theme.Foreground,
+            System.Drawing.Color.Gainsboro);
+        System.Drawing.Color tileBackground = WgdotDrawingColor(
+            theme.Active,
+            System.Drawing.Color.FromArgb(43, 43, 43));
+        System.Drawing.Color tileHover = WgdotDrawingColor(
+            theme.Hover,
+            System.Drawing.Color.FromArgb(64, 64, 64));
+
+        IntPtr foregroundWindow = GetForegroundWindow();
+        System.Windows.Forms.Screen screen = foregroundWindow == IntPtr.Zero
+            ? System.Windows.Forms.Screen.PrimaryScreen
+            : System.Windows.Forms.Screen.FromHandle(foregroundWindow);
+
+        var state = new PowerMenuAnimationState();
+        var form = new System.Windows.Forms.Form();
+        form.Text = title;
+        form.FormBorderStyle = System.Windows.Forms.FormBorderStyle.None;
+        form.StartPosition = System.Windows.Forms.FormStartPosition.Manual;
+        form.Bounds = screen.Bounds;
+        form.TopMost = true;
+        form.ShowInTaskbar = false;
+        form.KeyPreview = true;
+        form.BackColor = background;
+        form.Opacity = 0.0;
+        form.Cursor = System.Windows.Forms.Cursors.Default;
+        form.Tag = state;
+
+        int gridWidth = Math.Min(1000, Math.Max(690, (int)(screen.Bounds.Width * 0.58)));
+        int gridHeight = Math.Min(500, Math.Max(360, (int)(screen.Bounds.Height * 0.43)));
+
+        var grid = new System.Windows.Forms.TableLayoutPanel();
+        grid.ColumnCount = 3;
+        grid.RowCount = 2;
+        grid.Size = new System.Drawing.Size(gridWidth, gridHeight);
+        grid.Location = new System.Drawing.Point(
+            Math.Max(0, (screen.Bounds.Width - gridWidth) / 2),
+            Math.Max(0, (screen.Bounds.Height - gridHeight) / 2));
+        grid.BackColor = System.Drawing.Color.Transparent;
+        grid.Margin = new System.Windows.Forms.Padding(0);
+        grid.Padding = new System.Windows.Forms.Padding(0);
+
+        for (int i = 0; i < 3; i++)
+            grid.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(
+                System.Windows.Forms.SizeType.Percent,
+                33.333f));
+        for (int i = 0; i < 2; i++)
+            grid.RowStyles.Add(new System.Windows.Forms.RowStyle(
+                System.Windows.Forms.SizeType.Percent,
+                50f));
+
+        List<PowerAction> actions = BuildPowerActions();
+        for (int i = 0; i < actions.Count; i++)
+            grid.Controls.Add(
+                CreatePowerTile(
+                    form,
+                    actions[i],
+                    foreground,
+                    tileBackground,
+                    tileHover),
+                i % 3,
+                i / 3);
+
+        form.Controls.Add(grid);
+
+        form.Shown += delegate
+        {
+            StartPowerMenuFadeIn(form, state);
+        };
+
+        form.FormClosing += delegate(
+            object sender,
+            System.Windows.Forms.FormClosingEventArgs e)
+        {
+            if (state.AllowClose) return;
+            e.Cancel = true;
+            BeginPowerMenuFadeOut(form, null);
+        };
+
+        form.FormClosed += delegate
+        {
+            StopPowerFadeTimer(state.FadeInTimer);
+            StopPowerFadeTimer(state.FadeOutTimer);
+            state.FadeInTimer = null;
+            state.FadeOutTimer = null;
+
+            Action afterClose = state.AfterClose;
+            state.AfterClose = null;
+            if (afterClose != null)
+                afterClose();
+        };
+
+        form.KeyDown += delegate(
+            object sender,
+            System.Windows.Forms.KeyEventArgs e)
+        {
+            if (e.KeyCode == System.Windows.Forms.Keys.Escape)
+            {
+                form.Close();
+                e.Handled = true;
+                return;
+            }
+
+            char typed = Char.ToLowerInvariant((char)e.KeyValue);
+            PowerAction action = actions.FirstOrDefault(x => x.Key == typed);
+            if (action != null)
+            {
+                e.Handled = true;
+                InvokePowerAction(form, action);
+            }
+        };
+
+        form.MouseDown += delegate
+        {
+            form.Close();
+        };
+
+        System.Windows.Forms.Application.Run(form);
+        return 0;
+    }
+
     static string BuildYasbThemeCss(YasbTheme theme)
     {
         int red = Int32.Parse(theme.Foreground.Substring(1, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture);
@@ -6860,79 +8322,716 @@ class WgdotHidden
         catch (System.Threading.WaitHandleCannotBeOpenedException) { }
     }
 
-    static int IdleInhibitorStatus()
+    static int BarAutoHideToggle()
     {
-        bool active = NamedMutexExists(IdleInhibitorMutexName);
+        string profile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        string yasbPath = Path.Combine(profile, ".config", "yasb", "config.yaml");
+        string glazePath = Path.Combine(profile, ".glzr", "glazewm", "config.yaml");
 
-        // Keep stdout ASCII-only because YASB's CustomWidget decodes command
-        // output as UTF-8. JSON escapes are converted back into the same
-        // Font Awesome eye/eye-slash glyphs Awtarchy uses after json.loads().
-        Console.Write(
-            active
-                ? "{\"icon\":\"\\uf06e\",\"active\":true,\"tooltip\":\"Keep Awake: activated - click to deactivate\"}"
-                : "{\"icon\":\"\\uf070\",\"active\":false,\"tooltip\":\"Idle inhibitor: deactivated - click to activate Keep Awake\"}");
+        if (!File.Exists(yasbPath))
+            throw new Exception("YASB config was not found: " + yasbPath);
+        if (!File.Exists(glazePath))
+            throw new Exception("GlazeWM config was not found: " + glazePath);
+
+        string yasbOriginal = File.ReadAllText(yasbPath);
+        string glazeOriginal = File.ReadAllText(glazePath);
+
+        MatchCollection autoMatches = Regex.Matches(
+            yasbOriginal,
+            @"(?m)^(\s*)auto_hide:\s*(true|false)\s*$",
+            RegexOptions.IgnoreCase);
+        if (autoMatches.Count != 1)
+            throw new Exception(
+                "Expected exactly one YASB auto_hide setting, found " +
+                autoMatches.Count.ToString(CultureInfo.InvariantCulture) + ".");
+
+        bool currentAutoHide = String.Equals(
+            autoMatches[0].Groups[2].Value,
+            "true",
+            StringComparison.OrdinalIgnoreCase);
+        bool enableAutoHide = !currentAutoHide;
+
+        MatchCollection topGapMatches = Regex.Matches(
+            glazeOriginal,
+            @"(?m)^(\s*)top:\s*""(5|35)px""\s*$");
+        if (topGapMatches.Count != 1)
+            throw new Exception(
+                "Expected exactly one GlazeWM 5/35 px top gap, found " +
+                topGapMatches.Count.ToString(CultureInfo.InvariantCulture) + ".");
+
+        string yasbNext = Regex.Replace(
+            yasbOriginal,
+            @"(?m)^(\s*)auto_hide:\s*(true|false)\s*$",
+            m => m.Groups[1].Value + "auto_hide: " + (enableAutoHide ? "true" : "false"));
+
+        string glazeNext = Regex.Replace(
+            glazeOriginal,
+            @"(?m)^(\s*)top:\s*""(5|35)px""\s*$",
+            m => m.Groups[1].Value + "top: \"" + (enableAutoHide ? "5" : "35") + "px\"");
+
+        try
+        {
+            WriteTextAtomic(yasbPath, yasbNext);
+            WriteTextAtomic(glazePath, glazeNext);
+
+            ProcResult yasbReload = Run("yasbc.exe", "reload -s", null);
+            if (yasbReload.ExitCode != 0)
+                throw new Exception(
+                    "YASB reload failed: " +
+                    LastUsefulLine(yasbReload.StdErr + "\n" + yasbReload.StdOut));
+
+            ProcResult glazeReload = Run(RequireGlazeWmExe(), "command wm-reload-config", null);
+            if (glazeReload.ExitCode != 0)
+                throw new Exception(
+                    "GlazeWM reload failed: " +
+                    LastUsefulLine(glazeReload.StdErr + "\n" + glazeReload.StdOut));
+            // GlazeWM reload clears active binding modes upstream.
+            WriteTrackedGlazeBindingMode("");
+        }
+        catch
+        {
+            WriteTextAtomic(yasbPath, yasbOriginal);
+            WriteTextAtomic(glazePath, glazeOriginal);
+            try { Run("yasbc.exe", "reload -s", null); } catch { }
+            try { Run("glazewm.exe", "command wm-reload-config", null); } catch { }
+            WriteTrackedGlazeBindingMode("");
+            throw;
+        }
+
+        Console.WriteLine(
+            "YASB auto-hide " + (enableAutoHide ? "enabled" : "disabled") +
+            "; GlazeWM top gap set to " + (enableAutoHide ? "5px" : "35px") + ".");
+        Console.WriteLine("YASB and GlazeWM reloaded.");
         return 0;
     }
 
-    static void StartIdleInhibitorWorker()
+    static int RawAccelToggle()
+    {
+        Process[] running = Process.GetProcessesByName("rawaccel");
+        if (running.Length > 0)
+        {
+            var failures = new List<string>();
+            foreach (Process process in running)
+            {
+                try
+                {
+                    process.Kill();
+                }
+                catch (Exception ex)
+                {
+                    failures.Add(process.Id.ToString(CultureInfo.InvariantCulture) + ": " + ex.Message);
+                }
+            }
+
+            if (failures.Count > 0)
+                throw new Exception("Failed to close RawAccel GUI process(es): " + String.Join("; ", failures.ToArray()));
+
+            return 0;
+        }
+
+        var candidates = new List<string>();
+
+        ProcResult where = Run("where.exe", "rawaccel.exe", null);
+        if (where.ExitCode == 0)
+        {
+            foreach (string line in (where.StdOut ?? "").Replace("\r", "").Split('\n'))
+            {
+                string candidate = line.Trim();
+                if (!String.IsNullOrWhiteSpace(candidate))
+                    candidates.Add(candidate);
+            }
+        }
+
+        string localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        string programFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
+
+        candidates.Add(Path.Combine(localAppData, "RawAccel", "rawaccel.exe"));
+        candidates.Add(Path.Combine(localAppData, "Programs", "RawAccel", "rawaccel.exe"));
+        if (!String.IsNullOrWhiteSpace(programFiles))
+            candidates.Add(Path.Combine(programFiles, "RawAccel", "rawaccel.exe"));
+
+        string exe = candidates.FirstOrDefault(path =>
+            !String.IsNullOrWhiteSpace(path) && File.Exists(path));
+        if (String.IsNullOrWhiteSpace(exe))
+            throw new Exception("RawAccel GUI executable was not found.");
+
+        var psi = new ProcessStartInfo();
+        psi.FileName = exe;
+        psi.WorkingDirectory = Path.GetDirectoryName(exe);
+        psi.UseShellExecute = true;
+        Process started = Process.Start(psi);
+        if (started == null)
+            throw new Exception("RawAccel GUI did not start.");
+
+        return 0;
+    }
+
+    sealed class WindowAuditRow
+    {
+        public string ProcessName;
+        public int ProcessId;
+        public string Title;
+        public string Executable;
+    }
+
+    static int WindowAudit()
+    {
+        var rows = new List<WindowAuditRow>();
+
+        EnumWindows(delegate(IntPtr hWnd, IntPtr lParam)
+        {
+            if (!IsWindowVisible(hWnd) || IsDwmCloaked(hWnd))
+                return true;
+
+            int titleLength = GetWindowTextLength(hWnd);
+            if (titleLength <= 0)
+                return true;
+
+            var title = new StringBuilder(titleLength + 1);
+            GetWindowText(hWnd, title, title.Capacity);
+            string titleText = title.ToString().Trim();
+            if (String.IsNullOrWhiteSpace(titleText))
+                return true;
+
+            uint processId;
+            GetWindowThreadProcessId(hWnd, out processId);
+            if (processId == 0)
+                return true;
+
+            try
+            {
+                using (Process process = Process.GetProcessById((int)processId))
+                {
+                    string executable = "";
+                    try
+                    {
+                        executable = process.MainModule == null
+                            ? ""
+                            : process.MainModule.FileName;
+                    }
+                    catch
+                    {
+                    }
+
+                    rows.Add(new WindowAuditRow
+                    {
+                        ProcessName = process.ProcessName ?? "",
+                        ProcessId = (int)processId,
+                        Title = titleText,
+                        Executable = executable
+                    });
+                }
+            }
+            catch
+            {
+            }
+
+            return true;
+        }, IntPtr.Zero);
+
+        rows = rows
+            .OrderBy(x => x.ProcessName, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(x => x.Title, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        Console.WriteLine("Visible top-level windows for GlazeWM rule matching");
+        Console.WriteLine("GlazeWM window_process should match PROCESS, not the WinGet package ID.");
+        Console.WriteLine();
+
+        foreach (WindowAuditRow row in rows)
+        {
+            Console.WriteLine(
+                "PROCESS: " + row.ProcessName +
+                "    PID: " + row.ProcessId.ToString(CultureInfo.InvariantCulture));
+            Console.WriteLine("TITLE:   " + row.Title);
+            if (!String.IsNullOrWhiteSpace(row.Executable))
+                Console.WriteLine("EXE:     " + row.Executable);
+            Console.WriteLine();
+        }
+
+        return 0;
+    }
+
+    static void SignalMouseModeHookStop()
+    {
+        try
+        {
+            using (var stop = System.Threading.EventWaitHandle.OpenExisting(MouseModeStopEventName))
+                stop.Set();
+        }
+        catch (System.Threading.WaitHandleCannotBeOpenedException)
+        {
+        }
+    }
+
+    static bool NamedMutexExists(string name)
+    {
+        try
+        {
+            using (System.Threading.Mutex mutex = System.Threading.Mutex.OpenExisting(name))
+                return true;
+        }
+        catch (System.Threading.WaitHandleCannotBeOpenedException)
+        {
+            return false;
+        }
+    }
+
+    static void WriteTrackedGlazeBindingMode(string mode)
+    {
+        var state = new Dictionary<string, object>();
+        state["mode"] = (mode ?? "").Trim().ToLowerInvariant();
+        state["updatedAt"] = DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture);
+        WriteJson(GlazeBindingModeStatePath, state);
+    }
+
+    static string ReadTrackedGlazeBindingMode()
+    {
+        Dictionary<string, object> state = ReadJson(GlazeBindingModeStatePath);
+        return state == null ? "" : GetString(state, "mode").Trim().ToLowerInvariant();
+    }
+
+    static string GetActiveGlazeWmBindingMode()
+    {
+        ProcResult result = Run(RequireGlazeWmExe(), "query binding-modes", null);
+        Dictionary<string, object> response =
+            RequireGlazeWmSuccess(result, "GlazeWM binding-mode query");
+
+        object dataObject;
+        if (!response.TryGetValue("data", out dataObject) || dataObject == null)
+            throw new Exception("GlazeWM binding-mode query returned no data.");
+
+        Dictionary<string, object> data = AsDictionary(dataObject);
+        object modesObject;
+        if (!data.TryGetValue("bindingModes", out modesObject) || modesObject == null)
+            throw new Exception("GlazeWM binding-mode query returned no bindingModes list.");
+
+        IEnumerable modes = modesObject as IEnumerable;
+        if (modes == null)
+            throw new Exception("GlazeWM binding-mode query returned invalid bindingModes data.");
+
+        foreach (object modeObject in modes)
+        {
+            Dictionary<string, object> mode = AsDictionary(modeObject);
+            object modeName;
+            if (mode.TryGetValue("name", out modeName))
+                return Convert.ToString(modeName) ?? "";
+        }
+
+        return "";
+    }
+
+    static bool TryGetActiveGlazeWmBindingMode(out string activeMode)
+    {
+        // GlazeWM's query returns the full active BindingModeConfig including
+        // every keybinding. Large modes can make the CLI IPC client fail to
+        // receive that response even though command IPC remains healthy.
+        // Retry transient failures, then let toggle logic use command behavior
+        // to distinguish "same mode" from "different active mode".
+        for (int i = 0; i < 5; i++)
+        {
+            try
+            {
+                activeMode = GetActiveGlazeWmBindingMode();
+                return true;
+            }
+            catch
+            {
+                if (i < 4)
+                    System.Threading.Thread.Sleep(50);
+            }
+        }
+
+        activeMode = "";
+        return false;
+    }
+
+    static void SetGlazeWmBindingMode(string name, bool enabled)
+    {
+        string verb = enabled ? "wm-enable-binding-mode" : "wm-disable-binding-mode";
+        ProcResult result = Run(
+            RequireGlazeWmExe(),
+            "command " + verb + " --name " + Q(name),
+            null);
+        RequireGlazeWmSuccess(
+            result,
+            "GlazeWM binding mode " + (enabled ? "enable" : "disable") + " '" + name + "'");
+
+        if (enabled)
+        {
+            WriteTrackedGlazeBindingMode(name);
+        }
+        else if (String.Equals(
+                     ReadTrackedGlazeBindingMode(),
+                     name,
+                     StringComparison.OrdinalIgnoreCase))
+        {
+            WriteTrackedGlazeBindingMode("");
+        }
+    }
+
+    static void RetireLegacyMouseMode(bool disableBindingMode)
+    {
+        SignalMouseModeHookStop();
+
+        if (!disableBindingMode)
+            return;
+
+        try
+        {
+            SetGlazeWmBindingMode("mouse", false);
+        }
+        catch
+        {
+            if (String.Equals(
+                    ReadTrackedGlazeBindingMode(),
+                    "mouse",
+                    StringComparison.OrdinalIgnoreCase))
+                WriteTrackedGlazeBindingMode("");
+        }
+    }
+
+    static int GlazeWmBindingModeToggleFromArgs(string[] args)
+    {
+        if (args.Length != 1 ||
+            !(String.Equals(args[0], "noalt", StringComparison.OrdinalIgnoreCase) ||
+              String.Equals(args[0], "vm", StringComparison.OrdinalIgnoreCase)))
+            throw new Exception("glazewm-binding-mode-toggle requires exactly one target: noalt or vm.");
+
+        string mode = args[0].ToLowerInvariant();
+        string activeMode;
+        if (TryGetActiveGlazeWmBindingMode(out activeMode))
+            WriteTrackedGlazeBindingMode(activeMode);
+        else
+            activeMode = ReadTrackedGlazeBindingMode();
+
+        if (String.Equals(activeMode, mode, StringComparison.OrdinalIgnoreCase))
+        {
+            SetGlazeWmBindingMode(mode, false);
+            return 0;
+        }
+
+        RetireLegacyMouseMode(
+            String.Equals(activeMode, "mouse", StringComparison.OrdinalIgnoreCase) ||
+            NamedMutexExists(MouseModeMutexName));
+
+        SetGlazeWmBindingMode(mode, true);
+        return 0;
+    }
+
+    static int GlazeWmBindingModeSetFromArgs(string[] args)
+    {
+        if (args.Length != 1)
+            throw new Exception("glazewm-binding-mode-set requires exactly one target: normal, noalt, or vm.");
+
+        string mode = args[0].Trim().ToLowerInvariant();
+        if (!(mode == "normal" || mode == "noalt" || mode == "vm"))
+            throw new Exception("glazewm-binding-mode-set requires exactly one target: normal, noalt, or vm.");
+
+        string tracked = ReadTrackedGlazeBindingMode();
+
+        if (mode == "normal")
+        {
+            bool legacyMouse =
+                String.Equals(tracked, "mouse", StringComparison.OrdinalIgnoreCase) ||
+                NamedMutexExists(MouseModeMutexName);
+            RetireLegacyMouseMode(legacyMouse);
+
+            if (!legacyMouse)
+            {
+                if (String.Equals(tracked, "noalt", StringComparison.OrdinalIgnoreCase) ||
+                    String.Equals(tracked, "vm", StringComparison.OrdinalIgnoreCase))
+                    SetGlazeWmBindingMode(tracked, false);
+                else
+                {
+                    SetGlazeWmBindingMode("noalt", false);
+                    SetGlazeWmBindingMode("vm", false);
+                }
+            }
+
+            WriteTrackedGlazeBindingMode("");
+            return 0;
+        }
+
+        RetireLegacyMouseMode(
+            String.Equals(tracked, "mouse", StringComparison.OrdinalIgnoreCase) ||
+            NamedMutexExists(MouseModeMutexName));
+
+        SetGlazeWmBindingMode(mode, true);
+        return 0;
+    }
+
+    static Dictionary<string, object> RequireGlazeWmSuccess(
+        ProcResult result,
+        string operation)
+    {
+        if (result == null)
+            throw new Exception(operation + " failed: no GlazeWM process result.");
+
+        if (result.ExitCode != 0)
+        {
+            string detail = LastUsefulLine((result.StdErr ?? "") + "\n" + (result.StdOut ?? ""));
+            throw new Exception(
+                operation + " failed with exit " +
+                result.ExitCode.ToString(CultureInfo.InvariantCulture) +
+                (String.IsNullOrWhiteSpace(detail) ? "." : ": " + detail));
+        }
+
+        if (String.IsNullOrWhiteSpace(result.StdOut))
+            throw new Exception(operation + " failed: GlazeWM returned no IPC response.");
+
+        Dictionary<string, object> response;
+        try
+        {
+            response = AsDictionary(Json.DeserializeObject(result.StdOut.Trim()));
+        }
+        catch (Exception ex)
+        {
+            throw new Exception(operation + " failed: invalid GlazeWM IPC JSON: " + ex.Message);
+        }
+
+        object rawSuccess;
+        if (!response.TryGetValue("success", out rawSuccess) || !(rawSuccess is bool))
+            throw new Exception(operation + " failed: GlazeWM IPC response is missing a boolean success field.");
+
+        if (!(bool)rawSuccess)
+        {
+            string error = GetString(response, "error");
+            if (String.IsNullOrWhiteSpace(error))
+                error = GetString(response, "clientMessage");
+            if (String.IsNullOrWhiteSpace(error))
+                error = "GlazeWM rejected the request.";
+            throw new Exception(operation + " failed: " + error);
+        }
+
+        return response;
+    }
+
+    static void SignalSuperLTestStop()
+    {
+        try
+        {
+            using (var stop = System.Threading.EventWaitHandle.OpenExisting(SuperLTestStopEventName))
+                stop.Set();
+        }
+        catch (System.Threading.WaitHandleCannotBeOpenedException)
+        {
+        }
+    }
+
+    static void StartSuperLHookWorker()
     {
         string exe = Process.GetCurrentProcess().MainModule.FileName;
         var psi = new ProcessStartInfo();
         psi.FileName = exe;
-        psi.Arguments = "idle-inhibitor-worker";
+        psi.Arguments = "super-l-hook";
         psi.UseShellExecute = false;
         psi.CreateNoWindow = true;
         psi.WindowStyle = ProcessWindowStyle.Hidden;
         psi.EnvironmentVariables["WGDOT_SKIP_RUNTIME_REFRESH"] = "1";
+
         Process process = Process.Start(psi);
-        if (process == null) throw new Exception("Failed to start the WGDot idle inhibitor worker.");
+        if (process == null)
+            throw new Exception("Failed to start the WGDot Super+L test hook.");
     }
 
-    static int IdleInhibitorToggle()
+    static int SuperLTestFromArgs(string[] args)
     {
-        if (NamedMutexExists(IdleInhibitorMutexName))
+        if (args.Length != 1)
         {
-            SignalIdleInhibitorStop();
-            for (int i = 0; i < 40 && NamedMutexExists(IdleInhibitorMutexName); i++)
-                System.Threading.Thread.Sleep(50);
-            if (NamedMutexExists(IdleInhibitorMutexName))
-                throw new Exception("Idle inhibitor did not stop.");
-            Console.WriteLine("Idle inhibitor disabled.");
+            Console.Error.WriteLine("Usage: wgdot super-l-test <start|stop|status>");
+            return 2;
+        }
+
+        string action = args[0].Trim().ToLowerInvariant();
+        if (action == "status")
+        {
+            Console.WriteLine(
+                "Super+L focus-right test hook: " +
+                (NamedMutexExists(SuperLTestMutexName) ? "running" : "stopped"));
             return 0;
         }
 
-        StartIdleInhibitorWorker();
-        for (int i = 0; i < 40 && !NamedMutexExists(IdleInhibitorMutexName); i++)
-            System.Threading.Thread.Sleep(50);
-        if (!NamedMutexExists(IdleInhibitorMutexName))
-            throw new Exception("Idle inhibitor did not start.");
+        if (action == "stop")
+        {
+            SignalSuperLTestStop();
+            for (int i = 0; i < 20 && NamedMutexExists(SuperLTestMutexName); i++)
+                System.Threading.Thread.Sleep(50);
+            Console.WriteLine("Super+L focus-right test hook stopped.");
+            return 0;
+        }
 
-        Console.WriteLine("Idle inhibitor enabled. Windows sleep and display idle timeouts are blocked while it is active.");
+        if (action != "start")
+        {
+            Console.Error.WriteLine("Usage: wgdot super-l-test <start|stop|status>");
+            return 2;
+        }
+
+        if (NamedMutexExists(SuperLTestMutexName))
+        {
+            Console.WriteLine("Super+L focus-right test hook is already running.");
+            return 0;
+        }
+
+        StartSuperLHookWorker();
+        for (int i = 0; i < 30 && !NamedMutexExists(SuperLTestMutexName); i++)
+            System.Threading.Thread.Sleep(50);
+
+        if (!NamedMutexExists(SuperLTestMutexName))
+            throw new Exception("Super+L focus-right test hook did not start.");
+
+        Console.WriteLine("Super+L focus-right test hook started.");
+        Console.WriteLine("Press Super+L with two adjacent tiled windows. It should focus right instead of locking.");
+        Console.WriteLine("Stop test: wgdot super-l-test stop");
         return 0;
     }
 
-    static int IdleInhibitorWorker()
+    static void FocusRightFromSuperL()
+    {
+        ProcResult result = Run(RequireGlazeWmExe(), "command focus --direction right", null);
+        if (result.ExitCode != 0)
+            Console.Error.WriteLine(
+                "Super+L focus-right command failed: " +
+                LastUsefulLine(result.StdErr + "\n" + result.StdOut));
+    }
+
+    static IntPtr SuperLHookCallback(int nCode, IntPtr wParam, IntPtr lParam)
+    {
+        if (nCode < 0)
+            return CallNextHookEx(SuperLHookHandle, nCode, wParam, lParam);
+
+        KBDLLHOOKSTRUCT data =
+            (KBDLLHOOKSTRUCT)Marshal.PtrToStructure(lParam, typeof(KBDLLHOOKSTRUCT));
+
+        if ((data.flags & LlKhfInjected) != 0)
+            return CallNextHookEx(SuperLHookHandle, nCode, wParam, lParam);
+
+        int message = unchecked((int)wParam.ToInt64());
+        bool down = message == WmKeyDown || message == WmSysKeyDown;
+        bool up = message == WmKeyUp || message == WmSysKeyUp;
+
+        if (data.vkCode == VkLwin)
+        {
+            if (down) SuperLLeftWinDown = true;
+            if (up) SuperLLeftWinDown = false;
+            return CallNextHookEx(SuperLHookHandle, nCode, wParam, lParam);
+        }
+
+        if (data.vkCode == VkRwin)
+        {
+            if (down) SuperLRightWinDown = true;
+            if (up) SuperLRightWinDown = false;
+            return CallNextHookEx(SuperLHookHandle, nCode, wParam, lParam);
+        }
+
+        if (data.vkCode == VkL && down && (SuperLLeftWinDown || SuperLRightWinDown))
+        {
+            if (!SuperLSuppressKeyUp)
+            {
+                SuperLSuppressKeyUp = true;
+                System.Threading.ThreadPool.QueueUserWorkItem(
+                    delegate { FocusRightFromSuperL(); });
+            }
+            return new IntPtr(1);
+        }
+
+        if (data.vkCode == VkL && up && SuperLSuppressKeyUp)
+        {
+            SuperLSuppressKeyUp = false;
+            return new IntPtr(1);
+        }
+
+        return CallNextHookEx(SuperLHookHandle, nCode, wParam, lParam);
+    }
+
+    static int SuperLHookWorker()
     {
         bool createdNew;
-        using (var mutex = new System.Threading.Mutex(true, IdleInhibitorMutexName, out createdNew))
+        using (var mutex = new System.Threading.Mutex(true, SuperLTestMutexName, out createdNew))
         {
-            if (!createdNew) return 0;
+            if (!createdNew)
+                return 0;
+
             using (var stop = new System.Threading.EventWaitHandle(
                 false,
                 System.Threading.EventResetMode.ManualReset,
-                IdleInhibitorStopEventName))
+                SuperLTestStopEventName))
             {
                 stop.Reset();
-                uint state = SetThreadExecutionState(EsContinuous | EsSystemRequired | EsDisplayRequired);
-                if (state == 0)
+                SuperLLeftWinDown = false;
+                SuperLRightWinDown = false;
+                SuperLSuppressKeyUp = false;
+
+                SuperLHookProc = SuperLHookCallback;
+                SuperLHookHandle = SetWindowsHookExKeyboard(
+                    WhKeyboardLl,
+                    SuperLHookProc,
+                    GetModuleHandle(null),
+                    0);
+
+                if (SuperLHookHandle == IntPtr.Zero)
                     throw new System.ComponentModel.Win32Exception(
                         Marshal.GetLastWin32Error(),
-                        "Windows rejected the WGDot idle inhibitor request.");
-                try { stop.WaitOne(); }
-                finally { SetThreadExecutionState(EsContinuous); }
+                        "Failed to install WGDot Super+L test hook.");
+
+                var timer = new System.Windows.Forms.Timer();
+                timer.Interval = 250;
+                timer.Tick += delegate
+                {
+                    if (stop.WaitOne(0) || Process.GetProcessesByName("glazewm").Length == 0)
+                        System.Windows.Forms.Application.ExitThread();
+                };
+
+                try
+                {
+                    timer.Start();
+                    System.Windows.Forms.Application.Run();
+                }
+                finally
+                {
+                    timer.Stop();
+                    timer.Dispose();
+                    if (SuperLHookHandle != IntPtr.Zero)
+                    {
+                        UnhookWindowsHookEx(SuperLHookHandle);
+                        SuperLHookHandle = IntPtr.Zero;
+                    }
+                    SuperLHookProc = null;
+                    SuperLLeftWinDown = false;
+                    SuperLRightWinDown = false;
+                    SuperLSuppressKeyUp = false;
+                }
             }
         }
+
         return 0;
+    }
+
+    static IntPtr FindTopLevelWindowByExactTitle(string title)
+    {
+        IntPtr found = IntPtr.Zero;
+        EnumWindows(delegate(IntPtr hWnd, IntPtr lParam)
+        {
+            int length = GetWindowTextLength(hWnd);
+            if (length <= 0) return true;
+
+            var text = new StringBuilder(length + 1);
+            GetWindowText(hWnd, text, text.Capacity);
+            if (!String.Equals(text.ToString(), title, StringComparison.Ordinal))
+                return true;
+
+            found = hWnd;
+            return false;
+        }, IntPtr.Zero);
+        return found;
+    }
+
+    static bool IsDwmCloaked(IntPtr hWnd)
+    {
+        int cloaked;
+        return hWnd != IntPtr.Zero &&
+            DwmGetWindowAttribute(hWnd, DwmwaCloaked, out cloaked, sizeof(int)) == 0 &&
+            cloaked != 0;
     }
 
     static string CurrentCursorThemeId()
@@ -7201,1232 +9300,6 @@ class WgdotHidden
             }
         }
         return "";
-    }
-
-    static int BarAutoHideToggle()
-    {
-        string profile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        string yasbPath = Path.Combine(profile, ".config", "yasb", "config.yaml");
-        string glazePath = Path.Combine(profile, ".glzr", "glazewm", "config.yaml");
-
-        if (!File.Exists(yasbPath))
-            throw new Exception("YASB config was not found: " + yasbPath);
-        if (!File.Exists(glazePath))
-            throw new Exception("GlazeWM config was not found: " + glazePath);
-
-        string yasbOriginal = File.ReadAllText(yasbPath);
-        string glazeOriginal = File.ReadAllText(glazePath);
-
-        MatchCollection autoMatches = Regex.Matches(
-            yasbOriginal,
-            @"(?m)^(\s*)auto_hide:\s*(true|false)\s*$",
-            RegexOptions.IgnoreCase);
-        if (autoMatches.Count != 1)
-            throw new Exception(
-                "Expected exactly one YASB auto_hide setting, found " +
-                autoMatches.Count.ToString(CultureInfo.InvariantCulture) + ".");
-
-        bool currentAutoHide = String.Equals(
-            autoMatches[0].Groups[2].Value,
-            "true",
-            StringComparison.OrdinalIgnoreCase);
-        bool enableAutoHide = !currentAutoHide;
-
-        MatchCollection topGapMatches = Regex.Matches(
-            glazeOriginal,
-            @"(?m)^(\s*)top:\s*""(5|35)px""\s*$");
-        if (topGapMatches.Count != 1)
-            throw new Exception(
-                "Expected exactly one GlazeWM 5/35 px top gap, found " +
-                topGapMatches.Count.ToString(CultureInfo.InvariantCulture) + ".");
-
-        string yasbNext = Regex.Replace(
-            yasbOriginal,
-            @"(?m)^(\s*)auto_hide:\s*(true|false)\s*$",
-            m => m.Groups[1].Value + "auto_hide: " + (enableAutoHide ? "true" : "false"));
-
-        string glazeNext = Regex.Replace(
-            glazeOriginal,
-            @"(?m)^(\s*)top:\s*""(5|35)px""\s*$",
-            m => m.Groups[1].Value + "top: \"" + (enableAutoHide ? "5" : "35") + "px\"");
-
-        try
-        {
-            WriteTextAtomic(yasbPath, yasbNext);
-            WriteTextAtomic(glazePath, glazeNext);
-
-            ProcResult yasbReload = Run("yasbc.exe", "reload -s", null);
-            if (yasbReload.ExitCode != 0)
-                throw new Exception(
-                    "YASB reload failed: " +
-                    LastUsefulLine(yasbReload.StdErr + "\n" + yasbReload.StdOut));
-
-            ProcResult glazeReload = Run("glazewm.exe", "command wm-reload-config", null);
-            if (glazeReload.ExitCode != 0)
-                throw new Exception(
-                    "GlazeWM reload failed: " +
-                    LastUsefulLine(glazeReload.StdErr + "\n" + glazeReload.StdOut));
-            // GlazeWM reload clears active binding modes upstream.
-            WriteTrackedGlazeBindingMode("");
-        }
-        catch
-        {
-            WriteTextAtomic(yasbPath, yasbOriginal);
-            WriteTextAtomic(glazePath, glazeOriginal);
-            try { Run("yasbc.exe", "reload -s", null); } catch { }
-            try { Run("glazewm.exe", "command wm-reload-config", null); } catch { }
-            WriteTrackedGlazeBindingMode("");
-            throw;
-        }
-
-        Console.WriteLine(
-            "YASB auto-hide " + (enableAutoHide ? "enabled" : "disabled") +
-            "; GlazeWM top gap set to " + (enableAutoHide ? "5px" : "35px") + ".");
-        Console.WriteLine("YASB and GlazeWM reloaded.");
-        return 0;
-    }
-
-    static int RawAccelToggle()
-    {
-        Process[] running = Process.GetProcessesByName("rawaccel");
-        if (running.Length > 0)
-        {
-            var failures = new List<string>();
-            foreach (Process process in running)
-            {
-                try
-                {
-                    process.Kill();
-                }
-                catch (Exception ex)
-                {
-                    failures.Add(process.Id.ToString(CultureInfo.InvariantCulture) + ": " + ex.Message);
-                }
-            }
-
-            if (failures.Count > 0)
-                throw new Exception("Failed to close RawAccel GUI process(es): " + String.Join("; ", failures.ToArray()));
-
-            return 0;
-        }
-
-        var candidates = new List<string>();
-
-        ProcResult where = Run("where.exe", "rawaccel.exe", null);
-        if (where.ExitCode == 0)
-        {
-            foreach (string line in (where.StdOut ?? "").Replace("\r", "").Split('\n'))
-            {
-                string candidate = line.Trim();
-                if (!String.IsNullOrWhiteSpace(candidate))
-                    candidates.Add(candidate);
-            }
-        }
-
-        string localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        string programFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
-
-        candidates.Add(Path.Combine(localAppData, "RawAccel", "rawaccel.exe"));
-        candidates.Add(Path.Combine(localAppData, "Programs", "RawAccel", "rawaccel.exe"));
-        if (!String.IsNullOrWhiteSpace(programFiles))
-            candidates.Add(Path.Combine(programFiles, "RawAccel", "rawaccel.exe"));
-
-        string exe = candidates.FirstOrDefault(path =>
-            !String.IsNullOrWhiteSpace(path) && File.Exists(path));
-        if (String.IsNullOrWhiteSpace(exe))
-            throw new Exception("RawAccel GUI executable was not found.");
-
-        var psi = new ProcessStartInfo();
-        psi.FileName = exe;
-        psi.WorkingDirectory = Path.GetDirectoryName(exe);
-        psi.UseShellExecute = true;
-        Process started = Process.Start(psi);
-        if (started == null)
-            throw new Exception("RawAccel GUI did not start.");
-
-        return 0;
-    }
-
-    sealed class WindowAuditRow
-    {
-        public string ProcessName;
-        public int ProcessId;
-        public string Title;
-        public string Executable;
-    }
-
-    static int WindowAudit()
-    {
-        var rows = new List<WindowAuditRow>();
-
-        EnumWindows(delegate(IntPtr hWnd, IntPtr lParam)
-        {
-            if (!IsWindowVisible(hWnd) || IsDwmCloaked(hWnd))
-                return true;
-
-            int titleLength = GetWindowTextLength(hWnd);
-            if (titleLength <= 0)
-                return true;
-
-            var title = new StringBuilder(titleLength + 1);
-            GetWindowText(hWnd, title, title.Capacity);
-            string titleText = title.ToString().Trim();
-            if (String.IsNullOrWhiteSpace(titleText))
-                return true;
-
-            uint processId;
-            GetWindowThreadProcessId(hWnd, out processId);
-            if (processId == 0)
-                return true;
-
-            try
-            {
-                using (Process process = Process.GetProcessById((int)processId))
-                {
-                    string executable = "";
-                    try
-                    {
-                        executable = process.MainModule == null
-                            ? ""
-                            : process.MainModule.FileName;
-                    }
-                    catch
-                    {
-                    }
-
-                    rows.Add(new WindowAuditRow
-                    {
-                        ProcessName = process.ProcessName ?? "",
-                        ProcessId = (int)processId,
-                        Title = titleText,
-                        Executable = executable
-                    });
-                }
-            }
-            catch
-            {
-            }
-
-            return true;
-        }, IntPtr.Zero);
-
-        rows = rows
-            .OrderBy(x => x.ProcessName, StringComparer.OrdinalIgnoreCase)
-            .ThenBy(x => x.Title, StringComparer.OrdinalIgnoreCase)
-            .ToList();
-
-        Console.WriteLine("Visible top-level windows for GlazeWM rule matching");
-        Console.WriteLine("GlazeWM window_process should match PROCESS, not the WinGet package ID.");
-        Console.WriteLine();
-
-        foreach (WindowAuditRow row in rows)
-        {
-            Console.WriteLine(
-                "PROCESS: " + row.ProcessName +
-                "    PID: " + row.ProcessId.ToString(CultureInfo.InvariantCulture));
-            Console.WriteLine("TITLE:   " + row.Title);
-            if (!String.IsNullOrWhiteSpace(row.Executable))
-                Console.WriteLine("EXE:     " + row.Executable);
-            Console.WriteLine();
-        }
-
-        return 0;
-    }
-
-    static void SignalMouseModeHookStop()
-    {
-        try
-        {
-            using (var stop = System.Threading.EventWaitHandle.OpenExisting(MouseModeStopEventName))
-                stop.Set();
-        }
-        catch (System.Threading.WaitHandleCannotBeOpenedException)
-        {
-        }
-    }
-
-    static bool NamedMutexExists(string name)
-    {
-        try
-        {
-            using (System.Threading.Mutex mutex = System.Threading.Mutex.OpenExisting(name))
-                return true;
-        }
-        catch (System.Threading.WaitHandleCannotBeOpenedException)
-        {
-            return false;
-        }
-    }
-
-    static void WriteTrackedGlazeBindingMode(string mode)
-    {
-        var state = new Dictionary<string, object>();
-        state["mode"] = (mode ?? "").Trim().ToLowerInvariant();
-        state["updatedAt"] = DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture);
-        WriteJson(GlazeBindingModeStatePath, state);
-    }
-
-    static string ReadTrackedGlazeBindingMode()
-    {
-        Dictionary<string, object> state = ReadJson(GlazeBindingModeStatePath);
-        return state == null ? "" : GetString(state, "mode").Trim().ToLowerInvariant();
-    }
-
-    static string GetActiveGlazeWmBindingMode()
-    {
-        ProcResult result = Run("glazewm.exe", "query binding-modes", null);
-        Dictionary<string, object> response =
-            RequireGlazeWmSuccess(result, "GlazeWM binding-mode query");
-
-        object dataObject;
-        if (!response.TryGetValue("data", out dataObject) || dataObject == null)
-            throw new Exception("GlazeWM binding-mode query returned no data.");
-
-        Dictionary<string, object> data = AsDictionary(dataObject);
-        object modesObject;
-        if (!data.TryGetValue("bindingModes", out modesObject) || modesObject == null)
-            throw new Exception("GlazeWM binding-mode query returned no bindingModes list.");
-
-        IEnumerable modes = modesObject as IEnumerable;
-        if (modes == null)
-            throw new Exception("GlazeWM binding-mode query returned invalid bindingModes data.");
-
-        foreach (object modeObject in modes)
-        {
-            Dictionary<string, object> mode = AsDictionary(modeObject);
-            object modeName;
-            if (mode.TryGetValue("name", out modeName))
-                return Convert.ToString(modeName) ?? "";
-        }
-
-        return "";
-    }
-
-    static bool TryGetActiveGlazeWmBindingMode(out string activeMode)
-    {
-        // GlazeWM's query returns the full active BindingModeConfig including
-        // every keybinding. Large modes can make the CLI IPC client fail to
-        // receive that response even though command IPC remains healthy.
-        // Retry transient failures, then let toggle logic use command behavior
-        // to distinguish "same mode" from "different active mode".
-        for (int i = 0; i < 5; i++)
-        {
-            try
-            {
-                activeMode = GetActiveGlazeWmBindingMode();
-                return true;
-            }
-            catch
-            {
-                if (i < 4)
-                    System.Threading.Thread.Sleep(50);
-            }
-        }
-
-        activeMode = "";
-        return false;
-    }
-
-    static bool GlazeWmBindingModeActive(string name)
-    {
-        return String.Equals(
-            GetActiveGlazeWmBindingMode(),
-            name,
-            StringComparison.OrdinalIgnoreCase);
-    }
-
-    static void SetGlazeWmBindingMode(string name, bool enabled)
-    {
-        string verb = enabled ? "wm-enable-binding-mode" : "wm-disable-binding-mode";
-        ProcResult result = Run(
-            "glazewm.exe",
-            "command " + verb + " --name " + Q(name),
-            null);
-        RequireGlazeWmSuccess(
-            result,
-            "GlazeWM binding mode " + (enabled ? "enable" : "disable") + " '" + name + "'");
-
-        if (enabled)
-        {
-            WriteTrackedGlazeBindingMode(name);
-        }
-        else if (String.Equals(
-                     ReadTrackedGlazeBindingMode(),
-                     name,
-                     StringComparison.OrdinalIgnoreCase))
-        {
-            WriteTrackedGlazeBindingMode("");
-        }
-    }
-
-    static void StartMouseModeHook()
-    {
-        string exe = Process.GetCurrentProcess().MainModule.FileName;
-        var psi = new ProcessStartInfo();
-        psi.FileName = exe;
-        psi.Arguments = "mouse-mode-hook";
-        psi.UseShellExecute = false;
-        psi.CreateNoWindow = true;
-        psi.WindowStyle = ProcessWindowStyle.Hidden;
-        psi.EnvironmentVariables["WGDOT_SKIP_RUNTIME_REFRESH"] = "1";
-
-        Process process = Process.Start(psi);
-        if (process == null)
-            throw new Exception("Failed to start the WGDot mouse-mode hook.");
-    }
-
-    static bool MouseModeIsActive()
-    {
-        // The hook mutex is the strongest runtime evidence because it exists
-        // only while WGDot's scoped mouse hook is alive. Fall back to the
-        // GlazeWM binding-mode query so a stale mode can still be shut down.
-        if (NamedMutexExists(MouseModeMutexName))
-            return true;
-
-        return GlazeWmBindingModeActive("mouse");
-    }
-
-    static int MouseModeDisable()
-    {
-        // While already in mouse mode, Super+Alt+M uses this unconditional
-        // escape path instead of running another toggle/query decision.
-        SetGlazeWmBindingMode("mouse", false);
-        SignalMouseModeHookStop();
-        return 0;
-    }
-
-    static int MouseModeToggle()
-    {
-        if (MouseModeIsActive())
-            return MouseModeDisable();
-
-        SetGlazeWmBindingMode("mouse", true);
-        try
-        {
-            StartMouseModeHook();
-        }
-        catch
-        {
-            try { SetGlazeWmBindingMode("mouse", false); } catch { }
-            throw;
-        }
-
-        return 0;
-    }
-
-    static int MouseModeSwitchFromArgs(string[] args)
-    {
-        if (args.Length != 1 ||
-            !(String.Equals(args[0], "noalt", StringComparison.OrdinalIgnoreCase) ||
-              String.Equals(args[0], "vm", StringComparison.OrdinalIgnoreCase)))
-            throw new Exception("mouse-mode-switch requires exactly one target: noalt or vm.");
-
-        if (MouseModeIsActive())
-            MouseModeDisable();
-        else
-            SignalMouseModeHookStop();
-
-        SetGlazeWmBindingMode(args[0], true);
-        return 0;
-    }
-
-    static int GlazeWmBindingModeToggleFromArgs(string[] args)
-    {
-        if (args.Length != 1 ||
-            !(String.Equals(args[0], "noalt", StringComparison.OrdinalIgnoreCase) ||
-              String.Equals(args[0], "vm", StringComparison.OrdinalIgnoreCase)))
-            throw new Exception("glazewm-binding-mode-toggle requires exactly one target: noalt or vm.");
-
-        string mode = args[0].ToLowerInvariant();
-        string activeMode;
-        if (TryGetActiveGlazeWmBindingMode(out activeMode))
-            WriteTrackedGlazeBindingMode(activeMode);
-        else
-            activeMode = ReadTrackedGlazeBindingMode();
-
-        if (String.Equals(activeMode, mode, StringComparison.OrdinalIgnoreCase))
-        {
-            SetGlazeWmBindingMode(mode, false);
-            return 0;
-        }
-
-        if (String.Equals(activeMode, "mouse", StringComparison.OrdinalIgnoreCase) ||
-            NamedMutexExists(MouseModeMutexName))
-            MouseModeDisable();
-        else
-            SignalMouseModeHookStop();
-
-        SetGlazeWmBindingMode(mode, true);
-        return 0;
-    }
-
-    static int GlazeWmBindingModeSetFromArgs(string[] args)
-    {
-        if (args.Length != 1)
-            throw new Exception("glazewm-binding-mode-set requires exactly one target: normal, noalt, or vm.");
-
-        string mode = args[0].Trim().ToLowerInvariant();
-        if (!(mode == "normal" || mode == "noalt" || mode == "vm"))
-            throw new Exception("glazewm-binding-mode-set requires exactly one target: normal, noalt, or vm.");
-
-        string tracked = ReadTrackedGlazeBindingMode();
-
-        if (mode == "normal")
-        {
-            if (String.Equals(tracked, "mouse", StringComparison.OrdinalIgnoreCase) ||
-                NamedMutexExists(MouseModeMutexName))
-            {
-                MouseModeDisable();
-            }
-            else
-            {
-                SignalMouseModeHookStop();
-                if (String.Equals(tracked, "noalt", StringComparison.OrdinalIgnoreCase) ||
-                    String.Equals(tracked, "vm", StringComparison.OrdinalIgnoreCase))
-                    SetGlazeWmBindingMode(tracked, false);
-                else
-                {
-                    SetGlazeWmBindingMode("noalt", false);
-                    SetGlazeWmBindingMode("vm", false);
-                }
-            }
-
-            WriteTrackedGlazeBindingMode("");
-            return 0;
-        }
-
-        if (String.Equals(tracked, "mouse", StringComparison.OrdinalIgnoreCase) ||
-            NamedMutexExists(MouseModeMutexName))
-            MouseModeDisable();
-        else
-            SignalMouseModeHookStop();
-
-        SetGlazeWmBindingMode(mode, true);
-        return 0;
-    }
-
-    static IntPtr MouseModeTargetWindow(POINT point)
-    {
-        IntPtr window = WindowFromPoint(point);
-        if (window == IntPtr.Zero)
-            return IntPtr.Zero;
-
-        IntPtr root = GetAncestor(window, GaRoot);
-        if (root != IntPtr.Zero)
-            window = root;
-
-        if (!IsWindow(window) || !IsWindowVisible(window))
-            return IntPtr.Zero;
-
-        var className = new StringBuilder(256);
-        GetClassName(window, className, className.Capacity);
-        string cls = className.ToString();
-        if (String.Equals(cls, "Shell_TrayWnd", StringComparison.OrdinalIgnoreCase) ||
-            String.Equals(cls, "Shell_SecondaryTrayWnd", StringComparison.OrdinalIgnoreCase) ||
-            String.Equals(cls, "Progman", StringComparison.OrdinalIgnoreCase) ||
-            String.Equals(cls, "WorkerW", StringComparison.OrdinalIgnoreCase))
-            return IntPtr.Zero;
-
-        uint pid;
-        GetWindowThreadProcessId(window, out pid);
-        if (pid == 0)
-            return IntPtr.Zero;
-
-        try
-        {
-            using (Process process = Process.GetProcessById((int)pid))
-            {
-                if (String.Equals(process.ProcessName, "yasb", StringComparison.OrdinalIgnoreCase))
-                    return IntPtr.Zero;
-            }
-        }
-        catch
-        {
-            return IntPtr.Zero;
-        }
-
-        return window;
-    }
-
-    static IntPtr MousePointLParam(POINT point)
-    {
-        int packed = unchecked(
-            (point.X & 0xffff) |
-            ((point.Y & 0xffff) << 16));
-        return new IntPtr(packed);
-    }
-
-    static int MouseResizeHitTest(IntPtr window, POINT point)
-    {
-        RECT rect;
-        if (!GetWindowRect(window, out rect))
-            return HtBottomRight;
-
-        int centerX = rect.Left + Math.Max(1, rect.Right - rect.Left) / 2;
-        int centerY = rect.Top + Math.Max(1, rect.Bottom - rect.Top) / 2;
-        bool left = point.X < centerX;
-        bool top = point.Y < centerY;
-
-        if (left && top) return HtTopLeft;
-        if (!left && top) return HtTopRight;
-        if (left) return HtBottomLeft;
-        return HtBottomRight;
-    }
-
-    static void ToggleFloatingWindowUnderMouse(IntPtr window)
-    {
-        SetForegroundWindow(window);
-        System.Threading.Thread.Sleep(35);
-
-        ProcResult result = Run("glazewm.exe", "command toggle-floating", null);
-        if (result.ExitCode != 0)
-            Console.Error.WriteLine(
-                "WGDot mouse mode floating toggle failed: " +
-                LastUsefulLine(result.StdErr + "\n" + result.StdOut));
-    }
-
-    static IntPtr MouseModeHookCallback(int nCode, IntPtr wParam, IntPtr lParam)
-    {
-        if (nCode < 0)
-            return CallNextHookEx(MouseModeHookHandle, nCode, wParam, lParam);
-
-        MSLLHOOKSTRUCT data =
-            (MSLLHOOKSTRUCT)Marshal.PtrToStructure(lParam, typeof(MSLLHOOKSTRUCT));
-
-        if ((data.flags & LlMhfInjected) != 0)
-            return CallNextHookEx(MouseModeHookHandle, nCode, wParam, lParam);
-
-        int message = unchecked((int)wParam.ToInt64());
-
-        if (message == WmRButtonUp && MouseModeResizeTarget != IntPtr.Zero)
-        {
-            IntPtr target = MouseModeResizeTarget;
-            MouseModeResizeTarget = IntPtr.Zero;
-            PostMessage(target, WmLButtonUp, IntPtr.Zero, MousePointLParam(data.pt));
-            return new IntPtr(1);
-        }
-
-        if (message != WmLButtonDown &&
-            message != WmRButtonDown &&
-            message != WmMButtonDown)
-            return CallNextHookEx(MouseModeHookHandle, nCode, wParam, lParam);
-
-        IntPtr window = MouseModeTargetWindow(data.pt);
-        if (window == IntPtr.Zero)
-            return CallNextHookEx(MouseModeHookHandle, nCode, wParam, lParam);
-
-        SetForegroundWindow(window);
-
-        if (message == WmLButtonDown)
-        {
-            PostMessage(
-                window,
-                WmNcLButtonDown,
-                new IntPtr(HtCaption),
-                MousePointLParam(data.pt));
-            return new IntPtr(1);
-        }
-
-        if (message == WmRButtonDown)
-        {
-            MouseModeResizeTarget = window;
-            PostMessage(
-                window,
-                WmNcLButtonDown,
-                new IntPtr(MouseResizeHitTest(window, data.pt)),
-                MousePointLParam(data.pt));
-            return new IntPtr(1);
-        }
-
-        System.Threading.ThreadPool.QueueUserWorkItem(
-            delegate { ToggleFloatingWindowUnderMouse(window); });
-        return new IntPtr(1);
-    }
-
-    static int MouseModeHook()
-    {
-        bool createdNew;
-        using (var mutex = new System.Threading.Mutex(true, MouseModeMutexName, out createdNew))
-        {
-            if (!createdNew)
-                return 0;
-
-            using (var stop = new System.Threading.EventWaitHandle(
-                false,
-                System.Threading.EventResetMode.ManualReset,
-                MouseModeStopEventName))
-            {
-                stop.Reset();
-
-                MouseModeHookProc = MouseModeHookCallback;
-                MouseModeHookHandle = SetWindowsHookEx(
-                    WhMouseLl,
-                    MouseModeHookProc,
-                    GetModuleHandle(null),
-                    0);
-
-                if (MouseModeHookHandle == IntPtr.Zero)
-                    throw new System.ComponentModel.Win32Exception(
-                        Marshal.GetLastWin32Error(),
-                        "Failed to install WGDot mouse-mode hook.");
-
-                var timer = new System.Windows.Forms.Timer();
-                timer.Interval = 750;
-                timer.Tick += delegate
-                {
-                    if (stop.WaitOne(0) || !GlazeWmBindingModeActive("mouse"))
-                        System.Windows.Forms.Application.ExitThread();
-                };
-
-                try
-                {
-                    timer.Start();
-                    System.Windows.Forms.Application.Run();
-                }
-                finally
-                {
-                    timer.Stop();
-                    timer.Dispose();
-
-                    if (MouseModeHookHandle != IntPtr.Zero)
-                    {
-                        UnhookWindowsHookEx(MouseModeHookHandle);
-                        MouseModeHookHandle = IntPtr.Zero;
-                    }
-
-                    MouseModeResizeTarget = IntPtr.Zero;
-                    MouseModeHookProc = null;
-                }
-            }
-        }
-
-        return 0;
-    }
-
-    static Dictionary<string, object> RequireGlazeWmSuccess(
-        ProcResult result,
-        string operation)
-    {
-        if (result == null)
-            throw new Exception(operation + " failed: no GlazeWM process result.");
-
-        if (result.ExitCode != 0)
-        {
-            string detail = LastUsefulLine((result.StdErr ?? "") + "\n" + (result.StdOut ?? ""));
-            throw new Exception(
-                operation + " failed with exit " +
-                result.ExitCode.ToString(CultureInfo.InvariantCulture) +
-                (String.IsNullOrWhiteSpace(detail) ? "." : ": " + detail));
-        }
-
-        if (String.IsNullOrWhiteSpace(result.StdOut))
-            throw new Exception(operation + " failed: GlazeWM returned no IPC response.");
-
-        Dictionary<string, object> response;
-        try
-        {
-            response = AsDictionary(Json.DeserializeObject(result.StdOut.Trim()));
-        }
-        catch (Exception ex)
-        {
-            throw new Exception(operation + " failed: invalid GlazeWM IPC JSON: " + ex.Message);
-        }
-
-        object rawSuccess;
-        if (!response.TryGetValue("success", out rawSuccess) || !(rawSuccess is bool))
-            throw new Exception(operation + " failed: GlazeWM IPC response is missing a boolean success field.");
-
-        if (!(bool)rawSuccess)
-        {
-            string error = GetString(response, "error");
-            if (String.IsNullOrWhiteSpace(error))
-                error = GetString(response, "clientMessage");
-            if (String.IsNullOrWhiteSpace(error))
-                error = "GlazeWM rejected the request.";
-            throw new Exception(operation + " failed: " + error);
-        }
-
-        return response;
-    }
-
-    static void SignalSuperLTestStop()
-    {
-        try
-        {
-            using (var stop = System.Threading.EventWaitHandle.OpenExisting(SuperLTestStopEventName))
-                stop.Set();
-        }
-        catch (System.Threading.WaitHandleCannotBeOpenedException)
-        {
-        }
-    }
-
-    static void StartSuperLHookWorker()
-    {
-        string exe = Process.GetCurrentProcess().MainModule.FileName;
-        var psi = new ProcessStartInfo();
-        psi.FileName = exe;
-        psi.Arguments = "super-l-hook";
-        psi.UseShellExecute = false;
-        psi.CreateNoWindow = true;
-        psi.WindowStyle = ProcessWindowStyle.Hidden;
-        psi.EnvironmentVariables["WGDOT_SKIP_RUNTIME_REFRESH"] = "1";
-
-        Process process = Process.Start(psi);
-        if (process == null)
-            throw new Exception("Failed to start the WGDot Super+L test hook.");
-    }
-
-    static int SuperLTestFromArgs(string[] args)
-    {
-        if (args.Length != 1)
-        {
-            Console.Error.WriteLine("Usage: wgdot super-l-test <start|stop|status>");
-            return 2;
-        }
-
-        string action = args[0].Trim().ToLowerInvariant();
-        if (action == "status")
-        {
-            Console.WriteLine(
-                "Super+L focus-right test hook: " +
-                (NamedMutexExists(SuperLTestMutexName) ? "running" : "stopped"));
-            return 0;
-        }
-
-        if (action == "stop")
-        {
-            SignalSuperLTestStop();
-            for (int i = 0; i < 20 && NamedMutexExists(SuperLTestMutexName); i++)
-                System.Threading.Thread.Sleep(50);
-            Console.WriteLine("Super+L focus-right test hook stopped.");
-            return 0;
-        }
-
-        if (action != "start")
-        {
-            Console.Error.WriteLine("Usage: wgdot super-l-test <start|stop|status>");
-            return 2;
-        }
-
-        if (NamedMutexExists(SuperLTestMutexName))
-        {
-            Console.WriteLine("Super+L focus-right test hook is already running.");
-            return 0;
-        }
-
-        StartSuperLHookWorker();
-        for (int i = 0; i < 30 && !NamedMutexExists(SuperLTestMutexName); i++)
-            System.Threading.Thread.Sleep(50);
-
-        if (!NamedMutexExists(SuperLTestMutexName))
-            throw new Exception("Super+L focus-right test hook did not start.");
-
-        Console.WriteLine("Super+L focus-right test hook started.");
-        Console.WriteLine("Press Super+L with two adjacent tiled windows. It should focus right instead of locking.");
-        Console.WriteLine("Stop test: wgdot super-l-test stop");
-        return 0;
-    }
-
-    static void FocusRightFromSuperL()
-    {
-        ProcResult result = Run("glazewm.exe", "command focus --direction right", null);
-        if (result.ExitCode != 0)
-            Console.Error.WriteLine(
-                "Super+L focus-right command failed: " +
-                LastUsefulLine(result.StdErr + "\n" + result.StdOut));
-    }
-
-    static IntPtr SuperLHookCallback(int nCode, IntPtr wParam, IntPtr lParam)
-    {
-        if (nCode < 0)
-            return CallNextHookEx(SuperLHookHandle, nCode, wParam, lParam);
-
-        KBDLLHOOKSTRUCT data =
-            (KBDLLHOOKSTRUCT)Marshal.PtrToStructure(lParam, typeof(KBDLLHOOKSTRUCT));
-
-        if ((data.flags & LlKhfInjected) != 0)
-            return CallNextHookEx(SuperLHookHandle, nCode, wParam, lParam);
-
-        int message = unchecked((int)wParam.ToInt64());
-        bool down = message == WmKeyDown || message == WmSysKeyDown;
-        bool up = message == WmKeyUp || message == WmSysKeyUp;
-
-        if (data.vkCode == VkLwin)
-        {
-            if (down) SuperLLeftWinDown = true;
-            if (up) SuperLLeftWinDown = false;
-            return CallNextHookEx(SuperLHookHandle, nCode, wParam, lParam);
-        }
-
-        if (data.vkCode == VkRwin)
-        {
-            if (down) SuperLRightWinDown = true;
-            if (up) SuperLRightWinDown = false;
-            return CallNextHookEx(SuperLHookHandle, nCode, wParam, lParam);
-        }
-
-        if (data.vkCode == VkL && down && (SuperLLeftWinDown || SuperLRightWinDown))
-        {
-            if (!SuperLSuppressKeyUp)
-            {
-                SuperLSuppressKeyUp = true;
-                System.Threading.ThreadPool.QueueUserWorkItem(
-                    delegate { FocusRightFromSuperL(); });
-            }
-            return new IntPtr(1);
-        }
-
-        if (data.vkCode == VkL && up && SuperLSuppressKeyUp)
-        {
-            SuperLSuppressKeyUp = false;
-            return new IntPtr(1);
-        }
-
-        return CallNextHookEx(SuperLHookHandle, nCode, wParam, lParam);
-    }
-
-    static int SuperLHookWorker()
-    {
-        bool createdNew;
-        using (var mutex = new System.Threading.Mutex(true, SuperLTestMutexName, out createdNew))
-        {
-            if (!createdNew)
-                return 0;
-
-            using (var stop = new System.Threading.EventWaitHandle(
-                false,
-                System.Threading.EventResetMode.ManualReset,
-                SuperLTestStopEventName))
-            {
-                stop.Reset();
-                SuperLLeftWinDown = false;
-                SuperLRightWinDown = false;
-                SuperLSuppressKeyUp = false;
-
-                SuperLHookProc = SuperLHookCallback;
-                SuperLHookHandle = SetWindowsHookExKeyboard(
-                    WhKeyboardLl,
-                    SuperLHookProc,
-                    GetModuleHandle(null),
-                    0);
-
-                if (SuperLHookHandle == IntPtr.Zero)
-                    throw new System.ComponentModel.Win32Exception(
-                        Marshal.GetLastWin32Error(),
-                        "Failed to install WGDot Super+L test hook.");
-
-                var timer = new System.Windows.Forms.Timer();
-                timer.Interval = 250;
-                timer.Tick += delegate
-                {
-                    if (stop.WaitOne(0) || Process.GetProcessesByName("glazewm").Length == 0)
-                        System.Windows.Forms.Application.ExitThread();
-                };
-
-                try
-                {
-                    timer.Start();
-                    System.Windows.Forms.Application.Run();
-                }
-                finally
-                {
-                    timer.Stop();
-                    timer.Dispose();
-                    if (SuperLHookHandle != IntPtr.Zero)
-                    {
-                        UnhookWindowsHookEx(SuperLHookHandle);
-                        SuperLHookHandle = IntPtr.Zero;
-                    }
-                    SuperLHookProc = null;
-                    SuperLLeftWinDown = false;
-                    SuperLRightWinDown = false;
-                    SuperLSuppressKeyUp = false;
-                }
-            }
-        }
-
-        return 0;
-    }
-
-    static IntPtr FindTopLevelWindowByExactTitle(string title)
-    {
-        IntPtr found = IntPtr.Zero;
-        EnumWindows(delegate(IntPtr hWnd, IntPtr lParam)
-        {
-            int length = GetWindowTextLength(hWnd);
-            if (length <= 0) return true;
-
-            var text = new StringBuilder(length + 1);
-            GetWindowText(hWnd, text, text.Capacity);
-            if (!String.Equals(text.ToString(), title, StringComparison.Ordinal))
-                return true;
-
-            found = hWnd;
-            return false;
-        }, IntPtr.Zero);
-        return found;
-    }
-
-    static bool IsDwmCloaked(IntPtr hWnd)
-    {
-        int cloaked;
-        return hWnd != IntPtr.Zero &&
-            DwmGetWindowAttribute(hWnd, DwmwaCloaked, out cloaked, sizeof(int)) == 0 &&
-            cloaked != 0;
-    }
-
-    static string EnsureEarTrumpetStorageHelper()
-    {
-        string helperDir = Path.Combine(CacheRoot, "eartrumpet-storage-helper-v1");
-        string helperExe = Path.Combine(helperDir, "EarTrumpetStorageHelper.exe");
-        if (File.Exists(helperExe)) return helperExe;
-
-        Directory.CreateDirectory(helperDir);
-        string sourcePath = Path.Combine(helperDir, "EarTrumpetStorageHelper.cs");
-
-        string source = @"
-using System;
-using System.IO;
-using System.Text;
-using System.Windows.Forms;
-using System.Xml.Serialization;
-using Windows.Management.Core;
-
-public class HotkeyData
-{
-    public Keys Modifiers { get; set; }
-    public Keys Key { get; set; }
-}
-
-public static class Program
-{
-    const string Family = ""40459File-New-Project.EarTrumpet_725pr5jq8wr8a"";
-    const string Setting = ""MixerHotkey"";
-
-    public static int Main(string[] args)
-    {
-        if (args.Length == 0) return 2;
-        if (args[0] == ""self-test"") return 0;
-
-        var data = ApplicationDataManager.CreateForPackageFamily(Family);
-        var values = data.LocalSettings.Values;
-
-        if (args[0] == ""get-b64"")
-        {
-            if (!values.ContainsKey(Setting))
-            {
-                Console.Write(""__MISSING__"");
-                return 0;
-            }
-
-            string value = Convert.ToString(values[Setting]) ?? """";
-            Console.Write(Convert.ToBase64String(Encoding.UTF8.GetBytes(value)));
-            return 0;
-        }
-
-        if (args[0] == ""delete"")
-        {
-            if (values.ContainsKey(Setting)) values.Remove(Setting);
-            return 0;
-        }
-
-        if (args[0] == ""set-b64"" && args.Length >= 2)
-        {
-            values[Setting] = Encoding.UTF8.GetString(Convert.FromBase64String(args[1]));
-            return 0;
-        }
-
-        if (args[0] == ""set-win-v"")
-        {
-            var hotkey = new HotkeyData { Modifiers = Keys.LWin, Key = Keys.V };
-            var serializer = new XmlSerializer(typeof(HotkeyData));
-            using (var writer = new StringWriter())
-            {
-                serializer.Serialize(writer, hotkey);
-                values[Setting] = writer.ToString();
-            }
-            return 0;
-        }
-
-        return 2;
-    }
-}
-";
-        File.WriteAllText(sourcePath, source, new UTF8Encoding(false));
-
-        string csc = GetCscPath();
-        if (String.IsNullOrWhiteSpace(csc))
-            throw new Exception("Windows .NET Framework C# compiler was not found.");
-
-        var refs = new List<string>();
-        string windows = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
-        string metadata = Path.Combine(windows, "System32", "WinMetadata");
-
-        foreach (string file in new[]
-        {
-            "Windows.Foundation.winmd",
-            "Windows.Storage.winmd",
-            "Windows.Management.winmd"
-        })
-        {
-            string path = Path.Combine(metadata, file);
-            if (File.Exists(path)) refs.Add(path);
-        }
-
-        if (refs.Count == 0)
-        {
-            string pf86 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
-            string unionRoot = Path.Combine(pf86, "Windows Kits", "10", "UnionMetadata");
-            if (Directory.Exists(unionRoot))
-            {
-                string combined = Directory.GetFiles(unionRoot, "Windows.winmd", SearchOption.AllDirectories)
-                    .OrderByDescending(x => x)
-                    .FirstOrDefault();
-                if (!String.IsNullOrWhiteSpace(combined)) refs.Add(combined);
-            }
-        }
-
-        if (refs.Count == 0)
-            throw new Exception("Windows Runtime metadata required for EarTrumpet settings was not found.");
-
-        string runtimeDir = Path.GetDirectoryName(csc);
-        string windowsRuntime = Path.Combine(runtimeDir, "System.Runtime.WindowsRuntime.dll");
-
-        string pf86Refs = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),
-            "Reference Assemblies",
-            "Microsoft",
-            "Framework",
-            ".NETFramework");
-
-        string systemRuntime = "";
-        string facadeWindowsRuntime = "";
-        if (Directory.Exists(pf86Refs))
-        {
-            systemRuntime = Directory.GetFiles(pf86Refs, "System.Runtime.dll", SearchOption.AllDirectories)
-                .Where(x => x.IndexOf("Facades", StringComparison.OrdinalIgnoreCase) >= 0)
-                .OrderByDescending(x => x)
-                .FirstOrDefault() ?? "";
-
-            facadeWindowsRuntime = Directory.GetFiles(
-                    pf86Refs,
-                    "System.Runtime.WindowsRuntime.dll",
-                    SearchOption.AllDirectories)
-                .OrderByDescending(x => x)
-                .FirstOrDefault() ?? "";
-        }
-
-        // Normal Windows installations may not have Visual Studio/.NET reference
-        // assemblies, but the .NET Framework facade assemblies are still present
-        // in the GAC. Use those as the portable fallback.
-        string gacRoot = Path.Combine(
-            windows,
-            "Microsoft.NET",
-            "assembly",
-            "GAC_MSIL");
-
-        if (String.IsNullOrWhiteSpace(systemRuntime))
-        {
-            string gacSystemRuntime = Path.Combine(gacRoot, "System.Runtime");
-            if (Directory.Exists(gacSystemRuntime))
-            {
-                systemRuntime = Directory.GetFiles(
-                        gacSystemRuntime,
-                        "System.Runtime.dll",
-                        SearchOption.AllDirectories)
-                    .OrderByDescending(x => x)
-                    .FirstOrDefault() ?? "";
-            }
-        }
-
-        if (String.IsNullOrWhiteSpace(facadeWindowsRuntime))
-        {
-            string gacWindowsRuntime = Path.Combine(gacRoot, "System.Runtime.WindowsRuntime");
-            if (Directory.Exists(gacWindowsRuntime))
-            {
-                facadeWindowsRuntime = Directory.GetFiles(
-                        gacWindowsRuntime,
-                        "System.Runtime.WindowsRuntime.dll",
-                        SearchOption.AllDirectories)
-                    .OrderByDescending(x => x)
-                    .FirstOrDefault() ?? "";
-            }
-        }
-
-        var args = new StringBuilder();
-        args.Append("/nologo /optimize+ /target:exe /out:").Append(Q(helperExe));
-        args.Append(" /r:System.Windows.Forms.dll /r:System.Xml.dll");
-        if (!String.IsNullOrWhiteSpace(systemRuntime))
-            args.Append(" /r:").Append(Q(systemRuntime));
-        if (File.Exists(windowsRuntime))
-            args.Append(" /r:").Append(Q(windowsRuntime));
-        else if (!String.IsNullOrWhiteSpace(facadeWindowsRuntime))
-            args.Append(" /r:").Append(Q(facadeWindowsRuntime));
-        foreach (string reference in refs)
-            args.Append(" /r:").Append(Q(reference));
-        args.Append(" ").Append(Q(sourcePath));
-
-        ProcResult compile = Run(csc, args.ToString(), null);
-        if (compile.ExitCode != 0)
-            throw new Exception("EarTrumpet settings helper compilation failed: " +
-                LastUsefulLine(compile.StdErr + "\n" + compile.StdOut));
-
-        return helperExe;
-    }
-
-    static void RestartEarTrumpet()
-    {
-        var psi = new ProcessStartInfo();
-        psi.FileName = "explorer.exe";
-        psi.Arguments = "shell:AppsFolder\\40459File-New-Project.EarTrumpet_725pr5jq8wr8a!EarTrumpet";
-        psi.UseShellExecute = true;
-        Process.Start(psi);
-    }
-
-    static void ApplyEarTrumpetMixerSuperV(bool enable)
-    {
-        const string originalKey = "eartrumpet-mixer-alt-v|MixerHotkey"; // preserve existing snapshot ownership key
-        string helper = EnsureEarTrumpetStorageHelper();
-        bool wasRunning = StopProcessesByName("EarTrumpet");
-
-        if (enable)
-        {
-            ProcResult current = Run(helper, "get-b64", null);
-            if (current.ExitCode != 0)
-                throw new Exception("Could not read EarTrumpet packaged mixer-hotkey setting.");
-
-            string original = (current.StdOut ?? "").Trim();
-            bool existed = !String.Equals(original, "__MISSING__", StringComparison.Ordinal);
-            CaptureExternalSettingOriginal(originalKey, existed, existed ? original : "");
-
-            ProcResult set = Run(helper, "set-win-v", null);
-            if (set.ExitCode != 0)
-                throw new Exception("Could not set EarTrumpet mixer hotkey.");
-
-            Console.WriteLine("EarTrumpet Open Mixer hotkey set to Super+V.");
-            RestartEarTrumpet();
-            return;
-        }
-
-        var snapshot = GetExternalSettingOriginal(originalKey);
-        if (snapshot == null)
-        {
-            Console.WriteLine("No pre-WGDot EarTrumpet mixer-hotkey snapshot exists; leaving current setting unchanged.");
-            if (wasRunning) RestartEarTrumpet();
-            return;
-        }
-
-        string arguments = GetBool(snapshot, "exists")
-            ? "set-b64 " + Q(GetString(snapshot, "value"))
-            : "delete";
-
-        ProcResult restore = Run(helper, arguments, null);
-        if (restore.ExitCode != 0)
-            throw new Exception("Could not restore EarTrumpet mixer hotkey.");
-
-        Console.WriteLine("EarTrumpet mixer hotkey restored to its pre-WGDot value.");
-        if (wasRunning) RestartEarTrumpet();
     }
 
     static void ApplyCleanTaskbar(bool enable)
@@ -9070,7 +9943,7 @@ public static class Program
 
         int preset = ReadSingleChoice(
             "Preferred privacy.sexy recommendation level",
-            new List<string> { "Standard (repo guide default)", "Strict", "Cancel" },
+            new List<string> { "Standard (repo guide default)", "Strict", "Skip" },
             0);
         if (preset < 0 || preset == 2) return;
 
@@ -9185,6 +10058,81 @@ public static class Program
         try { SHChangeNotify(0x08000000, 0, IntPtr.Zero, IntPtr.Zero); } catch { }
     }
 
+
+    static string PrepareGitRuntimeSync(SourceContext source)
+    {
+        if (source == null ||
+            !String.Equals(source.Mode, "git", StringComparison.OrdinalIgnoreCase))
+            return "";
+
+        ValidateBranchName(source.Branch);
+        if (!Regex.IsMatch(source.Revision ?? "", "^[0-9a-fA-F]{40}$"))
+            throw new Exception("Git-testing runtime sync requires an exact 40-character revision.");
+
+        var bootstrap = ReadJson(BootstrapStatePath);
+        string installedRef = bootstrap == null ? "" : GetString(bootstrap, "sourceRef");
+        string installedRevision = bootstrap == null ? "" : GetString(bootstrap, "sourceRevision");
+        if (String.Equals(installedRef, source.Branch, StringComparison.OrdinalIgnoreCase) &&
+            String.Equals(installedRevision, source.Revision, StringComparison.OrdinalIgnoreCase))
+            return "";
+
+        string sourcePath = Path.Combine(
+            source.SourceRoot,
+            "wgdot",
+            "wgdot-native.cs");
+        if (!File.Exists(sourcePath))
+            throw new Exception("Git-testing runtime source missing: wgdot/wgdot-native.cs");
+
+        string nextExe = Path.Combine(
+            CacheRoot,
+            "wgdot-next-" + source.Revision.ToLowerInvariant() + ".exe");
+        SafeDeleteFile(nextExe);
+        CompileNativeSource(sourcePath, nextExe);
+
+        ProcResult test = Run(nextExe, "self-test", null);
+        if (test.ExitCode != 0)
+            throw new Exception(
+                "Git-testing runtime self-test failed: " +
+                LastUsefulLine((test.StdErr ?? "") + "\n" + (test.StdOut ?? "")));
+
+        return nextExe;
+    }
+
+    static void ScheduleGitRuntimeSync(SourceContext source, string nextExe)
+    {
+        if (source == null || String.IsNullOrWhiteSpace(nextExe))
+            return;
+
+        var bootstrap = ReadJson(BootstrapStatePath) ?? new Dictionary<string, object>();
+        bootstrap["sourceRef"] = source.Branch;
+        bootstrap["sourceExplicit"] = true;
+        bootstrap["runtimeSyncPendingRevision"] = source.Revision;
+        bootstrap["runtimeSyncScheduledAt"] = DateTime.UtcNow.ToString("o");
+        WriteJson(BootstrapStatePath, bootstrap);
+
+        string installedExe = Path.Combine(BinRoot, "wgdot.exe");
+        string workerState = Path.Combine(
+            Path.GetTempPath(),
+            "wgdot-worker-state-" + Guid.NewGuid().ToString("N") + ".json");
+        string helper = CreateRuntimeSwapHelper(
+            nextExe,
+            installedExe,
+            source.Branch,
+            source.Revision,
+            workerState);
+
+        var helperInfo = new ProcessStartInfo();
+        helperInfo.FileName = "cmd.exe";
+        helperInfo.Arguments = "/d /c " + Q(helper);
+        helperInfo.UseShellExecute = false;
+        helperInfo.CreateNoWindow = true;
+        Process.Start(helperInfo);
+
+        Console.WriteLine(
+            "WGDot runtime sync scheduled: " +
+            source.Branch + " @ " + source.Revision);
+    }
+
     static int ManagedOperation(string mode, SourceContext source)
     {
         if (source == null) throw new Exception("No source was resolved.");
@@ -9233,12 +10181,15 @@ public static class Program
             return 0;
         }
 
+        string pendingGitRuntime = PrepareGitRuntimeSync(source);
         ApplyPlan(plan, source.Manifest, selection, source);
+        RestoreRememberedThemeAfterManagedApply(plan);
 
         if (selectionChanged)
             WriteInstallationSelection(selection);
 
         UpdateSourceStateAfterApply(source);
+        ScheduleGitRuntimeSync(source, pendingGitRuntime);
         Console.ForegroundColor = ConsoleColor.Green;
         Console.WriteLine("WGDot managed configuration applied.");
         Console.ResetColor();
@@ -11971,11 +12922,6 @@ public static class Program
                     "new-runtime",
                     StringComparison.Ordinal))
                 throw new Exception("Runtime replacement helper self-test failed.");
-
-            string earHelper = EnsureEarTrumpetStorageHelper();
-            ProcResult earTest = Run(earHelper, "self-test", null);
-            if (earTest.ExitCode != 0)
-                throw new Exception("EarTrumpet packaged-settings helper self-test failed.");
 
             if (!String.Equals(ClassifyGpuHardwareVendor(@"PCI\VEN_1002&DEV_0000"), "amd", StringComparison.Ordinal) ||
                 !String.Equals(ClassifyGpuHardwareVendor(@"PCI\VEN_10DE&DEV_0000"), "nvidia", StringComparison.Ordinal) ||

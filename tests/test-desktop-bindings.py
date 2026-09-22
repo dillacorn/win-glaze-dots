@@ -5,21 +5,23 @@ import yaml
 root = Path(__file__).resolve().parents[1]
 
 APPROVED_WGDOT_RUNTIME = (
-    "wgdotw.exe mouse-mode-toggle",
     "wgdotw.exe glazewm-binding-mode-toggle",
     "wgdotw.exe bar-autohide-toggle",
     "wgdotw.exe rawaccel-toggle",
     "wgdot.exe theme",
+    "wgdotw.exe theme-window-toggle",
+    "wgdotw.exe clipboard-history-open",
+    "wgdotw.exe power-menu",
+    "wgdotw.exe launcher",
 )
 
 FORBIDDEN_WGDOT_RUNTIME = (
     "quick-launch",
     "flow-open",
     "eartrumpet-mixer",
-    "clipboard-history",
+    "clipboard-anchor",
     "flameshot-gui",
     "display-settings",
-    "power-menu",
 )
 
 for yasb_name in ("config.yaml", "custom_work_config.yaml"):
@@ -27,8 +29,41 @@ for yasb_name in ("config.yaml", "custom_work_config.yaml"):
     yasb_text = yasb_path.read_text()
     assert ".ps1" not in yasb_text.lower(), (yasb_name, "YASB runtime must not depend on .ps1 files")
     yasb = yaml.safe_load(yasb_text)
-    keybindings = yasb["widgets"]["launcher"]["options"].get("keybindings", [])
-    assert not keybindings, (yasb_name, "YASB Quick Launch must not own a synthetic/global launcher relay", keybindings)
+    launcher = yasb["widgets"]["launcher"]
+    assert launcher["type"] == "yasb.custom.CustomWidget", (
+        yasb_name,
+        "launcher button must be the lightweight YASB custom control",
+    )
+    assert launcher["options"]["callbacks"]["on_left"] == "exec wgdotw.exe launcher bar", (
+        yasb_name,
+        "launcher button must open the compiled bar-relative surface",
+    )
+    assert launcher["options"]["callbacks"]["on_right"] == "exec wgdotw.exe launcher bar", (
+        yasb_name,
+        "launcher right click must toggle the same compiled surface",
+    )
+
+    clipboard = yasb["widgets"]["clipboard_history"]
+    assert clipboard["options"]["callbacks"]["on_left"] == "exec wgdotw.exe clipboard-history-open", (
+        yasb_name,
+        "clipboard button must inject native Win+V without owning a keyboard shortcut",
+    )
+    assert clipboard["options"]["callbacks"]["on_right"] == "exec wgdotw.exe clipboard-history-open", (
+        yasb_name,
+        "clipboard right click must open the same native Win+V surface",
+    )
+    assert clipboard["options"]["tooltip_label"] == "Windows Clipboard History (Super+V)", (
+        yasb_name,
+        "clipboard tooltip must document native Windows Super+V ownership",
+    )
+    assert yasb["widgets"]["wifi"]["options"]["callbacks"]["on_left"] == "exec explorer.exe ms-settings:network-status", (
+        yasb_name,
+        "Wi-Fi/Ethernet must open the native Windows Network surface",
+    )
+    assert yasb["widgets"]["bluetooth"]["options"]["callbacks"]["on_left"] == "exec explorer.exe ms-settings:bluetooth", (
+        yasb_name,
+        "Bluetooth must open the native Windows Bluetooth surface",
+    )
 
     mode_callbacks = yasb["widgets"]["glazewm_binding_mode"]["options"]["callbacks"]
     assert mode_callbacks["on_left"] == "disable_binding_mode", (
@@ -52,28 +87,48 @@ for yasb_name in ("config.yaml", "custom_work_config.yaml"):
         mode_callbacks,
     )
 
-    mouse_callbacks = yasb["widgets"]["workspace_mouse"]["options"]["callbacks"]
-    assert "wgdotw.exe mouse-mode-toggle" in mouse_callbacks["on_left"], (
+    assert "workspace_move_hub" not in yasb["widgets"], (
         yasb_name,
-        "mouse icon must toggle the scoped mouse-mode helper",
-        mouse_callbacks,
+        "retired workspace mover hub must stay removed",
+    )
+    assert "workspace_move_group" not in yasb["widgets"], (
+        yasb_name,
+        "workspace arrows must not depend on a fake hover group",
+    )
+    yasb_text = yasb_path.read_text(encoding="utf-8")
+    assert "idle_inhibitor" not in yasb["widgets"], (
+        yasb_name,
+        "retired idle inhibitor widget must stay removed",
+    )
+    volume_callbacks = yasb["widgets"]["volume"]["options"]["callbacks"]
+    assert volume_callbacks["on_right"] == "do_nothing", (
+        yasb_name,
+        "volume right click must not relaunch EarTrumpet through the broken AppsFolder path",
+    )
+    assert "EarTrumpet_1sdd7yawvg6ne!EarTrumpet" not in yasb_text, (
+        yasb_name,
+        "YASB must leave EarTrumpet activation to its own Alt+V hotkey",
+    )
+
+    assert "workspace_move" in yasb["widgets"], (
+        yasb_name,
+        "workspace mover arrows must stay directly available",
+    )
+    assert "mouse-mode-toggle" not in yasb_text and "workspace_mouse" not in yasb_text, (
+        yasb_name,
+        "retired mouse-mode runtime returned to YASB",
     )
 
     power = yasb["widgets"]["power_menu"]
-    assert power["type"] == "yasb.power_menu.PowerMenuWidget", (yasb_name, "power menu must remain native YASB")
-    assert power["options"]["menu_style"] == "popup", (yasb_name, "power menu must use native popup style")
-    assert power["options"]["callbacks"]["on_left"] == "toggle_power_menu", (
+    assert power["type"] == "yasb.custom.CustomWidget", (yasb_name, "power button must remain a lightweight YASB custom control")
+    assert power["options"]["callbacks"]["on_left"] == "exec wgdotw.exe power-menu", (
         yasb_name,
-        "power icon must use YASB's native toggle callback",
+        "power icon must open the compiled Awtarchy-style power surface",
     )
-    assert power["options"]["callbacks"]["on_right"] == "toggle_power_menu", (
+    assert power["options"]["callbacks"]["on_right"] == "exec wgdotw.exe power-menu", (
         yasb_name,
-        "power icon right click must use YASB's native toggle callback",
+        "power icon right click must toggle the same compiled power surface",
     )
-    assert any(
-        binding.get("keys") == "win+p" and binding.get("action") == "toggle_power_menu"
-        for binding in power["options"].get("keybindings", [])
-    ), (yasb_name, "Win+P must use the native YASB power menu")
 
 for name in ("config.yaml", "custom_work_config.yaml"):
     glaze_path = root / "UserProfile/.glzr/glazewm" / name
@@ -83,7 +138,24 @@ for name in ("config.yaml", "custom_work_config.yaml"):
     modes = {m["name"]: m["keybindings"] for m in config["binding_modes"]}
     is_work = name == "custom_work_config.yaml"
 
-    assert "mouse" in modes, (name, "mouse binding mode missing")
+    assert "mouse" not in modes, (name, "retired mouse binding mode returned")
+    assert "lwin+alt+m" not in glaze_text and "rwin+alt+m" not in glaze_text, (
+        name,
+        "retired Super+Alt+M mouse binding returned",
+    )
+    assert "mouse-mode-toggle" not in glaze_text, (name, "retired WGDot mouse helper returned")
+
+    assert r'%LOCALAPPDATA%\wgdot\bin\wgdotw.exe' in glaze_text, (
+        name,
+        "compiled helper hotkeys must not depend on GlazeWM's inherited PATH",
+    )
+
+    expected_focus_follows_cursor = not is_work
+    assert config["general"]["focus_follows_cursor"] is expected_focus_follows_cursor, (
+        name,
+        "focus_follows_cursor profile default regressed",
+        config["general"]["focus_follows_cursor"],
+    )
 
     for mode, bindings in [("normal", config["keybindings"]), ("noalt", modes["noalt"])]:
         bridge_commands = [
@@ -93,13 +165,6 @@ for name in ("config.yaml", "custom_work_config.yaml"):
             if "yasb-quick-launch.ps1" in command or "flow-launcher.ps1" in command
         ]
         assert not bridge_commands, (name, mode, "launcher relay script returned", bridge_commands)
-
-        flow_direct_keys = {
-            key
-            for binding in bindings
-            if any("%LOCALAPPDATA%/FlowLauncher/Flow.Launcher.exe" in command for command in binding["commands"])
-            for key in binding["bindings"]
-        }
 
         for binding in bindings:
             for command in binding["commands"]:
@@ -118,6 +183,122 @@ for name in ("config.yaml", "custom_work_config.yaml"):
                         command,
                     )
 
+        power_keys = {
+            key
+            for binding in bindings
+            if any("wgdotw.exe power-menu" in command for command in binding["commands"])
+            for key in binding["bindings"]
+        }
+        assert {"lwin+p", "rwin+p"} <= power_keys, (
+            name,
+            mode,
+            "Super+P must open the compiled Awtarchy-style power surface",
+            power_keys,
+        )
+
+        launcher_keys = {
+            key
+            for binding in bindings
+            if any("wgdotw.exe launcher hotkey" in command for command in binding["commands"])
+            for key in binding["bindings"]
+        }
+        assert {"lwin+d", "rwin+d"} <= launcher_keys, (
+            name,
+            mode,
+            "Super+D must open the compiled application launcher",
+            launcher_keys,
+        )
+        if mode == "normal":
+            assert "alt+p" in launcher_keys, (
+                name,
+                mode,
+                "normal mode must bind Alt+P to the compiled launcher",
+                launcher_keys,
+            )
+        else:
+            assert "alt+p" not in launcher_keys, (
+                name,
+                mode,
+                "noalt must leave plain Alt+P uncaptured",
+                launcher_keys,
+            )
+
+        theme_keys = {
+            key
+            for binding in bindings
+            if any("wgdotw.exe theme-window-toggle" in command for command in binding["commands"])
+            for key in binding["bindings"]
+        }
+        assert {"lwin+alt+t", "rwin+alt+t"} <= theme_keys, (
+            name,
+            mode,
+            "Super+Alt+T must open themes",
+            theme_keys,
+        )
+        tiling_keys = {
+            key
+            for binding in bindings
+            if any(command == "toggle-tiling" for command in binding["commands"])
+            for key in binding["bindings"]
+        }
+        if mode == "normal":
+            assert {"alt+t", "lwin+t", "rwin+t"} <= tiling_keys, (
+                name,
+                mode,
+                "normal mode must bind Alt+T and Super+T to tiling",
+                tiling_keys,
+            )
+        else:
+            assert {"lwin+t", "rwin+t"} <= tiling_keys, (
+                name,
+                mode,
+                "noalt must keep Super+T tiling",
+                tiling_keys,
+            )
+            assert "alt+t" not in tiling_keys, (
+                name,
+                mode,
+                "noalt must leave plain Alt+T uncaptured",
+                tiling_keys,
+            )
+
+        reserved_audio_clipboard_keys = {
+            key
+            for binding in bindings
+            for key in binding["bindings"]
+            if key in {"alt+v", "lwin+v", "rwin+v", "lwin+c", "rwin+c"}
+        }
+        assert not reserved_audio_clipboard_keys, (
+            name,
+            mode,
+            "GlazeWM must leave Alt+V to EarTrumpet and Super+V to native Clipboard History",
+            reserved_audio_clipboard_keys,
+        )
+        assert not any(
+            "EarTrumpet_1sdd7yawvg6ne!EarTrumpet" in command or "clipboard-anchor" in command
+            for binding in bindings
+            for command in binding["commands"]
+        ), (name, mode, "retired EarTrumpet/clipboard hotkey bridges returned")
+
+        flameshot_keys = {
+            key
+            for binding in bindings
+            if any("C:\\Program Files\\Flameshot\\bin\\flameshot.exe" in command for command in binding["commands"])
+            for key in binding["bindings"]
+        }
+        assert {"lwin+shift+x", "rwin+shift+x"} <= flameshot_keys, (
+            name,
+            mode,
+            "Super+Shift+X must launch Flameshot from its installed path",
+            flameshot_keys,
+        )
+        assert "lwin+shift+s" not in flameshot_keys and "rwin+shift+s" not in flameshot_keys, (
+            name,
+            mode,
+            "Super+Shift+S must remain native Windows Snipping Tool",
+            flameshot_keys,
+        )
+
         rawaccel_keys = {
             key
             for binding in bindings
@@ -131,14 +312,6 @@ for name in ("config.yaml", "custom_work_config.yaml"):
             rawaccel_keys,
         )
         assert "alt+shift+m" not in rawaccel_keys, (name, mode, "RawAccel must not capture Alt+Shift+M")
-
-        if is_work:
-            assert "alt+p" in flow_direct_keys, (name, mode, "Work Alt+P must launch Flow directly", flow_direct_keys)
-        else:
-            assert "alt+p" not in flow_direct_keys, (name, mode, "Normal profile must not default Alt+P to Flow")
-
-    mouse_keys = {key for binding in modes["mouse"] for key in binding["bindings"]}
-    assert {"lwin+alt+m", "rwin+alt+m"} <= mouse_keys, (name, "mouse mode lacks Super+Alt+M exit")
 
     guest_keys = {key for binding in modes["vm"] for key in binding["bindings"]}
     assert not ({"alt+p", "lwin+d", "rwin+d", "lwin", "rwin"} & guest_keys), (

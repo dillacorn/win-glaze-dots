@@ -7,19 +7,19 @@ WGDot manages installation, updates, backups, and deployment. Runtime ownership 
 ## Runtime ownership
 
 - **GlazeWM** owns window-manager keybindings, binding modes, pause, workspace actions, screenshots, and direct Windows/application launches.
-- **YASB** owns bar widgets, native widget callbacks, its native power menu, DND, and Quick Launch.
-- **Installed applications** own their supported native hotkeys where possible. EarTrumpet is configured to own `Super+V` directly.
+- **YASB** owns ordinary bar widgets and native callbacks; for the custom application launcher it owns only the visible bar button.
+- **Installed applications** own their native hotkeys where practical. EarTrumpet owns `Alt+V` itself; GlazeWM/YASB do not launch it and WGDot does not rewrite that hotkey.
 - **Neither Normal nor Work has any `.ps1` runtime dependencies.** Desktop-session behavior uses native GlazeWM/YASB/Windows/application interfaces first.
-- **Compiled WGDot is used at runtime only for approved custom primitives:** the mouse hook, idle inhibition, coordinated auto-hide, theme application, invisible GlazeWM mode dispatch where a console would otherwise flash, and the narrow RawAccel GUI toggle.
+- **Compiled WGDot is used at runtime only for approved custom primitives:** the application launcher, power surface, coordinated auto-hide, theme application/window toggle, invisible GlazeWM mode dispatch where a console would otherwise flash, the narrow RawAccel GUI toggle, and the bar-only one-shot Clipboard History opener.
 - Runtime actions that must stay invisible use the windowless `wgdotw.exe` frontend; the interactive theme selector uses `wgdot.exe theme` inside Windows Terminal.
 
 ## Bar layout
 
 Left:
 
-- YASB Quick Launch
+- Awtarchy-style application launcher
 - GlazeWM workspaces
-- hover-revealed workspace-move controls
+- direct workspace-move arrows
 - running-window task icons
 - active GlazeWM binding mode
 - GlazeWM tiling direction
@@ -41,6 +41,7 @@ Right:
 - clock/date
 - Wi-Fi
 - Bluetooth
+- Windows Clipboard History
 - unified Windows notifications / Do Not Disturb
 - native YASB power menu
 
@@ -48,28 +49,35 @@ The system tray definition remains available but is not rendered in the bar. `us
 
 ## Launcher ownership
 
-YASB Quick Launch is opened from its native bar widget. It does not register a private synthetic hotkey and GlazeWM does not inject a key to open it.
+The application button is a lightweight YASB `CustomWidget` that opens `wgdotw.exe launcher bar`. GlazeWM opens the same single-purpose compiled surface with `wgdotw.exe launcher hotkey`.
 
-- Normal profile: no external Quick Launch chord is advertised until YASB exposes a documented direct command/interface that GlazeWM can invoke.
-- Work profile: `Alt+P` launches Flow Launcher directly from GlazeWM for the current work-PC test.
-- `Super+D` is not faked through YASB, PowerShell, SendKeys, or WGDot.
-- VM mode therefore has no launcher relay that can steal guest shortcuts.
+- Global `Alt+P` and `Super+D` open the launcher.
+- `noalt` retains `Super+D` but intentionally leaves plain `Alt+P` uncaptured.
+- Bar click opens directly below the top bar at the top-left of the active display while the bar is visible.
+- Keyboard activation opens horizontally centered just below the top bar during ordinary desktop use.
+- If YASB auto-hide is enabled, or the foreground window fills the active monitor, the launcher opens centered on that monitor.
+- The launcher stays compact at roughly half the old search-window width while retaining normal application-name room.
+- It indexes Start Menu shortcuts, activates them through Windows shell semantics, and resolves ordinary `.lnk` target/icon metadata so results prefer the underlying application icon instead of shortcut-style presentation where Windows exposes that metadata.
+- Flow Launcher remains optional and is not the default hotkey surface.
+- VM mode has no ordinary launcher binding that steals guest shortcuts.
 
 ## Binding modes
 
-GlazeWM owns `noalt`, `mouse`, and `vm` modes directly with `wm-enable-binding-mode` and `wm-disable-binding-mode`.
+GlazeWM owns `noalt` and `vm` modes directly with `wm-enable-binding-mode` and `wm-disable-binding-mode`.
 
-`Win+Alt+N`, `Win+Alt+M`, and `Win+Alt+V` enter the corresponding mode. The same mode chord exits that mode, and mode-to-mode transitions explicitly disable the current mode first.
+`Win+Alt+N` and `Win+Alt+V` enter the corresponding mode. The same mode chord exits that mode, and mode-to-mode transitions explicitly disable the current mode first.
 
 YASB's native `GlazewmBindingModeWidget` displays those modes. Clicking the visible active mode disables that mode; it does not cycle to another mode. GlazeWM remains the source of truth for mode state.
 
 Real GlazeWM pause remains `Win+Alt+P` and uses `wm-toggle-pause`.
 
-GlazeWM 3.10.x still does not expose mouse buttons through its keybinding parser. GlazeWM owns `mouse` mode state, while the scoped compiled WGDot mouse hook supplies the actual left-drag move, right-drag resize, and middle-click floating behavior and exits automatically when mouse mode ends.
+The experimental mouse binding mode and low-level WGDot pointer hook were removed after real-Windows testing showed pointer lag and unreliable tiled-window dragging. Its old bar slot is gone completely. The four native GlazeWM workspace arrows remain directly visible and usable without a placeholder hub.
 
 ## Themes
 
 `theme.css` and `appearance.css` are normal tracked dotfiles.
+
+WGDot also remembers the selected theme separately. If a managed dots update replaces `theme.css` or WGDot-managed Windows Terminal settings, WGDot reapplies that remembered theme after the update so the active palette is preserved.
 
 The compiled WGDot theme manager is launched as `wgdot.exe theme` inside Windows Terminal. It:
 
@@ -79,6 +87,8 @@ The compiled WGDot theme manager is launched as `wgdot.exe theme` inside Windows
 - does **not** reload GlazeWM
 
 The selector uses the title `Win Glaze Themes`, and both GlazeWM profiles float/center that window.
+
+`Super+Alt+T` toggles the single `Win Glaze Themes` window. Pressing it again in the same visible monitor/workspace closes it; invoking it from another monitor or a cloaked workspace closes the old instance and reopens exactly one selector in the currently focused context. `Super+T` toggles tiling, as does global `Alt+T`; `noalt` intentionally leaves plain `Alt+T` unbound while retaining `Super+T`.
 
 GlazeWM focused borders stay neutral `#a1a1a1` so a theme change never requires a layout-disrupting GlazeWM reload.
 
@@ -97,9 +107,7 @@ The blank-bar context menu stays disabled so there is no second unsynchronized a
 
 ## Idle inhibitor
 
-The eye control uses `wgdot.exe idle-inhibitor-status` for status and `wgdotw.exe idle-inhibitor-toggle` for changes in both profiles.
-
-The helper uses Windows `SetThreadExecutionState(ES_CONTINUOUS | ES_SYSTEM_REQUIRED | ES_DISPLAY_REQUIRED)` in a scoped hidden user-session worker. It changes no power-plan values.
+The custom idle-inhibitor eye is retired. Real-Windows testing showed the cross-display refresh path visibly reloaded the whole YASB bar, and the feature was not worth keeping as another live WGDot/YASB integration. No idle widget, polling command, or keep-awake worker runs in either profile.
 
 ## RawAccel
 
@@ -107,36 +115,38 @@ The helper uses Windows `SetThreadExecutionState(ES_CONTINUOUS | ES_SYSTEM_REQUI
 
 ## Power controls
 
-The bar uses YASB's native `PowerMenuWidget` with Lock, Sign out, Sleep, Hibernate, Restart, Shutdown, and Cancel.
+The bar power button is a lightweight YASB `CustomWidget` that opens the compiled `wgdotw.exe power-menu` surface.
 
-`Super+P` is owned by the YASB power-menu keybinding. GlazeWM deliberately does not capture that chord.
+The power surface preserves the Awtarchy-style fullscreen 3x2 tile layout for Lock, Hibernate, Reboot, Shutdown, Sign out, and Sleep. It follows the active WGDot/YASB theme and fades in/out to avoid a bright first-frame flash.
+
+`Super+P` is owned by GlazeWM and opens the same windowless compiled power surface. No PowerShell runtime script is involved.
 
 ## Audio
 
 The native YASB Volume widget retains Awtarchy-like mute glyphs, thresholds, and 5-point wheel changes.
 
-Right-click launches EarTrumpet directly through its packaged AppsFolder identity.
-
-WGDot may configure EarTrumpet's own mixer hotkey to `Super+V` during explicit environment management. After configuration, EarTrumpet owns the chord itself; no WGDot helper or synthetic Alt+V bridge is used.
+EarTrumpet owns Alt+V itself through its application settings. GlazeWM and YASB do not launch EarTrumpet for Alt+V, Super+V, or volume right-click; volume right-click is intentionally a no-op. This avoids the rejected AppsFolder path that opened Explorer/Documents.
 
 ## Clipboard
 
-The previous WGDot-owned clipboard-history worker/window has been removed from the desktop runtime.
+The old generic WGDot clipboard-history worker/window remains removed.
 
-YASB's Quick Launch clipboard-history provider remains disabled because it depends on Windows Clipboard History, which was unreliable in maintainer testing.
+Super+V stays native Windows Clipboard History. GlazeWM does not override it and the retired Super+C/clipboard-anchor handoff is gone. The dedicated bar Clipboard History button uses only `wgdotw.exe clipboard-history-open`, a one-shot helper that injects native Win+V for the mouse click and immediately exits; it does not pause GlazeWM or claim custom placement.
 
-There is currently no rendered clipboard-history bar button and no managed `Super+C` custom history shortcut. If custom history returns, it must be implemented as a portable dotfile-owned helper that works without WGDot.
+## Font parity
+
+The Windows bar uses `NotoSansM Nerd Font Mono` at 14 px to match Awtarchy, with `JetBrainsMono NFP` as a fallback. WGDot manages the exact Noto Nerd Font from the official `ryanoasis/nerd-fonts` Noto archive during software reconciliation; dots-only updates intentionally do not install fonts, so a machine without Noto installed will continue to render the JetBrains fallback until software reconciliation installs it.
 
 ## Evidence-backed mappings
 
 | Awtarchy behavior | Windows mapping |
 | --- | --- |
 | monitor-local workspaces + wheel switching | native `GlazewmWorkspacesWidget` |
-| visible submap state | native `GlazewmBindingModeWidget` for `noalt` / `mouse` / `vm`; click disables active mode |
+| visible submap state | native `GlazewmBindingModeWidget` for `noalt` / `vm`; click disables active mode |
 | tiling direction | native `GlazewmTilingDirectionWidget` |
 | active title | `ActiveWindowWidget` with `monitor_exclusive: false` |
 | task icons | native `TaskbarWidget`, 14 px icons in Awtarchy-sized slots |
-| workspace mover | passive native YASB Grouper with GlazeWM move-workspace commands |
+| workspace mover | direct YASB Applications widget with native GlazeWM move-workspace commands |
 | quick settings | native `ControlCenterWidget` plus narrowly scoped compiled WGDot theme/auto-hide/mode actions |
 | CPU / memory | native CPU and Memory widgets |
 | DDC brightness | native Brightness widget |
@@ -144,11 +154,11 @@ There is currently no rendered clipboard-history bar button and no managed `Supe
 | microphone | native Microphone widget |
 | output audio | native Volume widget + direct EarTrumpet launch |
 | clock/date | native Clock widget |
-| network / Bluetooth | native WiFi and Bluetooth widgets |
+| network / Bluetooth | native WiFi/Bluetooth indicators opening Windows Network/Bluetooth Settings surfaces |
 | notifications / mute | native `DndWidget` |
-| power controls | native `PowerMenuWidget` |
-| launcher | native `QuickLaunchWidget`; Work `Alt+P` launches Flow directly during testing |
-| theme switching | compiled `wgdot.exe theme` manager in both profiles |
+| power controls | compiled Awtarchy-style `wgdotw.exe power-menu` surface |
+| launcher | compiled context-aware `wgdotw.exe launcher` application search surface |
+| theme switching | compiled `wgdot.exe theme` manager with `wgdotw.exe theme-window-toggle` dispatch |
 | bar auto-hide | compiled `wgdotw.exe bar-autohide-toggle` coordinator in both profiles |
 | keep awake | compiled WGDot execution-state helper in both profiles |
 | RawAccel GUI toggle | compiled `wgdotw.exe rawaccel-toggle` in both profiles |
@@ -161,8 +171,7 @@ There is currently no rendered clipboard-history bar button and no managed `Supe
 - A dedicated privacy/screen-capture indicator has no verified native YASB equivalent.
 - Current YASB bar placement is top/bottom; left/right vertical bars are not faked.
 - Workspace urgent-state coloring and Awtarchy's static number+glyph mappings do not have exact YASB equivalents.
-- The native `mouse` binding mode exists and toggles with `Win+Alt+M`; the scoped WGDot hook supplies mouse-button move/resize because GlazeWM 3.10.x does not expose mouse buttons.
-- Custom clipboard history is omitted until it has a portable implementation independent of WGDot.
+- The experimental mouse binding mode is intentionally omitted. Its placeholder/hub is also removed; the four directional workspace arrows remain directly available.
 - Awtarchy can retint task/tray image pixels; stock YASB does not expose an equivalent image-tint option.
 - At exactly 15% battery, YASB's shared threshold controls both critical styling and glyph selection, so the exact Awtarchy glyph boundary cannot be reproduced independently.
 - A plugged-in-but-not-charging battery may retain YASB's critical state at low charge because YASB exposes a charging class rather than a broader AC-present class.
