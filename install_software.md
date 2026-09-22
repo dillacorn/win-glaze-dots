@@ -176,7 +176,7 @@ Mullvad Browser is intentionally left untouched. WGDot does not install extensio
 - **Prism Launcher** — `PrismLauncher.PrismLauncher`
 - **r2modman** — `ebkr.r2modman`
 - **Epic Games Launcher** — `EpicGames.EpicGamesLauncher`
-- **Raw Accel** — `RawAccelOfficial.RawAccel` — official release ZIP/driver installer, optional and default OFF; restart Windows after installation; when selected, Startup Applications exposes a separate remembered default-OFF WGDot login entry without changing the RawAccel acceleration profile
+- **Raw Accel** — `RawAccelOfficial.RawAccel` — official release ZIP/driver installer, optional and default OFF; restart Windows after installation; Startup Applications exposes a separate remembered default-OFF WGDot login entry when RawAccel is selected or positively detected as installed, without changing the RawAccel acceleration profile
 - **Moonlight** — `MoonlightGameStreamingProject.Moonlight`
 - **Sunshine** — `LizardByte.Sunshine`
 

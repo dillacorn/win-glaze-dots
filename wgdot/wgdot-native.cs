@@ -650,9 +650,9 @@ internal static class WgdotNative
             if (command == "gpu-stage-safe") return GpuStageSafeFromArgs(args.Skip(1).ToArray());
             if (command == "gpu-safe-resume") return GpuSafeResume();
             if (command == "gpu-install") return GpuInstallFromArgs(args.Skip(1).ToArray());
-            if (command == "update") return ManagedOperation("update", ResolveDefaultSource());
-            if (command == "reset") return ManagedOperation("reset", ResolveDefaultSource());
-            if (command == "review") return ManagedOperation("review", ResolveDefaultSource());
+            if (command == "update") return ManagedOperation("update", ResolveStableSource());
+            if (command == "reset") return ManagedOperation("reset", ResolveStableSource());
+            if (command == "review") return ManagedOperation("review", ResolveStableSource());
 
             Console.Error.WriteLine("Unknown WGDot native command: " + command);
             Console.Error.WriteLine("Run wgdot with no arguments for the menu.");
@@ -938,7 +938,7 @@ internal static class WgdotNative
             {
                 if (choice == 0)
                 {
-                    ManagedOperation("update", ResolveDefaultSource());
+                    ManagedOperation("update", ResolveStableSource());
                     Pause();
                 }
                 else if (choice == 1) SoftwareManager();
@@ -947,12 +947,12 @@ internal static class WgdotNative
                 else if (choice == 4) TweakManager();
                 else if (choice == 5)
                 {
-                    ManagedOperation("reset", ResolveDefaultSource());
+                    ManagedOperation("reset", ResolveStableSource());
                     Pause();
                 }
                 else if (choice == 6)
                 {
-                    ManagedOperation("review", ResolveDefaultSource());
+                    ManagedOperation("review", ResolveStableSource());
                     Pause();
                 }
                 else if (choice == 7) BackupManager();
@@ -1489,7 +1489,7 @@ class WgdotHidden
         bool apply = (args ?? new string[0]).Any(
             x => String.Equals(x, "--yes", StringComparison.OrdinalIgnoreCase));
 
-        SourceContext source = ResolveDefaultSource();
+        SourceContext source = ResolveDotsOnlySource();
         InstallationSelection existing = ReadInstallationSelection();
         InstallationSelection selection = BuildDotsOnlySelection(source.Manifest, profile, existing);
         List<PlanItem> plan = GetPlan(source.Manifest, source.SourceRoot, selection, "reset");
@@ -1581,6 +1581,11 @@ class WgdotHidden
     }
 
     static SourceContext ResolveDefaultSource()
+    {
+        return ResolveDotsOnlySource();
+    }
+
+    static SourceContext ResolveDotsOnlySource()
     {
         var bootstrap = ReadJson(BootstrapStatePath);
         if (bootstrap != null)
@@ -3846,6 +3851,32 @@ class WgdotHidden
             .ToList();
     }
 
+    static bool StartupPackageIsInstalled(Dictionary<string, object> package)
+    {
+        string handler = GetString(package, "startupHandler");
+
+        if (String.Equals(handler, "glazewm", StringComparison.OrdinalIgnoreCase))
+            return !String.IsNullOrWhiteSpace(FindGlazeWmExe());
+
+        if (String.Equals(handler, "altsnap", StringComparison.OrdinalIgnoreCase))
+            return !String.IsNullOrWhiteSpace(FindAltSnapExe());
+
+        if (String.Equals(handler, "rawaccel", StringComparison.OrdinalIgnoreCase))
+            return File.Exists(GetPackageProgramFilePath(package, "installedFile"));
+
+        if (String.Equals(handler, "miclocktray", StringComparison.OrdinalIgnoreCase))
+            return File.Exists(GetPackageProgramFilePath(package, "installedFile"));
+
+        if (String.Equals(handler, "eartrumpet", StringComparison.OrdinalIgnoreCase))
+        {
+            if (EarTrumpetProcessRunning()) return true;
+            return GetLauncherApps().Any(x =>
+                String.Equals(x.Name, "EarTrumpet", StringComparison.OrdinalIgnoreCase));
+        }
+
+        return false;
+    }
+
     static Dictionary<string, object> ReadStartupState()
     {
         Dictionary<string, object> state =
@@ -4053,7 +4084,7 @@ class WgdotHidden
         {
             string path = GetPackageProgramFilePath(package, "installedFile");
             if (!File.Exists(path))
-                throw new Exception("RawAccel is selected for startup, but its WGDot-managed executable is missing.");
+                throw new Exception("RawAccel startup was enabled, but its WGDot-managed executable is missing.");
             return Q(path);
         }
 
@@ -4124,18 +4155,20 @@ class WgdotHidden
         foreach (Dictionary<string, object> package in GetStartupPackages(manifest))
         {
             string id = GetString(package, "id");
+            bool packageSelected = selected.Contains(id);
+            bool packageInstalled = StartupPackageIsInstalled(package);
             bool preferred;
             object rawPreference;
             if (prefs.TryGetValue(id, out rawPreference) && rawPreference != null)
                 preferred = Convert.ToBoolean(rawPreference);
             else
             {
-                preferred = GetBool(package, "startupDefault");
+                preferred = packageSelected && GetBool(package, "startupDefault");
                 prefs[id] = preferred;
                 changedState = true;
             }
 
-            bool desired = selected.Contains(id) && preferred;
+            bool desired = (packageSelected || packageInstalled) && preferred;
             try
             {
                 SetStartupRegistration(package, desired);
@@ -4163,25 +4196,20 @@ class WgdotHidden
         SourceContext source = ResolveDefaultSource();
         Dictionary<string, object> manifest = source.Manifest;
         InstallationSelection selection = ReadInstallationSelection();
-        if (selection == null)
-        {
-            WriteTitle("Startup applications");
-            Console.WriteLine("No WGDot software selection exists yet.");
-            Console.WriteLine("Install / reconcile software first.");
-            return 0;
-        }
 
         var selectedPackages = new HashSet<string>(
-            selection.Packages,
+            selection == null ? new List<string>() : selection.Packages,
             StringComparer.OrdinalIgnoreCase);
         List<Dictionary<string, object>> packages = GetStartupPackages(manifest)
-            .Where(p => selectedPackages.Contains(GetString(p, "id")))
+            .Where(p =>
+                selectedPackages.Contains(GetString(p, "id")) ||
+                StartupPackageIsInstalled(p))
             .ToList();
 
         if (packages.Count == 0)
         {
             WriteTitle("Startup applications");
-            Console.WriteLine("No selected WGDot applications expose managed startup entries.");
+            Console.WriteLine("No selected or installed WGDot-supported applications expose managed startup entries.");
             return 0;
         }
 
@@ -7141,6 +7169,151 @@ class WgdotHidden
                 return record;
         }
         return null;
+    }
+
+    static bool ProcessIsRunning(string processName)
+    {
+        Process[] processes = Process.GetProcessesByName(processName);
+        try
+        {
+            return processes.Length > 0;
+        }
+        finally
+        {
+            foreach (Process process in processes)
+                process.Dispose();
+        }
+    }
+
+    static bool WaitForProcessState(string processName, bool running, int timeoutMs)
+    {
+        int waited = 0;
+        while (waited < timeoutMs)
+        {
+            if (ProcessIsRunning(processName) == running)
+                return true;
+            System.Threading.Thread.Sleep(100);
+            waited += 100;
+        }
+        return ProcessIsRunning(processName) == running;
+    }
+
+    static void StartDetachedProcess(string fileName, string arguments)
+    {
+        var psi = new ProcessStartInfo();
+        psi.FileName = fileName;
+        psi.Arguments = arguments ?? "";
+        psi.UseShellExecute = false;
+        psi.CreateNoWindow = true;
+        Process.Start(psi);
+    }
+
+    static string FindYasbExe()
+    {
+        string local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        return FindExecutableWithCandidates(
+            "yasb.exe",
+            new[]
+            {
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "YASB", "yasb.exe"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "YASB", "yasb.exe"),
+                Path.Combine(local, "Programs", "YASB", "yasb.exe"),
+                Path.Combine(local, "yasb", "yasb.exe")
+            });
+    }
+
+    static bool ManagedPlanNeedsDesktopRestart(List<PlanItem> plan)
+    {
+        if (plan == null) return false;
+
+        return plan.Any(item =>
+            item != null &&
+            (String.Equals(item.Action, "APPLY", StringComparison.OrdinalIgnoreCase) ||
+             String.Equals(item.Action, "REPLACE", StringComparison.OrdinalIgnoreCase) ||
+             String.Equals(item.Action, "MERGE", StringComparison.OrdinalIgnoreCase)) &&
+            !String.Equals(item.FileId, "yasb-theme", StringComparison.OrdinalIgnoreCase) &&
+            !String.Equals(item.FileId, "terminal-settings", StringComparison.OrdinalIgnoreCase));
+    }
+
+    static void RestartDesktopSessionAfterManagedApply(List<PlanItem> plan)
+    {
+        if (!ManagedPlanNeedsDesktopRestart(plan))
+            return;
+
+        bool glazeWasRunning = ProcessIsRunning("glazewm");
+        bool yasbWasRunning = ProcessIsRunning("yasb");
+        if (!glazeWasRunning && !yasbWasRunning)
+            return;
+
+        Console.WriteLine();
+        Console.WriteLine("Restarting managed desktop session...");
+
+        try
+        {
+            if (glazeWasRunning)
+            {
+                string glazeExe = RequireGlazeWmExe();
+                ProcResult exit = Run(glazeExe, "command wm-exit", null);
+                if (exit.ExitCode != 0)
+                {
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.WriteLine("GlazeWM graceful exit failed; forcing the old process closed before restart.");
+                    Console.ResetColor();
+                    StopProcessesByName("glazewm");
+                }
+
+                if (!WaitForProcessState("glazewm", false, 5000))
+                    StopProcessesByName("glazewm");
+                if (ProcessIsRunning("yasb"))
+                    StopProcessesByName("yasb");
+
+                string config = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                    ".glzr",
+                    "glazewm",
+                    "config.yaml");
+                StartDetachedProcess(glazeExe, "start --config=" + Q(config));
+
+                if (!WaitForProcessState("glazewm", true, 5000))
+                    throw new Exception("GlazeWM did not start again after the managed update.");
+
+                if (!WaitForProcessState("yasb", true, 5000))
+                {
+                    string yasbExe = FindYasbExe();
+                    if (!String.IsNullOrWhiteSpace(yasbExe))
+                    {
+                        StartDetachedProcess(yasbExe, "");
+                        WaitForProcessState("yasb", true, 5000);
+                    }
+                }
+
+                WriteTrackedGlazeBindingMode("");
+                Console.WriteLine(
+                    ProcessIsRunning("yasb")
+                        ? "Restarted GlazeWM and YASB."
+                        : "Restarted GlazeWM; YASB did not report a running process.");
+                return;
+            }
+
+            if (yasbWasRunning)
+            {
+                string yasbExe = FindYasbExe();
+                StopProcessesByName("yasb");
+                if (String.IsNullOrWhiteSpace(yasbExe))
+                    throw new Exception("YASB was running, but yasb.exe could not be resolved for restart.");
+
+                StartDetachedProcess(yasbExe, "");
+                if (!WaitForProcessState("yasb", true, 5000))
+                    throw new Exception("YASB did not start again after the managed update.");
+                Console.WriteLine("Restarted YASB; GlazeWM was not running.");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine("Managed files were applied, but automatic desktop restart failed: " + ex.Message);
+            Console.ResetColor();
+        }
     }
 
     static bool StopProcessesByName(string processName)
@@ -10776,6 +10949,8 @@ class WgdotHidden
             WriteInstallationSelection(selection);
 
         UpdateSourceStateAfterApply(source);
+        ReturnRuntimeSourceToMainAfterStableApply(source);
+        RestartDesktopSessionAfterManagedApply(plan);
         ScheduleGitRuntimeSync(source, pendingGitRuntime);
         Console.ForegroundColor = ConsoleColor.Green;
         Console.WriteLine("WGDot managed configuration applied.");
@@ -10957,7 +11132,10 @@ class WgdotHidden
             if (item.Action == "MERGE")
             {
                 if (MergeManagedFile(item))
+                {
                     item.CommitTargetBaseline = true;
+                    Console.WriteLine("Merged: " + item.Destination);
+                }
                 continue;
             }
 
@@ -10965,6 +11143,9 @@ class WgdotHidden
                 CreateBackup(item.Destination, "replace");
 
             AtomicCopy(item.Target, item.Destination, item.Validator);
+            Console.WriteLine(
+                (item.Action == "REPLACE" ? "Replaced: " : "Applied: ") +
+                item.Destination);
         }
 
         if (!dotsOnly)
@@ -11067,6 +11248,13 @@ class WgdotHidden
             {
                 File.Move(temp, destination);
             }
+
+            string expectedHash = Sha256OrNull(source);
+            string actualHash = Sha256OrNull(destination);
+            if (String.IsNullOrWhiteSpace(expectedHash) ||
+                String.IsNullOrWhiteSpace(actualHash) ||
+                !String.Equals(expectedHash, actualHash, StringComparison.OrdinalIgnoreCase))
+                throw new Exception("Managed file verification failed after write: " + destination);
         }
         finally
         {
@@ -11361,6 +11549,22 @@ class WgdotHidden
         {
             SafeDeleteFile(GitStatePath);
         }
+    }
+
+    static void ReturnRuntimeSourceToMainAfterStableApply(SourceContext source)
+    {
+        if (source == null ||
+            !String.Equals(source.Mode, "stable", StringComparison.OrdinalIgnoreCase))
+            return;
+
+        Dictionary<string, object> state =
+            ReadJson(BootstrapStatePath) ??
+            new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+        state["sourceRef"] = "main";
+        state["sourceExplicit"] = false;
+        state.Remove("runtimeSyncPendingRevision");
+        state.Remove("runtimeSyncScheduledAt");
+        WriteJson(BootstrapStatePath, state);
     }
 
     static void BackupManager()

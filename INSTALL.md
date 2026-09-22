@@ -42,7 +42,7 @@ Use the interactive menu to choose your Normal/Work profile, managed components,
 
 ## Software startup and back-out
 
-After software reconciliation, WGDot enables its own Windows-login startup entries for selected applications that are part of the desktop session: GlazeWM, AltSnap, EarTrumpet, and MicLockTray when selected. YASB is not registered a second time because the managed GlazeWM configuration starts and stops YASB itself.
+After software reconciliation, WGDot enables its own Windows-login startup entries for selected applications that are part of the desktop session: GlazeWM, AltSnap, EarTrumpet, and MicLockTray when selected. RawAccel is available as a separate optional startup entry and defaults OFF. Startup Applications also exposes supported apps that WGDot positively detects as already installed even when they are not selected for software reconciliation. YASB is not registered a second time because the managed GlazeWM configuration starts and stops YASB itself.
 
 Run `wgdot software` to open the **Software / startup manager**. From there you can:
 
