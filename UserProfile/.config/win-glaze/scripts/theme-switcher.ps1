@@ -37,6 +37,52 @@ function Set-ObjectProperty($Object, [string]$Name, $Value) {
     }
 }
 
+function Get-TerminalRelativeLuminance([string]$Hex) {
+    $channel = {
+        param([int]$Value)
+        $c = $Value / 255.0
+        if ($c -le 0.03928) { return ($c / 12.92) }
+        return [Math]::Pow((($c + 0.055) / 1.055), 2.4)
+    }
+
+    $red = [Convert]::ToInt32($Hex.Substring(1, 2), 16)
+    $green = [Convert]::ToInt32($Hex.Substring(3, 2), 16)
+    $blue = [Convert]::ToInt32($Hex.Substring(5, 2), 16)
+    return (0.2126 * (& $channel $red)) + (0.7152 * (& $channel $green)) + (0.0722 * (& $channel $blue))
+}
+
+function Get-TerminalContrast([string]$First, [string]$Second) {
+    $firstLuminance = Get-TerminalRelativeLuminance $First
+    $secondLuminance = Get-TerminalRelativeLuminance $Second
+    return ([Math]::Max($firstLuminance, $secondLuminance) + 0.05) / ([Math]::Min($firstLuminance, $secondLuminance) + 0.05)
+}
+
+function Get-TerminalBlend([string]$Background, [string]$Foreground, [double]$Weight) {
+    $backWeight = 1.0 - $Weight
+    $parts = foreach ($start in @(1, 3, 5)) {
+        $back = [Convert]::ToInt32($Background.Substring($start, 2), 16)
+        $front = [Convert]::ToInt32($Foreground.Substring($start, 2), 16)
+        [int][Math]::Round(($back * $backWeight) + ($front * $Weight))
+    }
+    return ('#{0:X2}{1:X2}{2:X2}' -f $parts[0], $parts[1], $parts[2])
+}
+
+function Get-ReadableTerminalColor(
+    [string]$Candidate,
+    [double]$MinimumContrast,
+    [double]$FallbackWeight,
+    [string]$PreferredFallback
+) {
+    if ((Get-TerminalContrast $Candidate $t.Background) -ge $MinimumContrast) {
+        return $Candidate
+    }
+    if (-not [string]::IsNullOrWhiteSpace($PreferredFallback) -and
+        (Get-TerminalContrast $PreferredFallback $t.Background) -ge $MinimumContrast) {
+        return $PreferredFallback
+    }
+    return Get-TerminalBlend $t.Background $t.Foreground $FallbackWeight
+}
+
 $currentId = 'carbon-night'
 if (Test-Path -LiteralPath $statePath) {
     try {
@@ -114,22 +160,22 @@ if (Test-Path -LiteralPath $terminalSettingsPath) {
         background = $t.Background
         foreground = $t.Foreground
         cursorColor = $t.Foreground
-        selectionBackground = $t.Focus
+        selectionBackground = Get-ReadableTerminalColor $t.Focus 1.6 0.45 $null
         black = $t.Dark
-        red = $t.Urgent
-        green = $t.Charging
-        yellow = $t.Critical
-        blue = $t.Focus
-        purple = $t.Active
-        cyan = $t.Hover
+        red = Get-ReadableTerminalColor $t.Urgent 3.0 0.72 '#705050'
+        green = Get-ReadableTerminalColor $t.Charging 3.0 0.72 '#60B48A'
+        yellow = Get-ReadableTerminalColor $t.Critical 3.0 0.72 '#DFAF8F'
+        blue = Get-ReadableTerminalColor $t.Focus 3.0 0.72 '#9AB8D7'
+        purple = Get-ReadableTerminalColor $t.Active 3.0 0.72 '#DC8CC3'
+        cyan = Get-ReadableTerminalColor $t.Hover 4.5 0.82 '#8CD0D3'
         white = $t.Foreground
-        brightBlack = $t.Muted
-        brightRed = $t.Urgent
-        brightGreen = $t.Charging
-        brightYellow = $t.Critical
-        brightBlue = $t.Focus
-        brightPurple = $t.Active
-        brightCyan = $t.Hover
+        brightBlack = Get-ReadableTerminalColor $t.Muted 3.0 0.60 '#709080'
+        brightRed = Get-ReadableTerminalColor $t.Urgent 4.0 0.82 '#DCA3A3'
+        brightGreen = Get-ReadableTerminalColor $t.Charging 4.0 0.82 '#72D5A3'
+        brightYellow = Get-ReadableTerminalColor $t.Critical 4.0 0.82 '#F0DFAF'
+        brightBlue = Get-ReadableTerminalColor $t.Focus 4.0 0.82 '#94BFF3'
+        brightPurple = Get-ReadableTerminalColor $t.Active 4.0 0.82 '#EC93D3'
+        brightCyan = Get-ReadableTerminalColor $t.Hover 4.5 0.90 '#93E0E3'
         brightWhite = $t.Foreground
     }
     Set-ObjectProperty $root 'schemes' $schemes
