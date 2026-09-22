@@ -173,14 +173,14 @@ QToolTip,
     background-color: var(--subtle-hover);
 }
 
-/* Awtarchy-style mouse/workspace mover. Collapse the ApplicationsWidget frame,
+/* Awtarchy-style workspace mover. Collapse the ApplicationsWidget frame,
    its container, and each arrow label because Qt child size hints can otherwise
    keep the arrows visible even when the parent frame says max-width: 0. */
 .workspace-move-grouper,
 .workspace-move-grouper .widget-container,
 .workspace-move-grouper .container,
-.workspace-mouse-hub,
-.workspace-mouse-hub .widget-container,
+.workspace-move-hub,
+.workspace-move-hub .widget-container,
 .workspace-move-buttons,
 .workspace-move-buttons .widget-container {
     background-color: transparent;
@@ -190,12 +190,12 @@ QToolTip,
     padding: 0;
 }
 
-.workspace-mouse-hub {
+.workspace-move-hub {
     min-width: 28px;
     max-width: 28px;
 }
 
-.workspace-mouse-hub .label {
+.workspace-move-hub .label {
     color: var(--foreground);
     background-color: transparent;
     border: none;
@@ -235,7 +235,7 @@ QToolTip,
     padding: 0 7px;
 }
 
-.workspace-mouse-hub .label:hover,
+.workspace-move-hub .label:hover,
 .workspace-move-buttons .label:hover {
     background-color: var(--strong-hover);
 }
