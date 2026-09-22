@@ -117,6 +117,12 @@
           "merge": true
         },
         {
+          "id": "yazi-init",
+          "source": "UserProfile/AppData/Roaming/yazi/config/init.lua",
+          "destination": "%APPDATA%\\yazi\\config\\init.lua",
+          "merge": true
+        },
+        {
           "id": "yazi-system-clipboard",
           "source": "UserProfile/AppData/Roaming/yazi/config/plugins/system-clipboard.yazi/main.lua",
           "destination": "%APPDATA%\\yazi\\config\\plugins\\system-clipboard.yazi\\main.lua",
