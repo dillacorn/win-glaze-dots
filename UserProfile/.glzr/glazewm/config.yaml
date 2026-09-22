@@ -212,24 +212,24 @@ binding_modes:
         bindings: ["lwin+alt+v", "rwin+alt+v"]
       - commands: ["wm-toggle-pause"]
         bindings: ["lwin+alt+p", "rwin+alt+p"]
-      - commands: ['commands: ["shell-exec "%LOCALAPPDATA%\wgdot\bin\wgdotw.exe" power-menu']
+      - commands: ['shell-exec %LOCALAPPDATA%\\wgdot\\bin\\wgdotw.exe power-menu']
         bindings: ["lwin+p", "rwin+p"]
       - commands: ['shell-exec explorer.exe "shell:AppsFolder\40459File-New-Project.EarTrumpet_1sdd7yawvg6ne!EarTrumpet"']
         bindings: ["lwin+v", "rwin+v"]
-      - commands: ['commands: ["shell-exec "%LOCALAPPDATA%\wgdot\bin\wgdotw.exe" clipboard-anchor hotkey']
+      - commands: ['shell-exec %LOCALAPPDATA%\\wgdot\\bin\\wgdotw.exe clipboard-anchor hotkey']
         bindings: ["lwin+c", "rwin+c"]
-      - commands: ['commands: ["shell-exec "%LOCALAPPDATA%\wgdot\bin\wgdotw.exe" bar-autohide-toggle']
+      - commands: ['shell-exec %LOCALAPPDATA%\\wgdot\\bin\\wgdotw.exe bar-autohide-toggle']
         bindings: ["alt+ctrl+b"]
-      - commands: ['commands: ["shell-exec "%LOCALAPPDATA%\wgdot\bin\wgdotw.exe" launcher hotkey']
+      - commands: ['shell-exec %LOCALAPPDATA%\\wgdot\\bin\\wgdotw.exe launcher hotkey']
         bindings: ["lwin+d", "rwin+d"]
 
-      - commands: ['commands: ["shell-exec "%LOCALAPPDATA%\wgdot\bin\wgdotw.exe" theme-window-toggle']
+      - commands: ['shell-exec %LOCALAPPDATA%\\wgdot\\bin\\wgdotw.exe theme-window-toggle']
         bindings: ["lwin+alt+t", "rwin+alt+t"]
       - commands: ["toggle-tiling"]
         bindings: ["lwin+t", "rwin+t"]
       - commands: ["shell-exec explorer.exe ms-settings:display"]
         bindings: ["lwin+ctrl+m", "rwin+ctrl+m"]
-      - commands: ['commands: ["shell-exec "%LOCALAPPDATA%\wgdot\bin\wgdotw.exe" rawaccel-toggle']
+      - commands: ['shell-exec %LOCALAPPDATA%\\wgdot\\bin\\wgdotw.exe rawaccel-toggle']
         bindings: ["lwin+shift+m", "rwin+shift+m"]
       - commands: ["shell-exec flameshot.exe gui"]
         bindings: ["lwin+shift+s", "rwin+shift+s"]
@@ -385,7 +385,7 @@ binding_modes:
 
 keybindings:
 
-  - commands: ['commands: ["shell-exec "%LOCALAPPDATA%\wgdot\bin\wgdotw.exe" launcher hotkey']
+  - commands: ['shell-exec %LOCALAPPDATA%\\wgdot\\bin\\wgdotw.exe launcher hotkey']
     bindings: ["alt+p", "lwin+d", "rwin+d"]
 
 
@@ -396,16 +396,16 @@ keybindings:
   - commands: ["shell-exec explorer.exe ms-settings:display"]
     bindings: ["lwin+ctrl+m", "rwin+ctrl+m"]
 
-  - commands: ['commands: ["shell-exec "%LOCALAPPDATA%\wgdot\bin\wgdotw.exe" rawaccel-toggle']
+  - commands: ['shell-exec %LOCALAPPDATA%\\wgdot\\bin\\wgdotw.exe rawaccel-toggle']
     bindings: ["lwin+shift+m", "rwin+shift+m"]
 
-  - commands: ['commands: ["shell-exec "%LOCALAPPDATA%\wgdot\bin\wgdotw.exe" theme-window-toggle']
+  - commands: ['shell-exec %LOCALAPPDATA%\\wgdot\\bin\\wgdotw.exe theme-window-toggle']
     bindings: ["lwin+alt+t", "rwin+alt+t"]
 
-  - commands: ['commands: ["shell-exec "%LOCALAPPDATA%\wgdot\bin\wgdotw.exe" power-menu']
+  - commands: ['shell-exec %LOCALAPPDATA%\\wgdot\\bin\\wgdotw.exe power-menu']
     bindings: ["lwin+p", "rwin+p"]
   # Compiled WGDot coordinates YASB auto-hide with the GlazeWM top gap.
-  - commands: ['commands: ["shell-exec "%LOCALAPPDATA%\wgdot\bin\wgdotw.exe" bar-autohide-toggle']
+  - commands: ['shell-exec %LOCALAPPDATA%\\wgdot\\bin\\wgdotw.exe bar-autohide-toggle']
     bindings: ["alt+ctrl+b"]
 
   - commands: ['shell-exec C:\Program Files (x86)\SpeedCrunch\speedcrunch.exe']
@@ -456,7 +456,7 @@ keybindings:
   - commands: ['shell-exec explorer.exe "shell:AppsFolder\40459File-New-Project.EarTrumpet_1sdd7yawvg6ne!EarTrumpet"']
     bindings: ["alt+v", "lwin+v", "rwin+v"]
 
-  - commands: ['commands: ["shell-exec "%LOCALAPPDATA%\wgdot\bin\wgdotw.exe" clipboard-anchor hotkey']
+  - commands: ['shell-exec %LOCALAPPDATA%\\wgdot\\bin\\wgdotw.exe clipboard-anchor hotkey']
     bindings: ["lwin+c", "rwin+c"]
 
   # Real GlazeWM pause. While paused, GlazeWM intentionally keeps only
