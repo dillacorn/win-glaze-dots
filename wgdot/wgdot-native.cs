@@ -8709,8 +8709,16 @@ class WgdotHidden
 
     static string ReadableTerminalColor(string candidate, YasbTheme theme, double minimumContrast, double fallbackForegroundWeight)
     {
+        return ReadableTerminalColor(candidate, theme, minimumContrast, fallbackForegroundWeight, null);
+    }
+
+    static string ReadableTerminalColor(string candidate, YasbTheme theme, double minimumContrast, double fallbackForegroundWeight, string preferredFallback)
+    {
         if (TerminalContrastRatio(candidate, theme.Background) >= minimumContrast)
             return candidate;
+        if (!String.IsNullOrWhiteSpace(preferredFallback) &&
+            TerminalContrastRatio(preferredFallback, theme.Background) >= minimumContrast)
+            return preferredFallback;
         return BlendTerminalColor(theme.Background, theme.Foreground, fallbackForegroundWeight);
     }
 
@@ -8764,20 +8772,20 @@ class WgdotHidden
         scheme["cursorColor"] = theme.Foreground;
         scheme["selectionBackground"] = ReadableTerminalColor(theme.Focus, theme, 1.6, 0.45);
         scheme["black"] = theme.Dark;
-        scheme["red"] = ReadableTerminalColor(theme.Urgent, theme, 3.0, 0.72);
-        scheme["green"] = ReadableTerminalColor(theme.Charging, theme, 3.0, 0.72);
-        scheme["yellow"] = ReadableTerminalColor(theme.Critical, theme, 3.0, 0.72);
-        scheme["blue"] = ReadableTerminalColor(theme.Focus, theme, 3.0, 0.72);
-        scheme["purple"] = ReadableTerminalColor(theme.Active, theme, 3.0, 0.72);
-        scheme["cyan"] = ReadableTerminalColor(theme.Hover, theme, 4.5, 0.82);
+        scheme["red"] = ReadableTerminalColor(theme.Urgent, theme, 3.0, 0.72, "#705050");
+        scheme["green"] = ReadableTerminalColor(theme.Charging, theme, 3.0, 0.72, "#60B48A");
+        scheme["yellow"] = ReadableTerminalColor(theme.Critical, theme, 3.0, 0.72, "#DFAF8F");
+        scheme["blue"] = ReadableTerminalColor(theme.Focus, theme, 3.0, 0.72, "#9AB8D7");
+        scheme["purple"] = ReadableTerminalColor(theme.Active, theme, 3.0, 0.72, "#DC8CC3");
+        scheme["cyan"] = ReadableTerminalColor(theme.Hover, theme, 4.5, 0.82, "#8CD0D3");
         scheme["white"] = theme.Foreground;
-        scheme["brightBlack"] = ReadableTerminalColor(theme.Muted, theme, 3.0, 0.60);
-        scheme["brightRed"] = ReadableTerminalColor(theme.Urgent, theme, 4.0, 0.82);
-        scheme["brightGreen"] = ReadableTerminalColor(theme.Charging, theme, 4.0, 0.82);
-        scheme["brightYellow"] = ReadableTerminalColor(theme.Critical, theme, 4.0, 0.82);
-        scheme["brightBlue"] = ReadableTerminalColor(theme.Focus, theme, 4.0, 0.82);
-        scheme["brightPurple"] = ReadableTerminalColor(theme.Active, theme, 4.0, 0.82);
-        scheme["brightCyan"] = ReadableTerminalColor(theme.Hover, theme, 4.5, 0.90);
+        scheme["brightBlack"] = ReadableTerminalColor(theme.Muted, theme, 3.0, 0.60, "#709080");
+        scheme["brightRed"] = ReadableTerminalColor(theme.Urgent, theme, 4.0, 0.82, "#DCA3A3");
+        scheme["brightGreen"] = ReadableTerminalColor(theme.Charging, theme, 4.0, 0.82, "#72D5A3");
+        scheme["brightYellow"] = ReadableTerminalColor(theme.Critical, theme, 4.0, 0.82, "#F0DFAF");
+        scheme["brightBlue"] = ReadableTerminalColor(theme.Focus, theme, 4.0, 0.82, "#94BFF3");
+        scheme["brightPurple"] = ReadableTerminalColor(theme.Active, theme, 4.0, 0.82, "#EC93D3");
+        scheme["brightCyan"] = ReadableTerminalColor(theme.Hover, theme, 4.5, 0.90, "#93E0E3");
         scheme["brightWhite"] = theme.Foreground;
         schemes.Add(scheme);
         root["schemes"] = schemes.ToArray();
