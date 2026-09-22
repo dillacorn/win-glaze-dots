@@ -170,6 +170,75 @@ function Get-WgdotWindowsTerminalSettingsPath {
     return (Join-Path $env:LOCALAPPDATA "Packages\Microsoft.WindowsTerminal_8wekyb3d8bbwe\LocalState\settings.json")
 }
 
+function Get-WgdotTerminalRelativeLuminance {
+    param([Parameter(Mandatory = $true)][string]$Hex)
+
+    if ([string]::IsNullOrWhiteSpace($Hex) -or $Hex -notmatch '^#[0-9A-Fa-f]{6}$') {
+        return 0.0
+    }
+
+    $channel = {
+        param([int]$Value)
+        $c = $Value / 255.0
+        if ($c -le 0.03928) { return ($c / 12.92) }
+        return [Math]::Pow((($c + 0.055) / 1.055), 2.4)
+    }
+
+    $red = [Convert]::ToInt32($Hex.Substring(1, 2), 16)
+    $green = [Convert]::ToInt32($Hex.Substring(3, 2), 16)
+    $blue = [Convert]::ToInt32($Hex.Substring(5, 2), 16)
+    return (0.2126 * (& $channel $red)) + (0.7152 * (& $channel $green)) + (0.0722 * (& $channel $blue))
+}
+
+function Get-WgdotTerminalContrastRatio {
+    param(
+        [Parameter(Mandatory = $true)][string]$First,
+        [Parameter(Mandatory = $true)][string]$Second
+    )
+
+    $firstLuminance = Get-WgdotTerminalRelativeLuminance -Hex $First
+    $secondLuminance = Get-WgdotTerminalRelativeLuminance -Hex $Second
+    return ([Math]::Max($firstLuminance, $secondLuminance) + 0.05) / ([Math]::Min($firstLuminance, $secondLuminance) + 0.05)
+}
+
+function Get-WgdotTerminalBlendColor {
+    param(
+        [Parameter(Mandatory = $true)][string]$Background,
+        [Parameter(Mandatory = $true)][string]$Foreground,
+        [Parameter(Mandatory = $true)][double]$ForegroundWeight
+    )
+
+    $backgroundWeight = 1.0 - $ForegroundWeight
+    $parts = foreach ($start in @(1, 3, 5)) {
+        $backgroundPart = [Convert]::ToInt32($Background.Substring($start, 2), 16)
+        $foregroundPart = [Convert]::ToInt32($Foreground.Substring($start, 2), 16)
+        [int][Math]::Round(($backgroundPart * $backgroundWeight) + ($foregroundPart * $ForegroundWeight))
+    }
+
+    return ('#{0:X2}{1:X2}{2:X2}' -f $parts[0], $parts[1], $parts[2])
+}
+
+function Get-WgdotReadableTerminalColor {
+    param(
+        [Parameter(Mandatory = $true)][string]$Candidate,
+        [Parameter(Mandatory = $true)][string]$Background,
+        [Parameter(Mandatory = $true)][string]$Foreground,
+        [Parameter(Mandatory = $true)][double]$MinimumContrast,
+        [Parameter(Mandatory = $true)][double]$FallbackForegroundWeight,
+        [string]$PreferredFallback
+    )
+
+    if ((Get-WgdotTerminalContrastRatio -First $Candidate -Second $Background) -ge $MinimumContrast) {
+        return $Candidate
+    }
+    if (-not [string]::IsNullOrWhiteSpace($PreferredFallback) -and
+        (Get-WgdotTerminalContrastRatio -First $PreferredFallback -Second $Background) -ge $MinimumContrast) {
+        return $PreferredFallback
+    }
+
+    return Get-WgdotTerminalBlendColor -Background $Background -Foreground $Foreground -ForegroundWeight $FallbackForegroundWeight
+}
+
 function Set-WgdotWindowsTerminalTheme {
     param(
         [Parameter(Mandatory = $true)]$Theme,
@@ -202,28 +271,30 @@ function Set-WgdotWindowsTerminalTheme {
     if ($root.PSObject.Properties.Name -contains "schemes") {
         $schemes = @($root.schemes | Where-Object { -not ([string]$_.name).StartsWith("WGDot ", [StringComparison]::OrdinalIgnoreCase) })
     }
+    $terminalBackground = [string]$Theme.background
+    $terminalForeground = [string]$Theme.foreground
     $scheme = [pscustomobject][ordered]@{
         name = $schemeName
-        background = [string]$Theme.background
-        foreground = [string]$Theme.foreground
-        cursorColor = [string]$Theme.foreground
-        selectionBackground = [string]$Theme.focus
+        background = $terminalBackground
+        foreground = $terminalForeground
+        cursorColor = $terminalForeground
+        selectionBackground = Get-WgdotReadableTerminalColor -Candidate ([string]$Theme.focus) -Background $terminalBackground -Foreground $terminalForeground -MinimumContrast 1.6 -FallbackForegroundWeight 0.45
         black = [string]$Theme.dark
-        red = [string]$Theme.urgent
-        green = [string]$Theme.charging
-        yellow = [string]$Theme.critical
-        blue = [string]$Theme.focus
-        purple = [string]$Theme.active
-        cyan = [string]$Theme.hover
-        white = [string]$Theme.foreground
-        brightBlack = [string]$Theme.muted
-        brightRed = [string]$Theme.urgent
-        brightGreen = [string]$Theme.charging
-        brightYellow = [string]$Theme.critical
-        brightBlue = [string]$Theme.focus
-        brightPurple = [string]$Theme.active
-        brightCyan = [string]$Theme.hover
-        brightWhite = [string]$Theme.foreground
+        red = Get-WgdotReadableTerminalColor -Candidate ([string]$Theme.urgent) -Background $terminalBackground -Foreground $terminalForeground -MinimumContrast 3.0 -FallbackForegroundWeight 0.72 -PreferredFallback "#705050"
+        green = Get-WgdotReadableTerminalColor -Candidate ([string]$Theme.charging) -Background $terminalBackground -Foreground $terminalForeground -MinimumContrast 3.0 -FallbackForegroundWeight 0.72 -PreferredFallback "#60B48A"
+        yellow = Get-WgdotReadableTerminalColor -Candidate ([string]$Theme.critical) -Background $terminalBackground -Foreground $terminalForeground -MinimumContrast 3.0 -FallbackForegroundWeight 0.72 -PreferredFallback "#DFAF8F"
+        blue = Get-WgdotReadableTerminalColor -Candidate ([string]$Theme.focus) -Background $terminalBackground -Foreground $terminalForeground -MinimumContrast 3.0 -FallbackForegroundWeight 0.72 -PreferredFallback "#9AB8D7"
+        purple = Get-WgdotReadableTerminalColor -Candidate ([string]$Theme.active) -Background $terminalBackground -Foreground $terminalForeground -MinimumContrast 3.0 -FallbackForegroundWeight 0.72 -PreferredFallback "#DC8CC3"
+        cyan = Get-WgdotReadableTerminalColor -Candidate ([string]$Theme.hover) -Background $terminalBackground -Foreground $terminalForeground -MinimumContrast 4.5 -FallbackForegroundWeight 0.82 -PreferredFallback "#8CD0D3"
+        white = $terminalForeground
+        brightBlack = Get-WgdotReadableTerminalColor -Candidate ([string]$Theme.muted) -Background $terminalBackground -Foreground $terminalForeground -MinimumContrast 3.0 -FallbackForegroundWeight 0.60 -PreferredFallback "#709080"
+        brightRed = Get-WgdotReadableTerminalColor -Candidate ([string]$Theme.urgent) -Background $terminalBackground -Foreground $terminalForeground -MinimumContrast 4.0 -FallbackForegroundWeight 0.82 -PreferredFallback "#DCA3A3"
+        brightGreen = Get-WgdotReadableTerminalColor -Candidate ([string]$Theme.charging) -Background $terminalBackground -Foreground $terminalForeground -MinimumContrast 4.0 -FallbackForegroundWeight 0.82 -PreferredFallback "#72D5A3"
+        brightYellow = Get-WgdotReadableTerminalColor -Candidate ([string]$Theme.critical) -Background $terminalBackground -Foreground $terminalForeground -MinimumContrast 4.0 -FallbackForegroundWeight 0.82 -PreferredFallback "#F0DFAF"
+        brightBlue = Get-WgdotReadableTerminalColor -Candidate ([string]$Theme.focus) -Background $terminalBackground -Foreground $terminalForeground -MinimumContrast 4.0 -FallbackForegroundWeight 0.82 -PreferredFallback "#94BFF3"
+        brightPurple = Get-WgdotReadableTerminalColor -Candidate ([string]$Theme.active) -Background $terminalBackground -Foreground $terminalForeground -MinimumContrast 4.0 -FallbackForegroundWeight 0.82 -PreferredFallback "#EC93D3"
+        brightCyan = Get-WgdotReadableTerminalColor -Candidate ([string]$Theme.hover) -Background $terminalBackground -Foreground $terminalForeground -MinimumContrast 4.5 -FallbackForegroundWeight 0.90 -PreferredFallback "#93E0E3"
+        brightWhite = $terminalForeground
     }
     $root | Add-Member -NotePropertyName schemes -NotePropertyValue @($schemes + $scheme) -Force
 
@@ -333,6 +404,23 @@ function Get-WgdotWindowsTerminalThemeManualPowerShell {
     $blue = [Convert]::ToInt32($background.Substring(5, 2), 16)
     $applicationTheme = if (((0.2126 * $red) + (0.7152 * $green) + (0.0722 * $blue)) -ge 155) { "light" } else { "dark" }
 
+    $terminalBackground = [string]$theme.background
+    $terminalForeground = [string]$theme.foreground
+    $selectionBackground = Get-WgdotReadableTerminalColor -Candidate ([string]$theme.focus) -Background $terminalBackground -Foreground $terminalForeground -MinimumContrast 1.6 -FallbackForegroundWeight 0.45
+    $terminalRed = Get-WgdotReadableTerminalColor -Candidate ([string]$theme.urgent) -Background $terminalBackground -Foreground $terminalForeground -MinimumContrast 3.0 -FallbackForegroundWeight 0.72 -PreferredFallback "#705050"
+    $terminalGreen = Get-WgdotReadableTerminalColor -Candidate ([string]$theme.charging) -Background $terminalBackground -Foreground $terminalForeground -MinimumContrast 3.0 -FallbackForegroundWeight 0.72 -PreferredFallback "#60B48A"
+    $terminalYellow = Get-WgdotReadableTerminalColor -Candidate ([string]$theme.critical) -Background $terminalBackground -Foreground $terminalForeground -MinimumContrast 3.0 -FallbackForegroundWeight 0.72 -PreferredFallback "#DFAF8F"
+    $terminalBlue = Get-WgdotReadableTerminalColor -Candidate ([string]$theme.focus) -Background $terminalBackground -Foreground $terminalForeground -MinimumContrast 3.0 -FallbackForegroundWeight 0.72 -PreferredFallback "#9AB8D7"
+    $terminalPurple = Get-WgdotReadableTerminalColor -Candidate ([string]$theme.active) -Background $terminalBackground -Foreground $terminalForeground -MinimumContrast 3.0 -FallbackForegroundWeight 0.72 -PreferredFallback "#DC8CC3"
+    $terminalCyan = Get-WgdotReadableTerminalColor -Candidate ([string]$theme.hover) -Background $terminalBackground -Foreground $terminalForeground -MinimumContrast 4.5 -FallbackForegroundWeight 0.82 -PreferredFallback "#8CD0D3"
+    $terminalBrightBlack = Get-WgdotReadableTerminalColor -Candidate ([string]$theme.muted) -Background $terminalBackground -Foreground $terminalForeground -MinimumContrast 3.0 -FallbackForegroundWeight 0.60 -PreferredFallback "#709080"
+    $terminalBrightRed = Get-WgdotReadableTerminalColor -Candidate ([string]$theme.urgent) -Background $terminalBackground -Foreground $terminalForeground -MinimumContrast 4.0 -FallbackForegroundWeight 0.82 -PreferredFallback "#DCA3A3"
+    $terminalBrightGreen = Get-WgdotReadableTerminalColor -Candidate ([string]$theme.charging) -Background $terminalBackground -Foreground $terminalForeground -MinimumContrast 4.0 -FallbackForegroundWeight 0.82 -PreferredFallback "#72D5A3"
+    $terminalBrightYellow = Get-WgdotReadableTerminalColor -Candidate ([string]$theme.critical) -Background $terminalBackground -Foreground $terminalForeground -MinimumContrast 4.0 -FallbackForegroundWeight 0.82 -PreferredFallback "#F0DFAF"
+    $terminalBrightBlue = Get-WgdotReadableTerminalColor -Candidate ([string]$theme.focus) -Background $terminalBackground -Foreground $terminalForeground -MinimumContrast 4.0 -FallbackForegroundWeight 0.82 -PreferredFallback "#94BFF3"
+    $terminalBrightPurple = Get-WgdotReadableTerminalColor -Candidate ([string]$theme.active) -Background $terminalBackground -Foreground $terminalForeground -MinimumContrast 4.0 -FallbackForegroundWeight 0.82 -PreferredFallback "#EC93D3"
+    $terminalBrightCyan = Get-WgdotReadableTerminalColor -Candidate ([string]$theme.hover) -Background $terminalBackground -Foreground $terminalForeground -MinimumContrast 4.5 -FallbackForegroundWeight 0.90 -PreferredFallback "#93E0E3"
+
     return @(
         "# Windows Terminal generated theme sync",
         '$terminalSynced = $false',
@@ -345,7 +433,7 @@ function Get-WgdotWindowsTerminalThemeManualPowerShell {
         '    $terminal.profiles.defaults | Add-Member -NotePropertyName colorScheme -NotePropertyValue $schemeName -Force',
         '    $terminalSchemes = @()',
         '    if ($terminal.PSObject.Properties.Name -contains ''schemes'') { $terminalSchemes = @($terminal.schemes | Where-Object { -not ([string]$_.name).StartsWith(''WGDot '', [StringComparison]::OrdinalIgnoreCase) }) }',
-        ('    $terminalScheme = [pscustomobject][ordered]@{ name = $schemeName; background = ''' + [string]$theme.background + '''; foreground = ''' + [string]$theme.foreground + '''; cursorColor = ''' + [string]$theme.foreground + '''; selectionBackground = ''' + [string]$theme.focus + '''; black = ''' + [string]$theme.dark + '''; red = ''' + [string]$theme.urgent + '''; green = ''' + [string]$theme.charging + '''; yellow = ''' + [string]$theme.critical + '''; blue = ''' + [string]$theme.focus + '''; purple = ''' + [string]$theme.active + '''; cyan = ''' + [string]$theme.hover + '''; white = ''' + [string]$theme.foreground + '''; brightBlack = ''' + [string]$theme.muted + '''; brightRed = ''' + [string]$theme.urgent + '''; brightGreen = ''' + [string]$theme.charging + '''; brightYellow = ''' + [string]$theme.critical + '''; brightBlue = ''' + [string]$theme.focus + '''; brightPurple = ''' + [string]$theme.active + '''; brightCyan = ''' + [string]$theme.hover + '''; brightWhite = ''' + [string]$theme.foreground + ''' }'),
+        ('    $terminalScheme = [pscustomobject][ordered]@{ name = $schemeName; background = ''' + $terminalBackground + '''; foreground = ''' + $terminalForeground + '''; cursorColor = ''' + $terminalForeground + '''; selectionBackground = ''' + $selectionBackground + '''; black = ''' + [string]$theme.dark + '''; red = ''' + $terminalRed + '''; green = ''' + $terminalGreen + '''; yellow = ''' + $terminalYellow + '''; blue = ''' + $terminalBlue + '''; purple = ''' + $terminalPurple + '''; cyan = ''' + $terminalCyan + '''; white = ''' + $terminalForeground + '''; brightBlack = ''' + $terminalBrightBlack + '''; brightRed = ''' + $terminalBrightRed + '''; brightGreen = ''' + $terminalBrightGreen + '''; brightYellow = ''' + $terminalBrightYellow + '''; brightBlue = ''' + $terminalBrightBlue + '''; brightPurple = ''' + $terminalBrightPurple + '''; brightCyan = ''' + $terminalBrightCyan + '''; brightWhite = ''' + $terminalForeground + ''' }'),
         '    $terminal | Add-Member -NotePropertyName schemes -NotePropertyValue @($terminalSchemes + $terminalScheme) -Force',
         '    $terminalThemes = @()',
         '    if ($terminal.PSObject.Properties.Name -contains ''themes'') { $terminalThemes = @($terminal.themes | Where-Object { -not ([string]$_.name).StartsWith(''WGDot '', [StringComparison]::OrdinalIgnoreCase) }) }',
