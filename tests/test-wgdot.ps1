@@ -467,7 +467,7 @@ $rustDeskPackage = @($manifest.packages | Where-Object { $_.id -eq 'RustDesk.Rus
 Assert-True ($null -ne $rustDeskPackage) "RustDesk catalog entry exists"
 Assert-Equal ([string]$rustDeskPackage.installMode) 'official-github' "RustDesk uses its verified official GitHub source instead of a missing WinGet ID"
 Assert-Equal ([string]$rustDeskPackage.fallbackGitHubRepo) 'rustdesk/rustdesk' "RustDesk official GitHub source remains publisher-owned"
-Assert-True ($nativeSourceText -match 'const string Version = "native-preview-67"') "native runtime version tracks current WGDot maintenance changes"
+Assert-True ($nativeSourceText -match 'const string Version = "native-preview-68"') "native runtime version tracks current WGDot maintenance changes"
 Assert-True ($nativeSourceText -match 'if \(command == "theme"\) return ThemeManagerFromArgs') "compiled WGDot exposes the approved live theme helper"
 $requiredRefreshBlock = [regex]::Match($nativeSourceText, '(?s)string\[\] requiredRefreshCommands\s*=\s*\{.*?\};').Value
 Assert-True (-not [string]::IsNullOrWhiteSpace($requiredRefreshBlock)) "acceptance audit refresh-policy block is present"
@@ -658,7 +658,7 @@ foreach ($desktopCommand in @(
     "desktop-worker", "desktop-worker-stop",
     "flameshot-gui", "rawaccel-open", "display-settings",
     "yasb-running-apps-toggle", "yasb-running-apps-shade-toggle",
-    "mouse-mode-switch", "glazewm-binding-mode-set",
+    "mouse-mode-switch", "mouse-mode-toggle", "mouse-mode-disable", "mouse-mode-hook", "glazewm-binding-mode-set",
     "glazewm-reload-config", "glazewm-pause-status", "glazewm-pause-toggle",
     "theme-toggle"
 )) {
@@ -666,7 +666,7 @@ foreach ($desktopCommand in @(
 }
 foreach ($approvedDesktopCommand in @(
     "idle-inhibitor-status", "idle-inhibitor-toggle", "idle-inhibitor-worker",
-    "bar-autohide-toggle", "mouse-mode-toggle", "mouse-mode-disable", "mouse-mode-hook",
+    "bar-autohide-toggle",
     "glazewm-binding-mode-toggle", "theme", "theme-window-toggle", "clipboard-anchor", "launcher", "power-menu", "rawaccel-toggle"
 )) {
     Assert-True ($nativeSourceText -match ('command == "' + [regex]::Escape($approvedDesktopCommand) + '"')) "WGDot exposes approved scoped runtime helper: $approvedDesktopCommand"
@@ -739,8 +739,10 @@ Assert-True ($yasbConfigText -notmatch 'keys:\s*"f24"') "Normal YASB has no synt
 Assert-True ($yasbConfigText -notmatch 'keys:\s*"alt\+p"|keys:\s*"win\+d"') "Normal YASB leaves user-facing launcher chords to GlazeWM"
 Assert-True ($yasbWorkConfigText -notmatch 'keys:\s*"f24"') "Work YASB has no synthetic F24 Quick Launch bridge"
 Assert-True ($yasbWorkConfigText -notmatch 'keys:\s*"alt\+p"|keys:\s*"win\+d"') "Work YASB leaves user-facing launcher chords to GlazeWM"
-Assert-True ($yasbConfigText -match 'class_name:\s*"workspace-mouse-hub"') "Normal YASB keeps the passive workspace mover mouse icon"
-Assert-True ($yasbWorkConfigText -match 'class_name:\s*"workspace-mouse-hub"') "Work YASB keeps the passive workspace mover mouse icon"
+Assert-True ($yasbConfigText -match 'class_name:\s*"workspace-move-hub"') "Normal YASB keeps the passive workspace mover hub"
+Assert-True ($yasbWorkConfigText -match 'class_name:\s*"workspace-move-hub"') "Work YASB keeps the passive workspace mover hub"
+Assert-True ($yasbConfigText -notmatch 'mouse-mode-toggle|workspace_mouse') "Normal YASB contains no retired mouse-mode runtime"
+Assert-True ($yasbWorkConfigText -notmatch 'mouse-mode-toggle|workspace_mouse') "Work YASB contains no retired mouse-mode runtime"
 $glazeNormalText = Get-Content -LiteralPath (Join-Path $repoRoot "UserProfile\.glzr\glazewm\config.yaml") -Raw
 $glazeWorkText = Get-Content -LiteralPath (Join-Path $repoRoot "UserProfile\.glzr\glazewm\custom_work_config.yaml") -Raw
 Assert-True ($glazeNormalText -notmatch 'flow-launcher\.ps1|yasb-quick-launch\.ps1') "Normal GlazeWM contains no launcher relay script"
@@ -816,7 +818,10 @@ Assert-True ($glazeNormalText -notmatch '\.ps1') "Normal GlazeWM has no PowerShe
 Assert-True ($glazeWorkText -notmatch '\.ps1') "Work GlazeWM has no PowerShell script-file runtime dependency"
 Assert-True ($glazeNormalText -match 'wgdotw\.exe rawaccel-toggle') "Normal GlazeWM uses the scoped compiled RawAccel toggle"
 Assert-True ($glazeWorkText -match 'wgdotw\.exe rawaccel-toggle') "Work GlazeWM uses the scoped compiled RawAccel toggle"
-Assert-True ($glazeWorkText -match 'wgdotw\.exe mouse-mode-toggle') "Work GlazeWM uses the scoped compiled mouse helper"
+Assert-True ($glazeNormalText -notmatch 'mouse-mode-toggle|name:\s*"mouse"|lwin\+alt\+m|rwin\+alt\+m') "Normal GlazeWM contains no retired mouse mode"
+Assert-True ($glazeWorkText -notmatch 'mouse-mode-toggle|name:\s*"mouse"|lwin\+alt\+m|rwin\+alt\+m') "Work GlazeWM contains no retired mouse mode"
+Assert-True ($glazeNormalText -match 'focus_follows_cursor:\s*true') "Normal GlazeWM defaults focus_follows_cursor to true"
+Assert-True ($glazeWorkText -match 'focus_follows_cursor:\s*false') "Work GlazeWM keeps focus_follows_cursor false"
 Assert-True ($glazeWorkText -match 'wgdotw\.exe bar-autohide-toggle') "Work GlazeWM uses the scoped compiled auto-hide helper"
 Assert-True ($glazeNormalText -match 'wgdotw\.exe theme-window-toggle') "Normal GlazeWM uses the windowless theme-window toggle"
 Assert-True ($glazeWorkText -match 'wgdotw\.exe theme-window-toggle') "Work GlazeWM uses the windowless theme-window toggle"
@@ -838,9 +843,9 @@ foreach ($text in @($glazeNormalText, $glazeWorkText)) {
     Assert-True ($text -match 'wgdotw\.exe clipboard-anchor hotkey') "GlazeWM Super+C uses the narrow Clipboard History anchor"
     Assert-True ($text -match 'bindings:\s*\["lwin\+p",\s*"rwin\+p"\]') "GlazeWM owns Super+P for the compiled Awtarchy-style power surface"
     Assert-True ($text -match 'wgdotw\.exe power-menu') "GlazeWM routes Super+P through the approved windowless compiled power helper"
-    Assert-True ($text -match 'name:\s*"mouse"') "GlazeWM owns a native mouse binding mode without WGDot runtime"
-    Assert-True ($text -match 'bindings:\s*\["lwin\+alt\+m",\s*"rwin\+alt\+m"\]') "Win+Alt+M enters/exits the native mouse binding mode"
-    Assert-True ($text -match 'wgdotw\.exe mouse-mode-toggle') "GlazeWM mouse mode uses the approved scoped mouse helper"
+    Assert-True ($text -notmatch 'name:\s*"mouse"') "retired mouse binding mode stays removed"
+    Assert-True ($text -notmatch 'bindings:\s*\["lwin\+alt\+m",\s*"rwin\+alt\+m"\]') "retired Win+Alt+M mouse binding stays removed"
+    Assert-True ($text -notmatch 'wgdotw\.exe mouse-mode-toggle') "retired WGDot mouse helper stays out of GlazeWM"
     Assert-True ($text -match 'bindings:\s*\["lwin\+ctrl\+m",\s*"rwin\+ctrl\+m"\]') "Super+Ctrl+M opens Windows display settings"
     Assert-True ($text -match 'shell-exec flameshot\.exe gui') "Flameshot bindings launch Flameshot directly"
     Assert-True ($text -match 'bindings:\s*\["alt\+ctrl\+shift\+r"\]') "Alt+Ctrl+Shift+R reloads GlazeWM"
@@ -852,7 +857,7 @@ foreach ($text in @($glazeNormalText, $glazeWorkText)) {
     Assert-True ($text -match 'color:\s*"#a1a1a1"') "GlazeWM focused border is theme-neutral"
     Assert-True ($text -match 'bindings:\s*\["lwin\+alt\+t",\s*"rwin\+alt\+t"\]') "Super+Alt+T theme picker exists"
     Assert-True ($text -match 'bindings:\s*\["alt\+t",\s*"lwin\+t",\s*"rwin\+t"\]') "global Alt+T and Super+T toggle tiling"
-    $noaltBlock = [regex]::Match($text, '(?ms)^  - name: "noalt"\r?\n.*?(?=^  - name: "mouse")').Value
+    $noaltBlock = [regex]::Match($text, '(?ms)^  - name: "noalt"\r?\n.*?(?=^  # VM mode|^  - name: "vm")').Value
     Assert-True ($noaltBlock -match 'bindings:\s*\["lwin\+t",\s*"rwin\+t"\]') "noalt keeps Super+T tiling"
     Assert-True ($noaltBlock -match 'bindings:\s*\["lwin\+alt\+t",\s*"rwin\+alt\+t"\]') "noalt keeps Super+Alt+T themes"
     Assert-True ($noaltBlock -notmatch 'bindings:\s*\["alt\+t"\]') "noalt does not capture plain Alt+T"
@@ -1063,14 +1068,9 @@ Assert-True ($nativeSourceText -match 'Environment\.SpecialFolder\.Programs') "c
 Assert-True ($nativeSourceText -match 'Environment\.SpecialFolder\.CommonPrograms') "compiled launcher indexes common Start Menu applications"
 Assert-True ($nativeSourceText -match 'ApplyEarTrumpetMixerSuperV') "EarTrumpet hotkey is configured directly at management time"
 Assert-True ($nativeSourceText -match 'static string RequireGlazeWmExe\(\)') "runtime helpers require the resolved GlazeWM executable path"
-Assert-True ($nativeSourceText -match 'Run\(RequireGlazeWmExe\(\), "query binding-modes"') "mouse-mode queries use the resolved GlazeWM path"
-$bindingModeActiveBlock = [regex]::Match($nativeSourceText, '(?ms)^    static bool GlazeWmBindingModeActive\(string name\)\r?\n    \{.*?^    \}').Value
-Assert-True ($bindingModeActiveBlock -match 'TryGetActiveGlazeWmBindingMode') "mouse-mode liveness tolerates GlazeWM binding-mode query receive failures"
-Assert-True ($bindingModeActiveBlock -match 'ReadTrackedGlazeBindingMode') "mouse-mode liveness falls back to tracked mode when the live query is unavailable"
-$mouseMoveBlock = [regex]::Match($nativeSourceText, '(?ms)^    static void BeginMouseMove\(IntPtr window, POINT point\)\r?\n    \{.*?^    \}').Value
-Assert-True ($mouseMoveBlock -match 'SendMessage') "mouse-mode left drag enters the native Windows interactive move loop"
-$mouseHookCallbackBlock = [regex]::Match($nativeSourceText, '(?ms)^    static IntPtr MouseModeHookCallback\(.*?^    \}').Value
-Assert-True ($mouseHookCallbackBlock -match 'ThreadPool\.QueueUserWorkItem') "mouse-mode left drag does not block the low-level hook thread"
+Assert-True ($nativeSourceText -notmatch 'command == "mouse-mode-(?:toggle|disable|hook)"') "retired mouse-mode commands stay undispatched"
+Assert-True ($nativeSourceText -notmatch 'static int MouseModeToggle\(|static int MouseModeHook\(|static IntPtr MouseModeHookCallback\(') "retired mouse-mode runtime implementation stays removed"
+Assert-True ($nativeSourceText -match 'SignalMouseModeHookStop') "runtime replacement can still stop a legacy mouse hook from an older build"
 Assert-True ($nativeSourceText -match 'set-win-v') "EarTrumpet configuration writes the direct Super+V chord"
 Assert-True ($nativeSourceText -match 'ApplicationDataManager\.CreateForPackageFamily') "EarTrumpet AppX settings use Windows packaged LocalSettings"
 Assert-True ($nativeSourceText -match '40459File-New-Project\.EarTrumpet_1sdd7yawvg6ne') "EarTrumpet package family is explicit"
