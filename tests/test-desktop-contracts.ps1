@@ -154,7 +154,7 @@ try {
             Require ($text -notmatch 'bindings:\s*\["lwin\+alt\+m",\s*"rwin\+alt\+m"\]') ('Retired Super+Alt+M mouse binding returned: ' + $relative)
             Require ($text -match 'wm-disable-binding-mode --name') ('Native mode escape missing: ' + $relative)
             Require ($text -match 'wm-toggle-pause') ('Native pause binding missing: ' + $relative)
-            Require ($text -match 'C:\\\\Program Files\\\\Flameshot\\\\bin\\\\flameshot\.exe') ('Direct Flameshot installed-path launch missing: ' + $relative)
+            Require ($text -notmatch '(?i)flameshot\.exe') ('GlazeWM must leave Flameshot activation to Flameshot itself: ' + $relative)
             Require ($text -match 'wgdotw\.exe theme-window-toggle') ('Windowless theme toggle dispatch missing: ' + $relative)
             Require ($text -match 'wgdotw\.exe bar-autohide-toggle') ('Compiled coordinated auto-hide implementation missing: ' + $relative)
             Require ($text -match 'wgdotw\.exe rawaccel-toggle') ('Scoped RawAccel toggle missing: ' + $relative)
