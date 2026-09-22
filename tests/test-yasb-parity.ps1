@@ -378,7 +378,7 @@ $capsOffStyle = [regex]::Match($style, "(?ms)^\.language-widget\.awtarchy-caps-l
 Assert-Contains -Text $capsOffStyle -Needle "font-size: 0;" -Message "Caps Lock indicator consumes no glyph width while disabled"
 Assert-Contains -Text $capsOffStyle -Needle "max-width: 0;" -Message "Caps Lock indicator collapses while disabled"
 $capsOnStyle = [regex]::Match($style, "(?ms)^\.language-widget\.awtarchy-caps-lock \.widget-container\.caps-lock-on \.icon \{\r?\n.*?^\}").Value
-Assert-Contains -Text $capsOnStyle -Needle "color: var(--critical);" -Message "active Caps Lock warning uses the critical theme color"
+Assert-Contains -Text $capsOnStyle -Needle "color: var(--foreground);" -Message "active Caps Lock indicator matches the normal bar foreground color"
 Assert-Contains -Text $capsOnStyle -Needle "font-size: 18px;" -Message "active Caps Lock warning matches generic status glyph sizing"
 Assert-Contains -Text $capsOnStyle -Needle "padding: 0 6px 1px 6px;" -Message "active Caps Lock warning uses compact aligned spacing"
 $iconScaleBlock = [regex]::Match(
