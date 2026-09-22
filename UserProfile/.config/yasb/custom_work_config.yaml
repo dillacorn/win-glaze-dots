@@ -289,7 +289,7 @@ widgets:
           show: false
         quick_actions:
           show: true
-          columns: 3
+          columns: 2
           label_position: "inline"
           actions:
             - id: "themes"
@@ -315,6 +315,10 @@ widgets:
             - id: "toggle_dnd"
               label: "Do Not Disturb"
               icon: ""
+            - id: "floating_windows"
+              label: "Floating Windows"
+              icon: "󰖲"
+              command: "wgdotw.exe glazewm-window-behavior-toggle"
             - id: "toggle_theme"
               label: "Windows Dark"
               icon: "󰖔"
