@@ -15,3 +15,86 @@ jobs:
         repo-token: ${{ secrets.GITHUB_TOKEN }}
         max-changes-for-label: '2' # Flag PRs with 2 or fewer changes
         label-message: 'This PR has been flagged for review due to minimal changes. Please ensure your contribution adds meaningful value.'
+
+  release-bridge-v4-5-0:
+    if: ${{ github.event.pull_request.title == 'release-bridge: edit v4.5.0 install/update links' && github.head_ref == 'release-bridge-v4.5.0-install-update' && github.base_ref == 'main' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Edit and verify v4.5.0 release notes
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          repo="${GITHUB_REPOSITORY}"
+          tag="v4.5.0"
+          branch="release-bridge-v4.5.0-install-update"
+          before_json="$(mktemp)"
+          after_json="$(mktemp)"
+          body_file="$(mktemp)"
+
+          gh release view "$tag" --repo "$repo" --json name,body,targetCommitish,isDraft,isPrerelease > "$before_json"
+          tag_before="$(gh api "repos/$repo/git/ref/tags/$tag" --jq '.object.sha')"
+
+          python3 - "$before_json" "$body_file" "$repo" <<'PY'
+          import json
+          import pathlib
+          import sys
+
+          before_path = pathlib.Path(sys.argv[1])
+          body_path = pathlib.Path(sys.argv[2])
+          repo = sys.argv[3]
+          data = json.loads(before_path.read_text())
+          body = data["body"]
+
+          section = (
+              "## Install and update\n\n"
+              f"- **Install:** [INSTALL.md](https://github.com/{repo}/blob/main/INSTALL.md)\n"
+              f"- **Update:** [UPDATE.md](https://github.com/{repo}/blob/main/UPDATE.md)\n"
+          )
+
+          if section not in body:
+              lines = body.splitlines(keepends=True)
+              if not lines or not lines[0].startswith("# "):
+                  raise SystemExit("release body does not start with the expected title heading")
+              insert_at = 1
+              while insert_at < len(lines) and lines[insert_at].strip() == "":
+                  insert_at += 1
+              body = "".join(lines[:insert_at]) + "\n" + section + "\n" + "".join(lines[insert_at:])
+
+          body_path.write_text(body)
+          PY
+
+          gh release edit "$tag" --repo "$repo" --notes-file "$body_file"
+
+          gh release view "$tag" --repo "$repo" --json name,body,targetCommitish,isDraft,isPrerelease > "$after_json"
+          tag_after="$(gh api "repos/$repo/git/ref/tags/$tag" --jq '.object.sha')"
+
+          python3 - "$before_json" "$after_json" "$body_file" <<'PY'
+          import json
+          import pathlib
+          import sys
+
+          before = json.loads(pathlib.Path(sys.argv[1]).read_text())
+          after = json.loads(pathlib.Path(sys.argv[2]).read_text())
+          expected_body = pathlib.Path(sys.argv[3]).read_text()
+
+          for key in ("name", "targetCommitish", "isDraft", "isPrerelease"):
+              if before[key] != after[key]:
+                  raise SystemExit(f"release metadata changed unexpectedly: {key}")
+
+          if after["body"] != expected_body:
+              raise SystemExit("published release body does not match intended body")
+
+          install = after["body"].find("INSTALL.md")
+          update = after["body"].find("UPDATE.md")
+          if install < 0 or update < 0 or install >= update:
+              raise SystemExit("INSTALL.md must appear before UPDATE.md")
+          PY
+
+          test "$tag_before" = "$tag_after"
+
+          gh api -X DELETE "repos/$repo/git/refs/heads/$branch"
