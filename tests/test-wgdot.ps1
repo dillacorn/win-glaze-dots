@@ -128,16 +128,17 @@ Assert-Equal "MicLockTray.exe" ([string]$micLockTrayPackage.installedFile) "MicL
 Assert-Equal $true ([bool]$micLockTrayPackage.launchAfterInstall) "MicLockTray launches after its user-level portable install"
 
 $startupExpectations = @{
-    "glzr-io.glazewm" = "glazewm"
-    "AltSnap.AltSnap" = "altsnap"
-    "File-New-Project.EarTrumpet" = "eartrumpet"
-    "dillacorn.MicLockTray" = "miclocktray"
+    "glzr-io.glazewm" = @{ Handler = "glazewm"; Default = $true }
+    "AltSnap.AltSnap" = @{ Handler = "altsnap"; Default = $true }
+    "File-New-Project.EarTrumpet" = @{ Handler = "eartrumpet"; Default = $true }
+    "dillacorn.MicLockTray" = @{ Handler = "miclocktray"; Default = $true }
+    "RawAccelOfficial.RawAccel" = @{ Handler = "rawaccel"; Default = $false }
 }
 foreach ($entry in $startupExpectations.GetEnumerator()) {
     $package = Get-ManifestPackage -Id $entry.Key
     Assert-True ($null -ne $package) "startup package exists: $($entry.Key)"
-    Assert-Equal $entry.Value ([string]$package.startupHandler) "$($entry.Key) has the expected WGDot startup handler"
-    Assert-Equal $true ([bool]$package.startupDefault) "$($entry.Key) defaults to startup when selected"
+    Assert-Equal ([string]$entry.Value.Handler) ([string]$package.startupHandler) "$($entry.Key) has the expected WGDot startup handler"
+    Assert-Equal ([bool]$entry.Value.Default) ([bool]$package.startupDefault) "$($entry.Key) startup default is intentional"
 }
 
 $expectedDefaultOnPackages = @(
@@ -164,7 +165,6 @@ $expectedDefaultOnPackages = @(
     "ImageMagick.ImageMagick",
     "glzr-io.glazewm",
     "DEVCOM.JetBrainsMonoNerdFont",
-    "Open-Shell.Open-Shell-Menu"
 )
 
 foreach ($package in $manifest.packages) {
@@ -256,7 +256,9 @@ Assert-True (([string]$mullvadBrowser.notice) -match 'exactly as shipped') "Mull
 Assert-True (([string]$mullvadBrowser.notice) -match 'VPN') "Mullvad Browser UI recommends VPN use"
 
 $openShell = Get-ManifestPackage -Id "Open-Shell.Open-Shell-Menu"
-Assert-Equal "launch-open-shell" ([string]$openShell.postInstallAction) "Open-Shell launches after first install"
+Assert-Equal $false ([bool]$openShell.defaultNormal) "Open-Shell is optional/default-off for Normal"
+Assert-Equal $false ([bool]$openShell.defaultWork) "Open-Shell is optional/default-off for Work"
+Assert-Equal "launch-open-shell" ([string]$openShell.postInstallAction) "Open-Shell launches after first install only when explicitly selected"
 
 $rustDesk = Get-ManifestPackage -Id "RustDesk.RustDesk"
 Assert-Equal "rustdesk/rustdesk" ([string]$rustDesk.fallbackGitHubRepo) "RustDesk approved fallback repository"
@@ -422,6 +424,7 @@ Assert-True ($nativeSourceText -match 'Installation quit confirmation self-test 
 Assert-True ($nativeSourceText -match 'WaitForProcessToAppear\("privacy\.sexy", 3000\)') "privacy.sexy installer auto-launch is detected before WGDot launches another copy"
 Assert-True ($nativeSourceText -match 'WGDot will not launch a second copy') "privacy.sexy duplicate-launch prevention is explicit"
 Assert-True ($nativeSourceText -match 'WaitForProcessToExit\("privacy\.sexy"\)') "WGDot waits for privacy.sexy to close before continuing"
+Assert-True ($nativeSourceText -match '"Standard \(repo guide default\)", "Strict", "Skip"') "privacy.sexy optional action is labeled Skip instead of Cancel"
 Assert-True ($nativeSourceText -match 'or disable antivirus') "privacy.sexy integration does not weaken antivirus protection"
 Assert-True ($nativeSourceText -match 'result\["failureDetails"\] = failureDetails') "elevated worker returns human-readable failure details"
 Assert-True ($nativeSourceText -match 'Failure details:') "software reconciliation prints exact failure details in the main WGDot window"
@@ -467,7 +470,7 @@ $rustDeskPackage = @($manifest.packages | Where-Object { $_.id -eq 'RustDesk.Rus
 Assert-True ($null -ne $rustDeskPackage) "RustDesk catalog entry exists"
 Assert-Equal ([string]$rustDeskPackage.installMode) 'official-github' "RustDesk uses its verified official GitHub source instead of a missing WinGet ID"
 Assert-Equal ([string]$rustDeskPackage.fallbackGitHubRepo) 'rustdesk/rustdesk' "RustDesk official GitHub source remains publisher-owned"
-Assert-True ($nativeSourceText -match 'const string Version = "native-preview-68"') "native runtime version tracks current WGDot maintenance changes"
+Assert-True ($nativeSourceText -match 'const string Version = "native-preview-69"') "native runtime version tracks current WGDot maintenance changes"
 Assert-True ($nativeSourceText -match 'if \(command == "theme"\) return ThemeManagerFromArgs') "compiled WGDot exposes the approved live theme helper"
 $requiredRefreshBlock = [regex]::Match($nativeSourceText, '(?s)string\[\] requiredRefreshCommands\s*=\s*\{.*?\};').Value
 Assert-True (-not [string]::IsNullOrWhiteSpace($requiredRefreshBlock)) "acceptance audit refresh-policy block is present"
@@ -730,6 +733,8 @@ $yasbConfigText = Get-Content -LiteralPath (Join-Path $repoRoot "UserProfile\.co
 $yasbWorkConfigText = Get-Content -LiteralPath (Join-Path $repoRoot "UserProfile\.config\yasb\custom_work_config.yaml") -Raw
 Assert-True ($yasbConfigText -match 'context_menu:\s*false') "YASB blank-bar context menu is disabled while Alt+Ctrl+B keeps coordinated auto-hide"
 Assert-True ($yasbConfigText -match 'wgdot\.exe idle-inhibitor-status') "YASB bar polls the compiled idle-inhibitor helper"
+Assert-True ($yasbConfigText -match 'run_interval:\s*30000') "idle status polling is backed off because clicks explicitly refresh YASB"
+Assert-True ($nativeSourceText -match 'Run\("yasbc\.exe", "reload -s", null\)') "idle toggle requests one public YASB refresh for cross-display state"
 Assert-True ($yasbConfigText -match 'label:\s*"\{data\[icon\]\}"') "YASB idle inhibitor renders JSON-decoded eye state"
 Assert-True ($yasbConfigText -match 'return_format:\s*"json"') "YASB idle inhibitor uses JSON to preserve Nerd Font glyphs"
 Assert-True ($yasbConfigText -match 'wgdotw\.exe idle-inhibitor-toggle') "YASB bar toggles the compiled idle inhibitor without a console"
@@ -739,8 +744,10 @@ Assert-True ($yasbConfigText -notmatch 'keys:\s*"f24"') "Normal YASB has no synt
 Assert-True ($yasbConfigText -notmatch 'keys:\s*"alt\+p"|keys:\s*"win\+d"') "Normal YASB leaves user-facing launcher chords to GlazeWM"
 Assert-True ($yasbWorkConfigText -notmatch 'keys:\s*"f24"') "Work YASB has no synthetic F24 Quick Launch bridge"
 Assert-True ($yasbWorkConfigText -notmatch 'keys:\s*"alt\+p"|keys:\s*"win\+d"') "Work YASB leaves user-facing launcher chords to GlazeWM"
-Assert-True ($yasbConfigText -match 'class_name:\s*"workspace-move-hub"') "Normal YASB keeps the passive workspace mover hub"
-Assert-True ($yasbWorkConfigText -match 'class_name:\s*"workspace-move-hub"') "Work YASB keeps the passive workspace mover hub"
+Assert-True ($yasbConfigText -notmatch 'workspace_move_hub|workspace-move-hub|workspace_move_group|workspace-move-grouper') "Normal YASB removes the retired workspace hub slot"
+Assert-True ($yasbWorkConfigText -notmatch 'workspace_move_hub|workspace-move-hub|workspace_move_group|workspace-move-grouper') "Work YASB removes the retired workspace hub slot"
+Assert-True ($yasbConfigText -match 'glazewm\.exe command move-workspace --direction left') "Normal YASB keeps direct workspace arrows"
+Assert-True ($yasbWorkConfigText -match 'glazewm\.exe command move-workspace --direction left') "Work YASB keeps direct workspace arrows"
 Assert-True ($yasbConfigText -notmatch 'mouse-mode-toggle|workspace_mouse') "Normal YASB contains no retired mouse-mode runtime"
 Assert-True ($yasbWorkConfigText -notmatch 'mouse-mode-toggle|workspace_mouse') "Work YASB contains no retired mouse-mode runtime"
 $glazeNormalText = Get-Content -LiteralPath (Join-Path $repoRoot "UserProfile\.glzr\glazewm\config.yaml") -Raw
@@ -750,6 +757,9 @@ Assert-True ($glazeWorkText -notmatch 'flow-launcher\.ps1|yasb-quick-launch\.ps1
 Assert-True ($glazeNormalText -match 'wgdotw\.exe launcher hotkey') "Normal GlazeWM uses the compiled launcher"
 Assert-True ($glazeWorkText -match 'wgdotw\.exe launcher hotkey') "Work GlazeWM uses the compiled launcher"
 Assert-True ($glazeWorkText -notmatch 'shell-exec %LOCALAPPDATA%/FlowLauncher/Flow\.Launcher\.exe') "Work GlazeWM no longer defaults launcher hotkeys to Flow Launcher"
+Assert-True ($glazeNormalText -match '%LOCALAPPDATA%\\wgdot\\bin\\wgdotw\.exe.*launcher hotkey') "Normal launcher hotkeys use the deterministic WGDot runtime path"
+Assert-True ($glazeWorkText -match '%LOCALAPPDATA%\\wgdot\\bin\\wgdotw\.exe.*launcher hotkey') "Work launcher hotkeys use the deterministic WGDot runtime path"
+Assert-True ($nativeSourceText -match 'UseShellExecute = true') "compiled launcher activates Start Menu shortcuts through Windows shell semantics"
 
 Assert-True ($yasbConfigText -match 'yasb\.custom\.CustomWidget') "YASB uses a lightweight custom power button"
 Assert-True ($yasbConfigText -match 'on_left:\s*"exec wgdotw\.exe power-menu"') "YASB power button opens the compiled Awtarchy-style surface"
@@ -770,10 +780,10 @@ Assert-True ($yasbWorkConfigText -notmatch 'border_color:\s*None') "Work YASB po
 foreach ($yasbText in @($yasbConfigText, $yasbWorkConfigText)) {
     $wifiBlock = [regex]::Match($yasbText, '(?ms)^  wifi:\r?\n.*?(?=^  bluetooth:)').Value
     $bluetoothBlock = [regex]::Match($yasbText, '(?ms)^  bluetooth:\r?\n.*?(?=^  systray:)').Value
-    Assert-True ($wifiBlock -match 'on_left:\s*"toggle_menu"') "YASB Wi-Fi/Ethernet uses its native toggleable menu"
-    Assert-True ($bluetoothBlock -match 'on_left:\s*"toggle_menu"') "YASB Bluetooth uses its native toggleable menu"
-    Assert-True ($wifiBlock -notmatch 'ms-settings:network-status') "YASB Wi-Fi/Ethernet no longer reopens Windows Network settings"
-    Assert-True ($bluetoothBlock -notmatch 'ms-settings:bluetooth') "YASB Bluetooth no longer reopens Windows Bluetooth settings"
+    Assert-True ($wifiBlock -match 'on_left:\s*"exec explorer\.exe ms-settings:network-status"') "YASB Wi-Fi/Ethernet opens native Windows Network settings"
+    Assert-True ($bluetoothBlock -match 'on_left:\s*"exec explorer\.exe ms-settings:bluetooth"') "YASB Bluetooth opens native Windows Bluetooth settings"
+    Assert-True ($wifiBlock -notmatch 'on_left:\s*"toggle_menu"') "YASB Wi-Fi/Ethernet mini menu is retired"
+    Assert-True ($bluetoothBlock -notmatch 'on_left:\s*"toggle_menu"') "YASB Bluetooth mini menu is retired"
 }
 Assert-True ($yasbConfigText -notmatch 'cmd\.exe /c start ms-settings') "YASB settings callbacks do not spawn cmd.exe"
 Assert-True ($yasbConfigText -notmatch '%USERPROFILE%\\\.config\\win-glaze\\scripts') "YASB custom actions do not rely on percent-style USERPROFILE expansion"
@@ -781,6 +791,8 @@ Assert-True ($yasbConfigText -notmatch '%USERPROFILE%\\\.config\\win-glaze\\scri
 
 $flameshotConfigText = Get-Content -LiteralPath (Join-Path $repoRoot "UserProfile\AppData\Roaming\flameshot\flameshot.ini") -Raw
 Assert-True ($flameshotConfigText -match '(?m)^captureActiveMonitor=true') "Flameshot defaults to capturing the active monitor without monitor selection"
+Assert-True ($flameshotConfigText -notmatch '(?i)C:/Users/|C:\\Users\\') "Flameshot managed config contains no user-specific profile path"
+Assert-True ($flameshotConfigText -notmatch 'TYPE_IMAGELOADER') "Flameshot managed config does not restore the rejected legacy shortcut key"
 
 Assert-True ($nativeSourceText -match 'command == "window-audit"') "native runtime retains explicit diagnostic window auditing"
 Assert-True ($nativeSourceText -match 'command == "super-l-test"') "native runtime retains the isolated Super+L development controller"
