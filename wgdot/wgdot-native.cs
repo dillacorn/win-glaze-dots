@@ -229,6 +229,7 @@ internal static class WgdotNative
     const uint SwpShowWindow = 0x0040;
     const uint ShgfiIcon = 0x00000100;
     const uint KeyeventfKeyup = 0x0002;
+    const uint WmFontChange = 0x001D;
 
     const uint EsSystemRequired = 0x00000001;
     const uint EsDisplayRequired = 0x00000002;
@@ -268,6 +269,18 @@ internal static class WgdotNative
         string parameters,
         string directory,
         int showCommand);
+
+    [DllImport("gdi32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    static extern int AddFontResourceEx(
+        string fileName,
+        uint flags,
+        IntPtr reserved);
+
+    [DllImport("gdi32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    static extern bool RemoveFontResourceEx(
+        string fileName,
+        uint flags,
+        IntPtr reserved);
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
     struct SHFILEINFO
@@ -2406,6 +2419,54 @@ class WgdotHidden
         return File.Exists(GetPackageProgramFilePath(package, "installedFile"));
     }
 
+    static string GetUserFontFilePath(Dictionary<string, object> package)
+    {
+        string fileName = GetString(package, "fontFile");
+        if (String.IsNullOrWhiteSpace(fileName) ||
+            !String.Equals(Path.GetFileName(fileName), fileName, StringComparison.Ordinal) ||
+            !fileName.EndsWith(".ttf", StringComparison.OrdinalIgnoreCase))
+            throw new Exception("Invalid fontFile for " + GetString(package, "name") + ".");
+
+        return Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "Microsoft",
+            "Windows",
+            "Fonts",
+            fileName);
+    }
+
+    static string GetUserFontRegistryValueName(Dictionary<string, object> package)
+    {
+        string family = GetString(package, "fontFamily");
+        if (String.IsNullOrWhiteSpace(family) ||
+            family.IndexOf('\0') >= 0 ||
+            family.IndexOf('\\') >= 0 ||
+            family.IndexOf('/') >= 0)
+            throw new Exception("Invalid fontFamily for " + GetString(package, "name") + ".");
+
+        return family + " (TrueType)";
+    }
+
+    static bool IsOfficialGitHubFontArchivePackageInstalled(Dictionary<string, object> package)
+    {
+        string path = GetUserFontFilePath(package);
+        if (!File.Exists(path))
+            return false;
+
+        using (RegistryKey key = Registry.CurrentUser.OpenSubKey(
+            @"Software\Microsoft\Windows NT\CurrentVersion\Fonts",
+            false))
+        {
+            if (key == null) return false;
+            string value = Convert.ToString(
+                key.GetValue(
+                    GetUserFontRegistryValueName(package),
+                    null,
+                    RegistryValueOptions.DoNotExpandEnvironmentNames));
+            return String.Equals(value, path, StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
     static bool IsOfficialGitHubArchiveDriverPackageInstalled(Dictionary<string, object> package)
     {
         string serviceName = GetString(package, "installedService");
@@ -2502,6 +2563,84 @@ class WgdotHidden
             Console.WriteLine("Started " + name + ".");
         }
 
+        return true;
+    }
+
+    static bool InstallGitHubFontArchivePackage(Dictionary<string, object> package)
+    {
+        string name = GetString(package, "name");
+        string assetName;
+        string archivePath = DownloadOfficialGitHubPackageAsset(package, out assetName);
+        if (!assetName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+            throw new Exception(name + " font source must be a ZIP release asset.");
+
+        string staging = Path.Combine(
+            CacheRoot,
+            "font-extract",
+            Guid.NewGuid().ToString("N"));
+
+        try
+        {
+            ExtractZipToDirectorySafe(archivePath, staging);
+            string fontFile = GetString(package, "fontFile");
+            string stagedFont = FindPackageArchiveFile(staging, fontFile);
+            string target = GetUserFontFilePath(package);
+
+            Directory.CreateDirectory(Path.GetDirectoryName(target));
+            File.Copy(stagedFont, target, true);
+            if (!File.Exists(target) || new FileInfo(target).Length == 0)
+                throw new Exception(name + " font file was not installed correctly.");
+
+            const string fontsKeyPath = @"Software\Microsoft\Windows NT\CurrentVersion\Fonts";
+            using (RegistryKey key = Registry.CurrentUser.CreateSubKey(fontsKeyPath))
+            {
+                if (key == null)
+                    throw new Exception("Could not open the current-user Windows Fonts registry key.");
+
+                key.SetValue(
+                    GetUserFontRegistryValueName(package),
+                    target,
+                    RegistryValueKind.String);
+            }
+
+            if (AddFontResourceEx(target, 0, IntPtr.Zero) == 0)
+                throw new Exception("Windows did not load the installed font resource.");
+
+            PostMessage(new IntPtr(0xFFFF), WmFontChange, IntPtr.Zero, IntPtr.Zero);
+            Console.WriteLine("Installed " + name + ": " + target);
+            return true;
+        }
+        finally
+        {
+            SafeDeleteDirectory(staging);
+        }
+    }
+
+    static bool UninstallGitHubFontArchivePackage(Dictionary<string, object> package)
+    {
+        string target = GetUserFontFilePath(package);
+        string valueName = GetUserFontRegistryValueName(package);
+        const string fontsKeyPath = @"Software\Microsoft\Windows NT\CurrentVersion\Fonts";
+
+        try { RemoveFontResourceEx(target, 0, IntPtr.Zero); } catch { }
+
+        using (RegistryKey key = Registry.CurrentUser.OpenSubKey(fontsKeyPath, true))
+        {
+            if (key != null)
+            {
+                string current = Convert.ToString(
+                    key.GetValue(
+                        valueName,
+                        null,
+                        RegistryValueOptions.DoNotExpandEnvironmentNames));
+                if (String.Equals(current, target, StringComparison.OrdinalIgnoreCase))
+                    key.DeleteValue(valueName, false);
+            }
+        }
+
+        SafeDeleteFile(target);
+        PostMessage(new IntPtr(0xFFFF), WmFontChange, IntPtr.Zero, IntPtr.Zero);
+        Console.WriteLine("Uninstalled WGDot-owned font: " + GetString(package, "name"));
         return true;
     }
 
@@ -2749,10 +2888,11 @@ class WgdotHidden
                 Console.WriteLine();
                 Console.WriteLine("Installing " + id + "...");
 
-                if (IsOfficialGitHubPortablePackage(package))
+                if (IsOfficialGitHubPortablePackage(package) ||
+                    IsOfficialGitHubFontArchivePackage(package))
                 {
                     Console.ForegroundColor = ConsoleColor.Yellow;
-                    Console.WriteLine("Refusing to install a user-level portable package inside the elevated worker: " + id);
+                    Console.WriteLine("Refusing to install a user-level package inside the elevated worker: " + id);
                     Console.ResetColor();
                     failedIds.Add(id);
                     failureDetails.Add("Portable package was incorrectly sent to the elevated worker: " + id);
@@ -2986,6 +3126,7 @@ class WgdotHidden
         return
             String.Equals(mode, "official-github", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(mode, "official-github-portable", StringComparison.OrdinalIgnoreCase) ||
+            String.Equals(mode, "official-github-font-archive", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(mode, "official-github-archive-driver", StringComparison.OrdinalIgnoreCase);
     }
 
@@ -2994,6 +3135,14 @@ class WgdotHidden
         return String.Equals(
             GetString(package, "installMode"),
             "official-github-portable",
+            StringComparison.OrdinalIgnoreCase);
+    }
+
+    static bool IsOfficialGitHubFontArchivePackage(Dictionary<string, object> package)
+    {
+        return String.Equals(
+            GetString(package, "installMode"),
+            "official-github-font-archive",
             StringComparison.OrdinalIgnoreCase);
     }
 
@@ -4041,6 +4190,9 @@ class WgdotHidden
         if (IsOfficialGitHubPortablePackage(package))
             return IsOfficialGitHubPortablePackageInstalled(package);
 
+        if (IsOfficialGitHubFontArchivePackage(package))
+            return IsOfficialGitHubFontArchivePackageInstalled(package);
+
         if (IsOfficialGitHubArchiveDriverPackage(package))
             return IsOfficialGitHubArchiveDriverPackageInstalled(package);
 
@@ -4069,6 +4221,9 @@ class WgdotHidden
             Console.ResetColor();
             return false;
         }
+
+        if (IsOfficialGitHubFontArchivePackage(package))
+            return UninstallGitHubFontArchivePackage(package);
 
         if (IsOfficialGitHubPortablePackage(package))
         {
@@ -4326,6 +4481,7 @@ class WgdotHidden
         var upgradeIds = new List<string>();
         var officialPagePending = new List<Dictionary<string, object>>();
         var portableGitHubPending = new List<Dictionary<string, object>>();
+        var fontGitHubPending = new List<Dictionary<string, object>>();
         int installed = 0;
         int already = 0;
         int unavailable = 0;
@@ -4377,6 +4533,21 @@ class WgdotHidden
                 {
                     Console.WriteLine("Official GitHub portable source selected.");
                     portableGitHubPending.Add(package);
+                }
+                continue;
+            }
+
+            if (IsOfficialGitHubFontArchivePackage(package))
+            {
+                if (IsOfficialGitHubFontArchivePackageInstalled(package))
+                {
+                    Console.WriteLine("Already installed.");
+                    already++;
+                }
+                else
+                {
+                    Console.WriteLine("Official GitHub font archive selected.");
+                    fontGitHubPending.Add(package);
                 }
                 continue;
             }
@@ -4638,6 +4809,29 @@ class WgdotHidden
                 failureDetails.Add("Official GitHub portable install failed for " + id + ": " + ex.Message);
                 Console.ForegroundColor = ConsoleColor.Yellow;
                 Console.WriteLine("Portable install failed for " + id + ": " + ex.Message);
+                Console.ResetColor();
+            }
+        }
+
+        foreach (Dictionary<string, object> package in fontGitHubPending)
+        {
+            string id = GetString(package, "id");
+            try
+            {
+                if (InstallGitHubFontArchivePackage(package))
+                    installed++;
+                else
+                {
+                    failed++;
+                    failureDetails.Add("Official GitHub font archive install failed: " + id);
+                }
+            }
+            catch (Exception ex)
+            {
+                failed++;
+                failureDetails.Add("Official GitHub font archive install failed for " + id + ": " + ex.Message);
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine("Font install failed for " + id + ": " + ex.Message);
                 Console.ResetColor();
             }
         }
