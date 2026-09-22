@@ -497,6 +497,18 @@
       "defaultWork": true
     },
     {
+      "name": "Noto Nerd Font",
+      "id": "NerdFonts.Noto",
+      "category": "desktop",
+      "defaultNormal": true,
+      "defaultWork": true,
+      "installMode": "official-github-font-archive",
+      "fallbackGitHubRepo": "ryanoasis/nerd-fonts",
+      "fallbackAssetRegex": "^Noto\\.zip$",
+      "fontFile": "NotoSansMNerdFontMono-Regular.ttf",
+      "fontFamily": "NotoSansM Nerd Font Mono"
+    },
+    {
       "name": "System Informer",
       "id": "WinsiderSS.SystemInformer",
       "category": "system",
