@@ -14,7 +14,7 @@ general:
 
   cursor_jump:
     enabled: true
-    trigger: "monitor_focus"
+    trigger: "window_focus"
 
   hide_method: "cloak"
   show_all_in_taskbar: true
