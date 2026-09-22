@@ -57,6 +57,7 @@ The application button is a lightweight YASB `CustomWidget` that opens `wgdotw.e
 - Keyboard activation opens horizontally centered just below the top bar during ordinary desktop use.
 - For keyboard activation only, if YASB auto-hide is enabled or the foreground window fills the active monitor, the launcher opens centered on that monitor.
 - The launcher stays compact at roughly half the old search-window width while retaining normal application-name room.
+- Its results scrollbar is WGDot-drawn with the active YASB theme instead of the bright native Windows scrollbar.
 - It indexes Start Menu shortcuts, activates them through Windows shell semantics, and resolves ordinary `.lnk` target/icon metadata so results prefer the underlying application icon instead of shortcut-style presentation where Windows exposes that metadata.
 - VM mode has no ordinary launcher binding that steals guest shortcuts.
 
@@ -134,7 +135,7 @@ Super+V stays native Windows Clipboard History. GlazeWM does not override it and
 
 ## Font parity
 
-The Windows bar uses `NotoSansM Nerd Font Mono` at 14 px to match Awtarchy, with `JetBrainsMono NFP` as a fallback. WGDot manages the exact Noto Nerd Font from the official `ryanoasis/nerd-fonts` Noto archive during software reconciliation; dots-only updates intentionally do not install fonts, so a machine without Noto installed will continue to render the JetBrains fallback until software reconciliation installs it.
+The Windows bar uses `NotoSansM Nerd Font Mono` at 14 px to match Awtarchy, with `JetBrainsMono NFP` as a fallback. WGDot manages the exact Noto Nerd Font from the official `ryanoasis/nerd-fonts` Noto archive during software reconciliation. Dots-only updates intentionally do not install fonts, so a machine without Noto installed will render the JetBrains fallback until software reconciliation installs Noto and YASB is restarted.
 
 ## Evidence-backed mappings
 
@@ -189,3 +190,8 @@ Windows still reserves `Win+L`, and the selective Explorer hotkey policy does no
 - YASB systray stays `use_hook: false`.
 - No AutoHotkey, whkd, Explorer DLL injection, or third-party general-purpose input daemon is added.
 - Runtime helpers are narrowly scoped. Normal and Work have no `.ps1` runtime dependencies; native-capable actions remain outside WGDot.
+
+
+## Popup spacing
+
+Native YASB menus that expose a vertical offset are configured with `offset_top: 0`, so CPU, memory, Control Center, brightness, microphone, volume, clock/calendar, Wi-Fi, and Bluetooth surfaces touch the bar instead of leaving the upstream 6 px gap.
