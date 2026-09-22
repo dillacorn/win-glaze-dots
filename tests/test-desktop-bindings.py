@@ -126,7 +126,7 @@ for name in ("config.yaml", "custom_work_config.yaml"):
     )
     assert "mouse-mode-toggle" not in glaze_text, (name, "retired WGDot mouse helper returned")
 
-    assert '%LOCALAPPDATA%\\wgdot\\bin\\wgdotw.exe' in glaze_text, (
+    assert r'%LOCALAPPDATA%\wgdot\bin\wgdotw.exe' in glaze_text, (
         name,
         "compiled helper hotkeys must not depend on GlazeWM's inherited PATH",
     )
