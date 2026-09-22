@@ -52,13 +52,13 @@ for yasb_name in ("config.yaml", "custom_work_config.yaml"):
         yasb_name,
         "clipboard right click must toggle the same native-history surface",
     )
-    assert yasb["widgets"]["wifi"]["options"]["callbacks"]["on_left"] == "toggle_menu", (
+    assert yasb["widgets"]["wifi"]["options"]["callbacks"]["on_left"] == "exec explorer.exe ms-settings:network-status", (
         yasb_name,
-        "Wi-Fi/Ethernet must use the native toggleable YASB menu",
+        "Wi-Fi/Ethernet must open the native Windows Network surface",
     )
-    assert yasb["widgets"]["bluetooth"]["options"]["callbacks"]["on_left"] == "toggle_menu", (
+    assert yasb["widgets"]["bluetooth"]["options"]["callbacks"]["on_left"] == "exec explorer.exe ms-settings:bluetooth", (
         yasb_name,
-        "Bluetooth must use the native toggleable YASB menu",
+        "Bluetooth must open the native Windows Bluetooth surface",
     )
 
     mode_callbacks = yasb["widgets"]["glazewm_binding_mode"]["options"]["callbacks"]
@@ -83,10 +83,17 @@ for yasb_name in ("config.yaml", "custom_work_config.yaml"):
         mode_callbacks,
     )
 
-    move_hub = yasb["widgets"]["workspace_move_hub"]
-    assert move_hub["options"]["callbacks"]["on_left"] == "do_nothing", (
+    assert "workspace_move_hub" not in yasb["widgets"], (
         yasb_name,
-        "workspace mover hub must stay passive",
+        "retired workspace mover hub must stay removed",
+    )
+    assert "workspace_move_group" not in yasb["widgets"], (
+        yasb_name,
+        "workspace arrows must not depend on a fake hover group",
+    )
+    assert "workspace_move" in yasb["widgets"], (
+        yasb_name,
+        "workspace mover arrows must stay directly available",
     )
     assert "mouse-mode-toggle" not in yasb_text and "workspace_mouse" not in yasb_text, (
         yasb_name,
@@ -118,6 +125,11 @@ for name in ("config.yaml", "custom_work_config.yaml"):
         "retired Super+Alt+M mouse binding returned",
     )
     assert "mouse-mode-toggle" not in glaze_text, (name, "retired WGDot mouse helper returned")
+
+    assert '%LOCALAPPDATA%\\wgdot\\bin\\wgdotw.exe' in glaze_text, (
+        name,
+        "compiled helper hotkeys must not depend on GlazeWM's inherited PATH",
+    )
 
     expected_focus_follows_cursor = not is_work
     assert config["general"]["focus_follows_cursor"] is expected_focus_follows_cursor, (
