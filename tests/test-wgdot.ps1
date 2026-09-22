@@ -697,6 +697,10 @@ foreach ($approvedDesktopCommand in @(
     Assert-True ($nativeSourceText -match ('command == "' + [regex]::Escape($approvedDesktopCommand) + '"')) "WGDot exposes approved scoped runtime helper: $approvedDesktopCommand"
 }
 Assert-True ($nativeSourceText -match 'const int width = 380;') "launcher remains compact at 380 px"
+Assert-True ($nativeSourceText -match 'ShowScrollBar\(results\.Handle, SbVert, false\)') "launcher hides the bright native Windows vertical scrollbar"
+Assert-True ($nativeSourceText -match 'scrollTrack\.BackColor = field;') "launcher scrollbar track follows the active YASB theme"
+Assert-True ($nativeSourceText -match 'scrollThumb\.BackColor = focus;') "launcher scrollbar thumb follows the YASB focus color"
+Assert-True ($nativeSourceText -match 'setLauncherTopIndexFromTrackY') "launcher themed scrollbar remains interactive"
 Assert-True ($nativeSourceText -match '(?s)if \(String\.Equals\(source, "bar".*?return new System\.Drawing\.Point\(\s*screen\.Bounds\.Left,') "bar launcher is flush with the active display left edge"
 Assert-True ($nativeSourceText -match '(?s)bool centerScreen =.*?screen\.Bounds\.Left \+ \(\(screen\.Bounds\.Width - width\) / 2\)') "hotkey launcher retains centered placement"
 Assert-True ($nativeSourceText -match 'ResolveLauncherShortcutIconPath') "launcher resolves underlying shortcut targets for clean application icons"
