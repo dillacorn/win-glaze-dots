@@ -342,7 +342,21 @@ Assert-Contains -Text $style -Needle ".awtarchy-control-center:hover" -Message "
 Assert-Contains -Text $style -Needle ".control-center-menu" -Message "Control Center popup uses shared theme styling"
 Assert-Contains -Text $style -Needle "@import `"appearance.css`";" -Message "styles import portable appearance overrides"
 Assert-Contains -Text $style -Needle ".dnd-widget:hover" -Message "DND action has strong hover treatment"
-Assert-Contains -Text $style -Needle "font-size: 14px;" -Message "bar icon scale is normalized"
+$iconScaleBlock = [regex]::Match(
+    $style,
+    "(?ms)/\* Match Awtarchy's tuned Nerd Font glyph sizes.*?^\.awtarchy-power \.icon \{\r?\n    font-size: 20px;\r?\n\}"
+).Value
+Assert-Contains -Text $iconScaleBlock -Needle ".cpu-widget .icon" -Message "CPU glyph participates in Awtarchy icon scaling"
+Assert-Contains -Text $iconScaleBlock -Needle ".brightness-widget .icon" -Message "brightness glyph participates in Awtarchy icon scaling"
+Assert-Contains -Text $iconScaleBlock -Needle "font-size: 18px;" -Message "generic Awtarchy bar glyphs use 18 px"
+Assert-Contains -Text $iconScaleBlock -Needle ".battery-widget .icon" -Message "battery glyph has dedicated scaling"
+Assert-Contains -Text $iconScaleBlock -Needle "font-size: 17px;" -Message "battery glyph matches Awtarchy's 17 px tuning"
+Assert-Contains -Text $iconScaleBlock -Needle ".volume-widget .icon" -Message "volume glyph has dedicated scaling"
+Assert-Contains -Text $iconScaleBlock -Needle ".dnd-widget .icon" -Message "DND glyph has dedicated scaling"
+Assert-Contains -Text $iconScaleBlock -Needle "font-size: 19px;" -Message "DND glyph matches Awtarchy's 19 px tuning"
+Assert-Contains -Text $iconScaleBlock -Needle ".awtarchy-power .icon" -Message "power glyph has dedicated scaling"
+Assert-Contains -Text $style -Needle ".awtarchy-launcher .label" -Message "launcher glyph keeps a dedicated size contract"
+Assert-Contains -Text $style -Needle "font-size: 18px;" -Message "launcher/generic glyph sizing is present"
 Assert-Contains -Text $style -Needle "padding: 0 8px;" -Message "fixed action padding is retained"
 
 Assert-Contains -Text $readme -Needle "Evidence-backed mappings" -Message "feature mappings document their evidence boundary"
