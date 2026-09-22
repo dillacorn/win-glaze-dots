@@ -249,6 +249,7 @@ internal static class WgdotNative
     const byte VkL = 0x4C;
     const byte VkV = 0x56;
     const byte VkLwin = 0x5B;
+    const byte VkLmenu = 0xA4;
     const byte VkRwin = 0x5C;
 
     [DllImport("shell32.dll")]
@@ -635,6 +636,7 @@ internal static class WgdotNative
             if (command == "theme") return ThemeManagerFromArgs(args.Skip(1).ToArray());
             if (command == "theme-window-toggle") return ThemeWindowToggle();
             if (command == "clipboard-history-open") return ClipboardHistoryOpen();
+            if (command == "eartrumpet-mixer-toggle") return EarTrumpetMixerToggle();
             if (command == "launcher") return LauncherFromArgs(args.Skip(1).ToArray());
             if (command == "power-menu") return PowerMenu();
             if (command == "rawaccel-toggle") return RawAccelToggle();
@@ -7297,6 +7299,72 @@ class WgdotHidden
         // Keyboard Clipboard History stays native on Super+V. This helper exists
         // only for the YASB mouse button, where no user key chord is being held.
         SendNativeClipboardHistoryChord();
+        return 0;
+    }
+
+    static bool EarTrumpetProcessRunning()
+    {
+        Process[] processes = Process.GetProcessesByName("EarTrumpet");
+        try
+        {
+            return processes.Length > 0;
+        }
+        finally
+        {
+            foreach (Process process in processes)
+                process.Dispose();
+        }
+    }
+
+    static bool StartEarTrumpetFromStartMenu()
+    {
+        LauncherApp app = GetLauncherApps()
+            .FirstOrDefault(x => String.Equals(
+                x.Name,
+                "EarTrumpet",
+                StringComparison.OrdinalIgnoreCase));
+        if (app == null || String.IsNullOrWhiteSpace(app.Path))
+            return false;
+
+        var psi = new ProcessStartInfo();
+        psi.FileName = app.Path;
+        psi.UseShellExecute = true;
+        psi.ErrorDialog = false;
+        Process.Start(psi);
+
+        for (int i = 0; i < 60; i++)
+        {
+            if (EarTrumpetProcessRunning())
+            {
+                // Give EarTrumpet time to finish startup and register its
+                // application-owned mixer hotkey before we invoke it.
+                System.Threading.Thread.Sleep(500);
+                return true;
+            }
+
+            System.Threading.Thread.Sleep(50);
+        }
+
+        return false;
+    }
+
+    static void SendEarTrumpetMixerChord()
+    {
+        keybd_event(VkLmenu, 0, 0, UIntPtr.Zero);
+        keybd_event(VkV, 0, 0, UIntPtr.Zero);
+        keybd_event(VkV, 0, KeyeventfKeyup, UIntPtr.Zero);
+        keybd_event(VkLmenu, 0, KeyeventfKeyup, UIntPtr.Zero);
+    }
+
+    static int EarTrumpetMixerToggle()
+    {
+        if (!EarTrumpetProcessRunning() && !StartEarTrumpetFromStartMenu())
+            throw new Exception(
+                "EarTrumpet is not running and its Start Menu shortcut could not be started.");
+
+        // EarTrumpet owns Alt+V. Its registered mixer hotkey executes
+        // WindowHolder.OpenOrClose(), which gives the requested toggle behavior.
+        SendEarTrumpetMixerChord();
         return 0;
     }
 
