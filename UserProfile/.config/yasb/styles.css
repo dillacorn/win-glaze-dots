@@ -199,11 +199,11 @@ QToolTip,
     background-color: transparent;
     border: none;
     border-radius: 0;
-    font-size: 14px;
-    min-width: 14px;
+    font-size: 18px;
+    min-width: 18px;
     max-width: 28px;
     margin: 0;
-    padding: 0 7px;
+    padding: 0 6px;
 }
 
 .workspace-move-buttons .label:hover {
@@ -263,10 +263,10 @@ QToolTip,
     background-color: transparent;
     border: none;
     border-radius: 0;
-    font-size: 14px;
-    min-width: 14px;
+    font-size: 18px;
+    min-width: 18px;
     margin: 0;
-    padding: 0 5px;
+    padding: 0 4px;
 }
 
 .glazewm-tiling-direction .btn:hover {
@@ -472,6 +472,7 @@ QToolTip,
 .awtarchy-power .label {
     color: var(--foreground);
     background-color: transparent;
+    padding-bottom: 1px;
 }
 
 /* Awtarchy only renders its microphone indicator while muted.
