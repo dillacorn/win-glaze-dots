@@ -383,8 +383,7 @@ QToolTip,
     padding: 0;
 }
 
-.language-widget.awtarchy-caps-lock .widget-container,
-.language-widget.awtarchy-caps-lock .icon {
+.language-widget.awtarchy-caps-lock .widget-container {
     background-color: transparent;
     border: none;
     margin: 0;
@@ -393,9 +392,13 @@ QToolTip,
 
 .language-widget.awtarchy-caps-lock .icon {
     color: transparent;
+    background-color: transparent;
+    border: none;
     font-size: 0;
     min-width: 0;
     max-width: 0;
+    margin: 0;
+    padding: 0;
 }
 
 .language-widget.awtarchy-caps-lock .widget-container.caps-lock-on .icon {
