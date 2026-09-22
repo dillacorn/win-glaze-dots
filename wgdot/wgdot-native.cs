@@ -7473,12 +7473,14 @@ class WgdotHidden
 
         if (String.Equals(source, "bar", StringComparison.OrdinalIgnoreCase))
         {
-            return ClampLauncherLocation(
-                screen,
-                screen.Bounds.Left + 8,
-                belowBarY,
-                width,
-                height);
+            int maxY = Math.Max(
+                screen.Bounds.Top,
+                screen.Bounds.Bottom - height - 8);
+            return new System.Drawing.Point(
+                screen.Bounds.Left,
+                Math.Max(
+                    screen.Bounds.Top,
+                    Math.Min(maxY, belowBarY)));
         }
 
         return ClampLauncherLocation(
