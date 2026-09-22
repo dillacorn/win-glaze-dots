@@ -68,6 +68,7 @@ try {
             'PowerMenu',
             'BarAutoHideToggle',
             'GlazeWmBindingModeToggleFromArgs',
+            'GlazeWmWindowBehaviorToggle',
             'RawAccelToggle'
         )) {
             Require ($null -ne (Get-NativeMethod $name)) ('Approved scoped native desktop helper is missing: ' + $name)
@@ -190,6 +191,9 @@ try {
             Require ($text -match 'class_name:\s*"awtarchy-launcher"') ('Compiled launcher bar control missing: ' + $relative)
             Require ($text -match 'on_left:\s*"exec wgdotw\.exe launcher bar"') ('Launcher button does not open the bar-relative compiled surface: ' + $relative)
             Require ($text -match 'wgdotw\.exe theme-window-toggle') ('Quick Settings theme-window toggle missing: ' + $relative)
+            Require ($text -match 'wgdotw\.exe glazewm-window-behavior-toggle') ('Quick Settings floating-window toggle missing: ' + $relative)
+            Require ($text -match '(?m)^\s+columns:\s*2\s*$') ('Quick Settings must use two evenly filled columns: ' + $relative)
+            Require ($text -match '(?m)^\s+label_position:\s*"inline"\s*$') ('Quick Settings labels must render inline with icons: ' + $relative)
             Require ($text -match 'wgdotw\.exe clipboard-history-open') ('Clipboard History bar-only native Win+V helper missing: ' + $relative)
             Require ($text -notmatch 'idle_inhibitor|idle-inhibitor-(?:status|toggle|worker)') ('Retired idle inhibitor returned: ' + $relative)
             $wifiBlock = [regex]::Match($text, '(?ms)^  wifi:\r?\n.*?(?=^  bluetooth:)').Value
