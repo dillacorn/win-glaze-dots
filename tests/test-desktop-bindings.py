@@ -91,6 +91,17 @@ for yasb_name in ("config.yaml", "custom_work_config.yaml"):
         yasb_name,
         "workspace arrows must not depend on a fake hover group",
     )
+    yasb_text = yasb_path.read_text(encoding="utf-8")
+    direct_eartrumpet = "explorer.exe shell:AppsFolder\\40459File-New-Project.EarTrumpet_1sdd7yawvg6ne!EarTrumpet"
+    assert direct_eartrumpet in yasb_text, (
+        name,
+        "EarTrumpet AppsFolder launch must use the direct unquoted Windows shell form",
+    )
+    assert 'explorer.exe "shell:AppsFolder\\40459File-New-Project.EarTrumpet_1sdd7yawvg6ne!EarTrumpet"' not in yasb_text, (
+        name,
+        "quoted EarTrumpet AppsFolder launch form must not return",
+    )
+
     assert "workspace_move" in yasb["widgets"], (
         yasb_name,
         "workspace mover arrows must stay directly available",
