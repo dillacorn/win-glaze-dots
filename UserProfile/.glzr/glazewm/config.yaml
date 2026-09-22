@@ -136,7 +136,6 @@ window_rules:
       - window_process: { equals: "windhawk" }
       - window_process: { equals: "zebar" }
       - window_process: { equals: "yasb" }
-      - window_process: { equals: "Flow.Launcher" }
       - window_process: { equals: "AltSnap" }
       - window_process: { equals: "flameshot" }
       - window_process: { equals: "LiveCaptions" }
