@@ -496,7 +496,7 @@
       "fallbackGitHubRepo": "ryanoasis/nerd-fonts",
       "fallbackAssetRegex": "^Noto\\.zip$",
       "fontFile": "NotoSansMNerdFontMono-Regular.ttf",
-      "fontFamily": "NotoSansM Nerd Font Mono"
+      "fontFamily": "NotoSansM NFM"
     },
     {
       "name": "System Informer",
