@@ -293,7 +293,8 @@ Assert-Contains -Text $style -Needle ".tooltip," -Message "YASB custom rich tool
 Assert-Contains -Text $style -Needle "#353535" -Message "Awtarchy background color is retained"
 Assert-Contains -Text $style -Needle "#d0d0d0" -Message "Awtarchy foreground color is retained"
 Assert-Contains -Text $style -Needle "#ff5555" -Message "Awtarchy critical color is retained"
-Assert-Contains -Text $style -Needle "JetBrainsMono NFP" -Message "managed Nerd Font is retained"
+Assert-Contains -Text $style -Needle "NotoSansM Nerd Font Mono" -Message "Awtarchy Noto Nerd Font family is the Windows bar primary font"
+Assert-Contains -Text $style -Needle "JetBrainsMono NFP" -Message "JetBrains Mono Nerd Font remains the fallback glyph family"
 $taskContainerBlock = [regex]::Match($style, "(?ms)^\.taskbar-widget \.app-container \{\r?\n.*?^\}").Value
 Assert-Contains -Text $taskContainerBlock -Needle "min-width: 14px;" -Message "task content width matches its 14 px icon"
 Assert-Contains -Text $taskContainerBlock -Needle "max-width: 14px;" -Message "task content width remains fixed"
