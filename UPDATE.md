@@ -18,9 +18,9 @@ The maintenance menu exposes managed-dot updates, a software/startup manager, Wi
 wgdot update
 ```
 
-Normal managed-dot updates use the latest published stable WGDot-compatible release.
+Normal managed-dot updates use the latest published stable WGDot-compatible release, even if the runtime was previously used for feature-branch testing.
 
-WGDot creates adjacent backups when required, preserves unrelated files, and tracks a trusted baseline so local edits can be distinguished from upstream changes.
+WGDot creates adjacent backups when required, preserves unrelated files, verifies every managed file after writing it, and tracks a trusted baseline so local edits can be distinguished from upstream changes. After a successful non-theme update, a running GlazeWM/YASB desktop session is restarted so the newly written configuration is loaded immediately.
 
 ## Review before applying
 
@@ -44,7 +44,7 @@ Use reset when you intentionally want selected WGDot-managed files returned to t
 wgdot software
 ```
 
-This opens the **Software / startup manager**. It provides separate actions for installing/reconciling selected software, managing Windows-login startup entries, uninstalling individual applications, and disabling every WGDot-owned startup entry while keeping the applications installed.
+This opens the **Software / startup manager**. It provides separate actions for installing/reconciling selected software, managing Windows-login startup entries, uninstalling individual applications, and disabling every WGDot-owned startup entry while keeping the applications installed. Startup Applications also exposes supported apps that WGDot can positively detect as already installed even when they are not currently selected for software reconciliation; those installed-but-unselected entries default OFF until explicitly enabled.
 
 Direct commands are also available:
 
