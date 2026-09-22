@@ -474,11 +474,14 @@ Assert-True ($nativeSourceText -match 'where\.exe", "rawaccel\.exe"') "RawAccel 
 Assert-True ($nativeSourceText -match 'FirstOrDefault\(IsRawAccelGuiExecutable\)') "RawAccel resolver rejects unverified candidates"
 Assert-True ($nativeSourceText -match 'Q\(HiddenLauncherPath\(\)\) \+ " rawaccel-startup"') "RawAccel HKCU Run command uses the quoted windowless startup helper"
 Assert-True ($nativeSourceText -match 'if \(command == "rawaccel-startup"\) return RawAccelStartup\(\);') "RawAccel startup helper has an explicit native command"
+$rawAccelProcessStartBlock = [regex]::Match($nativeSourceText, '(?ms)static Process StartRawAccelGuiProcess\(\).*?^    }').Value
+Assert-True ($rawAccelProcessStartBlock -match 'psi\.FileName = exe;') "RawAccel startup launches the resolved GUI executable"
+Assert-True ($rawAccelProcessStartBlock -match 'psi\.WorkingDirectory = workingDirectory;') "RawAccel startup sets the GUI working directory"
+Assert-True ($rawAccelProcessStartBlock -match 'Path\.GetDirectoryName\(exe\)') "RawAccel startup derives working directory from the executable"
+Assert-True ($rawAccelProcessStartBlock -notmatch 'settings\.json|\.config|File\.Write') "RawAccel process launch never changes the acceleration profile/configuration"
 $rawAccelStartBlock = [regex]::Match($nativeSourceText, '(?ms)static int StartRawAccelGui\(\).*?^    }').Value
-Assert-True ($rawAccelStartBlock -match 'psi\.FileName = exe;') "RawAccel startup launches the resolved GUI executable"
-Assert-True ($rawAccelStartBlock -match 'psi\.WorkingDirectory = workingDirectory;') "RawAccel startup sets the GUI working directory"
-Assert-True ($rawAccelStartBlock -match 'Path\.GetDirectoryName\(exe\)') "RawAccel startup derives working directory from the executable"
-Assert-True ($rawAccelStartBlock -notmatch 'settings\.json|\.config|File\.Write') "RawAccel startup never changes the acceleration profile/configuration"
+Assert-True ($rawAccelStartBlock -match 'StartRawAccelGuiProcess\(\)') "RawAccel startup delegates to the shared working-directory-safe process launcher"
+Assert-True ($rawAccelStartBlock -notmatch 'SizeRawAccelHotkeyWindow') "RawAccel generic startup path does not apply hotkey-only sizing"
 Assert-True ($nativeSourceText -match 'const int RawAccelHotkeyWidth = 1200;') "RawAccel hotkey window uses the approved compact width"
 Assert-True ($nativeSourceText -match 'const int RawAccelHotkeyHeight = 900;') "RawAccel hotkey window uses the approved compact height"
 $rawAccelSizeBlock = [regex]::Match($nativeSourceText, '(?ms)static void SizeRawAccelHotkeyWindow\(.*?^    }').Value
