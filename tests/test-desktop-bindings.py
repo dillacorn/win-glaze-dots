@@ -11,6 +11,7 @@ APPROVED_WGDOT_RUNTIME = (
     "wgdot.exe theme",
     "wgdotw.exe theme-window-toggle",
     "wgdotw.exe clipboard-history-open",
+    "wgdotw.exe eartrumpet-mixer-toggle",
     "wgdotw.exe power-menu",
     "wgdotw.exe launcher",
 )
@@ -18,7 +19,7 @@ APPROVED_WGDOT_RUNTIME = (
 FORBIDDEN_WGDOT_RUNTIME = (
     "quick-launch",
     "flow-open",
-    "eartrumpet-mixer",
+    "eartrumpet-mixer ",
     "clipboard-anchor",
     "flameshot-gui",
     "display-settings",
@@ -101,19 +102,13 @@ for yasb_name in ("config.yaml", "custom_work_config.yaml"):
         "retired idle inhibitor widget must stay removed",
     )
     volume_callbacks = yasb["widgets"]["volume"]["options"]["callbacks"]
-    assert volume_callbacks["on_right"] == (
-        "exec explorer.exe shell:AppsFolder\\40459File-New-Project.EarTrumpet_725pr5jq8wr8a!EarTrumpet"
-    ), (
+    assert volume_callbacks["on_right"] == "exec wgdotw.exe eartrumpet-mixer-toggle", (
         yasb_name,
-        "volume right click must directly activate the EarTrumpet packaged app",
+        "volume right click must trigger EarTrumpet's application-owned mixer toggle",
     )
-    assert "shell:AppsFolder\\\\40459File-New-Project.EarTrumpet_725pr5jq8wr8a!EarTrumpet" not in yasb_text, (
+    assert "shell:AppsFolder" not in volume_callbacks["on_right"], (
         yasb_name,
-        "EarTrumpet AppsFolder target must not contain the retired doubled backslash",
-    )
-    assert "40459File-New-Project.EarTrumpet_1sdd7yawvg6ne!EarTrumpet" not in yasb_text, (
-        yasb_name,
-        "YASB must not use the Microsoft Store EarTrumpet family when WGDot installs the WinGet package",
+        "direct AppsFolder activation does not toggle the EarTrumpet mixer",
     )
 
     assert "workspace_move" in yasb["widgets"], (
