@@ -453,7 +453,7 @@ widgets:
       callbacks:
         on_left: "toggle_mute"
         on_middle: "toggle_label"
-        on_right: 'exec explorer.exe "shell:AppsFolder\40459File-New-Project.EarTrumpet_1sdd7yawvg6ne!EarTrumpet"'
+        on_right: 'exec explorer.exe shell:AppsFolder\40459File-New-Project.EarTrumpet_1sdd7yawvg6ne!EarTrumpet'
 
   clock:
     type: "yasb.clock.ClockWidget"
