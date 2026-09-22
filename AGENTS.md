@@ -239,7 +239,7 @@ The `feat/awtarchy-yasb-bar` work treats the current Awtarchy Quickshell bar as 
 - Prefer direct native widgets and commands over helper scripts. A missing feature should remain documented as missing rather than be simulated solely for visual parity.
 - Keep the Windows bar flat and compact around Awtarchy's current defaults: 28 px horizontal height, `#353535` background, `#d0d0d0` foreground, square controls, subtle hover/active fills, no decorative taskbar/bar animations.
 - Preserve WGDot's existing reload-free reservation model on this branch: YASB is `always_on_top: true`, `windows_app_bar: false`, and both GlazeWM profiles use the current requested 35 px top `outer_gap`. Migrating a live session to AppBar reservation would require a GlazeWM config reload; do not force that layout-disrupting reload merely for a palette/theme change.
-- Match Awtarchy's bar typography with `NotoSansM Nerd Font Mono` at 14 px. WGDot manages the exact Noto Nerd Font from the official `ryanoasis/nerd-fonts` `Noto.zip` release as a current-user font; YASB keeps `JetBrainsMono NFP` as a fallback because dots-only updates intentionally perform no software/font installation. Keep JetBrains Mono Nerd Font managed as well because Windows Terminal still uses it.
+- Match Awtarchy's bar typography with `NotoSansM Nerd Font Mono` at 14 px. WGDot manages the exact Noto Nerd Font from the official `ryanoasis/nerd-fonts` `Noto.zip` release as a current-user font; YASB keeps `JetBrainsMono NFP` as a fallback because dots-only updates intentionally perform no software/font installation. A newly installed Noto font requires YASB restart before assuming Qt has picked it up. Keep JetBrains Mono Nerd Font managed as well because Windows Terminal still uses it.
 - Normal/personal GlazeWM defaults to `focus_follows_cursor: true`; Work intentionally remains `false`. Keep that profile difference explicit and covered by tests.
 - Use YASB's native DDC/CI brightness support rather than a translated Awtarchy DDC script.
 - Keep YASB systray `use_hook: false`. Upstream documents `use_hook: true` as an `explorer.exe` DLL-injection path. Do not introduce that extra hook for cosmetic parity, especially on a gaming-oriented setup.
@@ -477,3 +477,5 @@ Do not turn this file into a changelog or duplicate the package manifest.
 
 
 - `Super+Alt+T` opens the theme selector. `Super+T` and normal global `Alt+T` toggle tiling. The `noalt` mode must retain `Super+T` tiling and `Super+Alt+T` themes but must not capture plain `Alt+T`.
+
+- All supported native YASB popup/menu offsets on the managed bar must use `offset_top: 0` so their surfaces touch the top bar. Keep the compiled launcher scrollbar theme-aware; do not restore the bright native Windows ListBox scrollbar.
