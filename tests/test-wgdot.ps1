@@ -474,7 +474,7 @@ Assert-True ($nativeSourceText -match 'where\.exe", "rawaccel\.exe"') "RawAccel 
 Assert-True ($nativeSourceText -match 'FirstOrDefault\(IsRawAccelGuiExecutable\)') "RawAccel resolver rejects unverified candidates"
 Assert-True ($nativeSourceText -match 'Q\(HiddenLauncherPath\(\)\) \+ " rawaccel-startup"') "RawAccel HKCU Run command uses the quoted windowless startup helper"
 Assert-True ($nativeSourceText -match 'if \(command == "rawaccel-startup"\) return RawAccelStartup\(\);') "RawAccel startup helper has an explicit native command"
-$rawAccelStartBlock = [regex]::Match($nativeSourceText, '(?s)static int StartRawAccelGui\(\).*?^    }').Value
+$rawAccelStartBlock = [regex]::Match($nativeSourceText, '(?ms)static int StartRawAccelGui\(\).*?^    }').Value
 Assert-True ($rawAccelStartBlock -match 'psi\.FileName = exe;') "RawAccel startup launches the resolved GUI executable"
 Assert-True ($rawAccelStartBlock -match 'psi\.WorkingDirectory = workingDirectory;') "RawAccel startup sets the GUI working directory"
 Assert-True ($rawAccelStartBlock -match 'Path\.GetDirectoryName\(exe\)') "RawAccel startup derives working directory from the executable"
