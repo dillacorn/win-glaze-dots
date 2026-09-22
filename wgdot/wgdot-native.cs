@@ -21,7 +21,7 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-72";
+    const string Version = "native-preview-73";
     const int WingetPreflightTimeoutMs = 30000;
     const string RepoFullName = "dillacorn/win-glaze-dots";
     const string RepoUrl = "https://github.com/dillacorn/win-glaze-dots.git";
@@ -7400,12 +7400,15 @@ class WgdotHidden
                 height);
         }
 
+        const int launcherBarGap = 1;
+        int belowBarY = screen.Bounds.Top + 28 + launcherBarGap;
+
         if (String.Equals(source, "bar", StringComparison.OrdinalIgnoreCase))
         {
             return ClampLauncherLocation(
                 screen,
                 screen.Bounds.Left + 8,
-                screen.Bounds.Top + 40,
+                belowBarY,
                 width,
                 height);
         }
@@ -7413,7 +7416,7 @@ class WgdotHidden
         return ClampLauncherLocation(
             screen,
             screen.Bounds.Left + ((screen.Bounds.Width - width) / 2),
-            screen.Bounds.Top + 40,
+            belowBarY,
             width,
             height);
     }
