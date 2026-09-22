@@ -533,6 +533,12 @@ Assert-True ($nativeSourceText -match '(?s)requiredRefreshCommands.*?"cursor"') 
 Assert-True ($nativeSourceText -match '(?s)requiredRefreshCommands.*?"dots-only"') "acceptance audit requires dots-only runtime auto-refresh"
 Assert-True ($nativeSourceText -match 'BuildYasbThemeCss') "compiled WGDot retains YASB theme generation for restricted Work"
 Assert-True ($nativeSourceText -match 'ApplyWindowsTerminalTheme') "compiled WGDot retains Windows Terminal theme synchronization"
+Assert-True ($nativeSourceText -match '"#9AB8D7"') "compiled WGDot retains readable ANSI blue fallback for terminal/Yazi directories"
+Assert-True ($nativeSourceText -match '"#8CD0D3"') "compiled WGDot retains readable ANSI cyan fallback for terminal/Yazi documents"
+Assert-True ($nativeSourceText -match '"#709080"') "compiled WGDot retains readable brightBlack fallback for dim terminal text"
+Assert-True ($manualText -match '"#9AB8D7"') "paste-only workflow retains readable ANSI blue fallback"
+Assert-True ($manualText -match '"#8CD0D3"') "paste-only workflow retains readable ANSI cyan fallback"
+Assert-True ($manualText -match '"#709080"') "paste-only workflow retains readable brightBlack fallback"
 Assert-True ($nativeSourceText -match 'ThemeManagerFromArgs') "compiled WGDot exposes the scoped theme manager"
 Assert-True ($nativeSourceText -notmatch 'OpenYasbQuickLaunch|OpenFlowLauncher|OpenEarTrumpetMixer|OpenWindowsClipboardHistory|OpenFlameshotGui|OpenRawAccel|OpenDisplaySettings|GlazeWmPauseToggle|ThemeToggle') "native-capable desktop helper implementations stay removed"
 Assert-True ($nativeSourceText -match 'BarAutoHideToggle') "compiled WGDot retains the approved coordinated auto-hide helper"
@@ -654,6 +660,14 @@ try {
     Assert-Equal "WGDot Electric Blue UI" ([string]$terminalSettings.theme) "PowerShell fallback selects the WGDot Terminal UI theme"
     Assert-True (@($terminalSettings.schemes | Where-Object { $_.name -eq "External" }).Count -eq 1) "PowerShell fallback preserves unrelated Terminal schemes"
     Assert-True (@($terminalSettings.schemes | Where-Object { $_.name -eq "WGDot Electric Blue" }).Count -eq 1) "PowerShell fallback writes the selected WGDot Terminal scheme"
+
+    Set-WgdotYasbTheme -Id "carbon-night" -CssPath $themeCssPath -StatePath $themeStatePath -TerminalSettingsPath $terminalSettingsPath
+    $carbonTerminalSettings = Get-Content -LiteralPath $terminalSettingsPath -Raw | ConvertFrom-Json
+    $carbonScheme = @($carbonTerminalSettings.schemes | Where-Object { $_.name -eq "WGDot Carbon Night" }) | Select-Object -First 1
+    Assert-True ($null -ne $carbonScheme) "PowerShell fallback writes Carbon Night Terminal scheme"
+    Assert-Equal "#9AB8D7" ([string]$carbonScheme.blue) "Carbon Night ANSI blue stays readable for Yazi directory names"
+    Assert-Equal "#8CD0D3" ([string]$carbonScheme.cyan) "Carbon Night ANSI cyan stays readable for Yazi PDF/document names"
+    Assert-Equal "#709080" ([string]$carbonScheme.brightBlack) "Carbon Night brightBlack stays readable for dim terminal text"
 
     $manualThemeLines = @(Get-WgdotYasbThemeManualPowerShell -Id "electric-blue")
     $manualThemeText = $manualThemeLines -join [Environment]::NewLine
