@@ -4198,7 +4198,7 @@ class WgdotHidden
         InstallationSelection selection = ReadInstallationSelection();
 
         var selectedPackages = new HashSet<string>(
-            selection == null ? new string[0] : selection.Packages,
+            selection == null ? new List<string>() : selection.Packages,
             StringComparer.OrdinalIgnoreCase);
         List<Dictionary<string, object>> packages = GetStartupPackages(manifest)
             .Where(p =>
