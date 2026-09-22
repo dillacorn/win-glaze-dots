@@ -333,7 +333,16 @@ Assert-NotContains -Text $style -Needle ".workspace-move-hub" -Message "retired 
 Assert-NotContains -Text $style -Needle ".workspace-move-grouper" -Message "workspace arrows no longer depend on a fake hover parent"
 Assert-Contains -Text $style -Needle ".workspace-move-buttons .widget-container" -Message "workspace arrow container remains styled"
 Assert-Contains -Text $style -Needle ".workspace-move-buttons .label" -Message "workspace arrows remain directly visible"
-Assert-Contains -Text $style -Needle "padding: 0 7px;" -Message "workspace arrows keep compact button spacing"
+Assert-Contains -Text $config -Needle 'icon: ""' -Message "workspace up action uses the stronger Nerd Font arrow"
+Assert-Contains -Text $config -Needle 'icon: ""' -Message "workspace down action uses the stronger Nerd Font arrow"
+Assert-Contains -Text $config -Needle 'icon: ""' -Message "workspace left action uses the stronger Nerd Font arrow"
+Assert-Contains -Text $config -Needle 'icon: ""' -Message "workspace right action uses the stronger Nerd Font arrow"
+$workspaceArrowStyle = [regex]::Match($style, "(?ms)^\.workspace-move-buttons \.label \{\r?\n.*?^\}").Value
+Assert-Contains -Text $workspaceArrowStyle -Needle "font-size: 18px;" -Message "workspace move arrows use the larger glyph size"
+Assert-Contains -Text $workspaceArrowStyle -Needle "padding: 0 6px;" -Message "workspace arrows retain compact spacing after enlargement"
+$tilingArrowStyle = [regex]::Match($style, "(?ms)^\.glazewm-tiling-direction \.btn \{\r?\n.*?^\}").Value
+Assert-Contains -Text $tilingArrowStyle -Needle "font-size: 18px;" -Message "tiling-direction arrows match the enlarged move controls"
+Assert-Contains -Text $style -Needle "padding-bottom: 1px;" -Message "right-side text keeps the confirmed one-pixel visual alignment adjustment"
 Assert-Contains -Text $style -Needle ".awtarchy-launcher .icon" -Message "compiled launcher button icon is styled"
 Assert-Contains -Text $style -Needle ".awtarchy-launcher .widget-container" -Message "compiled launcher gets a stable button-width contract"
 Assert-Contains -Text $style -Needle ".awtarchy-launcher .label" -Message "compiled launcher glyph gets horizontal breathing room"
