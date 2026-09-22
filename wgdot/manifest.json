@@ -308,16 +308,6 @@
       "defaultWork": true
     },
     {
-      "name": "Flow Launcher",
-      "id": "Flow-Launcher.Flow-Launcher",
-      "category": "desktop",
-      "defaultNormal": false,
-      "defaultWork": false,
-      "fallbackGitHubRepo": "Flow-Launcher/Flow.Launcher",
-      "fallbackAssetRegex": "^Flow-Launcher-Setup\\.exe$",
-      "wingetInstallTimeoutSeconds": 180
-    },
-    {
       "name": "EarTrumpet",
       "id": "File-New-Project.EarTrumpet",
       "category": "desktop",
