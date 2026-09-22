@@ -341,7 +341,10 @@ $workspaceArrowStyle = [regex]::Match($style, "(?ms)^\.workspace-move-buttons \.
 Assert-Contains -Text $workspaceArrowStyle -Needle "font-size: 18px;" -Message "workspace move arrows use the larger glyph size"
 Assert-Contains -Text $workspaceArrowStyle -Needle "padding: 0 6px;" -Message "workspace arrows retain compact spacing after enlargement"
 $tilingArrowStyle = [regex]::Match($style, "(?ms)^\.glazewm-tiling-direction \.btn \{\r?\n.*?^\}").Value
-Assert-Contains -Text $tilingArrowStyle -Needle "font-size: 18px;" -Message "tiling-direction arrows match the enlarged move controls"
+Assert-Contains -Text $tilingArrowStyle -Needle "font-size: 14px;" -Message "tiling-direction indicator remains compact"
+Assert-Contains -Text $tilingArrowStyle -Needle "min-width: 26px;" -Message "tiling-direction indicator has a stable centered slot"
+Assert-Contains -Text $tilingArrowStyle -Needle "max-width: 26px;" -Message "tiling-direction indicator slot remains fixed-width"
+Assert-Contains -Text $tilingArrowStyle -Needle "padding: 0 0 1px 0;" -Message "tiling-direction indicator uses the centered baseline correction"
 Assert-Contains -Text $style -Needle "padding-bottom: 1px;" -Message "right-side text keeps the confirmed one-pixel visual alignment adjustment"
 Assert-Contains -Text $style -Needle ".awtarchy-launcher .icon" -Message "compiled launcher button icon is styled"
 Assert-Contains -Text $style -Needle ".awtarchy-launcher .widget-container" -Message "compiled launcher gets a stable button-width contract"
