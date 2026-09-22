@@ -37,7 +37,7 @@ prepend_keymap = [
   { on = ["c", "y"],  run = ["yank", "plugin system-clipboard"], desc = "Copy file(s) to system clipboard" },
 
   # File ops
-  { on = ["n"],       run = "create --interactive", desc = "New file/dir" },
+  # Creation/search stay on Yazi defaults: a=create, /=find, n/N=next/previous match.
   { on = ["r"],       run = "rename",               desc = "Rename" },
   { on = ["d", "d"], run = "remove",               desc = "Trash selection" },
 

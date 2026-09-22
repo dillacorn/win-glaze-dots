@@ -63,6 +63,23 @@ Assert-True ($yaziKeymapText -match 'on = \["g", "g"\], run = "arrow top"') "Yaz
 Assert-True ($yaziKeymapText -match 'on = \["G"\],\s+run = "arrow bot"') "Yazi G still jumps to bottom"
 Assert-True ($yaziKeymapText -notmatch 'run = "arrow -1"') "Yazi old non-wrapping previous navigation is removed"
 Assert-True ($yaziKeymapText -notmatch 'run = "arrow 1"') "Yazi old non-wrapping next navigation is removed"
+Assert-True ($yaziKeymapText -notmatch 'on = \["n"\]') "Yazi n is inherited from native find-next instead of custom create"
+Assert-True ($yaziKeymapText -notmatch 'create --interactive') "Yazi no longer duplicates create on n"
+Assert-True ($yaziKeymapText -match 'on = \["\?"\],\s+run = "help"') "Yazi custom question-mark help binding is intentionally preserved"
+$yaziConfigPath = Join-Path $repoRoot "UserProfile\AppData\Roaming\yazi\config\yazi.toml"
+$yaziConfigText = Get-Content -LiteralPath $yaziConfigPath -Raw
+Assert-True ($yaziConfigText -match '(?m)^linemode = "size_and_mtime"\r?$') "Yazi starts with combined size and modified-date linemode"
+$yaziInitPath = Join-Path $repoRoot "UserProfile\AppData\Roaming\yazi\config\init.lua"
+$yaziInitText = Get-Content -LiteralPath $yaziInitPath -Raw
+Assert-True ($yaziInitText -notmatch '(?m)^\s*#') "Yazi init.lua rejects shell-style hash comments"
+Assert-True ($yaziInitText -match 'function Linemode:size_and_mtime\(\)') "Yazi custom size/date linemode is defined"
+Assert-True ($yaziInitText -match 'ya\.readable_size\(size\)') "Yazi combined linemode uses native readable file sizes"
+Assert-True ($yaziInitText -match 'self\._file\.cha\.mtime') "Yazi combined linemode uses the current stable Yazi file cha mtime API"
+Assert-True ($yaziInitText -notmatch 'self\._file\.stat\.mtime') "Yazi combined linemode does not use the incompatible stat mtime field"
+Assert-True ($yaziInitText -match '"%d/%d/%02d"') "Yazi modified dates use compact M/D/YY formatting"
+Assert-True ($yaziInitText -match '"%9s  %8s"') "Yazi size/date fields stay aligned with date at the far right"
+$yaziComponent = $manifest.components | Where-Object { $_.id -eq "yazi" } | Select-Object -First 1
+Assert-True (@($yaziComponent.files | Where-Object { $_.id -eq "yazi-init" }).Count -eq 1) "Yazi init.lua is a managed config file"
 Assert-True ($componentIds -notcontains "desktop-scripts") "obsolete desktop scripts component is removed"
 
 $yasb = $manifest.components | Where-Object { $_.id -eq "yasb" } | Select-Object -First 1
