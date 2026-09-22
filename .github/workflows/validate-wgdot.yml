@@ -203,7 +203,7 @@ jobs:
             '' \
             '- Managed-dot update/reset now resolve the published stable release, verify managed files after writing them, report actual applied paths, and restart a running GlazeWM/YASB desktop session after non-theme changes so the new configuration is loaded.' \
             '- RawAccel is available as an optional Startup Applications entry when selected or positively detected as installed. It remains default OFF and its remembered startup choice does not change the RawAccel acceleration profile.' \
-            '- Yazi now shows the highlighted item'''s full modified timestamp in the bottom status. It defaults to 24-hour time; `m t` toggles persistent 24h/12h display and is documented in Yazi Help.' \
+            '- Yazi now shows a full modified timestamp for the highlighted item in the bottom status. It defaults to 24-hour time; `m t` toggles persistent 24h/12h display and is documented in Yazi Help.' \
             '' \
             '## Validation' \
             '' \
