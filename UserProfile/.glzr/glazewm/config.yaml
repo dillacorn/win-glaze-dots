@@ -9,7 +9,7 @@ general:
   toggle_workspace_on_refocus: false
   cursor_jump:
     enabled: true
-    trigger: "window_focus"
+    trigger: "monitor_focus"
   hide_method: "cloak"
   show_all_in_taskbar: true
 
