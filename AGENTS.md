@@ -133,6 +133,48 @@ A Git branch is not a stable release.
 
 Do not treat pre-WGDot releases as WGDot-compatible merely because they are published.
 
+### Stable release notes
+
+Inspect the latest published stable release for release-specific context, but do not blindly copy its structure or repeat setup instructions that already belong in the canonical guides. `INSTALL.md` and `UPDATE.md` are the canonical user instructions for installation and maintenance; release notes should link to them instead of duplicating them.
+
+A normal WGDot stable release body must include:
+
+- the release title and a short overview of the release;
+- an **Install and update** section near the top linking to the canonical `main` versions of `INSTALL.md` and `UPDATE.md`;
+- the **Install** link before the **Update** link;
+- concise feature/change bullets appropriate to the release;
+- validation claims only when grounded in tests, CI, or runtime checks that actually passed for the release target.
+
+Release notes should remain proportionate to the release. Keep routine patch/minor releases concise and user-facing. Debugging chronology, temporary implementation details, and internal test-by-test narration belong in issues, PRs, or commit history instead.
+
+Installation and update procedures belong in `INSTALL.md` and `UPDATE.md`. Repeat procedural detail in release notes only when that release itself changes the procedure and users need migration-specific instructions.
+
+A GitHub release, Git tag, branch, release body, and repository documentation are different targets. When working on a release:
+
+- identify the exact release/tag first;
+- inspect the published target and current body before writing;
+- edit only the requested release artifact;
+- do not move, recreate, or delete a tag merely to change release notes;
+- do not substitute `README.md`, `INSTALL.md`, `UPDATE.md`, another branch, or another release for the requested release body;
+- do not increment the version unless explicitly requested;
+- after a write, re-read the complete published release body and verify the release name, draft/prerelease state, target commit, and tag SHA are unchanged unless the task explicitly changes them.
+
+### Editing or creating releases when the connected GitHub tool lacks release-write actions
+
+If the exact GitHub release must be created or edited but the connected GitHub tool does not expose the required Release mutation, do not declare the release inaccessible and do not substitute another repository target. Use the proven one-use GitHub Actions release bridge when the repository permits it.
+
+- Start from the exact current `main` commit on an isolated temporary helper branch. Do not merge the helper branch merely to create or edit release metadata.
+- Add a narrowly guarded one-use job to an existing PR-triggered workflow on that helper branch, then open a specifically named temporary PR to trigger it.
+- Guard the job on the exact PR title, head branch, base branch, and `pull_request` event.
+- Use YAML-safe folded expressions for guards when strings contain characters such as `:`; invalid workflow YAML will prevent Actions from registering the run.
+- Give only the one-use release job `permissions: contents: write`; keep repository-wide workflow permissions unchanged.
+- For an existing release edit, use `gh release view` first and derive the new body from the currently published body so unrelated sections are preserved.
+- Update only the existing release body with `gh release edit <tag> --notes-file <file>`. Never recreate, delete, or move the tag/release just to change notes.
+- For release creation, verify the intended target commit and tag do not already exist before `gh release create`; refuse to replace an existing release/tag unless explicitly requested.
+- Immediately re-read the release with `gh release view`, compare the complete published body to the intended body, and verify the tag SHA plus release metadata.
+- Close the temporary PR without merging and delete the helper branch/workflow machinery after successful verification.
+- If a direct authenticated Release create/update action is available in the current tool surface, prefer it over the temporary bridge.
+
 ## Git-testing model
 
 Git testing is explicit maintainer/developer behavior.
