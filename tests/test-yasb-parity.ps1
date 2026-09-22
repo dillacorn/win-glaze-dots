@@ -170,7 +170,8 @@ Assert-Contains $config "yasb.dnd.DndWidget" "unified notifications and Do Not D
 Assert-NotContains $config "yasb.notifications.NotificationsWidget" "separate Notifications widget stays removed after DND unification"
 Assert-Contains $config "on_left: `"exec notification_center`"" "unified DND left click opens Windows Notification Center through YASB native exec mapping"
 Assert-Contains $config "on_right: `"toggle_status`"" "unified DND right click uses its native DND toggle callback"
-Assert-Contains $config "shell:AppsFolder\40459File-New-Project.EarTrumpet_1sdd7yawvg6ne!EarTrumpet" "audio right click launches current EarTrumpet directly"
+Assert-Contains $config "explorer.exe shell:AppsFolder\40459File-New-Project.EarTrumpet_1sdd7yawvg6ne!EarTrumpet" "audio right click launches current EarTrumpet through the documented direct AppsFolder form"
+Assert-NotContains $config 'explorer.exe "shell:AppsFolder\40459File-New-Project.EarTrumpet_1sdd7yawvg6ne!EarTrumpet"' "quoted AppsFolder argument that opened Explorer/Documents stays retired"
 Assert-Contains $config "normal: `"`"" "unmuted microphone glyph is collapsed like Awtarchy"
 $mutedMicBlock = [regex]::Match($style, '(?ms)^\.microphone-widget \.label\.muted,\r?\n\.microphone-widget \.icon\.muted \{\r?\n.*?^\}').Value
 Assert-Contains $mutedMicBlock "padding: 0 8px;" "muted microphone keeps Awtarchy's 8 px horizontal control padding"
@@ -360,3 +361,6 @@ Assert-Contains -Text $readme -Needle "#a1a1a1" -Message "neutral GlazeWM border
 Assert-Contains -Text $readme -Needle "does **not** reload GlazeWM" -Message "theme changes remain reload-free"
 
 Write-Host "YASB parity checks passed." -ForegroundColor Green
+
+Assert-Contains $nativeSourceText "const int width = 380;" "launcher window stays compact at the 380 px target"
+Assert-Contains $nativeSourceText "ResolveLauncherShortcutIconPath" "launcher resolves shortcut targets before drawing application icons"
