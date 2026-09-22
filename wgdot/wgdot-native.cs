@@ -3963,7 +3963,7 @@ class WgdotHidden
         }
 
         if (String.Equals(handler, "eartrumpet", StringComparison.OrdinalIgnoreCase))
-            return "explorer.exe \"shell:AppsFolder\\40459File-New-Project.EarTrumpet_1sdd7yawvg6ne!EarTrumpet\"";
+            return "explorer.exe shell:AppsFolder\\40459File-New-Project.EarTrumpet_1sdd7yawvg6ne!EarTrumpet";
 
         if (String.Equals(handler, "rawaccel", StringComparison.OrdinalIgnoreCase))
         {
