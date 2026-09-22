@@ -214,7 +214,7 @@ binding_modes:
         bindings: ["lwin+alt+p", "rwin+alt+p"]
       - commands: ['shell-exec %LOCALAPPDATA%\wgdot\bin\wgdotw.exe power-menu']
         bindings: ["lwin+p", "rwin+p"]
-      - commands: ['shell-exec explorer.exe "shell:AppsFolder\40459File-New-Project.EarTrumpet_1sdd7yawvg6ne!EarTrumpet"']
+      - commands: ['shell-exec explorer.exe shell:AppsFolder\40459File-New-Project.EarTrumpet_1sdd7yawvg6ne!EarTrumpet']
         bindings: ["lwin+v", "rwin+v"]
       - commands: ['shell-exec %LOCALAPPDATA%\wgdot\bin\wgdotw.exe clipboard-anchor hotkey']
         bindings: ["lwin+c", "rwin+c"]
@@ -453,7 +453,7 @@ keybindings:
   - commands: ["wm-enable-binding-mode --name vm"]
     bindings: ["lwin+alt+v", "rwin+alt+v"]
 
-  - commands: ['shell-exec explorer.exe "shell:AppsFolder\40459File-New-Project.EarTrumpet_1sdd7yawvg6ne!EarTrumpet"']
+  - commands: ['shell-exec explorer.exe shell:AppsFolder\40459File-New-Project.EarTrumpet_1sdd7yawvg6ne!EarTrumpet']
     bindings: ["alt+v", "lwin+v", "rwin+v"]
 
   - commands: ['shell-exec %LOCALAPPDATA%\wgdot\bin\wgdotw.exe clipboard-anchor hotkey']
