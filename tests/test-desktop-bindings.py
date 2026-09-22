@@ -94,11 +94,11 @@ for yasb_name in ("config.yaml", "custom_work_config.yaml"):
     yasb_text = yasb_path.read_text(encoding="utf-8")
     direct_eartrumpet = "explorer.exe shell:AppsFolder\\40459File-New-Project.EarTrumpet_1sdd7yawvg6ne!EarTrumpet"
     assert direct_eartrumpet in yasb_text, (
-        name,
+        yasb_name,
         "EarTrumpet AppsFolder launch must use the direct unquoted Windows shell form",
     )
     assert 'explorer.exe "shell:AppsFolder\\40459File-New-Project.EarTrumpet_1sdd7yawvg6ne!EarTrumpet"' not in yasb_text, (
-        name,
+        yasb_name,
         "quoted EarTrumpet AppsFolder launch form must not return",
     )
 
