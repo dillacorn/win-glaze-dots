@@ -9,6 +9,7 @@ $manualPath = Join-Path $repoRoot "MANUAL_POWERSHELL.md"
 $nativeBootstrapPath = Join-Path $repoRoot "wgdot\\bootstrap.cmd"
 $nativeSourcePath = Join-Path $repoRoot "wgdot\\wgdot-native.cs"
 $installSoftwarePath = Join-Path $repoRoot "install_software.md"
+$legacyThemeSwitcherPath = Join-Path $repoRoot "UserProfile\.config\win-glaze\scripts\theme-switcher.ps1"
 
 function Assert-True {
     param([bool]$Condition, [string]$Message)
@@ -29,6 +30,12 @@ Assert-True ($nativeBootstrapText -match 'System\.Windows\.Forms\.dll') "native 
 Assert-True ($nativeBootstrapText -match 'System\.Drawing\.dll') "native bootstrap references System.Drawing for the WGDot power overlay"
 Assert-True (Test-Path -LiteralPath $nativeSourcePath -PathType Leaf) "native bootstrap source exists"
 Assert-True (Test-Path -LiteralPath $installSoftwarePath -PathType Leaf) "software guide exists"
+Assert-True (Test-Path -LiteralPath $legacyThemeSwitcherPath -PathType Leaf) "legacy theme switcher source exists"
+$legacyThemeSwitcherText = Get-Content -LiteralPath $legacyThemeSwitcherPath -Raw
+[scriptblock]::Create($legacyThemeSwitcherText) | Out-Null
+Assert-True ($legacyThemeSwitcherText -match '#9AB8D7') "legacy theme switcher keeps readable ANSI blue fallback"
+Assert-True ($legacyThemeSwitcherText -match '#8CD0D3') "legacy theme switcher keeps readable ANSI cyan fallback"
+Assert-True ($legacyThemeSwitcherText -match '#709080') "legacy theme switcher keeps readable brightBlack fallback"
 $installSoftwareText = Get-Content -LiteralPath $installSoftwarePath -Raw
 Assert-True ($installSoftwareText -match 'Noto Nerd Font') "software guide documents the managed Awtarchy-matching Noto font"
 Assert-True ($installSoftwareText -match 'Open-Shell remains selectable but defaults OFF') "software guide documents Open-Shell default-off behavior"
