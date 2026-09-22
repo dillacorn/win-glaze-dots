@@ -84,6 +84,7 @@ Firefox's Windows extension-policy registry mutation and registry-heavy Windows 
 - **ImageMagick** — `ImageMagick.ImageMagick`
 - **GlazeWM** — `glzr-io.glazewm`
 - **JetBrains Mono Nerd Font** — `DEVCOM.JetBrainsMonoNerdFont`
+- **Noto Nerd Font** — managed from the official `ryanoasis/nerd-fonts` `Noto.zip` archive for the Awtarchy-matching `NotoSansM Nerd Font Mono` bar family
 - **Open-Shell** — `Open-Shell.Open-Shell-Menu`
 
 ## Optional packages by category
