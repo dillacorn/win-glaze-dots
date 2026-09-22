@@ -120,10 +120,10 @@ for name in ("config.yaml", "custom_work_config.yaml"):
     assert "mouse-mode-toggle" not in glaze_text, (name, "retired WGDot mouse helper returned")
 
     expected_focus_follows_cursor = not is_work
-    assert config["focus_behavior"]["focus_follows_cursor"] is expected_focus_follows_cursor, (
+    assert config["general"]["focus_follows_cursor"] is expected_focus_follows_cursor, (
         name,
         "focus_follows_cursor profile default regressed",
-        config["focus_behavior"]["focus_follows_cursor"],
+        config["general"]["focus_follows_cursor"],
     )
 
     for mode, bindings in [("normal", config["keybindings"]), ("noalt", modes["noalt"])]:
