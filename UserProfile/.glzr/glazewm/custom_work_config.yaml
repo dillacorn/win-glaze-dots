@@ -226,8 +226,6 @@ binding_modes:
         bindings: ["lwin+t", "rwin+t"]
       - commands: ["shell-exec explorer.exe ms-settings:display"]
         bindings: ["lwin+ctrl+m", "rwin+ctrl+m"]
-      - commands: ["shell-exec \"C:\\Program Files\\Flameshot\\bin\\flameshot.exe\" gui"]
-        bindings: ["lwin+shift+x", "rwin+shift+x"]
       - commands: ['shell-exec %LOCALAPPDATA%\wgdot\bin\wgdotw.exe rawaccel-toggle']
         bindings: ["lwin+shift+m", "rwin+shift+m"]
       - commands: ["shell-exec wt.exe -w new"]
@@ -331,8 +329,6 @@ binding_modes:
       - commands: ["shell-exec calc.exe"]
         bindings: ["lwin+alt+c", "rwin+alt+c"]
 
-      - commands: ["shell-exec \"C:\\Program Files\\Flameshot\\bin\\flameshot.exe\" gui"]
-        bindings: ["lwin+alt+s", "rwin+alt+s"]
 
       - commands: ["shell-exec wt.exe -w new"]
         bindings: ["lwin+alt+enter", "rwin+alt+enter"]
@@ -387,8 +383,6 @@ keybindings:
 
 
 
-  - commands: ["shell-exec \"C:\\Program Files\\Flameshot\\bin\\flameshot.exe\" gui"]
-    bindings: ["lwin+shift+x", "rwin+shift+x"]
 
   - commands: ['shell-exec %LOCALAPPDATA%\wgdot\bin\wgdotw.exe rawaccel-toggle']
     bindings: ["lwin+shift+m", "rwin+shift+m"]
