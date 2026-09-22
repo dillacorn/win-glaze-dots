@@ -155,3 +155,91 @@ jobs:
         run: |
           set "WGDOT_TEST_ROOT=%TEMP%\wgdot-native-maintenance-state"
           "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" maintenance-self-test
+
+  release-create-v452:
+    if: >-
+      ${{ github.event_name == 'pull_request' &&
+          github.event.pull_request.title == 'Temporary release bridge: create WGDot v4.5.2' &&
+          github.event.pull_request.head.ref == 'release-bridge-v452' &&
+          github.event.pull_request.base.ref == 'main' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TARGET_SHA: 1a2925b87d2bc9e90679668030a25fad13ba6d08
+      RELEASE_TAG: v4.5.2
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify release target and absence
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
+          test "$actual" = "$TARGET_SHA"
+          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release already exists: $RELEASE_TAG" >&2
+            exit 1
+          fi
+          if gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/$RELEASE_TAG" >/dev/null 2>&1; then
+            echo "Tag already exists: $RELEASE_TAG" >&2
+            exit 1
+          fi
+      - name: Build release notes
+        shell: bash
+        run: |
+          notes="$RUNNER_TEMP/release-notes.md"
+          printf '%s\n' \
+            '# WGDot v4.5.2' \
+            '' \
+            'WGDot v4.5.2 improves managed-dot update reliability, Yazi file metadata, and startup management.' \
+            '' \
+            '## Install and update' \
+            '' \
+            '- **Install:** [INSTALL.md](https://github.com/dillacorn/win-glaze-dots/blob/main/INSTALL.md)' \
+            '- **Update:** [UPDATE.md](https://github.com/dillacorn/win-glaze-dots/blob/main/UPDATE.md)' \
+            '' \
+            '## Changes' \
+            '' \
+            '- Managed-dot update/reset now resolve the published stable release, verify managed files after writing them, report actual applied paths, and restart a running GlazeWM/YASB desktop session after non-theme changes so the new configuration is loaded.' \
+            '- RawAccel is available as an optional Startup Applications entry when selected or positively detected as installed. It remains default OFF and its remembered startup choice does not change the RawAccel acceleration profile.' \
+            '- Yazi now shows the highlighted item'''s full modified timestamp in the bottom status. It defaults to 24-hour time; `m t` toggles persistent 24h/12h display and is documented in Yazi Help.' \
+            '' \
+            '## Validation' \
+            '' \
+            '- Exact release target: `1a2925b87d2bc9e90679668030a25fad13ba6d08`.' \
+            '- All four `Validate WGDot` jobs passed on the exact merged `main` target.' \
+            '- The maintainer visually approved the Yazi modified-time presentation on the test branch before merge.' \
+            > "$notes"
+          test -s "$notes"
+      - name: Create and verify release
+        shell: bash
+        run: |
+          set -euo pipefail
+          notes="$RUNNER_TEMP/release-notes.md"
+          gh release create "$RELEASE_TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$TARGET_SHA" \
+            --title 'WGDot v4.5.2' \
+            --notes-file "$notes"
+          tag="$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json tagName --jq '.tagName')"
+          name="$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json name --jq '.name')"
+          target="$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json targetCommitish --jq '.targetCommitish')"
+          draft="$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq '.isDraft')"
+          prerelease="$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json isPrerelease --jq '.isPrerelease')"
+          tag_sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/$RELEASE_TAG" --jq '.object.sha')"
+          test "$tag" = "$RELEASE_TAG"
+          test "$name" = 'WGDot v4.5.2'
+          test "$target" = "$TARGET_SHA"
+          test "$draft" = 'false'
+          test "$prerelease" = 'false'
+          test "$tag_sha" = "$TARGET_SHA"
+          published="$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json body --jq '.body')"
+          intended="$(cat "$notes")"
+          test "$published" = "$intended"
+      - name: Remove helper branch
+        if: ${{ success() }}
+        shell: bash
+        run: |
+          gh api -X DELETE "repos/${GITHUB_REPOSITORY}/git/refs/heads/release-bridge-v452"
+
