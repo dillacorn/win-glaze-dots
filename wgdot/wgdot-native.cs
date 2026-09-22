@@ -7290,10 +7290,7 @@ class WgdotHidden
         psi.UseShellExecute = true;
         psi.ErrorDialog = false;
 
-        Process started = Process.Start(psi);
-        if (started == null)
-            throw new Exception("Windows Shell did not launch " + app.Name + ".");
-
+        Process.Start(psi);
         form.Close();
     }
 
