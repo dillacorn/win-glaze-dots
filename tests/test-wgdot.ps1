@@ -694,6 +694,10 @@ foreach ($approvedDesktopCommand in @(
 )) {
     Assert-True ($nativeSourceText -match ('command == "' + [regex]::Escape($approvedDesktopCommand) + '"')) "WGDot exposes approved scoped runtime helper: $approvedDesktopCommand"
 }
+Assert-True ($nativeSourceText -match 'const int width = 380;') "launcher remains compact at 380 px"
+Assert-True ($nativeSourceText -match 'ResolveLauncherShortcutIconPath') "launcher resolves underlying shortcut targets for clean application icons"
+Assert-True ($nativeSourceText -match 'return "explorer\.exe shell:AppsFolder\\40459File-New-Project\.EarTrumpet_1sdd7yawvg6ne!EarTrumpet";') "EarTrumpet startup uses the documented direct AppsFolder launch form"
+Assert-True ($nativeSourceText -notmatch 'return "explorer\.exe \\"shell:AppsFolder\\40459File-New-Project\.EarTrumpet_1sdd7yawvg6ne!EarTrumpet\\"";') "quoted EarTrumpet AppsFolder launch form stays retired"
 Assert-True ($nativeSourceText -match 'ApplicationDataManager\.CreateForPackageFamily') "EarTrumpet AppX settings use Windows packaged LocalSettings"
 Assert-True ($nativeSourceText -match '40459File-New-Project\.EarTrumpet_1sdd7yawvg6ne') "EarTrumpet package family is explicit"
 Assert-True ($nativeSourceText -match 'ApplyClassicContextMenu') "native runtime manages classic context menu"
