@@ -280,23 +280,23 @@ for name in ("config.yaml", "custom_work_config.yaml"):
             for command in binding["commands"]
         ), (name, mode, "retired EarTrumpet/clipboard hotkey bridges returned")
 
-        flameshot_keys = {
-            key
+        assert not any(
+            "flameshot.exe" in command.lower()
             for binding in bindings
-            if any("C:\\Program Files\\Flameshot\\bin\\flameshot.exe" in command for command in binding["commands"])
-            for key in binding["bindings"]
-        }
-        assert {"lwin+shift+x", "rwin+shift+x"} <= flameshot_keys, (
+            for command in binding["commands"]
+        ), (name, mode, "GlazeWM must leave Flameshot activation to Flameshot itself")
+        all_keys = {key for binding in bindings for key in binding["bindings"]}
+        assert {"lwin+shift+x", "rwin+shift+x", "lwin+alt+s", "rwin+alt+s"}.isdisjoint(all_keys), (
             name,
             mode,
-            "Super+Shift+X must launch Flameshot from its installed path",
-            flameshot_keys,
+            "GlazeWM must not own Flameshot screenshot chords",
+            all_keys,
         )
-        assert "lwin+shift+s" not in flameshot_keys and "rwin+shift+s" not in flameshot_keys, (
+        assert "lwin+shift+s" not in all_keys and "rwin+shift+s" not in all_keys, (
             name,
             mode,
             "Super+Shift+S must remain native Windows Snipping Tool",
-            flameshot_keys,
+            all_keys,
         )
 
         rawaccel_keys = {
