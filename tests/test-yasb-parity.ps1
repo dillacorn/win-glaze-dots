@@ -340,7 +340,7 @@ Assert-Contains -Text $readme -Needle "WGDot manages installation, updates, back
 Assert-Contains -Text $readme -Needle "hybrid" -Message "hybrid runtime ownership is documented"
 Assert-Contains -Text $readme -Needle "wgdotw.exe launcher bar" -Message "compiled launcher bar ownership is documented"
 Assert-Contains -Text $readme -Needle "Alt+P" -Message "compiled launcher hotkeys are documented"
-Assert-Contains -Text $readme -Needle "Flow Launcher remains optional" -Message "Flow Launcher optional status is documented"
+Assert-NotContains -Text $readme -Needle "Flow Launcher remains optional" -Message "retired Flow Launcher is no longer advertised by YASB docs"
 Assert-Contains -Text $readme -Needle 'no `.ps1` runtime dependencies' -Message "script-free Normal and Work runtime is documented"
 Assert-Contains -Text $readme -Needle "wgdot.exe theme" -Message "compiled theme selector is documented"
 Assert-Contains -Text $readme -Needle "wgdotw.exe bar-autohide-toggle" -Message "compiled coordinated auto-hide is documented"
