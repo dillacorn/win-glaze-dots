@@ -21,7 +21,7 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-71";
+    const string Version = "native-preview-72";
     const int WingetPreflightTimeoutMs = 30000;
     const string RepoFullName = "dillacorn/win-glaze-dots";
     const string RepoUrl = "https://github.com/dillacorn/win-glaze-dots.git";
@@ -609,6 +609,7 @@ internal static class WgdotNative
             if (command == "git-update") return GitManagedFromArgs("update", args.Skip(1).ToArray());
             if (command == "git-reset") return GitManagedFromArgs("reset", args.Skip(1).ToArray());
             if (command == "apply-tweak") return ApplyTweakFromArgs(args.Skip(1).ToArray());
+            if (command == "restore-clipboard-history") return RestorePrivacySexyClipboardHistory();
             if (command == "migrate-legacy-hotkeys") return MigrateLegacyWindowsShellHotkeys(true);
             if (command == "mark-runtime") return MarkRuntimeFromArgs(args.Skip(1).ToArray());
             if (command == "runtime-swap-stop") return RuntimeSwapStopFromArgs(args.Skip(1).ToArray());
@@ -6470,7 +6471,192 @@ class WgdotHidden
             RunPrivacySexy();
             return;
         }
+        if (String.Equals(id, "restore-clipboard-history", StringComparison.OrdinalIgnoreCase))
+        {
+            RestorePrivacySexyClipboardHistory();
+            return;
+        }
         throw new Exception("Unknown WGDot action tweak: " + id);
+    }
+
+    static int RestorePrivacySexyClipboardHistory()
+    {
+        if (!IsAdministrator())
+        {
+            Console.WriteLine();
+            Console.WriteLine("Restoring Windows Clipboard History needs administrator approval for the Windows policy/service changes.");
+            int exitCode = RunElevatedSelfWithExitCode("restore-clipboard-history");
+            if (exitCode != 0)
+                throw new Exception(
+                    "Elevated Clipboard History restore failed with exit code " +
+                    exitCode.ToString(CultureInfo.InvariantCulture) + ".");
+            return 0;
+        }
+
+        WriteTitle("Restore Windows Clipboard History");
+        bool changed = false;
+
+        changed |= EnableClipboardHistoryUserSetting();
+        changed |= RemovePrivacySexyClipboardHistoryPolicy();
+        changed |= RestorePrivacySexyClipboardServices();
+
+        RefreshShellSettings();
+
+        Console.WriteLine();
+        Console.ForegroundColor = ConsoleColor.Green;
+        Console.WriteLine(changed
+            ? "Windows Clipboard History settings were restored."
+            : "Windows Clipboard History was not currently disabled by the known privacy.sexy settings.");
+        Console.ResetColor();
+        Console.WriteLine("Cross-device clipboard sync settings were not changed.");
+        Console.WriteLine("If Win+V still shows no history in this session, restart Windows once so cbdhsvc is recreated with its restored startup mode.");
+        return 0;
+    }
+
+    static bool EnableClipboardHistoryUserSetting()
+    {
+        const string path = @"Software\Microsoft\Clipboard";
+        const string name = "EnableClipboardHistory";
+
+        object current = null;
+        using (RegistryKey key = Registry.CurrentUser.OpenSubKey(path, false))
+        {
+            if (key != null)
+                current = key.GetValue(name, null, RegistryValueOptions.DoNotExpandEnvironmentNames);
+        }
+
+        if (current != null)
+        {
+            try
+            {
+                if (Convert.ToInt32(current, CultureInfo.InvariantCulture) != 0)
+                {
+                    Console.WriteLine("Preserved HKCU Clipboard History setting because it is already enabled.");
+                    return false;
+                }
+            }
+            catch
+            {
+                Console.WriteLine("Preserved HKCU Clipboard History setting because it is not the expected privacy.sexy DWORD value.");
+                return false;
+            }
+        }
+
+        using (RegistryKey key = OpenRegistryKeyForValueWrite("HKCU", path))
+        {
+            if (key == null)
+                throw new Exception("Could not open HKCU\\" + path + " for Clipboard History restore.");
+            key.SetValue(name, 1, RegistryValueKind.DWord);
+        }
+
+        Console.WriteLine("Enabled current-user Clipboard History.");
+        return true;
+    }
+
+    static bool RemovePrivacySexyClipboardHistoryPolicy()
+    {
+        const string path = @"SOFTWARE\Policies\Microsoft\Windows\System";
+        const string name = "AllowClipboardHistory";
+
+        object current = null;
+        using (RegistryKey key = Registry.LocalMachine.OpenSubKey(path, false))
+        {
+            if (key != null)
+                current = key.GetValue(name, null, RegistryValueOptions.DoNotExpandEnvironmentNames);
+        }
+
+        if (current == null)
+        {
+            Console.WriteLine("Machine Clipboard History policy is already unset.");
+            return false;
+        }
+
+        try
+        {
+            if (Convert.ToInt32(current, CultureInfo.InvariantCulture) != 0)
+            {
+                Console.WriteLine("Preserved machine Clipboard History policy because its value is not the privacy.sexy disabled value.");
+                return false;
+            }
+        }
+        catch
+        {
+            Console.WriteLine("Preserved machine Clipboard History policy because it is not the expected privacy.sexy DWORD value.");
+            return false;
+        }
+
+        using (RegistryKey key = OpenRegistryKeyForValueWrite("HKLM", path))
+        {
+            if (key == null)
+                throw new Exception("Could not open HKLM\\" + path + " for Clipboard History restore.");
+            key.DeleteValue(name, false);
+        }
+
+        Console.WriteLine("Removed privacy.sexy's machine Clipboard History deny policy.");
+        return true;
+    }
+
+    static bool RestorePrivacySexyClipboardServices()
+    {
+        const string servicesPath = @"SYSTEM\CurrentControlSet\Services";
+        var names = new List<string>();
+
+        using (RegistryKey services = Registry.LocalMachine.OpenSubKey(servicesPath, false))
+        {
+            if (services == null)
+                throw new Exception("Could not inspect Windows services for cbdhsvc.");
+
+            foreach (string name in services.GetSubKeyNames())
+            {
+                if (String.Equals(name, "cbdhsvc", StringComparison.OrdinalIgnoreCase) ||
+                    name.StartsWith("cbdhsvc_", StringComparison.OrdinalIgnoreCase))
+                    names.Add(name);
+            }
+        }
+
+        if (names.Count == 0)
+        {
+            Console.WriteLine("Clipboard User Service (cbdhsvc) registry entries were not found.");
+            return false;
+        }
+
+        bool changed = false;
+        foreach (string name in names.OrderBy(x => x, StringComparer.OrdinalIgnoreCase))
+        {
+            string path = servicesPath + "\\" + name;
+            using (RegistryKey key = Registry.LocalMachine.OpenSubKey(
+                path,
+                RegistryKeyPermissionCheck.ReadWriteSubTree,
+                RegistryRights.QueryValues | RegistryRights.SetValue))
+            {
+                if (key == null)
+                    throw new Exception("Could not open service registry key: HKLM\\" + path);
+
+                object raw = key.GetValue("Start", null, RegistryValueOptions.DoNotExpandEnvironmentNames);
+                int start;
+                try
+                {
+                    start = raw == null ? -1 : Convert.ToInt32(raw, CultureInfo.InvariantCulture);
+                }
+                catch
+                {
+                    Console.WriteLine("Preserved " + name + " because its Start value is not a DWORD.");
+                    continue;
+                }
+
+                if (start != 4)
+                {
+                    Console.WriteLine("Preserved " + name + " startup mode (not disabled).");
+                    continue;
+                }
+
+                key.SetValue("Start", 2, RegistryValueKind.DWord);
+                Console.WriteLine("Restored " + name + " startup mode from Disabled to Automatic.");
+                changed = true;
+            }
+        }
+
+        return changed;
     }
 
     static bool IsAdministrator()
