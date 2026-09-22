@@ -74,8 +74,8 @@ $yaziInitText = Get-Content -LiteralPath $yaziInitPath -Raw
 Assert-True ($yaziInitText -notmatch '(?m)^\s*#') "Yazi init.lua rejects shell-style hash comments"
 Assert-True ($yaziInitText -match 'function Linemode:size_and_mtime\(\)') "Yazi custom size/date linemode is defined"
 Assert-True ($yaziInitText -match 'ya\.readable_size\(size\)') "Yazi combined linemode uses native readable file sizes"
-Assert-True ($yaziInitText -match 'self\._file\.stat\.mtime') "Yazi combined linemode uses the current upstream file stat mtime API"
-Assert-True ($yaziInitText -notmatch 'self\._file\.cha\.mtime') "Yazi combined linemode does not use the obsolete cha mtime field"
+Assert-True ($yaziInitText -match 'self\._file\.cha\.mtime') "Yazi combined linemode uses the current stable Yazi file cha mtime API"
+Assert-True ($yaziInitText -notmatch 'self\._file\.stat\.mtime') "Yazi combined linemode does not use the incompatible stat mtime field"
 Assert-True ($yaziInitText -match '"%d/%d/%02d"') "Yazi modified dates use compact M/D/YY formatting"
 Assert-True ($yaziInitText -match '"%9s  %8s"') "Yazi size/date fields stay aligned with date at the far right"
 $yaziComponent = $manifest.components | Where-Object { $_.id -eq "yazi" } | Select-Object -First 1
