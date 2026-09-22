@@ -623,6 +623,7 @@ internal static class WgdotNative
             if (command == "source-self-test") return SourceSelfTestFromArgs(args.Skip(1).ToArray());
             if (command == "dots-only") return DotsOnlyFromArgs(args.Skip(1).ToArray());
             if (command == "software") return SoftwareManager();
+            if (command == "bar-font-install") return BarFontInstall();
             if (command == "software-reconcile") return SoftwareReconcile();
             if (command == "software-uninstall") return SoftwareUninstallManager();
             if (command == "startup") return StartupManager();
@@ -690,6 +691,7 @@ internal static class WgdotNative
             String.Equals(command, "super-l-test", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "window-audit", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "software", StringComparison.OrdinalIgnoreCase) ||
+            String.Equals(command, "bar-font-install", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "software-reconcile", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "software-uninstall", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "startup", StringComparison.OrdinalIgnoreCase) ||
@@ -3208,6 +3210,39 @@ class WgdotHidden
             String.IsNullOrWhiteSpace(action) ||
             String.Equals(action, "launch-open-shell", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(action, "rawaccel-restart-notice", StringComparison.OrdinalIgnoreCase);
+    }
+
+    static int BarFontInstall()
+    {
+        SourceContext source = ResolveDefaultSource();
+        Dictionary<string, object> package =
+            FindPackageById(source.Manifest, "NerdFonts.Noto");
+
+        if (package == null)
+            throw new Exception("WGDot manifest is missing the managed Noto bar font.");
+
+        if (!IsOfficialGitHubFontArchivePackage(package))
+            throw new Exception("Managed Noto bar font does not use the expected official GitHub font source.");
+
+        WriteTitle("Awtarchy-style YASB font");
+        Console.WriteLine("Font: NotoSansM Nerd Font Mono");
+        Console.WriteLine("Source: official ryanoasis/nerd-fonts Noto archive");
+        Console.WriteLine("Scope: current user only");
+        Console.WriteLine("No WinGet packages or unrelated software will be reconciled.");
+        Console.WriteLine();
+
+        if (IsOfficialGitHubFontArchivePackageInstalled(package))
+        {
+            Console.WriteLine("Noto bar font is already installed.");
+            Console.WriteLine("Restart YASB with: yasbc reload");
+            return 0;
+        }
+
+        InstallGitHubFontArchivePackage(package);
+        Console.WriteLine();
+        Console.WriteLine("Noto bar font installed.");
+        Console.WriteLine("Restart YASB with: yasbc reload");
+        return 0;
     }
 
     static int SoftwareCatalogAudit()
