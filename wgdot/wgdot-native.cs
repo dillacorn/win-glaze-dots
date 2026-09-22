@@ -21,7 +21,7 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-68";
+    const string Version = "native-preview-69";
     const int WingetPreflightTimeoutMs = 30000;
     const string RepoFullName = "dillacorn/win-glaze-dots";
     const string RepoUrl = "https://github.com/dillacorn/win-glaze-dots.git";
@@ -3813,7 +3813,15 @@ class WgdotHidden
         }
 
         if (String.Equals(handler, "eartrumpet", StringComparison.OrdinalIgnoreCase))
-            return "explorer.exe shell:AppsFolder\\40459File-New-Project.EarTrumpet_1sdd7yawvg6ne!EarTrumpet";
+            return "explorer.exe \"shell:AppsFolder\\40459File-New-Project.EarTrumpet_1sdd7yawvg6ne!EarTrumpet\"";
+
+        if (String.Equals(handler, "rawaccel", StringComparison.OrdinalIgnoreCase))
+        {
+            string path = GetPackageProgramFilePath(package, "installedFile");
+            if (!File.Exists(path))
+                throw new Exception("RawAccel is selected for startup, but its WGDot-managed executable is missing.");
+            return Q(path);
+        }
 
         if (String.Equals(handler, "miclocktray", StringComparison.OrdinalIgnoreCase))
         {
@@ -6951,35 +6959,18 @@ class WgdotHidden
         keybd_event(VkLwin, 0, KeyeventfKeyup, UIntPtr.Zero);
     }
 
-    static System.Drawing.Point ClipboardAnchorLocation(
-        string source,
-        System.Windows.Forms.Screen screen,
-        int width,
-        int height)
+    static void WaitForGlazeWmClipboardPauseState(bool expected)
     {
-        if (screen == null)
-            screen = System.Windows.Forms.Screen.PrimaryScreen;
-
-        int x;
-        if (String.Equals(source, "bar", StringComparison.OrdinalIgnoreCase))
+        for (int i = 0; i < 50; i++)
         {
-            POINT cursor;
-            if (GetCursorPos(out cursor))
-                x = cursor.X - (width / 2);
-            else
-                x = screen.Bounds.Left + 8;
-        }
-        else
-        {
-            x = screen.Bounds.Left + ((screen.Bounds.Width - width) / 2);
+            if (GlazeWmPausedForClipboard() == expected)
+                return;
+            System.Threading.Thread.Sleep(20);
         }
 
-        return ClampLauncherLocation(
-            screen,
-            x,
-            screen.Bounds.Top + 35,
-            width,
-            height);
+        throw new Exception(
+            "GlazeWM did not " + (expected ? "pause" : "resume") +
+            " before the Clipboard History handoff.");
     }
 
     static int ClipboardAnchorFromArgs(string[] args)
@@ -6992,83 +6983,36 @@ class WgdotHidden
               String.Equals(source, "hotkey", StringComparison.OrdinalIgnoreCase)))
             throw new Exception("Usage: wgdot clipboard-anchor [bar|hotkey]");
 
-        const int width = 180;
-        const int height = 28;
+        // Reliability first: keep the user's foreground window instead of
+        // creating and then closing a temporary anchor that can dismiss the
+        // native Clipboard History surface immediately.
+        WaitForWindowsModifierRelease();
 
-        IntPtr foreground = GetForegroundWindow();
-        POINT cursor;
-        bool haveCursor = GetCursorPos(out cursor);
-        System.Windows.Forms.Screen screen =
-            String.Equals(source, "bar", StringComparison.OrdinalIgnoreCase) && haveCursor
-                ? System.Windows.Forms.Screen.FromPoint(
-                    new System.Drawing.Point(cursor.X, cursor.Y))
-                : (foreground != IntPtr.Zero
-                    ? System.Windows.Forms.Screen.FromHandle(foreground)
-                    : (haveCursor
-                        ? System.Windows.Forms.Screen.FromPoint(
-                            new System.Drawing.Point(cursor.X, cursor.Y))
-                        : System.Windows.Forms.Screen.PrimaryScreen));
-
-        var form = new System.Windows.Forms.Form();
-        form.Text = "WGDot Clipboard Anchor";
-        form.FormBorderStyle = System.Windows.Forms.FormBorderStyle.None;
-        form.StartPosition = System.Windows.Forms.FormStartPosition.Manual;
-        form.Size = new System.Drawing.Size(width, height);
-        form.Location = ClipboardAnchorLocation(source, screen, width, height);
-        form.ShowInTaskbar = false;
-        form.TopMost = true;
-        form.Opacity = 0.01;
-
-        var input = new System.Windows.Forms.TextBox();
-        input.Dock = System.Windows.Forms.DockStyle.Fill;
-        input.BorderStyle = System.Windows.Forms.BorderStyle.None;
-        form.Controls.Add(input);
-
-        Exception failure = null;
-        form.Shown += delegate
+        bool restorePause = false;
+        try
         {
-            bool restorePause = false;
-            try
+            if (Process.GetProcessesByName("glazewm").Length > 0)
             {
-                form.Activate();
-                input.Focus();
-                WaitForWindowsModifierRelease();
-
-                if (Process.GetProcessesByName("glazewm").Length > 0)
+                bool wasPaused = GlazeWmPausedForClipboard();
+                if (!wasPaused)
                 {
-                    bool wasPaused = GlazeWmPausedForClipboard();
-                    if (!wasPaused)
-                    {
-                        ToggleGlazeWmPauseForClipboard();
-                        restorePause = true;
-                    }
+                    ToggleGlazeWmPauseForClipboard();
+                    WaitForGlazeWmClipboardPauseState(true);
+                    restorePause = true;
                 }
-
-                SendNativeClipboardHistoryChord();
-                System.Threading.Thread.Sleep(180);
             }
-            catch (Exception ex)
+
+            SendNativeClipboardHistoryChord();
+            System.Threading.Thread.Sleep(350);
+        }
+        finally
+        {
+            if (restorePause)
             {
-                failure = ex;
+                ToggleGlazeWmPauseForClipboard();
+                WaitForGlazeWmClipboardPauseState(false);
             }
-            finally
-            {
-                if (restorePause)
-                {
-                    try { ToggleGlazeWmPauseForClipboard(); }
-                    catch (Exception ex)
-                    {
-                        if (failure == null) failure = ex;
-                    }
-                }
-
-                form.Close();
-            }
-        };
-
-        System.Windows.Forms.Application.Run(form);
-        if (failure != null)
-            throw failure;
+        }
 
         return 0;
     }
@@ -7341,23 +7285,14 @@ class WgdotHidden
         if (app == null || String.IsNullOrWhiteSpace(app.Path))
             return;
 
-        IntPtr result = ShellExecute(
-            IntPtr.Zero,
-            "open",
-            app.Path,
-            null,
-            Path.GetDirectoryName(app.Path),
-            SwShowNormal);
+        var psi = new ProcessStartInfo();
+        psi.FileName = app.Path;
+        psi.UseShellExecute = true;
+        psi.ErrorDialog = false;
 
-        if (result.ToInt64() <= 32)
-        {
-            var fallback = new ProcessStartInfo();
-            fallback.FileName = "explorer.exe";
-            fallback.Arguments = Q(app.Path);
-            fallback.UseShellExecute = false;
-            fallback.CreateNoWindow = true;
-            Process.Start(fallback);
-        }
+        Process started = Process.Start(psi);
+        if (started == null)
+            throw new Exception("Windows Shell did not launch " + app.Name + ".");
 
         form.Close();
     }
@@ -7522,8 +7457,23 @@ class WgdotHidden
         Action launchSelected = delegate
         {
             LauncherApp app = results.SelectedItem as LauncherApp;
-            if (app != null)
+            if (app == null)
+                return;
+
+            try
+            {
                 LaunchLauncherApp(form, app);
+            }
+            catch (Exception ex)
+            {
+                System.Windows.Forms.MessageBox.Show(
+                    form,
+                    "Could not launch " + app.Name + ".\r\n\r\n" + ex.Message,
+                    "WGDot Launcher",
+                    System.Windows.Forms.MessageBoxButtons.OK,
+                    System.Windows.Forms.MessageBoxIcon.Error);
+                search.Focus();
+            }
         };
 
         search.TextChanged += delegate { refresh(); };
@@ -8228,6 +8178,9 @@ class WgdotHidden
                 System.Threading.Thread.Sleep(50);
             if (NamedMutexExists(IdleInhibitorMutexName))
                 throw new Exception("Idle inhibitor did not stop.");
+            ProcResult yasbReload = Run("yasbc.exe", "reload -s", null);
+            if (yasbReload.ExitCode != 0)
+                Console.Error.WriteLine("YASB idle-state refresh warning: " + LastUsefulLine(yasbReload.StdErr + "\n" + yasbReload.StdOut));
             Console.WriteLine("Idle inhibitor disabled.");
             return 0;
         }
@@ -8238,6 +8191,9 @@ class WgdotHidden
         if (!NamedMutexExists(IdleInhibitorMutexName))
             throw new Exception("Idle inhibitor did not start.");
 
+        ProcResult yasbReload = Run("yasbc.exe", "reload -s", null);
+        if (yasbReload.ExitCode != 0)
+            Console.Error.WriteLine("YASB idle-state refresh warning: " + LastUsefulLine(yasbReload.StdErr + "\n" + yasbReload.StdOut));
         Console.WriteLine("Idle inhibitor enabled. Windows sleep and display idle timeouts are blocked while it is active.");
         return 0;
     }
@@ -10140,7 +10096,7 @@ public static class Program
 
         int preset = ReadSingleChoice(
             "Preferred privacy.sexy recommendation level",
-            new List<string> { "Standard (repo guide default)", "Strict", "Cancel" },
+            new List<string> { "Standard (repo guide default)", "Strict", "Skip" },
             0);
         if (preset < 0 || preset == 2) return;
 
