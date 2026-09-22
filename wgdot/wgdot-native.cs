@@ -2896,7 +2896,7 @@ class WgdotHidden
                     Console.WriteLine("Refusing to install a user-level package inside the elevated worker: " + id);
                     Console.ResetColor();
                     failedIds.Add(id);
-                    failureDetails.Add("Portable package was incorrectly sent to the elevated worker: " + id);
+                    failureDetails.Add("User-level package was incorrectly sent to the elevated worker: " + id);
                     failures++;
                     continue;
                 }
