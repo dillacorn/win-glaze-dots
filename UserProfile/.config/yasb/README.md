@@ -8,7 +8,7 @@ WGDot manages installation, updates, backups, and deployment. Runtime ownership 
 
 - **GlazeWM** owns window-manager keybindings, binding modes, pause, workspace actions, screenshots, and direct Windows/application launches.
 - **YASB** owns ordinary bar widgets and native callbacks; for the custom application launcher it owns only the visible bar button.
-- **Installed applications** own their native hotkeys where practical. EarTrumpet owns `Alt+V` itself; GlazeWM/YASB do not launch it and WGDot does not rewrite that hotkey.
+- **Installed applications** own their native hotkeys where practical. EarTrumpet owns `Alt+V` itself; YASB volume right-click directly activates the packaged app, while WGDot does not broker the launch or rewrite the hotkey.
 - **Neither Normal nor Work has any `.ps1` runtime dependencies.** Desktop-session behavior uses native GlazeWM/YASB/Windows/application interfaces first.
 - **Compiled WGDot is used at runtime only for approved custom primitives:** the application launcher, power surface, coordinated auto-hide, theme application/window toggle, invisible GlazeWM mode dispatch where a console would otherwise flash, the narrow RawAccel GUI toggle, and the bar-only one-shot Clipboard History opener.
 - Runtime actions that must stay invisible use the windowless `wgdotw.exe` frontend; the interactive theme selector uses `wgdot.exe theme` inside Windows Terminal.
@@ -124,7 +124,7 @@ The power surface preserves the Awtarchy-style fullscreen 3x2 tile layout for Lo
 
 The native YASB Volume widget retains Awtarchy-like mute glyphs, thresholds, and 5-point wheel changes.
 
-EarTrumpet owns Alt+V itself through its application settings. GlazeWM and YASB do not launch EarTrumpet for Alt+V, Super+V, or volume right-click; volume right-click is intentionally a no-op. This avoids the rejected AppsFolder path that opened Explorer/Documents.
+EarTrumpet owns Alt+V itself through its application settings. YASB volume right-click directly launches the packaged app with `explorer.exe shell:AppsFolder\40459File-New-Project.EarTrumpet_1sdd7yawvg6ne!EarTrumpet`. The target intentionally uses one backslash after `AppsFolder`; the retired doubled-backslash form opened Explorer/Documents. WGDot is not in this launch path, and Super+V remains native Clipboard History.
 
 ## Clipboard
 
@@ -178,6 +178,7 @@ The Windows bar uses `NotoSansM Nerd Font Mono` at 14 px to match Awtarchy, with
 - YASB Bluetooth has no conditional primary-label expression for empty/single-device/device-count states.
 - YASB Wi-Fi has no bar-label connectivity CSS class equivalent to Awtarchy's disconnected foreground behavior.
 - YASB Clock exposes left/middle/right callbacks but no wheel callback.
+- YASB's native Clock tooltip currently hard-codes its time line to 24-hour `%H:%M`; stock configuration exposes only the tooltip enable/disable option, so a 12-hour AM/PM hover time requires an upstream YASB change rather than a dotfile-only setting.
 
 ## Reserved-key development test
 
