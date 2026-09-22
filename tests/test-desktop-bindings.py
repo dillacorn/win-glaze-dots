@@ -102,14 +102,18 @@ for yasb_name in ("config.yaml", "custom_work_config.yaml"):
     )
     volume_callbacks = yasb["widgets"]["volume"]["options"]["callbacks"]
     assert volume_callbacks["on_right"] == (
-        "exec explorer.exe shell:AppsFolder\\40459File-New-Project.EarTrumpet_1sdd7yawvg6ne!EarTrumpet"
+        "exec explorer.exe shell:AppsFolder\\40459File-New-Project.EarTrumpet_725pr5jq8wr8a!EarTrumpet"
     ), (
         yasb_name,
         "volume right click must directly activate the EarTrumpet packaged app",
     )
-    assert "shell:AppsFolder\\\\40459File-New-Project.EarTrumpet_1sdd7yawvg6ne!EarTrumpet" not in yasb_text, (
+    assert "shell:AppsFolder\\\\40459File-New-Project.EarTrumpet_725pr5jq8wr8a!EarTrumpet" not in yasb_text, (
         yasb_name,
         "EarTrumpet AppsFolder target must not contain the retired doubled backslash",
+    )
+    assert "40459File-New-Project.EarTrumpet_1sdd7yawvg6ne!EarTrumpet" not in yasb_text, (
+        yasb_name,
+        "YASB must not use the Microsoft Store EarTrumpet family when WGDot installs the WinGet package",
     )
 
     assert "workspace_move" in yasb["widgets"], (
