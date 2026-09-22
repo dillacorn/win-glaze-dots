@@ -174,7 +174,7 @@ $expectedDefaultOnPackages = @(
     "ImageMagick.ImageMagick",
     "glzr-io.glazewm",
     "DEVCOM.JetBrainsMonoNerdFont",
-    "NerdFonts.Noto",
+    "NerdFonts.Noto"
 )
 
 foreach ($package in $manifest.packages) {
