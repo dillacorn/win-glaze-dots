@@ -80,7 +80,8 @@ Assert-True ($yaziInitText -match '"%d/%d/%02d"') "Yazi modified dates use compa
 Assert-True ($yaziInitText -match '"%9s  %8s"') "Yazi size/date fields stay aligned with date at the far right"
 Assert-True ($yaziInitText -match 'function Status:modified_time\(\)') "Yazi highlighted-item modified timestamp is defined in the bottom status"
 Assert-True ($yaziInitText -match 'hovered\.cha\.mtime') "Yazi highlighted-item timestamp uses the stable hovered cha mtime API"
-Assert-True ($yaziInitText -match 'Modified: %d/%d/%02d %d:%02d %s') "Yazi highlighted-item timestamp uses compact date plus 12-hour time"
+Assert-True ($yaziInitText -match 'Modified: %d/%d/%02d %02d:%02d') "Yazi highlighted-item timestamp uses compact date plus 24-hour time"
+Assert-True ($yaziInitText -notmatch 'AM|PM|meridiem|hour % 12') "Yazi highlighted-item timestamp does not use 12-hour time"
 Assert-True ($yaziInitText -match 'Status:children_add\(function\(self\)') "Yazi modified timestamp is attached through the status component API"
 Assert-True ($yaziInitText -match '500, Status\.RIGHT') "Yazi highlighted-item modified timestamp is placed on the right side of the bottom status"
 $yaziComponent = $manifest.components | Where-Object { $_.id -eq "yazi" } | Select-Object -First 1

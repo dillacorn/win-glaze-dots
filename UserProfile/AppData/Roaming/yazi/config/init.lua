@@ -40,20 +40,13 @@ function Status:modified_time()
     end
 
     local parts = os.date("*t", time)
-    local hour = parts.hour % 12
-    if hour == 0 then
-        hour = 12
-    end
-
-    local meridiem = parts.hour < 12 and "AM" or "PM"
     return string.format(
-        " Modified: %d/%d/%02d %d:%02d %s ",
+        " Modified: %d/%d/%02d %02d:%02d ",
         parts.month,
         parts.day,
         parts.year % 100,
-        hour,
-        parts.min,
-        meridiem
+        parts.hour,
+        parts.min
     )
 end
 
