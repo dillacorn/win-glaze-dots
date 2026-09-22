@@ -124,7 +124,7 @@ The power surface preserves the Awtarchy-style fullscreen 3x2 tile layout for Lo
 
 The native YASB Volume widget retains Awtarchy-like mute glyphs, thresholds, and 5-point wheel changes.
 
-EarTrumpet owns Alt+V itself through its application settings. YASB volume right-click directly launches the packaged app with `explorer.exe shell:AppsFolder\40459File-New-Project.EarTrumpet_1sdd7yawvg6ne!EarTrumpet`. The target intentionally uses one backslash after `AppsFolder`; the retired doubled-backslash form opened Explorer/Documents. WGDot is not in this launch path, and Super+V remains native Clipboard History.
+EarTrumpet owns Alt+V itself through its application settings. YASB volume right-click directly launches the packaged app with `explorer.exe shell:AppsFolder\40459File-New-Project.EarTrumpet_725pr5jq8wr8a!EarTrumpet`. The target intentionally uses one backslash after `AppsFolder`; the retired doubled-backslash form opened Explorer/Documents. WGDot is not in this launch path, and Super+V remains native Clipboard History.
 
 ## Clipboard
 
