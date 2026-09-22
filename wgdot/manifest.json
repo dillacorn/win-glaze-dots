@@ -171,7 +171,7 @@
           "id": "flameshot-config",
           "source": "UserProfile/AppData/Roaming/flameshot/flameshot.ini",
           "destination": "%APPDATA%\\flameshot\\flameshot.ini",
-          "merge": true
+          "merge": false
         }
       ]
     },
@@ -878,14 +878,6 @@
       "name": "Open text/code files in Windows Terminal + Micro",
       "category": "file associations",
       "type": "micro-text-defaults",
-      "defaultNormal": true,
-      "defaultWork": true
-    },
-    {
-      "id": "eartrumpet-mixer-super-v",
-      "name": "EarTrumpet mixer: Super+V",
-      "category": "keybinds",
-      "type": "eartrumpet-mixer-super-v",
       "defaultNormal": true,
       "defaultWork": true
     },
