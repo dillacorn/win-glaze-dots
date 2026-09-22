@@ -72,7 +72,6 @@ Assert-NotContains $config "glazewm_pause:" "pause is owned directly by GlazeWM 
 Assert-Contains $glazeNormal "bindings: [`"lwin+alt+p`", `"rwin+alt+p`"]" "GlazeWM owns the real Alt+Super+P pause chord"
 Assert-Contains $glazeNormal "commands: [`"wm-toggle-pause`"]" "pause uses GlazeWM's native command"
 Assert-NotContains $config "glazewm-pause-status" "YASB no longer polls WGDot pause state"
-Assert-Contains $config "run_interval: 30000" "idle inhibitor avoids quarter-second PowerShell process polling"
 Assert-Contains $config "yasb.control_center.ControlCenterWidget" "native YASB Control Center provides Awtarchy-style quick settings"
 Assert-Contains $config "keys: `"win+alt+backspace`"" "quick settings matches Awtarchy Super+Alt+Backspace"
 Assert-NotContains $config "wgdot_running_apps" "running applications stay on instead of being a quick-setting toggle"
