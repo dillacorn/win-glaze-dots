@@ -108,6 +108,10 @@ Assert-NotContains $config "wgdot_shade_apps" "broken running-app shading is rem
 Assert-Contains $config "wgdotw.exe theme-window-toggle" "quick settings uses the windowless theme-window toggle"
 Assert-Contains $config "wgdotw.exe bar-autohide-toggle" "quick settings exposes compiled coordinated auto-hide"
 Assert-Contains $config "wgdotw.exe glazewm-binding-mode-toggle" "console-subsystem mode actions use the windowless WGDot frontend"
+Assert-Contains $config "wgdotw.exe glazewm-window-behavior-toggle" "quick settings toggles GlazeWM default window behavior through the windowless compiled helper"
+Assert-Contains $config "columns: 2" "quick settings uses two even action columns"
+Assert-Contains $config "label_position: `"inline`"" "quick settings places short text beside each action icon"
+Assert-Contains $config "label: `"Floating Windows`"" "quick settings exposes the Awtarchy-style Floating Windows action"
 Assert-NotContains $config "%USERPROFILE%\.config\win-glaze\scripts" "YASB ShellExecute commands do not rely on unexpanded percent-style USERPROFILE paths"
 
 Assert-Contains $config "wgdotw.exe glazewm-binding-mode-toggle noalt" "quick settings enters NoAlt without a visible console"
@@ -329,6 +333,8 @@ foreach ($widgetType in @(
     Assert-Contains $config $widgetType "supported YASB widget is present: $widgetType"
 }
 
+Assert-Contains -Text $style -Needle ".control-center-menu .section.quick-actions .button:hover" -Message "quick settings hover applies to the full labeled action cell"
+Assert-Contains -Text $style -Needle "min-width: 90px;" -Message "quick settings titles reserve readable inline label width"
 Assert-Contains -Text $style -Needle ".glazewm-workspaces .ws-btn.empty" -Message "inactive empty workspace buttons collapse"
 Assert-Contains -Text $style -Needle "min-height: 28px;" -Message "workspace shading spans the full 28 px bar height"
 Assert-Contains -Text $style -Needle "margin-left: 2px;" -Message "CPU and memory icons have a tiny separation from their values"

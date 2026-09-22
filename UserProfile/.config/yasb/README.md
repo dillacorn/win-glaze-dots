@@ -10,7 +10,7 @@ WGDot manages installation, updates, backups, and deployment. Runtime ownership 
 - **YASB** owns ordinary bar widgets and native callbacks; for the custom application launcher it owns only the visible bar button.
 - **Installed applications** own their native hotkeys where practical. EarTrumpet owns `Alt+V` itself; YASB volume right-click uses a narrow windowless WGDot bridge only to trigger that application-owned hotkey. WGDot does not rewrite the hotkey.
 - **Neither Normal nor Work has any `.ps1` runtime dependencies.** Desktop-session behavior uses native GlazeWM/YASB/Windows/application interfaces first.
-- **Compiled WGDot is used at runtime only for approved custom primitives:** the application launcher, power surface, coordinated auto-hide, theme application/window toggle, invisible GlazeWM mode dispatch where a console would otherwise flash, the narrow RawAccel GUI toggle, the bar-only one-shot Clipboard History opener, and the bar-only EarTrumpet mixer-hotkey trigger.
+- **Compiled WGDot is used at runtime only for approved custom primitives:** the application launcher, power surface, coordinated auto-hide, theme application/window toggle, invisible GlazeWM mode dispatch where a console would otherwise flash, the GlazeWM default window-behavior toggle, the narrow RawAccel GUI toggle, the bar-only one-shot Clipboard History opener, and the bar-only EarTrumpet mixer-hotkey trigger.
 - Runtime actions that must stay invisible use the windowless `wgdotw.exe` frontend; the interactive theme selector uses `wgdot.exe theme` inside Windows Terminal.
 
 ## Bar layout
@@ -149,7 +149,7 @@ The Noto face renders Nerd Font glyphs smaller than the previous JetBrains fallb
 | active title | `ActiveWindowWidget` with `monitor_exclusive: false` |
 | task icons | native `TaskbarWidget`, 14 px icons in Awtarchy-sized slots |
 | workspace mover | direct YASB Applications widget with native GlazeWM move-workspace commands |
-| quick settings | native `ControlCenterWidget` plus narrowly scoped compiled WGDot theme/auto-hide/mode actions |
+| quick settings | native `ControlCenterWidget` with two-column inline labels plus narrowly scoped compiled WGDot theme/auto-hide/mode/window-behavior actions |
 | CPU / memory | native CPU and Memory widgets |
 | DDC brightness | native Brightness widget |
 | battery | native Battery widget with Awtarchy-like thresholds and glyph composition |
@@ -162,6 +162,7 @@ The Noto face renders Nerd Font glyphs smaller than the previous JetBrains fallb
 | launcher | compiled context-aware `wgdotw.exe launcher` application search surface |
 | theme switching | compiled `wgdot.exe theme` manager with `wgdotw.exe theme-window-toggle` dispatch |
 | bar auto-hide | compiled `wgdotw.exe bar-autohide-toggle` coordinator in both profiles |
+| default new-window behavior | compiled `wgdotw.exe glazewm-window-behavior-toggle` toggles GlazeWM `tiling` / `floating`, reloads config, and reports the new state |
 | keep awake | compiled WGDot execution-state helper in both profiles |
 | RawAccel GUI toggle | compiled `wgdotw.exe rawaccel-toggle` in both profiles |
 
@@ -169,7 +170,7 @@ The Noto face renders Nerd Font glyphs smaller than the previous JetBrains fallb
 
 - CPU temperature is not represented because YASB's CPU widget does not expose the same CPU-temperature value.
 - Hyprland special-workspace scratchpad state has no direct GlazeWM equivalent.
-- Awtarchy's global "new windows float" indicator has no verified direct GlazeWM/YASB state equivalent.
+- Awtarchy's persistent global "new windows float" bar indicator is not mirrored, but Quick Settings can now toggle GlazeWM `window_behavior.initial_state` between `tiling` and `floating`; existing windows keep their current state.
 - A dedicated privacy/screen-capture indicator has no verified native YASB equivalent.
 - Current YASB bar placement is top/bottom; left/right vertical bars are not faked.
 - Workspace urgent-state coloring and Awtarchy's static number+glyph mappings do not have exact YASB equivalents.

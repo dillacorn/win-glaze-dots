@@ -332,27 +332,35 @@ QToolTip,
 }
 
 .control-center-menu .section.quick-actions .button {
-    margin: 2px;
-}
-
-.control-center-menu .section.quick-actions .button .icon {
-    color: var(--foreground);
     background-color: var(--active);
     border: 1px solid var(--focus);
     border-radius: 0;
-    min-height: 34px;
+    min-height: 38px;
+    margin: 2px;
 }
 
-.control-center-menu .section.quick-actions .button .icon:hover,
-.control-center-menu .section.quick-actions .button.active .icon {
-    color: var(--foreground);
+.control-center-menu .section.quick-actions .button:hover,
+.control-center-menu .section.quick-actions .button.active {
     background-color: var(--strong-hover);
     border-color: var(--foreground);
 }
 
+.control-center-menu .section.quick-actions .button .icon {
+    color: var(--foreground);
+    background-color: transparent;
+    border: none;
+    border-radius: 0;
+    min-width: 24px;
+    min-height: 34px;
+    padding: 0 6px 0 8px;
+}
+
 .control-center-menu .section.quick-actions .button .title {
     color: var(--foreground);
+    background-color: transparent;
     font-size: 11px;
+    min-width: 90px;
+    padding: 0 8px 0 2px;
 }
 
 .control-center-menu .section.sliders .slider {

@@ -21,7 +21,7 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-73";
+    const string Version = "native-preview-74";
     const int WingetPreflightTimeoutMs = 30000;
     const string RepoFullName = "dillacorn/win-glaze-dots";
     const string RepoUrl = "https://github.com/dillacorn/win-glaze-dots.git";
@@ -638,6 +638,7 @@ internal static class WgdotNative
             if (command == "super-l-hook") return SuperLHookWorker();
             if (command == "bar-autohide-toggle") return BarAutoHideToggle();
             if (command == "glazewm-binding-mode-toggle") return GlazeWmBindingModeToggleFromArgs(args.Skip(1).ToArray());
+            if (command == "glazewm-window-behavior-toggle") return GlazeWmWindowBehaviorToggle();
             if (command == "theme") return ThemeManagerFromArgs(args.Skip(1).ToArray());
             if (command == "theme-window-toggle") return ThemeWindowToggle();
             if (command == "clipboard-history-open") return ClipboardHistoryOpen();
@@ -9194,6 +9195,87 @@ class WgdotHidden
                     StringComparison.OrdinalIgnoreCase))
                 WriteTrackedGlazeBindingMode("");
         }
+    }
+
+    static void ShowWgdotNotification(string title, string message)
+    {
+        try
+        {
+            using (var notification = new System.Windows.Forms.NotifyIcon())
+            {
+                notification.Icon = SystemIcons.Application;
+                notification.Visible = true;
+                notification.BalloonTipTitle = title;
+                notification.BalloonTipText = message;
+                notification.BalloonTipIcon = System.Windows.Forms.ToolTipIcon.Info;
+                notification.ShowBalloonTip(2500);
+                System.Threading.Thread.Sleep(2750);
+                notification.Visible = false;
+            }
+        }
+        catch
+        {
+            // Notification failure must never undo a successful desktop action.
+        }
+    }
+
+    static int GlazeWmWindowBehaviorToggle()
+    {
+        string profile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        string glazePath = Path.Combine(profile, ".glzr", "glazewm", "config.yaml");
+        if (!File.Exists(glazePath))
+            throw new Exception("GlazeWM config was not found: " + glazePath);
+
+        string original = File.ReadAllText(glazePath);
+        MatchCollection behaviorMatches = Regex.Matches(
+            original,
+            @"(?m)^window_behavior:\s*$");
+        if (behaviorMatches.Count != 1)
+            throw new Exception(
+                "Expected exactly one GlazeWM window_behavior block, found " +
+                behaviorMatches.Count.ToString(CultureInfo.InvariantCulture) + ".");
+
+        MatchCollection stateMatches = Regex.Matches(
+            original,
+            @"(?m)^\s{2}initial_state:\s*""(tiling|floating)""\s*$",
+            RegexOptions.IgnoreCase);
+        if (stateMatches.Count != 1 || stateMatches[0].Index < behaviorMatches[0].Index)
+            throw new Exception(
+                "Expected exactly one GlazeWM window_behavior.initial_state set to tiling or floating.");
+
+        Match stateMatch = stateMatches[0];
+        Group stateGroup = stateMatch.Groups[1];
+        string current = stateGroup.Value.ToLowerInvariant();
+        string nextState = current == "tiling" ? "floating" : "tiling";
+        string next =
+            original.Substring(0, stateGroup.Index) +
+            nextState +
+            original.Substring(stateGroup.Index + stateGroup.Length);
+
+        try
+        {
+            WriteTextAtomic(glazePath, next);
+            ProcResult reload = Run(RequireGlazeWmExe(), "command wm-reload-config", null);
+            RequireGlazeWmSuccess(reload, "GlazeWM config reload");
+            // GlazeWM reload clears active binding modes upstream.
+            WriteTrackedGlazeBindingMode("");
+        }
+        catch
+        {
+            WriteTextAtomic(glazePath, original);
+            try
+            {
+                Run(RequireGlazeWmExe(), "command wm-reload-config", null);
+            }
+            catch { }
+            WriteTrackedGlazeBindingMode("");
+            throw;
+        }
+
+        string summary = "initial_state: \"" + nextState + "\"";
+        Console.WriteLine("GlazeWM window_behavior " + summary);
+        ShowWgdotNotification("GlazeWM window_behavior", summary);
+        return 0;
     }
 
     static int GlazeWmBindingModeToggleFromArgs(string[] args)

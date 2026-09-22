@@ -535,7 +535,7 @@ $rustDeskPackage = @($manifest.packages | Where-Object { $_.id -eq 'RustDesk.Rus
 Assert-True ($null -ne $rustDeskPackage) "RustDesk catalog entry exists"
 Assert-Equal ([string]$rustDeskPackage.installMode) 'official-github' "RustDesk uses its verified official GitHub source instead of a missing WinGet ID"
 Assert-Equal ([string]$rustDeskPackage.fallbackGitHubRepo) 'rustdesk/rustdesk' "RustDesk official GitHub source remains publisher-owned"
-Assert-True ($nativeSourceText -match 'const string Version = "native-preview-73"') "native runtime version tracks current WGDot maintenance changes"
+Assert-True ($nativeSourceText -match 'const string Version = "native-preview-74"') "native runtime version tracks current WGDot maintenance changes"
 Assert-True ($nativeSourceText -match 'InstallGitHubFontArchivePackage') "native runtime installs managed Nerd Font archives without inventing a WinGet ID"
 Assert-True ($nativeSourceText -match 'AddFontResourceEx') "managed Noto font is loaded into the current Windows session"
 Assert-True ($nativeSourceText -match 'Software\\Microsoft\\Windows NT\\CurrentVersion\\Fonts') "managed Noto font registers under the current-user Windows Fonts key"
@@ -558,6 +558,10 @@ Assert-True ($manualText -match '"#709080"') "paste-only workflow retains readab
 Assert-True ($nativeSourceText -match 'ThemeManagerFromArgs') "compiled WGDot exposes the scoped theme manager"
 Assert-True ($nativeSourceText -notmatch 'OpenYasbQuickLaunch|OpenFlowLauncher|OpenEarTrumpetMixer|OpenWindowsClipboardHistory|OpenFlameshotGui|OpenRawAccel|OpenDisplaySettings|GlazeWmPauseToggle|ThemeToggle') "native-capable desktop helper implementations stay removed"
 Assert-True ($nativeSourceText -match 'BarAutoHideToggle') "compiled WGDot retains the approved coordinated auto-hide helper"
+Assert-True ($nativeSourceText -match 'GlazeWmWindowBehaviorToggle') "compiled WGDot exposes the scoped GlazeWM window behavior toggle"
+Assert-True ($nativeSourceText -match 'initial_state:\\s\*""\(tiling\|floating\)""') "window behavior helper only toggles supported tiling/floating initial states"
+Assert-True ($nativeSourceText -match 'RequireGlazeWmSuccess\(reload, "GlazeWM config reload"\)') "window behavior toggle validates GlazeWM reload success"
+Assert-True ($nativeSourceText -match 'ShowWgdotNotification\("GlazeWM window_behavior", summary\)') "window behavior toggle reports the resulting state"
 Assert-True ($nativeSourceText -match 'RawAccelToggle') "compiled WGDot retains the narrowly scoped RawAccel toggle"
 Assert-True ($nativeSourceText -match 'if \(command == "acceptance-audit"\) return AcceptanceAudit') "native runtime exposes automated acceptance audit"
 Assert-True ($nativeSourceText -match 'String\.Equals\(command, "acceptance-audit"') "acceptance audit refreshes runtime before dispatch"
@@ -750,7 +754,7 @@ foreach ($desktopCommand in @(
 }
 foreach ($approvedDesktopCommand in @(
     "bar-autohide-toggle",
-    "glazewm-binding-mode-toggle", "theme", "theme-window-toggle", "clipboard-history-open", "eartrumpet-mixer-toggle", "launcher", "power-menu", "rawaccel-toggle"
+    "glazewm-binding-mode-toggle", "glazewm-window-behavior-toggle", "theme", "theme-window-toggle", "clipboard-history-open", "eartrumpet-mixer-toggle", "launcher", "power-menu", "rawaccel-toggle"
 )) {
     Assert-True ($nativeSourceText -match ('command == "' + [regex]::Escape($approvedDesktopCommand) + '"')) "WGDot exposes approved scoped runtime helper: $approvedDesktopCommand"
 }
