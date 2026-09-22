@@ -889,6 +889,10 @@ Assert-True ($yasbConfigText -notmatch 'cmd\.exe /c start ms-settings') "YASB se
 Assert-True ($yasbConfigText -notmatch '%USERPROFILE%\\\.config\\win-glaze\\scripts') "YASB custom actions do not rely on percent-style USERPROFILE expansion"
 
 
+$altSnapConfigText = Get-Content -LiteralPath (Join-Path $repoRoot "UserProfile\AppData\Roaming\AltSnap\AltSnap.ini") -Raw
+Assert-True ($altSnapConfigText -match '(?m)^AutoFocus=1\r?$') "AltSnap focuses windows while dragging by default"
+Assert-True ($altSnapConfigText -match '(?m)^Hotkeys=A4 A5 5B 5C\r?$') "AltSnap enables left/right Alt and Win modifier keys by default"
+
 $flameshotConfigText = Get-Content -LiteralPath (Join-Path $repoRoot "UserProfile\AppData\Roaming\flameshot\flameshot.ini") -Raw
 Assert-True ($flameshotConfigText -match '(?m)^captureActiveMonitor=true') "Flameshot defaults to capturing the active monitor without monitor selection"
 Assert-True ($flameshotConfigText -notmatch '(?i)C:/Users/|C:\\Users\\') "Flameshot managed config contains no user-specific profile path"
