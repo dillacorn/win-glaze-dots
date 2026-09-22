@@ -53,7 +53,7 @@ WGDot keeps the interactive software selector unelevated. After the user reviews
 
 Preflight reads the installed WinGet package state once, then performs exact-ID source validation only for selected packages that are actually missing. Silent WinGet checks run with interactivity disabled and a 30-second timeout; if WinGet itself stops responding, WGDot reports the package/check and stops before launching a partial elevated install batch instead of hanging forever.
 
-Firefox's Windows extension-policy registry mutation and registry-heavy Windows setup tweaks are handled inside the same bounded elevated worker when needed. Raw Accel's upstream kernel-driver installer also runs there after its official release ZIP is safely extracted; WGDot verifies the driver service/file state and leaves the required restart to the user. Betterfox profile changes, Brave/Mullvad browser interaction, Flow Launcher/EarTrumpet application configuration, browser launches, MicLockTray's standalone portable install/launch, and other user-level post-install launches stay in the normal unelevated WGDot process. WGDot does not require Windows sudo and does not disable or weaken UAC.
+Firefox's Windows extension-policy registry mutation and registry-heavy Windows setup tweaks are handled inside the same bounded elevated worker when needed. Raw Accel's upstream kernel-driver installer also runs there after its official release ZIP is safely extracted; WGDot verifies the driver service/file state and leaves the required restart to the user. Betterfox profile changes, Brave/Mullvad browser interaction, EarTrumpet application configuration, browser launches, MicLockTray's standalone portable install/launch, and other user-level post-install launches stay in the normal unelevated WGDot process. WGDot does not require Windows sudo and does not disable or weaken UAC.
 
 
 ## Default ON
@@ -64,9 +64,6 @@ Firefox's Windows extension-policy registry mutation and registry-heavy Windows 
 - **Visual C++ Redistributable** — `Microsoft.VCRedist.2015+.x64`
 - **YASB** — `AmN.yasb`
 - **Flameshot** — `Flameshot.Flameshot`
-- **Flow Launcher** — `Flow-Launcher.Flow-Launcher`
-
-  WGDot tries the exact WinGet package first. If that WinGet install stalls for 180 seconds or fails, WGDot terminates the stuck WinGet attempt and may fall back only to the official `Flow-Launcher/Flow.Launcher` latest release asset `Flow-Launcher-Setup.exe`.
 - **EarTrumpet** — `File-New-Project.EarTrumpet`
 - **Micro** — `zyedidia.micro`
 - **Yazi** — `sxyazi.yazi`
