@@ -1,5 +1,5 @@
-# github.com/dillacorn/win-glaze-dots
-# %APPDATA%\yazi\config\init.lua
+-- github.com/dillacorn/win-glaze-dots
+-- %APPDATA%\yazi\config\init.lua
 
 function Linemode:size_and_mtime()
     local size = self._file:size()
@@ -12,7 +12,7 @@ function Linemode:size_and_mtime()
         size_text = folder and tostring(#folder.files) or "-"
     end
 
-    local time = math.floor(self._file.cha.mtime or 0)
+    local time = math.floor(self._file.stat.mtime or 0)
     local date_text = "-"
 
     if time > 0 then
