@@ -210,27 +210,76 @@ if ($selectedComponents -contains "yasb") {
                 -not ([string]$_.name).StartsWith("WGDot ", [StringComparison]::OrdinalIgnoreCase)
             })
         }
+        # Terminal ANSI colors are semantic foreground colors, not YASB surface colors.
+        # Use the selected theme when it is readable, otherwise fall back to the
+        # proven Dark Pastels hue for that ANSI slot.
+        function Get-ManualTerminalLuminance {
+            param([Parameter(Mandatory = $true)][string]$Hex)
+            $channel = {
+                param([int]$Value)
+                $c = $Value / 255.0
+                if ($c -le 0.03928) { return ($c / 12.92) }
+                return [Math]::Pow((($c + 0.055) / 1.055), 2.4)
+            }
+            $r = [Convert]::ToInt32($Hex.Substring(1, 2), 16)
+            $g = [Convert]::ToInt32($Hex.Substring(3, 2), 16)
+            $b = [Convert]::ToInt32($Hex.Substring(5, 2), 16)
+            return (0.2126 * (& $channel $r)) + (0.7152 * (& $channel $g)) + (0.0722 * (& $channel $b))
+        }
+        function Get-ManualTerminalContrast {
+            param([string]$First, [string]$Second)
+            $a = Get-ManualTerminalLuminance -Hex $First
+            $b = Get-ManualTerminalLuminance -Hex $Second
+            return ([Math]::Max($a, $b) + 0.05) / ([Math]::Min($a, $b) + 0.05)
+        }
+        function Get-ManualTerminalBlend {
+            param([string]$Background, [string]$Foreground, [double]$Weight)
+            $backWeight = 1.0 - $Weight
+            $parts = foreach ($start in @(1, 3, 5)) {
+                $back = [Convert]::ToInt32($Background.Substring($start, 2), 16)
+                $front = [Convert]::ToInt32($Foreground.Substring($start, 2), 16)
+                [int][Math]::Round(($back * $backWeight) + ($front * $Weight))
+            }
+            return ('#{0:X2}{1:X2}{2:X2}' -f $parts[0], $parts[1], $parts[2])
+        }
+        function Get-ManualTerminalColor {
+            param(
+                [string]$Candidate,
+                [double]$MinimumContrast,
+                [double]$FallbackWeight,
+                [string]$PreferredFallback
+            )
+            if ((Get-ManualTerminalContrast -First $Candidate -Second $theme[1]) -ge $MinimumContrast) {
+                return $Candidate
+            }
+            if (-not [string]::IsNullOrWhiteSpace($PreferredFallback) -and
+                (Get-ManualTerminalContrast -First $PreferredFallback -Second $theme[1]) -ge $MinimumContrast) {
+                return $PreferredFallback
+            }
+            return Get-ManualTerminalBlend -Background $theme[1] -Foreground $theme[2] -Weight $FallbackWeight
+        }
+
         $terminalScheme = [pscustomobject][ordered]@{
             name = $schemeName
             background = $theme[1]
             foreground = $theme[2]
             cursorColor = $theme[2]
-            selectionBackground = $theme[4]
+            selectionBackground = Get-ManualTerminalColor -Candidate $theme[4] -MinimumContrast 1.6 -FallbackWeight 0.45
             black = $theme[7]
-            red = $theme[6]
-            green = $theme[8]
-            yellow = $theme[9]
-            blue = $theme[4]
-            purple = $theme[5]
-            cyan = $theme[3]
+            red = Get-ManualTerminalColor -Candidate $theme[6] -MinimumContrast 3.0 -FallbackWeight 0.72 -PreferredFallback "#705050"
+            green = Get-ManualTerminalColor -Candidate $theme[8] -MinimumContrast 3.0 -FallbackWeight 0.72 -PreferredFallback "#60B48A"
+            yellow = Get-ManualTerminalColor -Candidate $theme[9] -MinimumContrast 3.0 -FallbackWeight 0.72 -PreferredFallback "#DFAF8F"
+            blue = Get-ManualTerminalColor -Candidate $theme[4] -MinimumContrast 3.0 -FallbackWeight 0.72 -PreferredFallback "#9AB8D7"
+            purple = Get-ManualTerminalColor -Candidate $theme[5] -MinimumContrast 3.0 -FallbackWeight 0.72 -PreferredFallback "#DC8CC3"
+            cyan = Get-ManualTerminalColor -Candidate $theme[3] -MinimumContrast 4.5 -FallbackWeight 0.82 -PreferredFallback "#8CD0D3"
             white = $theme[2]
-            brightBlack = $theme[10]
-            brightRed = $theme[6]
-            brightGreen = $theme[8]
-            brightYellow = $theme[9]
-            brightBlue = $theme[4]
-            brightPurple = $theme[5]
-            brightCyan = $theme[3]
+            brightBlack = Get-ManualTerminalColor -Candidate $theme[10] -MinimumContrast 3.0 -FallbackWeight 0.60 -PreferredFallback "#709080"
+            brightRed = Get-ManualTerminalColor -Candidate $theme[6] -MinimumContrast 4.0 -FallbackWeight 0.82 -PreferredFallback "#DCA3A3"
+            brightGreen = Get-ManualTerminalColor -Candidate $theme[8] -MinimumContrast 4.0 -FallbackWeight 0.82 -PreferredFallback "#72D5A3"
+            brightYellow = Get-ManualTerminalColor -Candidate $theme[9] -MinimumContrast 4.0 -FallbackWeight 0.82 -PreferredFallback "#F0DFAF"
+            brightBlue = Get-ManualTerminalColor -Candidate $theme[4] -MinimumContrast 4.0 -FallbackWeight 0.82 -PreferredFallback "#94BFF3"
+            brightPurple = Get-ManualTerminalColor -Candidate $theme[5] -MinimumContrast 4.0 -FallbackWeight 0.82 -PreferredFallback "#EC93D3"
+            brightCyan = Get-ManualTerminalColor -Candidate $theme[3] -MinimumContrast 4.5 -FallbackWeight 0.90 -PreferredFallback "#93E0E3"
             brightWhite = $theme[2]
         }
         $terminal | Add-Member -NotePropertyName schemes -NotePropertyValue @($terminalSchemes + $terminalScheme) -Force
