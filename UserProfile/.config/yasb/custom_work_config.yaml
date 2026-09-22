@@ -57,7 +57,6 @@ bars:
       center: ["active_window"]
       right:
         [
-          "idle_inhibitor",
           "cpu",
           "memory",
           "control_center",
@@ -203,24 +202,6 @@ widgets:
         on_left: "toggle_label"
         on_middle: "do_nothing"
         on_right: "toggle_label"
-
-  idle_inhibitor:
-    type: "yasb.custom.CustomWidget"
-    options:
-      label: "{data[icon]}"
-      class_name: "awtarchy-idle"
-      tooltip: true
-      tooltip_label: "{data[tooltip]}"
-      exec_options:
-        run_cmd: "wgdot.exe idle-inhibitor-status"
-        run_once: false
-        run_interval: 30000
-        return_format: "json"
-        hide_empty: false
-      callbacks:
-        on_left: "exec wgdotw.exe idle-inhibitor-toggle"
-        on_middle: "do_nothing"
-        on_right: "exec wgdotw.exe idle-inhibitor-toggle"
 
   cpu:
     type: "yasb.cpu.CpuWidget"
@@ -453,7 +434,7 @@ widgets:
       callbacks:
         on_left: "toggle_mute"
         on_middle: "toggle_label"
-        on_right: 'exec explorer.exe shell:AppsFolder\40459File-New-Project.EarTrumpet_1sdd7yawvg6ne!EarTrumpet'
+        on_right: "do_nothing"
 
   clock:
     type: "yasb.clock.ClockWidget"
@@ -550,14 +531,14 @@ widgets:
       label: "<span></span>"
       class_name: "awtarchy-clipboard"
       tooltip: true
-      tooltip_label: "Windows Clipboard History (Super+C)"
+      tooltip_label: "Windows Clipboard History (Super+V)"
       exec_options:
         run_once: true
         return_format: "string"
       callbacks:
-        on_left: "exec wgdotw.exe clipboard-anchor bar"
+        on_left: "exec wgdotw.exe clipboard-history-open"
         on_middle: "do_nothing"
-        on_right: "exec wgdotw.exe clipboard-anchor bar"
+        on_right: "exec wgdotw.exe clipboard-history-open"
 
   dnd:
     type: "yasb.dnd.DndWidget"
