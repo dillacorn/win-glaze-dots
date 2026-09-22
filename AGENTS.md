@@ -428,6 +428,8 @@ The current Windows Yazi clipboard helper is:
 
 The current keymap invokes `plugin system-clipboard`.
 
+Use Yazi's native wraparound movement actions for list navigation: Up/`k` use `arrow prev` and Down/`j` use `arrow next`. This intentionally wraps from the first item to the last and from the last item to the first. Preserve native `g` Go To prefix behavior, `gg` top, and `G` bottom.
+
 The obsolete `%APPDATA%\yazi\config\plugins\clipboard.yazi` directory may be removed only when positively identified as the known old managed XYenon plugin. A same-named user/custom directory must be preserved with a warning.
 
 Do not reintroduce Linux `wl-copy`/`wl-paste` assumptions into the Windows helper.
