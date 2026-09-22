@@ -8,9 +8,9 @@ WGDot manages installation, updates, backups, and deployment. Runtime ownership 
 
 - **GlazeWM** owns window-manager keybindings, binding modes, pause, workspace actions, screenshots, and direct Windows/application launches.
 - **YASB** owns ordinary bar widgets and native callbacks; for the custom application launcher it owns only the visible bar button.
-- **Installed applications** are launched directly where practical. GlazeWM opens EarTrumpet directly on `Super+V` / global `Alt+V`; WGDot's EarTrumpet packaged-hotkey configuration remains only a management-time fallback.
+- **Installed applications** own their native hotkeys where practical. EarTrumpet owns `Alt+V` itself; GlazeWM/YASB do not launch it and WGDot does not rewrite that hotkey.
 - **Neither Normal nor Work has any `.ps1` runtime dependencies.** Desktop-session behavior uses native GlazeWM/YASB/Windows/application interfaces first.
-- **Compiled WGDot is used at runtime only for approved custom primitives:** the application launcher, power surface, idle inhibition, coordinated auto-hide, theme application/window toggle, invisible GlazeWM mode dispatch where a console would otherwise flash, the narrow RawAccel GUI toggle, and the experimental native Clipboard History handoff.
+- **Compiled WGDot is used at runtime only for approved custom primitives:** the application launcher, power surface, coordinated auto-hide, theme application/window toggle, invisible GlazeWM mode dispatch where a console would otherwise flash, the narrow RawAccel GUI toggle, and the bar-only one-shot Clipboard History opener.
 - Runtime actions that must stay invisible use the windowless `wgdotw.exe` frontend; the interactive theme selector uses `wgdot.exe theme` inside Windows Terminal.
 
 ## Bar layout
@@ -107,9 +107,7 @@ The blank-bar context menu stays disabled so there is no second unsynchronized a
 
 ## Idle inhibitor
 
-The eye control uses `wgdot.exe idle-inhibitor-status` for status and `wgdotw.exe idle-inhibitor-toggle` for changes in both profiles.
-
-The helper uses Windows `SetThreadExecutionState(ES_CONTINUOUS | ES_SYSTEM_REQUIRED | ES_DISPLAY_REQUIRED)` in a scoped hidden user-session worker. It changes no power-plan values. The normal status poll is a 30-second fallback; a user toggle requests one silent public `yasbc reload -s` so every monitor/bar immediately re-queries the shared state instead of waiting on a tight poll.
+The custom idle-inhibitor eye is retired. Real-Windows testing showed the cross-display refresh path visibly reloaded the whole YASB bar, and the feature was not worth keeping as another live WGDot/YASB integration. No idle widget, polling command, or keep-awake worker runs in either profile.
 
 ## RawAccel
 
@@ -127,21 +125,17 @@ The power surface preserves the Awtarchy-style fullscreen 3x2 tile layout for Lo
 
 The native YASB Volume widget retains Awtarchy-like mute glyphs, thresholds, and 5-point wheel changes.
 
-Right-click launches EarTrumpet directly through its packaged AppsFolder identity.
-
-GlazeWM also launches EarTrumpet directly on `Super+V` and global `Alt+V`. In `noalt`, `Super+V` remains available while plain `Alt+V` is intentionally left uncaptured.
-
-WGDot may configure EarTrumpet's own mixer hotkey to `Super+V` during explicit environment management. After configuration, EarTrumpet owns the chord itself; no WGDot helper or synthetic Alt+V bridge is used.
+EarTrumpet owns Alt+V itself through its application settings. GlazeWM and YASB do not launch EarTrumpet for Alt+V, Super+V, or volume right-click; volume right-click is intentionally a no-op. This avoids the rejected AppsFolder path that opened Explorer/Documents.
 
 ## Clipboard
 
 The old generic WGDot clipboard-history worker/window remains removed.
 
-YASB's Quick Launch clipboard provider stays disabled. Instead, the bar restores a dedicated Clipboard History button and GlazeWM binds `Super+C` to the narrow `wgdotw.exe clipboard-anchor` handoff. Reliability is prioritized over fake placement: the helper leaves the user's foreground window in place, waits for the Windows modifier to be released, preserves and verifies GlazeWM's pause state around native `Win+V`, restores that state, then exits. It currently makes no bar-relative positioning claim; that behavior stays out until real-Windows evidence proves a reliable Windows-supported path.
+Super+V stays native Windows Clipboard History. GlazeWM does not override it and the retired Super+C/clipboard-anchor handoff is gone. The dedicated bar Clipboard History button uses only `wgdotw.exe clipboard-history-open`, a one-shot helper that injects native Win+V for the mouse click and immediately exits; it does not pause GlazeWM or claim custom placement.
 
 ## Font parity
 
-The Windows bar uses `NotoSansM Nerd Font Mono` at 14 px to match Awtarchy, with `JetBrainsMono NFP` as a fallback. WGDot manages the exact Noto Nerd Font from the official `ryanoasis/nerd-fonts` Noto archive during software reconciliation; dots-only updates intentionally do not install fonts.
+The Windows bar uses `NotoSansM Nerd Font Mono` at 14 px to match Awtarchy, with `JetBrainsMono NFP` as a fallback. WGDot manages the exact Noto Nerd Font from the official `ryanoasis/nerd-fonts` Noto archive during software reconciliation; dots-only updates intentionally do not install fonts, so a machine without Noto installed will continue to render the JetBrains fallback until software reconciliation installs it.
 
 ## Evidence-backed mappings
 
