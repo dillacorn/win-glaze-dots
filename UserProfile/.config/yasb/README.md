@@ -135,7 +135,7 @@ Super+V stays native Windows Clipboard History. GlazeWM does not override it and
 
 ## Font parity
 
-The Windows bar uses the Noto Sans Mono Nerd Font face at 14 px to match Awtarchy. On Windows, the upstream TTF exposes its embedded family as `NotoSansM NFM`, so YASB must request that exact family; `JetBrainsMono NFP` remains the fallback. WGDot manages the face from the official `ryanoasis/nerd-fonts` Noto archive. Dots-only updates intentionally do not install fonts, so a machine without Noto installed will render the JetBrains fallback. Use `wgdot bar-font-install` to install only this current-user font without reconciling unrelated software, then restart YASB with `yasbc reload`.
+The Windows bar uses the Noto Sans Mono Nerd Font face at 14 px to match Awtarchy. On Windows, the upstream TTF exposes its embedded family as `NotoSansM NFM`, so YASB must request that exact family; `JetBrainsMono NFP` remains the fallback. WGDot manages the face from the official `ryanoasis/nerd-fonts` Noto archive. Dots-only updates intentionally do not install fonts, so a machine without Noto installed will render the JetBrains fallback. Use `wgdot bar-font-install` to install only this current-user font without reconciling unrelated software, then restart YASB with `yasbc reload`. The command is idempotent: if the managed TTF is already present and loaded, WGDot reuses it and repairs the registry family mapping instead of trying to overwrite the locked file.
 
 ## Evidence-backed mappings
 
