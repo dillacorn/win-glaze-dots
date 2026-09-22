@@ -8479,9 +8479,9 @@ class WgdotHidden
                 System.Threading.Thread.Sleep(50);
             if (NamedMutexExists(IdleInhibitorMutexName))
                 throw new Exception("Idle inhibitor did not stop.");
-            ProcResult yasbReload = Run("yasbc.exe", "reload -s", null);
-            if (yasbReload.ExitCode != 0)
-                Console.Error.WriteLine("YASB idle-state refresh warning: " + LastUsefulLine(yasbReload.StdErr + "\n" + yasbReload.StdOut));
+            ProcResult disabledReload = Run("yasbc.exe", "reload -s", null);
+            if (disabledReload.ExitCode != 0)
+                Console.Error.WriteLine("YASB idle-state refresh warning: " + LastUsefulLine(disabledReload.StdErr + "\n" + disabledReload.StdOut));
             Console.WriteLine("Idle inhibitor disabled.");
             return 0;
         }
@@ -8492,9 +8492,9 @@ class WgdotHidden
         if (!NamedMutexExists(IdleInhibitorMutexName))
             throw new Exception("Idle inhibitor did not start.");
 
-        ProcResult yasbReload = Run("yasbc.exe", "reload -s", null);
-        if (yasbReload.ExitCode != 0)
-            Console.Error.WriteLine("YASB idle-state refresh warning: " + LastUsefulLine(yasbReload.StdErr + "\n" + yasbReload.StdOut));
+        ProcResult enabledReload = Run("yasbc.exe", "reload -s", null);
+        if (enabledReload.ExitCode != 0)
+            Console.Error.WriteLine("YASB idle-state refresh warning: " + LastUsefulLine(enabledReload.StdErr + "\n" + enabledReload.StdOut));
         Console.WriteLine("Idle inhibitor enabled. Windows sleep and display idle timeouts are blocked while it is active.");
         return 0;
     }
