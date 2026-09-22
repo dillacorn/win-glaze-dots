@@ -8,6 +8,7 @@ $launcherPath = Join-Path $repoRoot "wgdot\wgdot.cmd"
 $manualPath = Join-Path $repoRoot "MANUAL_POWERSHELL.md"
 $nativeBootstrapPath = Join-Path $repoRoot "wgdot\\bootstrap.cmd"
 $nativeSourcePath = Join-Path $repoRoot "wgdot\\wgdot-native.cs"
+$installSoftwarePath = Join-Path $repoRoot "install_software.md"
 
 function Assert-True {
     param([bool]$Condition, [string]$Message)
@@ -27,6 +28,11 @@ $nativeBootstrapText = Get-Content -LiteralPath $nativeBootstrapPath -Raw
 Assert-True ($nativeBootstrapText -match 'System\.Windows\.Forms\.dll') "native bootstrap references WinForms for the WGDot power overlay"
 Assert-True ($nativeBootstrapText -match 'System\.Drawing\.dll') "native bootstrap references System.Drawing for the WGDot power overlay"
 Assert-True (Test-Path -LiteralPath $nativeSourcePath -PathType Leaf) "native bootstrap source exists"
+Assert-True (Test-Path -LiteralPath $installSoftwarePath -PathType Leaf) "software guide exists"
+$installSoftwareText = Get-Content -LiteralPath $installSoftwarePath -Raw
+Assert-True ($installSoftwareText -match 'Noto Nerd Font') "software guide documents the managed Awtarchy-matching Noto font"
+Assert-True ($installSoftwareText -match 'Open-Shell remains selectable but defaults OFF') "software guide documents Open-Shell default-off behavior"
+Assert-True ($installSoftwareText -match 'uses \*\*Skip\*\* rather than \*\*Cancel\*\*') "software guide documents privacy.sexy Skip wording"
 
 $env:WGDOT_TEST_MODE = "1"
 . $runtimePath
