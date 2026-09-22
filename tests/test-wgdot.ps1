@@ -479,7 +479,8 @@ Assert-True ($nativeSourceText -match 'official-github-portable') "catalog suppo
 Assert-True ($nativeSourceText -match 'official-github-archive-driver') "catalog supports official GitHub driver archives"
 Assert-True ($nativeSourceText -match 'ExtractZipToDirectorySafe') "archive installs reject unsafe extraction paths"
 Assert-True ($nativeSourceText -match 'RunInteractiveInDirectory') "driver archive installers run from their release directory"
-Assert-True ($nativeSourceText -match 'Refusing to install a user-level portable package inside the elevated worker') "portable applications are kept out of the elevated worker"
+Assert-True ($nativeSourceText -match 'IsOfficialGitHubPortablePackage\(package\) \|\|\s*IsOfficialGitHubFontArchivePackage\(package\)') "portable applications and user-font archives share the unelevated package guard"
+Assert-True ($nativeSourceText -match 'Refusing to install a user-level package inside the elevated worker') "user-level packages are kept out of the elevated worker"
 Assert-True ($nativeSourceText -match 'official GitHub OK') "audit reports official GitHub packages without a false WinGet-missing warning"
 Assert-True ($nativeSourceText -match 'Official GitHub source selected') "reconcile skips dead WinGet lookup for official GitHub packages"
 $rustDeskPackage = @($manifest.packages | Where-Object { $_.id -eq 'RustDesk.RustDesk' })[0]
