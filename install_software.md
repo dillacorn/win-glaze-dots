@@ -11,6 +11,8 @@ The default selection is intentionally conservative for public use. Only the WGD
 
 privacy.sexy remains optional. Its recommendation-level menu uses **Skip** rather than **Cancel**: Skip bypasses only privacy.sexy and continues/finishes WGDot without implying that completed software work was cancelled. WGDot installs/updates only from the official upstream release, detects when the installer already started the desktop app so it does not launch a duplicate window, and waits for that app instance to close before continuing. WGDot does not disable antivirus or add antivirus exclusions around privacy.sexy execution. Upstream 0.13.8 does not expose a supported unattended CLI/API for selecting a recommendation level, generating the resulting script, and executing it.
 
+If privacy.sexy disabled Windows Clipboard History, **Windows tweaks / integrations** includes the action-only **Restore Windows Clipboard History (undo privacy.sexy clipboard disable)** recovery. It re-enables the current-user history setting, removes only the known machine deny policy when it is set to `0`, and changes `cbdhsvc` from Disabled back to Automatic. It does not enable cross-device clipboard sync or undo unrelated privacy.sexy changes.
+
 ## Automatic time and time zone
 
 WGDot defaults **Sync Windows time + detect time zone automatically** ON. This is an administrator-level Windows setting because automatic time-zone detection is system-wide. WGDot enables the normal Windows Time service path, enables the Auto Time Zone Updater, and enables Windows Location services using Microsoft's documented registry settings. It then starts the built-in services when possible, requests an immediate `w32tm /resync /rediscover`, and reports the current Windows time zone.
