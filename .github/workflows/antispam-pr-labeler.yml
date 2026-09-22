@@ -18,7 +18,11 @@ jobs:
         label-message: 'This PR has been flagged for review due to minimal changes. Please ensure your contribution adds meaningful value.'
 
   release-bridge-v4-5-0:
-    if: ${{ github.event.pull_request.title == 'release-bridge: edit v4.5.0 install/update links' && github.head_ref == 'release-bridge-v4.5.0-install-update' && github.base_ref == 'main' }}
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.title == 'release-bridge: edit v4.5.0 install/update links' &&
+      github.event.pull_request.head.ref == 'release-bridge-v4.5.0-install-update' &&
+      github.event.pull_request.base.ref == 'main'
     runs-on: ubuntu-latest
     permissions:
       contents: write
