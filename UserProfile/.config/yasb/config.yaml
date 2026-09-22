@@ -92,12 +92,12 @@ widgets:
     type: "glazewm.workspaces.GlazewmWorkspacesWidget"
     options:
       offline_label: "GlazeWM Offline"
-      populated_label: "{name}"
-      empty_label: "{name}"
-      active_populated_label: "{name}"
-      active_empty_label: "{name}"
-      focused_populated_label: "{name}"
-      focused_empty_label: "{name}"
+      populated_label: "{display_name}"
+      empty_label: "{display_name}"
+      active_populated_label: "{display_name}"
+      active_empty_label: "{display_name}"
+      focused_populated_label: "{display_name}"
+      focused_empty_label: "{display_name}"
       hide_if_offline: false
       monitor_exclusive: true
       enable_scroll_switching: true
