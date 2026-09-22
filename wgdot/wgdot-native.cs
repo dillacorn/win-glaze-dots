@@ -461,6 +461,7 @@ internal static class WgdotNative
     {
         public string Name;
         public string Path;
+        public string IconPath;
         public System.Drawing.Image IconImage;
         public bool IconLoaded;
 
@@ -7329,6 +7330,111 @@ class WgdotHidden
             height);
     }
 
+    static string ResolveLauncherShortcutIconPath(string path)
+    {
+        if (String.IsNullOrWhiteSpace(path))
+            return path;
+
+        string extension = Path.GetExtension(path);
+        if (String.Equals(extension, ".url", StringComparison.OrdinalIgnoreCase))
+        {
+            try
+            {
+                foreach (string rawLine in File.ReadAllLines(path))
+                {
+                    string line = rawLine.Trim();
+                    if (!line.StartsWith("IconFile=", StringComparison.OrdinalIgnoreCase))
+                        continue;
+
+                    string iconFile = Environment.ExpandEnvironmentVariables(
+                        line.Substring("IconFile=".Length).Trim().Trim('"'));
+                    if (File.Exists(iconFile))
+                        return iconFile;
+                }
+            }
+            catch
+            {
+            }
+
+            return path;
+        }
+
+        if (!String.Equals(extension, ".lnk", StringComparison.OrdinalIgnoreCase))
+            return path;
+
+        object shell = null;
+        object shortcut = null;
+        try
+        {
+            Type shellType = Type.GetTypeFromProgID("WScript.Shell");
+            if (shellType == null)
+                return path;
+
+            shell = Activator.CreateInstance(shellType);
+            shortcut = shellType.InvokeMember(
+                "CreateShortcut",
+                System.Reflection.BindingFlags.InvokeMethod,
+                null,
+                shell,
+                new object[] { path });
+            if (shortcut == null)
+                return path;
+
+            Type shortcutType = shortcut.GetType();
+            string targetPath = Convert.ToString(shortcutType.InvokeMember(
+                "TargetPath",
+                System.Reflection.BindingFlags.GetProperty,
+                null,
+                shortcut,
+                null));
+            if (!String.IsNullOrWhiteSpace(targetPath))
+            {
+                targetPath = Environment.ExpandEnvironmentVariables(
+                    targetPath.Trim().Trim('"'));
+                if (File.Exists(targetPath) &&
+                    !String.Equals(
+                        Path.GetFileName(targetPath),
+                        "explorer.exe",
+                        StringComparison.OrdinalIgnoreCase))
+                    return targetPath;
+            }
+
+            string iconLocation = Convert.ToString(shortcutType.InvokeMember(
+                "IconLocation",
+                System.Reflection.BindingFlags.GetProperty,
+                null,
+                shortcut,
+                null));
+            if (!String.IsNullOrWhiteSpace(iconLocation))
+            {
+                int comma = iconLocation.LastIndexOf(',');
+                string iconPath = comma > 1
+                    ? iconLocation.Substring(0, comma)
+                    : iconLocation;
+                iconPath = Environment.ExpandEnvironmentVariables(
+                    iconPath.Trim().Trim('"'));
+                if (File.Exists(iconPath))
+                    return iconPath;
+            }
+        }
+        catch
+        {
+        }
+        finally
+        {
+            if (shortcut != null && Marshal.IsComObject(shortcut))
+            {
+                try { Marshal.FinalReleaseComObject(shortcut); } catch { }
+            }
+            if (shell != null && Marshal.IsComObject(shell))
+            {
+                try { Marshal.FinalReleaseComObject(shell); } catch { }
+            }
+        }
+
+        return path;
+    }
+
     static void AddLauncherAppsFromFolder(
         string root,
         Dictionary<string, LauncherApp> byName)
@@ -7370,7 +7476,8 @@ class WgdotHidden
             byName[name] = new LauncherApp
             {
                 Name = name.Trim(),
-                Path = path
+                Path = path,
+                IconPath = ResolveLauncherShortcutIconPath(path)
             };
         }
     }
@@ -7446,8 +7553,11 @@ class WgdotHidden
 
         app.IconLoaded = true;
         SHFILEINFO info;
+        string iconPath = String.IsNullOrWhiteSpace(app.IconPath)
+            ? app.Path
+            : app.IconPath;
         IntPtr result = SHGetFileInfo(
-            app.Path,
+            iconPath,
             0,
             out info,
             (uint)Marshal.SizeOf(typeof(SHFILEINFO)),
@@ -7528,7 +7638,7 @@ class WgdotHidden
             theme.Hover,
             System.Drawing.Color.FromArgb(64, 64, 64));
 
-        const int width = 720;
+        const int width = 380;
         const int height = 450;
 
         var form = new System.Windows.Forms.Form();
