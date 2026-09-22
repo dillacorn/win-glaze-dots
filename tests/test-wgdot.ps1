@@ -137,7 +137,6 @@ Assert-Equal "NotoSansM NFM" ([string]$notoFontPackage.fontFamily) "Noto Nerd Fo
 Assert-True ([bool]$notoFontPackage.defaultNormal) "Noto Nerd Font is selected by default on fresh Normal installs"
 Assert-True ([bool]$notoFontPackage.defaultWork) "Noto Nerd Font is selected by default on fresh Work installs"
 Assert-Equal "official-github-font-archive" ([string]$notoFontPackage.installMode) "Noto Nerd Font uses the managed current-user font installer"
-Assert-True ($nativeSourceText -match 'scope == "work" \? GetBool\(package, "defaultWork"\) : GetBool\(package, "defaultNormal"\)') "fresh package selection honors profile default flags"
 
 $micLockTrayPackage = Get-ManifestPackage -Id "dillacorn.MicLockTray"
 Assert-True ($null -ne $micLockTrayPackage) "MicLockTray package exists"
@@ -328,6 +327,7 @@ $launcherText = Get-Content -LiteralPath $launcherPath -Raw
 $manualText = Get-Content -LiteralPath $manualPath -Raw
 $nativeBootstrapText = Get-Content -LiteralPath $nativeBootstrapPath -Raw
 $nativeSourceText = Get-Content -LiteralPath $nativeSourcePath -Raw
+Assert-True ($nativeSourceText -match 'scope == "work" \? GetBool\(package, "defaultWork"\) : GetBool\(package, "defaultNormal"\)') "fresh package selection honors profile default flags"
 Assert-True ($nativeSourceText -match 'if \(command == "bar-font-install"\) return BarFontInstall\(\);') "native runtime exposes targeted YASB font install"
 Assert-True ($nativeSourceText -match 'FindPackageById\(source\.Manifest, "NerdFonts\.Noto"\)') "targeted YASB font install resolves only the managed Noto package"
 Assert-True ($nativeSourceText -match 'No WinGet packages or unrelated software will be reconciled\.') "targeted YASB font install documents its narrow scope"
