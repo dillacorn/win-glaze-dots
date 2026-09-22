@@ -117,6 +117,20 @@ Assert-NotContains $config "glazewm-pause-toggle" "YASB has no WGDot pause helpe
 Assert-NotContains $config "id: `"wgdot_mouse_mode`"" "mouse mode is not duplicated in quick settings"
 Assert-NotContains $config "id: `"screenshot`"" "YASB screenshot action is removed in favor of Flameshot"
 Assert-Contains $config "on_right: `"toggle_window`"" "taskbar right click uses YASB minimize/restore behavior"
+foreach ($profileEntry in @(
+    @{ Name = "Normal"; Text = $config },
+    @{ Name = "Work"; Text = $workConfig }
+)) {
+    $profileName = [string]$profileEntry.Name
+    $profileText = [string]$profileEntry.Text
+    Assert-Contains $profileText 'yasb.language.LanguageWidget' "$profileName uses native YASB language state for Caps Lock"
+    Assert-Contains $profileText 'class_name: "awtarchy-caps-lock"' "$profileName Caps Lock indicator has dedicated styling class"
+    Assert-Contains $profileText 'label: "<span>⇪</span>"' "$profileName Caps Lock indicator uses the compact caps symbol"
+    Assert-Contains $profileText 'update_interval: 1' "$profileName Caps Lock state refreshes at YASB's minimum interval"
+    if ($profileText -notmatch '(?ms)right:\s*\[\s*"caps_lock",\s*"cpu",') {
+        throw "ASSERTION FAILED: $profileName Caps Lock indicator must sit immediately left of CPU"
+    }
+}
 Assert-Contains $config "label: `"{info[percent][total]} <span></span>`"" "CPU label matches Awtarchy's unitless integer plus glyph"
 Assert-Contains $config "label: `"{virtual_mem_percent} <span></span>`"" "memory label matches Awtarchy's unitless integer plus glyph"
 Assert-NotContains $config "label: `"{info[percent][total]}% <span></span>`"" "CPU bar label does not reintroduce a percent suffix"
@@ -358,6 +372,15 @@ Assert-Contains -Text $style -Needle ".awtarchy-control-center:hover" -Message "
 Assert-Contains -Text $style -Needle ".control-center-menu" -Message "Control Center popup uses shared theme styling"
 Assert-Contains -Text $style -Needle "@import `"appearance.css`";" -Message "styles import portable appearance overrides"
 Assert-Contains -Text $style -Needle ".dnd-widget:hover" -Message "DND action has strong hover treatment"
+Assert-Contains -Text $style -Needle ".language-widget.awtarchy-caps-lock" -Message "Caps Lock indicator has a dedicated native YASB style"
+Assert-Contains -Text $style -Needle ".widget-container.caps-lock-on .icon" -Message "Caps Lock indicator reacts to YASB's native caps-lock-on class"
+$capsOffStyle = [regex]::Match($style, "(?ms)^\.language-widget\.awtarchy-caps-lock \.icon \{\r?\n.*?^\}").Value
+Assert-Contains -Text $capsOffStyle -Needle "font-size: 0;" -Message "Caps Lock indicator consumes no glyph width while disabled"
+Assert-Contains -Text $capsOffStyle -Needle "max-width: 0;" -Message "Caps Lock indicator collapses while disabled"
+$capsOnStyle = [regex]::Match($style, "(?ms)^\.language-widget\.awtarchy-caps-lock \.widget-container\.caps-lock-on \.icon \{\r?\n.*?^\}").Value
+Assert-Contains -Text $capsOnStyle -Needle "color: var(--critical);" -Message "active Caps Lock warning uses the critical theme color"
+Assert-Contains -Text $capsOnStyle -Needle "font-size: 18px;" -Message "active Caps Lock warning matches generic status glyph sizing"
+Assert-Contains -Text $capsOnStyle -Needle "padding: 0 6px 1px 6px;" -Message "active Caps Lock warning uses compact aligned spacing"
 $iconScaleBlock = [regex]::Match(
     $style,
     "(?ms)/\* Match Awtarchy's tuned Nerd Font glyph sizes.*?^\.awtarchy-power \.icon \{\r?\n    font-size: 20px;\r?\n\}"

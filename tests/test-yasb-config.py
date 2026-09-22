@@ -58,6 +58,7 @@ from core.validation.widgets.yasb.cpu import CpuConfig
 from core.validation.widgets.yasb.custom import CustomConfig
 from core.validation.widgets.yasb.dnd import DndConfig
 from core.validation.widgets.yasb.grouper import GrouperWidgetConfig
+from core.validation.widgets.yasb.language import LanguageConfig
 from core.validation.widgets.yasb.memory import MemoryConfig
 from core.validation.widgets.yasb.microphone import MicrophoneConfig
 from core.validation.widgets.yasb.notifications import NotificationsConfig
@@ -84,6 +85,7 @@ SCHEMAS = {
     "yasb.custom.CustomWidget": CustomConfig,
     "yasb.dnd.DndWidget": DndConfig,
     "yasb.grouper.GrouperWidget": GrouperWidgetConfig,
+    "yasb.language.LanguageWidget": LanguageConfig,
     "yasb.memory.MemoryWidget": MemoryConfig,
     "yasb.microphone.MicrophoneWidget": MicrophoneConfig,
     "yasb.notifications.NotificationsWidget": NotificationsConfig,
@@ -106,6 +108,7 @@ WIDGET_SOURCE = {
     "yasb.cpu.CpuWidget": "core/widgets/yasb/cpu.py",
     "yasb.custom.CustomWidget": "core/widgets/yasb/custom.py",
     "yasb.dnd.DndWidget": "core/widgets/yasb/dnd.py",
+    "yasb.language.LanguageWidget": "core/widgets/yasb/language.py",
     "yasb.memory.MemoryWidget": "core/widgets/yasb/memory.py",
     "yasb.microphone.MicrophoneWidget": "core/widgets/yasb/microphone.py",
     "yasb.notifications.NotificationsWidget": "core/widgets/yasb/notifications.py",

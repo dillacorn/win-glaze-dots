@@ -372,6 +372,43 @@ QToolTip,
     border: none;
 }
 
+/* Native Caps Lock warning. The Language widget reads Windows' lock state
+   directly. Collapse it completely while off; show one compact warning slot
+   immediately to the left of CPU while Caps Lock is active. */
+.language-widget.awtarchy-caps-lock {
+    background-color: transparent;
+    border: none;
+    border-radius: 0;
+    margin: 0;
+    padding: 0;
+}
+
+.language-widget.awtarchy-caps-lock .widget-container {
+    background-color: transparent;
+    border: none;
+    margin: 0;
+    padding: 0;
+}
+
+.language-widget.awtarchy-caps-lock .icon {
+    color: transparent;
+    background-color: transparent;
+    border: none;
+    font-size: 0;
+    min-width: 0;
+    max-width: 0;
+    margin: 0;
+    padding: 0;
+}
+
+.language-widget.awtarchy-caps-lock .widget-container.caps-lock-on .icon {
+    color: var(--critical);
+    font-size: 18px;
+    min-width: 16px;
+    max-width: 16px;
+    padding: 0 6px 1px 6px;
+}
+
 /* Right-side status controls. Keep all modules flat and contiguous. */
 .cpu-widget,
 .memory-widget,

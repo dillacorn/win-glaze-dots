@@ -57,6 +57,7 @@ bars:
       center: ["active_window"]
       right:
         [
+          "caps_lock",
           "cpu",
           "memory",
           "control_center",
@@ -202,6 +203,18 @@ widgets:
         on_left: "toggle_label"
         on_middle: "do_nothing"
         on_right: "toggle_label"
+
+  caps_lock:
+    type: "yasb.language.LanguageWidget"
+    options:
+      label: "<span>⇪</span>"
+      label_alt: "<span>⇪</span>"
+      update_interval: 1
+      class_name: "awtarchy-caps-lock"
+      callbacks:
+        on_left: "do_nothing"
+        on_middle: "do_nothing"
+        on_right: "do_nothing"
 
   cpu:
     type: "yasb.cpu.CpuWidget"
