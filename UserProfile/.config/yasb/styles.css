@@ -13,9 +13,9 @@
     --strong-hover: rgba(115, 121, 148, 64);
 }
 
-/* theme.css is a normal dotfile and is updated live by the standalone
-   non-elevated theme-switcher.ps1 script. The fallback above keeps YASB
-   readable even if the imported file is temporarily unavailable. */
+/* theme.css is a normal managed dotfile and is updated live by the compiled
+   non-elevated WGDot theme manager. The fallback above keeps YASB readable
+   even if the imported file is temporarily unavailable. */
 @import "theme.css";
 
 * {
@@ -77,6 +77,16 @@ QToolTip,
     border-radius: 0;
     margin: 0;
     padding: 0;
+}
+
+.awtarchy-launcher .widget-container {
+    min-width: 28px;
+}
+
+.awtarchy-launcher .label {
+    min-width: 14px;
+    padding: 0 7px;
+    font-size: 14px;
 }
 
 .quick-launch-widget .icon,
@@ -173,14 +183,8 @@ QToolTip,
     background-color: var(--subtle-hover);
 }
 
-/* Awtarchy-style workspace mover. Collapse the ApplicationsWidget frame,
-   its container, and each arrow label because Qt child size hints can otherwise
-   keep the arrows visible even when the parent frame says max-width: 0. */
-.workspace-move-grouper,
-.workspace-move-grouper .widget-container,
-.workspace-move-grouper .container,
-.workspace-move-hub,
-.workspace-move-hub .widget-container,
+/* Awtarchy-style workspace mover. The retired mouse-mode/hub slot is gone;
+   keep the four native GlazeWM workspace arrows directly usable. */
 .workspace-move-buttons,
 .workspace-move-buttons .widget-container {
     background-color: transparent;
@@ -190,52 +194,18 @@ QToolTip,
     padding: 0;
 }
 
-.workspace-move-hub {
-    min-width: 28px;
-    max-width: 28px;
-}
-
-.workspace-move-hub .label {
+.workspace-move-buttons .label {
     color: var(--foreground);
     background-color: transparent;
     border: none;
     border-radius: 0;
     font-size: 14px;
     min-width: 14px;
-    margin: 0;
-    padding: 0 7px;
-}
-
-.workspace-move-buttons,
-.workspace-move-buttons .widget-container,
-.workspace-move-buttons .label {
-    min-width: 0;
-    max-width: 0;
-    margin: 0;
-    padding: 0;
-}
-
-.workspace-move-buttons .label {
-    color: transparent;
-    background-color: transparent;
-    border: none;
-    border-radius: 0;
-    font-size: 14px;
-}
-
-.workspace-move-grouper:hover .workspace-move-buttons,
-.workspace-move-grouper:hover .workspace-move-buttons .widget-container {
-    max-width: 112px;
-}
-
-.workspace-move-grouper:hover .workspace-move-buttons .label {
-    color: var(--foreground);
-    min-width: 14px;
     max-width: 28px;
+    margin: 0;
     padding: 0 7px;
 }
 
-.workspace-move-hub .label:hover,
 .workspace-move-buttons .label:hover {
     background-color: var(--strong-hover);
 }
