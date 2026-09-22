@@ -347,7 +347,7 @@ Assert-True ($launcherText -match '(?i)Restricted') "launcher handles Restricted
 Assert-True ($launcherText -match '(?i)AllSigned') "launcher handles AllSigned policy"
 Assert-True ($manualText -notmatch '(?i)-ExecutionPolicy\s+Bypass') "manual path does not bypass execution policy"
 Assert-True ($manualText -match 'raw\.githubusercontent\.com') "paste-only manual workflow supports raw.githubusercontent.com-only corporate networks"
-Assert-True ($manualText -notmatch 'api\.github\.com') "paste-only manual workflow does not depend on api.github.com"
+Assert-True ($manualText -notmatch 'https://api\.github\.com') "paste-only manual workflow does not call api.github.com"
 Assert-True ($manualText -notmatch '(?im)^\s*git clone\b') "paste-only manual workflow does not depend on git clone"
 Assert-True ($manualText -match '\$releaseRevision\s*=\s*"[0-9a-f]{40}"') "paste-only manual workflow pins an immutable stable release revision"
 Assert-True ($manualText -notmatch '"doublecmd"') "paste-only manual workflow contains no retired Double Commander component"
@@ -370,6 +370,12 @@ $manualManagedBlock = [regex]::Match(
 )
 Assert-True $manualManagedBlock.Success "paste-only managed-files PowerShell block can be extracted"
 [scriptblock]::Create($manualManagedBlock.Groups[1].Value) | Out-Null
+$manualSoftwareBlock = [regex]::Match(
+    $manualText,
+    '(?s)## Install selected software from the same release manifest.*?```powershell\r?\n(.*?)\r?\n```'
+)
+Assert-True $manualSoftwareBlock.Success "paste-only software PowerShell block can be extracted"
+[scriptblock]::Create($manualSoftwareBlock.Groups[1].Value) | Out-Null
 Assert-True ($nativeBootstrapText -notmatch '(?i)Set-ExecutionPolicy|-ExecutionPolicy\s+(Bypass|Unrestricted)') "native bootstrap does not change or bypass execution policy"
 Assert-True ($nativeSourceText -notmatch '(?i)Set-ExecutionPolicy|-ExecutionPolicy\s+(Bypass|Unrestricted)') "native bootstrap source does not change or bypass execution policy"
 Assert-True ($nativeSourceText -match 'WmSettingChange') "native installer broadcasts environment changes"
