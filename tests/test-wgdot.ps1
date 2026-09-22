@@ -100,6 +100,7 @@ Assert-True ($packageIds.ContainsKey("wagnardsoft.displaydriveruninstaller")) "D
 Assert-True (-not $packageIds.ContainsKey("spotify.spotify")) "Spotify is not offered by WGDot"
 Assert-True ($packageIds.ContainsKey("rustdesk.rustdesk")) "RustDesk is cataloged"
 Assert-True ($packageIds.ContainsKey("rawaccelofficial.rawaccel")) "Raw Accel is cataloged"
+Assert-True ($packageIds.ContainsKey("nerdfonts.noto")) "Noto Nerd Font is cataloged"
 Assert-True ($packageIds.ContainsKey("dillacorn.miclocktray")) "MicLockTray is cataloged"
 Assert-True (-not $packageIds.ContainsKey("discord.discord")) "Discord is not offered; Vesktop is the Discord-family option"
 Assert-True (-not $packageIds.ContainsKey("openwhispersystems.signal")) "Signal is not offered by WGDot"
@@ -119,6 +120,14 @@ Assert-Equal "RawAccelOfficial/rawaccel" ([string]$rawAccelPackage.fallbackGitHu
 Assert-Equal "installer.exe" ([string]$rawAccelPackage.archiveInstaller) "Raw Accel uses the upstream driver installer"
 Assert-Equal "rawaccel" ([string]$rawAccelPackage.installedService) "Raw Accel installation verifies the kernel-driver service"
 Assert-Equal "rawaccel.sys" ([string]$rawAccelPackage.driverFileName) "Raw Accel installation verifies the installed driver file"
+
+$notoFontPackage = Get-ManifestPackage -Id "NerdFonts.Noto"
+Assert-True ($null -ne $notoFontPackage) "Noto Nerd Font package exists"
+Assert-Equal "official-github-font-archive" ([string]$notoFontPackage.installMode) "Noto Nerd Font uses the official GitHub font-archive path"
+Assert-Equal "ryanoasis/nerd-fonts" ([string]$notoFontPackage.fallbackGitHubRepo) "Noto Nerd Font source is the official Nerd Fonts repository"
+Assert-Equal "^Noto\.zip$" ([string]$notoFontPackage.fallbackAssetRegex) "Noto Nerd Font accepts only the official Noto release archive"
+Assert-Equal "NotoSansMNerdFontMono-Regular.ttf" ([string]$notoFontPackage.fontFile) "Noto Nerd Font installs the Awtarchy-matching mono face"
+Assert-Equal "NotoSansM Nerd Font Mono" ([string]$notoFontPackage.fontFamily) "Noto Nerd Font registers the exact Awtarchy family"
 
 $micLockTrayPackage = Get-ManifestPackage -Id "dillacorn.MicLockTray"
 Assert-True ($null -ne $micLockTrayPackage) "MicLockTray package exists"
@@ -165,6 +174,7 @@ $expectedDefaultOnPackages = @(
     "ImageMagick.ImageMagick",
     "glzr-io.glazewm",
     "DEVCOM.JetBrainsMonoNerdFont",
+    "NerdFonts.Noto",
 )
 
 foreach ($package in $manifest.packages) {
@@ -471,6 +481,9 @@ Assert-True ($null -ne $rustDeskPackage) "RustDesk catalog entry exists"
 Assert-Equal ([string]$rustDeskPackage.installMode) 'official-github' "RustDesk uses its verified official GitHub source instead of a missing WinGet ID"
 Assert-Equal ([string]$rustDeskPackage.fallbackGitHubRepo) 'rustdesk/rustdesk' "RustDesk official GitHub source remains publisher-owned"
 Assert-True ($nativeSourceText -match 'const string Version = "native-preview-69"') "native runtime version tracks current WGDot maintenance changes"
+Assert-True ($nativeSourceText -match 'InstallGitHubFontArchivePackage') "native runtime installs managed Nerd Font archives without inventing a WinGet ID"
+Assert-True ($nativeSourceText -match 'AddFontResourceEx') "managed Noto font is loaded into the current Windows session"
+Assert-True ($nativeSourceText -match 'Software\\Microsoft\\Windows NT\\CurrentVersion\\Fonts') "managed Noto font registers under the current-user Windows Fonts key"
 Assert-True ($nativeSourceText -match 'if \(command == "theme"\) return ThemeManagerFromArgs') "compiled WGDot exposes the approved live theme helper"
 $requiredRefreshBlock = [regex]::Match($nativeSourceText, '(?s)string\[\] requiredRefreshCommands\s*=\s*\{.*?\};').Value
 Assert-True (-not [string]::IsNullOrWhiteSpace($requiredRefreshBlock)) "acceptance audit refresh-policy block is present"
