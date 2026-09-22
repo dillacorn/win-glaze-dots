@@ -8,7 +8,7 @@
 
 - **Operating System**: Windows 10/11
 - **Package Manager**: [**winget**](https://winget.run/)
-- **Window Manager & Primary Applications**: [glazewm](https://github.com/glzr-io/glazewm) + [yasb](https://github.com/amnweb/yasb) + [altsnap](https://github.com/RamonUnch/AltSnap) + [flow-launcher](https://github.com/Flow-Launcher/Flow.Launcher) + [eartrumpet](https://github.com/File-New-Project/EarTrumpet) + [flameshot](https://github.com/flameshot-org/flameshot) + [Windows Terminal](https://github.com/microsoft/terminal) + [Yazi](https://github.com/sxyazi/yazi) + [micro](https://github.com/zyedidia/micro)
+- **Window Manager & Primary Applications**: [glazewm](https://github.com/glzr-io/glazewm) + [yasb](https://github.com/amnweb/yasb) + [altsnap](https://github.com/RamonUnch/AltSnap) + [eartrumpet](https://github.com/File-New-Project/EarTrumpet) + [flameshot](https://github.com/flameshot-org/flameshot) + [Windows Terminal](https://github.com/microsoft/terminal) + [Yazi](https://github.com/sxyazi/yazi) + [micro](https://github.com/zyedidia/micro)
 
 Windows Terminal is the default terminal. Yazi is the terminal file manager; text/code opens in Micro while all other files use normal Windows file associations.
 
@@ -30,7 +30,6 @@ WGDot's native runtime can refresh independently from `main`, while normal manag
 - ### [**enable classic right-click context menus**](https://winaero.com/how-to-enable-full-context-menus-in-windows-11/#Enable_the_classic_context_menus_manually_in_Windows_11)
 - ### [**install_software**](https://github.com/dillacorn/win-glaze-dots/blob/main/install_software.md)
 - ### [**copy_dots_directions**](https://github.com/dillacorn/win-glaze-dots/blob/main/copy_dots_directions.md)
-- ### [**flow-launcher_bind**](https://github.com/dillacorn/win-glaze-dots/blob/main/flow-launcher_bind.png)
 - ### [**altsnap_settings**](https://github.com/dillacorn/win-glaze-dots/blob/main/altsnap_settings.md)
 - ### [**eartrumpet_bind**](https://github.com/dillacorn/win-glaze-dots/blob/main/eartrumpet_bind.png)
 - ### [**optional_powertoys**](https://github.com/dillacorn/win-glaze-dots/blob/main/powertoys.md)
