@@ -56,7 +56,8 @@ The application button is a lightweight YASB `CustomWidget` that opens `wgdotw.e
 - Bar click opens directly below the top bar at the top-left of the active display while the bar is visible.
 - Keyboard activation opens horizontally centered just below the top bar during ordinary desktop use.
 - If YASB auto-hide is enabled, or the foreground window fills the active monitor, the launcher opens centered on that monitor.
-- The first implementation is intentionally application-focused: it indexes Start Menu shortcuts and avoids Flow Launcher-style provider/scaling complexity.
+- The launcher stays compact at roughly half the old search-window width while retaining normal application-name room.
+- It indexes Start Menu shortcuts, activates them through Windows shell semantics, and resolves ordinary `.lnk` target/icon metadata so results prefer the underlying application icon instead of shortcut-style presentation where Windows exposes that metadata.
 - Flow Launcher remains optional and is not the default hotkey surface.
 - VM mode has no ordinary launcher binding that steals guest shortcuts.
 
@@ -140,7 +141,7 @@ YASB's Quick Launch clipboard provider stays disabled. Instead, the bar restores
 
 ## Font parity
 
-The Windows bar stays on `JetBrainsMono NFP` at 14 px. WGDot already manages that Nerd Font and it preserves the icon coverage the bar needs. Awtarchy currently uses `NotoSansM Nerd Font Mono` at 14 px, but WGDot does not reference that exact Windows family until it has a verified managed installation path for it.
+The Windows bar uses `NotoSansM Nerd Font Mono` at 14 px to match Awtarchy, with `JetBrainsMono NFP` as a fallback. WGDot manages the exact Noto Nerd Font from the official `ryanoasis/nerd-fonts` Noto archive during software reconciliation; dots-only updates intentionally do not install fonts.
 
 ## Evidence-backed mappings
 
