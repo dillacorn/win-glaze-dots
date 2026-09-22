@@ -10,7 +10,7 @@ APPROVED_WGDOT_RUNTIME = (
     "wgdotw.exe rawaccel-toggle",
     "wgdot.exe theme",
     "wgdotw.exe theme-window-toggle",
-    "wgdotw.exe clipboard-anchor",
+    "wgdotw.exe clipboard-history-open",
     "wgdotw.exe power-menu",
     "wgdotw.exe launcher",
 )
@@ -19,7 +19,7 @@ FORBIDDEN_WGDOT_RUNTIME = (
     "quick-launch",
     "flow-open",
     "eartrumpet-mixer",
-    "clipboard-history",
+    "clipboard-anchor",
     "flameshot-gui",
     "display-settings",
 )
@@ -44,13 +44,17 @@ for yasb_name in ("config.yaml", "custom_work_config.yaml"):
     )
 
     clipboard = yasb["widgets"]["clipboard_history"]
-    assert clipboard["options"]["callbacks"]["on_left"] == "exec wgdotw.exe clipboard-anchor bar", (
+    assert clipboard["options"]["callbacks"]["on_left"] == "exec wgdotw.exe clipboard-history-open", (
         yasb_name,
-        "clipboard button must use the narrow bar-relative native-history anchor",
+        "clipboard button must inject native Win+V without owning a keyboard shortcut",
     )
-    assert clipboard["options"]["callbacks"]["on_right"] == "exec wgdotw.exe clipboard-anchor bar", (
+    assert clipboard["options"]["callbacks"]["on_right"] == "exec wgdotw.exe clipboard-history-open", (
         yasb_name,
-        "clipboard right click must toggle the same native-history surface",
+        "clipboard right click must open the same native Win+V surface",
+    )
+    assert clipboard["options"]["tooltip_label"] == "Windows Clipboard History (Super+V)", (
+        yasb_name,
+        "clipboard tooltip must document native Windows Super+V ownership",
     )
     assert yasb["widgets"]["wifi"]["options"]["callbacks"]["on_left"] == "exec explorer.exe ms-settings:network-status", (
         yasb_name,
@@ -92,14 +96,18 @@ for yasb_name in ("config.yaml", "custom_work_config.yaml"):
         "workspace arrows must not depend on a fake hover group",
     )
     yasb_text = yasb_path.read_text(encoding="utf-8")
-    direct_eartrumpet = "explorer.exe shell:AppsFolder\\40459File-New-Project.EarTrumpet_1sdd7yawvg6ne!EarTrumpet"
-    assert direct_eartrumpet in yasb_text, (
+    assert "idle_inhibitor" not in yasb["widgets"], (
         yasb_name,
-        "EarTrumpet AppsFolder launch must use the direct unquoted Windows shell form",
+        "retired idle inhibitor widget must stay removed",
     )
-    assert 'explorer.exe "shell:AppsFolder\\40459File-New-Project.EarTrumpet_1sdd7yawvg6ne!EarTrumpet"' not in yasb_text, (
+    volume_callbacks = yasb["widgets"]["volume"]["options"]["callbacks"]
+    assert volume_callbacks["on_right"] == "do_nothing", (
         yasb_name,
-        "quoted EarTrumpet AppsFolder launch form must not return",
+        "volume right click must not relaunch EarTrumpet through the broken AppsFolder path",
+    )
+    assert "EarTrumpet_1sdd7yawvg6ne!EarTrumpet" not in yasb_text, (
+        yasb_name,
+        "YASB must leave EarTrumpet activation to its own Alt+V hotkey",
     )
 
     assert "workspace_move" in yasb["widgets"], (
@@ -254,44 +262,41 @@ for name in ("config.yaml", "custom_work_config.yaml"):
                 tiling_keys,
             )
 
-        eartrumpet_keys = {
+        reserved_audio_clipboard_keys = {
             key
             for binding in bindings
-            if any("40459File-New-Project.EarTrumpet_1sdd7yawvg6ne!EarTrumpet" in command for command in binding["commands"])
             for key in binding["bindings"]
+            if key in {"alt+v", "lwin+v", "rwin+v", "lwin+c", "rwin+c"}
         }
-        assert {"lwin+v", "rwin+v"} <= eartrumpet_keys, (
+        assert not reserved_audio_clipboard_keys, (
             name,
             mode,
-            "Super+V must launch EarTrumpet directly",
-            eartrumpet_keys,
+            "GlazeWM must leave Alt+V to EarTrumpet and Super+V to native Clipboard History",
+            reserved_audio_clipboard_keys,
         )
-        if mode == "normal":
-            assert "alt+v" in eartrumpet_keys, (
-                name,
-                mode,
-                "normal mode must bind Alt+V to EarTrumpet",
-                eartrumpet_keys,
-            )
-        else:
-            assert "alt+v" not in eartrumpet_keys, (
-                name,
-                mode,
-                "noalt must leave plain Alt+V uncaptured",
-                eartrumpet_keys,
-            )
+        assert not any(
+            "EarTrumpet_1sdd7yawvg6ne!EarTrumpet" in command or "clipboard-anchor" in command
+            for binding in bindings
+            for command in binding["commands"]
+        ), (name, mode, "retired EarTrumpet/clipboard hotkey bridges returned")
 
-        clipboard_keys = {
+        flameshot_keys = {
             key
             for binding in bindings
-            if any("wgdotw.exe clipboard-anchor hotkey" in command for command in binding["commands"])
+            if any("C:\\Program Files\\Flameshot\\bin\\flameshot.exe" in command for command in binding["commands"])
             for key in binding["bindings"]
         }
-        assert {"lwin+c", "rwin+c"} <= clipboard_keys, (
+        assert {"lwin+shift+x", "rwin+shift+x"} <= flameshot_keys, (
             name,
             mode,
-            "Super+C must invoke the narrow native Clipboard History anchor",
-            clipboard_keys,
+            "Super+Shift+X must launch Flameshot from its installed path",
+            flameshot_keys,
+        )
+        assert "lwin+shift+s" not in flameshot_keys and "rwin+shift+s" not in flameshot_keys, (
+            name,
+            mode,
+            "Super+Shift+S must remain native Windows Snipping Tool",
+            flameshot_keys,
         )
 
         rawaccel_keys = {
