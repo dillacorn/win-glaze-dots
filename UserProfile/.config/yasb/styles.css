@@ -86,7 +86,7 @@ QToolTip,
 .awtarchy-launcher .label {
     min-width: 14px;
     padding: 0 7px;
-    font-size: 14px;
+    font-size: 18px;
 }
 
 .quick-launch-widget .icon,
@@ -411,21 +411,36 @@ QToolTip,
     margin-left: 2px;
 }
 
+/* Match Awtarchy's tuned Nerd Font glyph sizes while keeping bar text
+   at 14 px. The Noto face renders these icons smaller than JetBrains at the
+   same nominal size, so icon sizing is intentionally independent of text. */
 .cpu-widget .icon,
 .memory-widget .icon,
 .brightness-widget .icon,
-.battery-widget .icon,
 .microphone-widget .icon,
-.volume-widget .icon,
 .clock-widget .icon,
 .wifi-widget .icon,
 .bluetooth-widget .icon,
-.dnd-widget .icon,
 .awtarchy-clipboard .icon,
 .awtarchy-theme-picker .icon,
-.awtarchy-power .icon,
 .awtarchy-control-center .icon {
-    font-size: 14px;
+    font-size: 18px;
+}
+
+.battery-widget .icon {
+    font-size: 17px;
+}
+
+.volume-widget .icon {
+    font-size: 20px;
+}
+
+.dnd-widget .icon {
+    font-size: 19px;
+}
+
+.awtarchy-power .icon {
+    font-size: 20px;
 }
 
 .bluetooth-widget .icon.bt-off,
