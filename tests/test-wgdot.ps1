@@ -892,6 +892,10 @@ Assert-True ($yasbConfigText -notmatch '%USERPROFILE%\\\.config\\win-glaze\\scri
 $altSnapConfigText = Get-Content -LiteralPath (Join-Path $repoRoot "UserProfile\AppData\Roaming\AltSnap\AltSnap.ini") -Raw
 Assert-True ($altSnapConfigText -match '(?m)^AutoFocus=1\r?$') "AltSnap focuses windows while dragging by default"
 Assert-True ($altSnapConfigText -match '(?m)^Hotkeys=A4 A5 5B 5C\r?$') "AltSnap enables left/right Alt and Win modifier keys by default"
+Assert-True ($altSnapConfigText -match '(?m)^; Created for AltSnap v1\.68\r?$') "AltSnap managed config is refreshed to the 1.68 template"
+Assert-True ($altSnapConfigText -match '(?m)^DragOutThresholdPx=20\r?$') "AltSnap 1.68 DragOutThresholdPx default is present"
+Assert-True ($altSnapConfigText -match '(?m)^Processes=.*yasb\.exe,wgdotw\.exe\r?$') "AltSnap ignores YASB and WGDot windowless UI processes"
+Assert-True ($altSnapConfigText -notmatch '(?m)^KBMoveS?Step=') "AltSnap removed obsolete pre-1.68 keyboard move-step settings"
 
 $flameshotConfigText = Get-Content -LiteralPath (Join-Path $repoRoot "UserProfile\AppData\Roaming\flameshot\flameshot.ini") -Raw
 Assert-True ($flameshotConfigText -match '(?m)^captureActiveMonitor=true') "Flameshot defaults to capturing the active monitor without monitor selection"
