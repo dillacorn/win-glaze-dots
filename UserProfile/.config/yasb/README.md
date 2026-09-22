@@ -58,7 +58,6 @@ The application button is a lightweight YASB `CustomWidget` that opens `wgdotw.e
 - If YASB auto-hide is enabled, or the foreground window fills the active monitor, the launcher opens centered on that monitor.
 - The launcher stays compact at roughly half the old search-window width while retaining normal application-name room.
 - It indexes Start Menu shortcuts, activates them through Windows shell semantics, and resolves ordinary `.lnk` target/icon metadata so results prefer the underlying application icon instead of shortcut-style presentation where Windows exposes that metadata.
-- Flow Launcher remains optional and is not the default hotkey surface.
 - VM mode has no ordinary launcher binding that steals guest shortcuts.
 
 ## Binding modes
