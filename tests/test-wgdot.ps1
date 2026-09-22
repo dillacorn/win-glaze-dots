@@ -697,6 +697,8 @@ foreach ($approvedDesktopCommand in @(
     Assert-True ($nativeSourceText -match ('command == "' + [regex]::Escape($approvedDesktopCommand) + '"')) "WGDot exposes approved scoped runtime helper: $approvedDesktopCommand"
 }
 Assert-True ($nativeSourceText -match 'const int width = 380;') "launcher remains compact at 380 px"
+Assert-True ($nativeSourceText -match '(?s)if \(String\.Equals\(source, "bar".*?return new System\.Drawing\.Point\(\s*screen\.Bounds\.Left,') "bar launcher is flush with the active display left edge"
+Assert-True ($nativeSourceText -match '(?s)bool centerScreen =.*?screen\.Bounds\.Left \+ \(\(screen\.Bounds\.Width - width\) / 2\)') "hotkey launcher retains centered placement"
 Assert-True ($nativeSourceText -match 'ResolveLauncherShortcutIconPath') "launcher resolves underlying shortcut targets for clean application icons"
 Assert-True ($nativeSourceText -notmatch 'ApplyEarTrumpetMixerSuperV|EnsureEarTrumpetStorageHelper|set-win-v') "retired EarTrumpet hotkey-management helper stays removed"
 Assert-True ($nativeSourceText -match 'command == "eartrumpet-mixer-toggle"') "native runtime exposes the bar-only EarTrumpet mixer toggle"
