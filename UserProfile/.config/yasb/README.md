@@ -62,15 +62,15 @@ The application button is a lightweight YASB `CustomWidget` that opens `wgdotw.e
 
 ## Binding modes
 
-GlazeWM owns `noalt`, `mouse`, and `vm` modes directly with `wm-enable-binding-mode` and `wm-disable-binding-mode`.
+GlazeWM owns `noalt` and `vm` modes directly with `wm-enable-binding-mode` and `wm-disable-binding-mode`.
 
-`Win+Alt+N`, `Win+Alt+M`, and `Win+Alt+V` enter the corresponding mode. The same mode chord exits that mode, and mode-to-mode transitions explicitly disable the current mode first.
+`Win+Alt+N` and `Win+Alt+V` enter the corresponding mode. The same mode chord exits that mode, and mode-to-mode transitions explicitly disable the current mode first.
 
 YASB's native `GlazewmBindingModeWidget` displays those modes. Clicking the visible active mode disables that mode; it does not cycle to another mode. GlazeWM remains the source of truth for mode state.
 
 Real GlazeWM pause remains `Win+Alt+P` and uses `wm-toggle-pause`.
 
-GlazeWM 3.10.x still does not expose mouse buttons through its keybinding parser. GlazeWM owns `mouse` mode state, while the scoped compiled WGDot mouse hook supplies the actual left-drag move, right-drag resize, and middle-click floating behavior and exits automatically when mouse mode ends.
+The experimental mouse binding mode and low-level WGDot pointer hook were removed after real-Windows testing showed pointer lag and unreliable tiled-window dragging. The workspace mover remains: hover the passive mover hub to reveal the four native GlazeWM workspace arrows.
 
 ## Themes
 
@@ -172,7 +172,7 @@ YASB's Quick Launch clipboard provider stays disabled. Instead, the bar restores
 - A dedicated privacy/screen-capture indicator has no verified native YASB equivalent.
 - Current YASB bar placement is top/bottom; left/right vertical bars are not faked.
 - Workspace urgent-state coloring and Awtarchy's static number+glyph mappings do not have exact YASB equivalents.
-- The native `mouse` binding mode exists and toggles with `Win+Alt+M`; the scoped WGDot hook supplies mouse-button move/resize because GlazeWM 3.10.x does not expose mouse buttons.
+- The experimental mouse binding mode is intentionally omitted. The passive workspace mover hub and its four directional workspace arrows remain available.
 - Awtarchy can retint task/tray image pixels; stock YASB does not expose an equivalent image-tint option.
 - At exactly 15% battery, YASB's shared threshold controls both critical styling and glyph selection, so the exact Awtarchy glyph boundary cannot be reproduced independently.
 - A plugged-in-but-not-charging battery may retain YASB's critical state at low charge because YASB exposes a charging class rather than a broader AC-present class.
