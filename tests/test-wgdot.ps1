@@ -867,13 +867,9 @@ Assert-True ($glazeNormalText -match 'bindings:\s*\["alt\+p",\s*"lwin\+d",\s*"rw
 Assert-True ($glazeWorkText -match 'bindings:\s*\["alt\+p",\s*"lwin\+d",\s*"rwin\+d"\]') "Work GlazeWM owns Alt+P and Super+D for the compiled launcher"
 Assert-True ($glazeWorkText -notmatch 'FlowLauncher/Flow\.Launcher\.exe') "Work launcher hotkeys do not depend on Flow Launcher"
 foreach ($text in @($glazeNormalText, $glazeWorkText)) {
-    $globalMarker = [Environment]::NewLine + "keybindings:" + [Environment]::NewLine
-    $globalIndex = $text.LastIndexOf($globalMarker)
-    $flameshotIndex = $text.LastIndexOf('bindings: ["lwin+shift+x", "rwin+shift+x"]')
-    $bindingModesIndex = $text.IndexOf("binding_modes:")
-    Assert-True ($globalIndex -ge 0) "GlazeWM has a global keybindings section"
-    Assert-True ($flameshotIndex -gt $globalIndex) "Win+Shift+X Flameshot bind is global, not trapped inside a binding mode"
-    Assert-True (-not (($bindingModesIndex -ge 0) -and ($flameshotIndex -gt $bindingModesIndex) -and ($flameshotIndex -lt $globalIndex))) "Flameshot bind is not trapped inside a binding mode"
+    Assert-True ($text -notmatch '(?i)flameshot\.exe') "GlazeWM leaves Flameshot activation to Flameshot itself"
+    Assert-True ($text -notmatch 'bindings:\s*\["lwin\+shift\+x",\s*"rwin\+shift\+x"\]') "GlazeWM does not capture Flameshot Super+Shift+X"
+    Assert-True ($text -notmatch 'bindings:\s*\["lwin\+alt\+s",\s*"rwin\+alt\+s"\]') "GlazeWM does not capture the retired Super+Alt+S Flameshot chord"
     Assert-True ($text -notmatch 'win\+shift\+f') "old Win+Shift+F Flameshot bind is removed"
     Assert-True ($text -notmatch '(?i)wgdotw?\.exe\s+(?:quick-launch|flow-open|eartrumpet-mixer|clipboard-anchor(?:\s|$)|clipboard-history(?:\s|$)|flameshot-gui|display-settings)') "GlazeWM does not route native-capable actions through WGDot"
     Assert-True ($text -notmatch 'bindings:\s*\["alt\+v",\s*"lwin\+v",\s*"rwin\+v"\]') "GlazeWM leaves Alt+V and Super+V to EarTrumpet/Windows"
@@ -885,7 +881,6 @@ foreach ($text in @($glazeNormalText, $glazeWorkText)) {
     Assert-True ($text -notmatch 'bindings:\s*\["lwin\+alt\+m",\s*"rwin\+alt\+m"\]') "retired Win+Alt+M mouse binding stays removed"
     Assert-True ($text -notmatch 'wgdotw\.exe mouse-mode-toggle') "retired WGDot mouse helper stays out of GlazeWM"
     Assert-True ($text -match 'bindings:\s*\["lwin\+ctrl\+m",\s*"rwin\+ctrl\+m"\]') "Super+Ctrl+M opens Windows display settings"
-    Assert-True ($text -match 'C:\\\\Program Files\\\\Flameshot\\\\bin\\\\flameshot\.exe') "Flameshot bindings use the installed executable path"
     Assert-True ($text -notmatch 'bindings:\s*\["lwin\+shift\+s",\s*"rwin\+shift\+s"\]') "Super+Shift+S remains native Windows Snipping Tool"
     Assert-True ($text -match 'bindings:\s*\["alt\+ctrl\+shift\+r"\]') "Alt+Ctrl+Shift+R reloads GlazeWM"
     Assert-True ($text -match 'bindings:\s*\["alt\+ctrl\+b"\]') "Alt+Ctrl+B toggles coordinated YASB auto-hide and the GlazeWM top gap"
@@ -1149,13 +1144,9 @@ Assert-True ($runtimeText -notmatch '(?i)rmdir\s+/s') "runtime does not use dest
 $glazeNormalText = Get-Content -LiteralPath (Join-Path $repoRoot "UserProfile\.glzr\glazewm\config.yaml") -Raw
 $glazeWorkText = Get-Content -LiteralPath (Join-Path $repoRoot "UserProfile\.glzr\glazewm\custom_work_config.yaml") -Raw
 foreach ($text in @($glazeNormalText, $glazeWorkText)) {
-    $globalMarker = [Environment]::NewLine + "keybindings:" + [Environment]::NewLine
-    $globalIndex = $text.LastIndexOf($globalMarker)
-    $flameshotIndex = $text.LastIndexOf('bindings: ["lwin+shift+x", "rwin+shift+x"]')
-    $bindingModesIndex = $text.IndexOf("binding_modes:")
-    Assert-True ($globalIndex -ge 0) "GlazeWM has a global keybindings section"
-    Assert-True ($flameshotIndex -gt $globalIndex) "Win+Shift+X Flameshot bind is global, not trapped inside a binding mode"
-    Assert-True (-not (($bindingModesIndex -ge 0) -and ($flameshotIndex -gt $bindingModesIndex) -and ($flameshotIndex -lt $globalIndex))) "Flameshot bind is not trapped inside a binding mode"
+    Assert-True ($text -notmatch '(?i)flameshot\.exe') "GlazeWM leaves Flameshot activation to Flameshot itself"
+    Assert-True ($text -notmatch 'bindings:\s*\["lwin\+shift\+x",\s*"rwin\+shift\+x"\]') "GlazeWM does not capture Flameshot Super+Shift+X"
+    Assert-True ($text -notmatch 'bindings:\s*\["lwin\+alt\+s",\s*"rwin\+alt\+s"\]') "GlazeWM does not capture the retired Super+Alt+S Flameshot chord"
     Assert-True ($text -notmatch 'win\+shift\+f') "old Win+Shift+F Flameshot bind is removed"
     Assert-True ($text -notmatch '(?i)wgdotw?\.exe\s+(?:quick-launch|flow-open|eartrumpet-mixer|clipboard-anchor(?:\s|$)|clipboard-history(?:\s|$)|flameshot-gui|display-settings)') "GlazeWM does not route native-capable actions through WGDot"
     Assert-True ($text -notmatch 'bindings:\s*\["alt\+v",\s*"lwin\+v",\s*"rwin\+v"\]') "GlazeWM leaves Alt+V and Super+V to EarTrumpet/Windows"
