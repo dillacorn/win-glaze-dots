@@ -134,9 +134,6 @@ Assert-Equal "ryanoasis/nerd-fonts" ([string]$notoFontPackage.fallbackGitHubRepo
 Assert-Equal "^Noto\.zip$" ([string]$notoFontPackage.fallbackAssetRegex) "Noto Nerd Font accepts only the official Noto release archive"
 Assert-Equal "NotoSansMNerdFontMono-Regular.ttf" ([string]$notoFontPackage.fontFile) "Noto Nerd Font installs the Awtarchy-matching mono face"
 Assert-Equal "NotoSansM Nerd Font Mono" ([string]$notoFontPackage.fontFamily) "Noto Nerd Font registers the exact Awtarchy family"
-Assert-True ($nativeSourceText -match 'if \(command == "bar-font-install"\) return BarFontInstall\(\);') "native runtime exposes targeted YASB font install"
-Assert-True ($nativeSourceText -match 'FindPackageById\(source\.Manifest, "NerdFonts\.Noto"\)') "targeted YASB font install resolves only the managed Noto package"
-Assert-True ($nativeSourceText -match 'No WinGet packages or unrelated software will be reconciled\.') "targeted YASB font install documents its narrow scope"
 
 $micLockTrayPackage = Get-ManifestPackage -Id "dillacorn.MicLockTray"
 Assert-True ($null -ne $micLockTrayPackage) "MicLockTray package exists"
@@ -327,6 +324,9 @@ $launcherText = Get-Content -LiteralPath $launcherPath -Raw
 $manualText = Get-Content -LiteralPath $manualPath -Raw
 $nativeBootstrapText = Get-Content -LiteralPath $nativeBootstrapPath -Raw
 $nativeSourceText = Get-Content -LiteralPath $nativeSourcePath -Raw
+Assert-True ($nativeSourceText -match 'if \(command == "bar-font-install"\) return BarFontInstall\(\);') "native runtime exposes targeted YASB font install"
+Assert-True ($nativeSourceText -match 'FindPackageById\(source\.Manifest, "NerdFonts\.Noto"\)') "targeted YASB font install resolves only the managed Noto package"
+Assert-True ($nativeSourceText -match 'No WinGet packages or unrelated software will be reconciled\.') "targeted YASB font install documents its narrow scope"
 Assert-True ($runtimeText -notmatch '(?i)-ExecutionPolicy\s+Bypass') "runtime does not bypass execution policy"
 Assert-True ($runtimeText -match 'browserOptions = \[pscustomobject\]\$browserOptions') "PowerShell fallback persists browser option state on fresh/reconfigure selection"
 Assert-True ($runtimeText -match 'New-WgdotInstallationSelection -Manifest \$manifest -Existing \$existingInstallation') "PowerShell reset path preserves existing browser option selections"
