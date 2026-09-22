@@ -434,7 +434,7 @@ widgets:
       callbacks:
         on_left: "toggle_mute"
         on_middle: "toggle_label"
-        on_right: 'exec explorer.exe shell:AppsFolder\40459File-New-Project.EarTrumpet_725pr5jq8wr8a!EarTrumpet'
+        on_right: "exec wgdotw.exe eartrumpet-mixer-toggle"
 
   clock:
     type: "yasb.clock.ClockWidget"
