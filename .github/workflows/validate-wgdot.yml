@@ -155,3 +155,88 @@ jobs:
         run: |
           set "WGDOT_TEST_ROOT=%TEMP%\wgdot-native-maintenance-state"
           "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" maintenance-self-test
+
+  release-create-v451:
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.title == 'Temporary release bridge: create WGDot v4.5.1' &&
+      github.event.pull_request.head.ref == 'release-bridge-v451' &&
+      github.event.pull_request.base.ref == 'main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: v4.5.1
+      TARGET_SHA: bf0ee70ae34ba4e661614ceb88a6981ea61d6953
+      HEAD_BRANCH: release-bridge-v451
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify release target and absence
+        run: |
+          test "$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq .object.sha)" = "$TARGET_SHA"
+          if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG" >/dev/null 2>&1; then
+            echo "Tag $TAG already exists." >&2
+            exit 1
+          fi
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release $TAG already exists." >&2
+            exit 1
+          fi
+      - name: Build release notes
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          lines = [
+              "# WGDot v4.5.1",
+              "",
+              "WGDot v4.5.1 rolls the tested post-v4.5.0 desktop polish into a new stable release, focused on Yazi usability, YASB Quick Settings, AltSnap behavior, terminal readability, and restricted-network maintenance.",
+              "",
+              "## Install and update",
+              "",
+              "- **Install:** [INSTALL.md](https://github.com/dillacorn/win-glaze-dots/blob/main/INSTALL.md)",
+              "- **Update:** [UPDATE.md](https://github.com/dillacorn/win-glaze-dots/blob/main/UPDATE.md)",
+              "",
+              "## Changes",
+              "",
+              "- Yazi now shows readable file size plus compact `M/D/YY` modified dates, restores native `a` create, `/` find, `n` next match, and `N` previous match, while preserving wraparound Up/Down and `k`/`j`, lowercase `g`, `g g`, `G`, Help, clipboard, openers, and navigation.",
+              "- YASB Quick Settings uses the approved two-column labeled layout with full-width cells, with Floating Windows directly below Displays; the bar also has a compact conditional Caps Lock indicator.",
+              "- AltSnap is refreshed to the 1.68 baseline with the preferred focus-on-drag and Alt/Win modifier behavior, plus WGDot/YASB process exclusions.",
+              "- Windows Terminal theme generation keeps ANSI colors readable across WGDot themes, including Yazi text and file-type colors.",
+              "- The paste-only restricted-network workflow is hardened around pinned raw GitHub sources, and stale Double Commander defaults are removed.",
+              "- GlazeWM keeps the approved monitor-focused cursor-jump behavior.",
+              "",
+              "## Validation",
+              "",
+              "- Exact release target: `bf0ee70ae34ba4e661614ceb88a6981ea61d6953`.",
+              "- The `Validate WGDot` push workflow passed on the exact release target.",
+              "- The maintainer live-tested and approved the corrected Yazi behavior on the Work PC and visually approved the updated YASB Quick Settings layout.",
+              "",
+          ]
+          Path("release-notes.md").write_text("\n".join(lines), encoding="utf-8")
+          PY
+          grep -Fq '# WGDot v4.5.1' release-notes.md
+          grep -Fq '## Install and update' release-notes.md
+          grep -Fq -- '- **Install:** [INSTALL.md](https://github.com/dillacorn/win-glaze-dots/blob/main/INSTALL.md)' release-notes.md
+          grep -Fq -- '- **Update:** [UPDATE.md](https://github.com/dillacorn/win-glaze-dots/blob/main/UPDATE.md)' release-notes.md
+          grep -Fq 'bf0ee70ae34ba4e661614ceb88a6981ea61d6953' release-notes.md
+      - name: Create and verify release
+        run: |
+          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --target "$TARGET_SHA" --title "WGDot v4.5.1" --notes-file release-notes.md
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json name,tagName,isDraft,isPrerelease,targetCommitish,body > published.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          data = json.loads(Path("published.json").read_text())
+          expected = Path("release-notes.md").read_text(encoding="utf-8")
+          assert data["name"] == "WGDot v4.5.1"
+          assert data["tagName"] == "v4.5.1"
+          assert data["isDraft"] is False
+          assert data["isPrerelease"] is False
+          assert data["targetCommitish"] == "bf0ee70ae34ba4e661614ceb88a6981ea61d6953"
+          assert data["body"] == expected
+          PY
+          test "$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG" --jq .object.sha)" = "$TARGET_SHA"
+      - name: Remove temporary helper branch
+        if: success()
+        run: gh api --method DELETE "repos/$GITHUB_REPOSITORY/git/refs/heads/$HEAD_BRANCH"
