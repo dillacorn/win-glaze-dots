@@ -409,6 +409,8 @@ $dotsBootstrapBlock = [regex]::Match($nativeBootstrapText, '(?s):apply_dots_only
 Assert-True (-not [string]::IsNullOrWhiteSpace($dotsBootstrapBlock)) "native bootstrap has a dedicated dots-only execution block"
 Assert-True ($dotsBootstrapBlock -match '"%INSTALLED_WGDOT%" dots-only --profile "%DOTS_PROFILE%" --yes') "dots-only bootstrap dispatches through the installed WGDot runtime"
 Assert-True ($dotsBootstrapBlock -notmatch '(?i)ensure-winget|winget\.exe|software-reconcile|software-elevated') "dots-only bootstrap cannot enter software prerequisite or reconciliation paths"
+Assert-True ($nativeSourceText -match 'YASB font note: NotoSansM Nerd Font Mono is not installed') "dots-only warns when the managed bar font is missing"
+Assert-True ($nativeSourceText -match 'Install only the managed bar font with: wgdot bar-font-install') "dots-only points to the narrow font-only repair command"
 Assert-True ($nativeSourceText -match 'Reading installed WinGet package state') "software reconciliation snapshots installed packages once before per-package network validation"
 Assert-True ($nativeSourceText -match 'RunWithTimeout') "native process runner supports bounded preflight calls"
 Assert-True ($nativeSourceText -match 'BeginOutputReadLine') "captured stdout is drained asynchronously"
