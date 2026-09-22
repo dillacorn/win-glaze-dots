@@ -70,7 +70,6 @@ try {
             'IdleInhibitorToggle',
             'IdleInhibitorWorker',
             'BarAutoHideToggle',
-            'MouseModeToggle',
             'GlazeWmBindingModeToggleFromArgs',
             'RawAccelToggle'
         )) {
@@ -99,16 +98,11 @@ try {
         }
     }
 
-    Check 'mouse hook tolerates GlazeWM IPC reads and uses native interactive move' {
-        $bindingModeActiveBlock = [regex]::Match($nativeSource, '(?ms)^    static bool GlazeWmBindingModeActive\(string name\)\r?\n    \{.*?^    \}').Value
-        Require ($bindingModeActiveBlock -match 'TryGetActiveGlazeWmBindingMode') 'Mouse-mode liveness still calls the throwing binding-mode query directly'
-        Require ($bindingModeActiveBlock -match 'ReadTrackedGlazeBindingMode') 'Mouse-mode liveness has no safe tracked-state fallback'
-
-        $moveBlock = [regex]::Match($nativeSource, '(?ms)^    static void BeginMouseMove\(IntPtr window, POINT point\)\r?\n    \{.*?^    \}').Value
-        Require ($moveBlock -match 'SendMessage') 'Left drag does not enter the native Windows move loop'
-
-        $hookBlock = [regex]::Match($nativeSource, '(?ms)^    static IntPtr MouseModeHookCallback\(.*?^    \}').Value
-        Require ($hookBlock -match 'ThreadPool\.QueueUserWorkItem') 'Left drag blocks the low-level mouse hook thread'
+    Check 'retired mouse mode stays removed while legacy cleanup remains' {
+        Require ($null -eq (Get-NativeMethod 'MouseModeToggle')) 'Retired MouseModeToggle implementation returned'
+        Require ($null -eq (Get-NativeMethod 'MouseModeHook')) 'Retired MouseModeHook implementation returned'
+        Require ($nativeSource -notmatch 'command == "mouse-mode-(?:toggle|disable|hook)"') 'Retired mouse-mode command dispatch returned'
+        Require ($nativeSource -match 'SignalMouseModeHookStop') 'Legacy runtime cleanup can no longer stop an older mouse hook'
     }
 
     Check 'legacy runtime replacement stop signals are preserved' {
@@ -158,9 +152,9 @@ try {
             $text = Get-Content -LiteralPath (Join-Path $repo ($relative -replace '/', '\')) -Raw -Encoding UTF8
             Require ($text -match 'wm-enable-binding-mode --name noalt') ('NoAlt native transition missing: ' + $relative)
             Require ($text -match 'wm-enable-binding-mode --name vm') ('VM native transition missing: ' + $relative)
-            Require ($text -match 'name:\s*"mouse"') ('Native mouse binding mode missing: ' + $relative)
-            Require ($text -match 'wgdotw\.exe mouse-mode-toggle') ('Scoped mouse-mode helper missing: ' + $relative)
-            Require ($text -match 'bindings:\s*\["lwin\+alt\+m",\s*"rwin\+alt\+m"\]') ('Super+Alt+M mouse binding missing: ' + $relative)
+            Require ($text -notmatch 'name:\s*"mouse"') ('Retired mouse binding mode returned: ' + $relative)
+            Require ($text -notmatch 'wgdotw\.exe mouse-mode-toggle') ('Retired mouse helper returned: ' + $relative)
+            Require ($text -notmatch 'bindings:\s*\["lwin\+alt\+m",\s*"rwin\+alt\+m"\]') ('Retired Super+Alt+M mouse binding returned: ' + $relative)
             Require ($text -match 'wm-disable-binding-mode --name') ('Native mode escape missing: ' + $relative)
             Require ($text -match 'wm-toggle-pause') ('Native pause binding missing: ' + $relative)
             Require ($text -match 'flameshot\.exe gui') ('Direct Flameshot launch missing: ' + $relative)
@@ -175,6 +169,13 @@ try {
             Require ($text -notmatch 'bindings:\s*\["alt\+shift\+m"') ('RawAccel must not capture Alt+Shift+M: ' + $relative)
             Require ($text -notmatch 'wgdotw?\.exe\s+(?:quick-launch|flow-open|eartrumpet-mixer|clipboard-history|flameshot-gui|display-settings)') ('Native-capable action routed through WGDot: ' + $relative)
         }
+    }
+
+    Check 'GlazeWM focus follows cursor differs by profile intentionally' {
+        $normal = Get-Content -LiteralPath (Join-Path $repo 'UserProfile\.glzr\glazewm\config.yaml') -Raw -Encoding UTF8
+        $work = Get-Content -LiteralPath (Join-Path $repo 'UserProfile\.glzr\glazewm\custom_work_config.yaml') -Raw -Encoding UTF8
+        Require ($normal -match 'focus_follows_cursor:\s*true') 'Normal profile must default focus_follows_cursor to true'
+        Require ($work -match 'focus_follows_cursor:\s*false') 'Work profile must keep focus_follows_cursor false'
     }
 
     Check 'YASB owns native widget integrations' {
@@ -198,11 +199,12 @@ try {
             Require ($text -match 'on_right:\s*"disable_binding_mode"') ('Binding-mode label right click does not disable the active mode: ' + $relative)
             Require ($text -match 'on_middle:\s*"do_nothing"') ('Binding-mode label middle click must do nothing: ' + $relative)
             Require ($text -notmatch 'next_binding_mode') ('Binding-mode label must not cycle modes: ' + $relative)
-            Require ($text -match 'wgdotw\.exe mouse-mode-toggle') ('Mouse icon does not toggle the scoped mouse helper: ' + $relative)
+            Require ($text -notmatch 'wgdotw\.exe mouse-mode-toggle|workspace_mouse') ('Retired mouse-mode YASB runtime returned: ' + $relative)
             Require ($text -match 'glazewm\.binding_mode\.GlazewmBindingModeWidget') ('Native binding-mode widget missing: ' + $relative)
             Require ($text -notmatch 'keys:\s*"f24"') ('Synthetic F24 Quick Launch relay returned: ' + $relative)
-            Require ($text -match 'binding_modes_to_cycle_through:\s*\["none",\s*"noalt",\s*"mouse",\s*"vm"\]') ('YASB binding-mode widget does not expose mouse mode: ' + $relative)
-            Require ($text -match 'class_name:\s*"workspace-mouse-hub"') ('Passive workspace mouse icon missing: ' + $relative)
+            Require ($text -match 'binding_modes_to_cycle_through:\s*\["none",\s*"noalt",\s*"vm"\]') ('YASB binding-mode widget does not expose only noalt/vm: ' + $relative)
+            Require ($text -match 'class_name:\s*"workspace-move-hub"') ('Passive workspace mover hub missing: ' + $relative)
+            Require ($text -match 'glazewm\.exe command move-workspace --direction left') ('Workspace mover arrows missing: ' + $relative)
             Require ($text -notmatch 'border_color:\s*None') ('Invalid null popup border_color returned: ' + $relative)
             Require ($text -notmatch 'cmd\.exe /c start ms-settings') ('YASB settings callback spawns cmd.exe: ' + $relative)
             Require ($text -notmatch 'glazewm-pause-status|glazewm-pause-toggle') ('Retired pause helper reference returned: ' + $relative)
