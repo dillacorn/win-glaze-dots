@@ -58,7 +58,7 @@ wgdot startup-disable-all
 
 Software reconciliation installs missing approved packages and can offer explicitly approved upgrades. It does not run a blind `winget upgrade --all`. Deselecting software during reconciliation does not itself uninstall anything; removal requires the dedicated uninstall workflow and its confirmation.
 
-`wgdot bar-font-install` installs only the current-user `NotoSansM Nerd Font Mono` face used by the Awtarchy-inspired YASB bar. It downloads the official Nerd Fonts Noto archive and does not reconcile WinGet packages or unrelated software. Restart YASB with `yasbc reload` after installation.
+`wgdot bar-font-install` installs only the current-user Noto Sans Mono Nerd Font face used by the Awtarchy-inspired YASB bar; Windows exposes that face to YASB as `NotoSansM NFM`. It downloads the official Nerd Fonts Noto archive and does not reconcile WinGet packages or unrelated software. Restart YASB with `yasbc reload` after installation.
 
 WGDot requires WinGet. If WinGet/App Installer is missing, the runtime uses Microsoft's WinGet repair/bootstrap path automatically rather than requiring a separate manual setup step.
 
