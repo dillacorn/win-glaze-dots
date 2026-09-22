@@ -559,7 +559,9 @@
       "installedFile": "rawaccel.exe",
       "installedService": "rawaccel",
       "driverFileName": "rawaccel.sys",
-      "postInstallAction": "rawaccel-restart-notice"
+      "postInstallAction": "rawaccel-restart-notice",
+      "startupHandler": "rawaccel",
+      "startupDefault": false
     },
     {
       "name": "Vesktop (Vencord)",
@@ -783,8 +785,8 @@
       "name": "Open-Shell",
       "id": "Open-Shell.Open-Shell-Menu",
       "category": "desktop",
-      "defaultNormal": true,
-      "defaultWork": true,
+      "defaultNormal": false,
+      "defaultWork": false,
       "postInstallAction": "launch-open-shell"
     },
     {
