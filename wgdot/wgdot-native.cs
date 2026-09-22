@@ -21,7 +21,7 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-74";
+    const string Version = "native-preview-75";
     const int WingetPreflightTimeoutMs = 30000;
     const string RepoFullName = "dillacorn/win-glaze-dots";
     const string RepoUrl = "https://github.com/dillacorn/win-glaze-dots.git";
@@ -643,9 +643,11 @@ internal static class WgdotNative
             if (command == "theme-window-toggle") return ThemeWindowToggle();
             if (command == "clipboard-history-open") return ClipboardHistoryOpen();
             if (command == "eartrumpet-mixer-toggle") return EarTrumpetMixerToggle();
+            if (command == "eartrumpet-startup") return EarTrumpetStartup();
             if (command == "launcher") return LauncherFromArgs(args.Skip(1).ToArray());
             if (command == "power-menu") return PowerMenu();
             if (command == "rawaccel-toggle") return RawAccelToggle();
+            if (command == "rawaccel-startup") return RawAccelStartup();
             if (command == "gpu-driver") return GpuDriverMaintenance();
             if (command == "gpu-stage-safe") return GpuStageSafeFromArgs(args.Skip(1).ToArray());
             if (command == "gpu-safe-resume") return GpuSafeResume();
@@ -3862,7 +3864,7 @@ class WgdotHidden
             return !String.IsNullOrWhiteSpace(FindAltSnapExe());
 
         if (String.Equals(handler, "rawaccel", StringComparison.OrdinalIgnoreCase))
-            return File.Exists(GetPackageProgramFilePath(package, "installedFile"));
+            return !String.IsNullOrWhiteSpace(FindRawAccelExe());
 
         if (String.Equals(handler, "miclocktray", StringComparison.OrdinalIgnoreCase))
             return File.Exists(GetPackageProgramFilePath(package, "installedFile"));
@@ -3976,6 +3978,106 @@ class WgdotHidden
             });
     }
 
+    static bool IsRawAccelGuiExecutable(string path)
+    {
+        if (String.IsNullOrWhiteSpace(path) ||
+            !String.Equals(Path.GetFileName(path), "rawaccel.exe", StringComparison.OrdinalIgnoreCase) ||
+            !IsWindowsExecutableFile(path))
+            return false;
+
+        try
+        {
+            FileVersionInfo info = FileVersionInfo.GetVersionInfo(path);
+            bool productMatches =
+                String.Equals(info.ProductName, "Raw Accel", StringComparison.OrdinalIgnoreCase);
+            bool descriptionMatches =
+                String.Equals(info.FileDescription, "Raw Accel GUI", StringComparison.OrdinalIgnoreCase);
+            bool originalMatches =
+                String.Equals(info.OriginalFilename, "rawaccel.exe", StringComparison.OrdinalIgnoreCase);
+            if (productMatches && descriptionMatches && originalMatches)
+                return true;
+        }
+        catch
+        {
+        }
+
+        string directory = Path.GetDirectoryName(path);
+        return
+            !String.IsNullOrWhiteSpace(directory) &&
+            File.Exists(Path.Combine(directory, "installer.exe")) &&
+            File.Exists(Path.Combine(directory, "writer.exe"));
+    }
+
+    static string FindRawAccelExe()
+    {
+        string local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        string roaming = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+        string programFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
+        string programFilesX86 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
+
+        var candidates = new List<string>
+        {
+            Path.Combine(local, "Programs", "RawAccel", "rawaccel.exe"),
+            Path.Combine(local, "RawAccel", "rawaccel.exe"),
+            Path.Combine(local, "Programs", "Raw Accel", "rawaccel.exe"),
+            Path.Combine(roaming, "RawAccel", "rawaccel.exe")
+        };
+
+        if (!String.IsNullOrWhiteSpace(programFiles))
+        {
+            candidates.Add(Path.Combine(programFiles, "RawAccel", "rawaccel.exe"));
+            candidates.Add(Path.Combine(programFiles, "Raw Accel", "rawaccel.exe"));
+        }
+
+        if (!String.IsNullOrWhiteSpace(programFilesX86))
+        {
+            candidates.Add(Path.Combine(programFilesX86, "RawAccel", "rawaccel.exe"));
+            candidates.Add(Path.Combine(programFilesX86, "Raw Accel", "rawaccel.exe"));
+        }
+
+        string registered = FindRegisteredAppPath("rawaccel.exe");
+        if (!String.IsNullOrWhiteSpace(registered))
+            candidates.Add(registered);
+
+        ProcResult where = Run("where.exe", "rawaccel.exe", null);
+        if (where.ExitCode == 0)
+        {
+            foreach (string line in (where.StdOut ?? "").Replace("\r", "").Split('\n'))
+            {
+                string candidate = line.Trim();
+                if (!String.IsNullOrWhiteSpace(candidate))
+                    candidates.Add(candidate);
+            }
+        }
+
+        return candidates
+            .Where(path => !String.IsNullOrWhiteSpace(path))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .FirstOrDefault(IsRawAccelGuiExecutable) ?? "";
+    }
+
+    static int StartRawAccelGui()
+    {
+        string exe = FindRawAccelExe();
+        if (String.IsNullOrWhiteSpace(exe))
+            throw new Exception("RawAccel GUI executable was not found.");
+
+        string workingDirectory = Path.GetDirectoryName(exe);
+        if (String.IsNullOrWhiteSpace(workingDirectory) || !Directory.Exists(workingDirectory))
+            throw new Exception("RawAccel GUI working directory was not found.");
+
+        var psi = new ProcessStartInfo();
+        psi.FileName = exe;
+        psi.WorkingDirectory = workingDirectory;
+        psi.UseShellExecute = true;
+        psi.ErrorDialog = false;
+        Process started = Process.Start(psi);
+        if (started == null)
+            throw new Exception("RawAccel GUI did not start.");
+
+        return 0;
+    }
+
     static bool IsLegacyYasbStartupCommand(string command)
     {
         string trimmed = (command ?? "").Trim();
@@ -4078,14 +4180,22 @@ class WgdotHidden
         }
 
         if (String.Equals(handler, "eartrumpet", StringComparison.OrdinalIgnoreCase))
-            return "explorer.exe shell:AppsFolder\\40459File-New-Project.EarTrumpet_1sdd7yawvg6ne!EarTrumpet";
+        {
+            if (!StartupPackageIsInstalled(package))
+                throw new Exception("EarTrumpet is selected for startup, but its Start Menu application could not be found.");
+
+            EnsureHiddenLauncher();
+            return Q(HiddenLauncherPath()) + " eartrumpet-startup";
+        }
 
         if (String.Equals(handler, "rawaccel", StringComparison.OrdinalIgnoreCase))
         {
-            string path = GetPackageProgramFilePath(package, "installedFile");
-            if (!File.Exists(path))
-                throw new Exception("RawAccel startup was enabled, but its WGDot-managed executable is missing.");
-            return Q(path);
+            string path = FindRawAccelExe();
+            if (String.IsNullOrWhiteSpace(path))
+                throw new Exception("RawAccel startup was enabled, but its GUI executable could not be found.");
+
+            EnsureHiddenLauncher();
+            return Q(HiddenLauncherPath()) + " rawaccel-startup";
         }
 
         if (String.Equals(handler, "miclocktray", StringComparison.OrdinalIgnoreCase))
@@ -7621,6 +7731,18 @@ class WgdotHidden
         keybd_event(VkLmenu, 0, KeyeventfKeyup, UIntPtr.Zero);
     }
 
+    static int EarTrumpetStartup()
+    {
+        if (EarTrumpetProcessRunning())
+            return 0;
+
+        if (!StartEarTrumpetFromStartMenu())
+            throw new Exception(
+                "EarTrumpet startup was enabled, but its Start Menu shortcut could not be started.");
+
+        return 0;
+    }
+
     static int EarTrumpetMixerToggle()
     {
         if (!EarTrumpetProcessRunning() && !StartEarTrumpetFromStartMenu())
@@ -9084,6 +9206,11 @@ class WgdotHidden
         return 0;
     }
 
+    static int RawAccelStartup()
+    {
+        return StartRawAccelGui();
+    }
+
     static int RawAccelToggle()
     {
         Process[] running = Process.GetProcessesByName("rawaccel");
@@ -9100,6 +9227,10 @@ class WgdotHidden
                 {
                     failures.Add(process.Id.ToString(CultureInfo.InvariantCulture) + ": " + ex.Message);
                 }
+                finally
+                {
+                    process.Dispose();
+                }
             }
 
             if (failures.Count > 0)
@@ -9108,41 +9239,7 @@ class WgdotHidden
             return 0;
         }
 
-        var candidates = new List<string>();
-
-        ProcResult where = Run("where.exe", "rawaccel.exe", null);
-        if (where.ExitCode == 0)
-        {
-            foreach (string line in (where.StdOut ?? "").Replace("\r", "").Split('\n'))
-            {
-                string candidate = line.Trim();
-                if (!String.IsNullOrWhiteSpace(candidate))
-                    candidates.Add(candidate);
-            }
-        }
-
-        string localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        string programFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
-
-        candidates.Add(Path.Combine(localAppData, "RawAccel", "rawaccel.exe"));
-        candidates.Add(Path.Combine(localAppData, "Programs", "RawAccel", "rawaccel.exe"));
-        if (!String.IsNullOrWhiteSpace(programFiles))
-            candidates.Add(Path.Combine(programFiles, "RawAccel", "rawaccel.exe"));
-
-        string exe = candidates.FirstOrDefault(path =>
-            !String.IsNullOrWhiteSpace(path) && File.Exists(path));
-        if (String.IsNullOrWhiteSpace(exe))
-            throw new Exception("RawAccel GUI executable was not found.");
-
-        var psi = new ProcessStartInfo();
-        psi.FileName = exe;
-        psi.WorkingDirectory = Path.GetDirectoryName(exe);
-        psi.UseShellExecute = true;
-        Process started = Process.Start(psi);
-        if (started == null)
-            throw new Exception("RawAccel GUI did not start.");
-
-        return 0;
+        return StartRawAccelGui();
     }
 
     sealed class WindowAuditRow
