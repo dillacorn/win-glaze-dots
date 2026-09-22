@@ -49,7 +49,7 @@ bars:
         [
           "launcher",
           "glazewm_workspaces",
-          "workspace_move_group",
+          "workspace_move",
           "taskbar",
           "glazewm_binding_mode",
           "glazewm_tiling_direction",
@@ -108,18 +108,6 @@ widgets:
         enabled_active: false
         enabled_focused: false
 
-  workspace_move_hub:
-    type: "yasb.custom.CustomWidget"
-    options:
-      label: "↔"
-      class_name: "workspace-move-hub"
-      tooltip: true
-      tooltip_label: "Move workspace"
-      callbacks:
-        on_left: "do_nothing"
-        on_middle: "do_nothing"
-        on_right: "do_nothing"
-
   workspace_move:
     type: "yasb.applications.ApplicationsWidget"
     options:
@@ -139,16 +127,6 @@ widgets:
         - icon: "→"
           launch: "glazewm.exe command move-workspace --direction right"
           name: "Move workspace right"
-
-  workspace_move_group:
-    type: "yasb.grouper.GrouperWidget"
-    options:
-      class_name: "workspace-move-grouper"
-      widgets: ["workspace_move_hub", "workspace_move"]
-      hide_empty: false
-      # Passive hover container only. Native Grouper click-collapse stays off.
-      collapse_options:
-        enabled: false
 
   glazewm_tiling_direction:
     type: "glazewm.tiling_direction.GlazewmTilingDirectionWidget"
@@ -236,7 +214,7 @@ widgets:
       exec_options:
         run_cmd: "wgdot.exe idle-inhibitor-status"
         run_once: false
-        run_interval: 1000
+        run_interval: 30000
         return_format: "json"
         hide_empty: false
       callbacks:
@@ -475,7 +453,7 @@ widgets:
       callbacks:
         on_left: "toggle_mute"
         on_middle: "toggle_label"
-        on_right: 'exec explorer.exe shell:AppsFolder\40459File-New-Project.EarTrumpet_1sdd7yawvg6ne!EarTrumpet'
+        on_right: 'exec explorer.exe "shell:AppsFolder\40459File-New-Project.EarTrumpet_1sdd7yawvg6ne!EarTrumpet"'
 
   clock:
     type: "yasb.clock.ClockWidget"
@@ -508,9 +486,9 @@ widgets:
       update_interval: 5000
       get_exact_wifi_strength: false
       callbacks:
-        on_left: "toggle_menu"
-        on_middle: "toggle_menu"
-        on_right: "toggle_menu"
+        on_left: "exec explorer.exe ms-settings:network-status"
+        on_middle: "do_nothing"
+        on_right: "exec explorer.exe ms-settings:network-status"
       ethernet_label: "<span>{wifi_icon}</span>"
       ethernet_label_alt: "<span>{wifi_icon}</span> {ip_addr}"
       ethernet_icon: "󰈀"
@@ -541,9 +519,9 @@ widgets:
         bluetooth_off: ""
         bluetooth_connected: ""
       callbacks:
-        on_left: "toggle_menu"
-        on_middle: "toggle_menu"
-        on_right: "toggle_menu"
+        on_left: "exec explorer.exe ms-settings:bluetooth"
+        on_middle: "do_nothing"
+        on_right: "exec explorer.exe ms-settings:bluetooth"
       menu_config:
         blur: false
         round_corners: false
