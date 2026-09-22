@@ -199,8 +199,6 @@ binding_modes:
         bindings: ["escape", "enter"]
       - commands: ["wm-toggle-pause"]
         bindings: ["lwin+alt+p", "rwin+alt+p"]
-      - commands: ["shell-exec wgdotw.exe mouse-mode-toggle"]
-        bindings: ["lwin+alt+m", "rwin+alt+m"]
 
   # Gaming-friendly mode based on Awtarchy's noalt submap.
   # Normal Alt-heavy bindings are replaced with Super equivalents while active.
@@ -214,8 +212,6 @@ binding_modes:
           - "wm-disable-binding-mode --name noalt"
           - "wm-enable-binding-mode --name vm"
         bindings: ["lwin+alt+v", "rwin+alt+v"]
-      - commands: ["shell-exec wgdotw.exe mouse-mode-toggle"]
-        bindings: ["lwin+alt+m", "rwin+alt+m"]
       - commands: ["wm-toggle-pause"]
         bindings: ["lwin+alt+p", "rwin+alt+p"]
       - commands: ["shell-exec wgdotw.exe power-menu"]
@@ -315,20 +311,6 @@ binding_modes:
         bindings: ["lwin+shift+0", "rwin+shift+0"]
 
 
-  # GlazeWM owns mouse-mode state. WGDot supplies only the scoped low-level
-  # pointer hook that GlazeWM 3.10.x cannot express, and the hook self-stops
-  # whenever GlazeWM leaves mouse mode.
-  - name: "mouse"
-    keybindings:
-      - commands: ["shell-exec wgdotw.exe mouse-mode-toggle"]
-        bindings: ["lwin+alt+m", "rwin+alt+m"]
-      - commands: ["shell-exec wgdotw.exe glazewm-binding-mode-toggle noalt"]
-        bindings: ["lwin+alt+n", "rwin+alt+n"]
-      - commands: ["shell-exec wgdotw.exe glazewm-binding-mode-toggle vm"]
-        bindings: ["lwin+alt+v", "rwin+alt+v"]
-      - commands: ["wm-toggle-pause"]
-        bindings: ["lwin+alt+p", "rwin+alt+p"]
-
   # VM mode based on Awtarchy's vm submap.
   # Normal host keybindings are replaced while active so the guest receives
   # ordinary Alt/Windows shortcuts. Host escape controls live on Win+Alt.
@@ -340,8 +322,6 @@ binding_modes:
           - "wm-disable-binding-mode --name vm"
           - "wm-enable-binding-mode --name noalt"
         bindings: ["lwin+alt+n", "rwin+alt+n"]
-      - commands: ["shell-exec wgdotw.exe mouse-mode-toggle"]
-        bindings: ["lwin+alt+m", "rwin+alt+m"]
       - commands: ["wm-toggle-pause"]
         bindings: ["lwin+alt+p", "rwin+alt+p"]
 
@@ -410,8 +390,6 @@ keybindings:
     bindings: ["alt+p", "lwin+d", "rwin+d"]
 
 
-  - commands: ["shell-exec wgdotw.exe mouse-mode-toggle"]
-    bindings: ["lwin+alt+m", "rwin+alt+m"]
 
   - commands: ["shell-exec flameshot.exe gui"]
     bindings: ["lwin+shift+s", "rwin+shift+s"]
