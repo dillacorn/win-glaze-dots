@@ -5,6 +5,9 @@
 # - text/code uses Micro
 # - everything else uses normal Windows file associations
 
+[mgr]
+linemode = "size_and_mtime"
+
 [opener]
 edit = [
     { run = 'wt.exe -w new new-tab --title "Micro" --suppressApplicationTitle --startingDirectory %d1 micro.exe %s', orphan = true, desc = "Micro", for = "windows" },
