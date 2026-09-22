@@ -221,6 +221,7 @@ widgets:
         border_color: "None"
         alignment: "right"
         direction: "down"
+        offset_top: 0
         show_graph: true
         show_graph_grid: false
         graph_history_size: 60
@@ -243,6 +244,7 @@ widgets:
         border_color: "None"
         alignment: "right"
         direction: "down"
+        offset_top: 0
         show_graph: true
         show_graph_grid: false
         graph_history_size: 60
