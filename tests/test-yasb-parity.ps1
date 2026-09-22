@@ -323,6 +323,10 @@ Assert-Contains -Text $style -Needle "#353535" -Message "Awtarchy background col
 Assert-Contains -Text $style -Needle "#d0d0d0" -Message "Awtarchy foreground color is retained"
 Assert-Contains -Text $style -Needle "#ff5555" -Message "Awtarchy critical color is retained"
 Assert-Contains -Text $style -Needle "NotoSansM NFM" -Message "Awtarchy Noto Nerd Font uses its embedded Windows family in YASB"
+Assert-NotContains -Text $style -Needle '"NotoSansM Nerd Font Mono"' -Message "managed YASB dotfiles never request the non-existent verbose Windows family"
+if (([regex]::Matches($style, 'font-family:\s*"NotoSansM NFM",\s*"JetBrainsMono NFP";')).Count -lt 4) {
+    throw "ASSERTION FAILED: every explicit managed YASB font stack must use NotoSansM NFM first"
+}
 Assert-NotContains -Text $style -Needle "\"NotoSansM Nerd Font Mono\"" -Message "YASB does not request the non-existent verbose Windows Noto family"
 Assert-Contains -Text $style -Needle "JetBrainsMono NFP" -Message "JetBrains Mono Nerd Font remains the fallback glyph family"
 $taskContainerBlock = [regex]::Match($style, "(?ms)^\.taskbar-widget \.app-container \{\r?\n.*?^\}").Value
