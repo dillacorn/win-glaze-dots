@@ -5,10 +5,10 @@
 [mgr]
 prepend_keymap = [
   # Movement
-  { on = ["<Up>"],    run = "arrow -1",  desc = "Up" },
-  { on = ["<Down>"],  run = "arrow 1",   desc = "Down" },
-  { on = ["k"],       run = "arrow -1",  desc = "Up" },
-  { on = ["j"],       run = "arrow 1",   desc = "Down" },
+  { on = ["<Up>"],    run = "arrow prev", desc = "Up" },
+  { on = ["<Down>"],  run = "arrow next", desc = "Down" },
+  { on = ["k"],       run = "arrow prev", desc = "Up" },
+  { on = ["j"],       run = "arrow next", desc = "Down" },
   { on = ["g", "g"], run = "arrow top", desc = "Top" },
   { on = ["G"],       run = "arrow bot", desc = "Bottom" },
 
