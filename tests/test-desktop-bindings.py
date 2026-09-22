@@ -101,13 +101,15 @@ for yasb_name in ("config.yaml", "custom_work_config.yaml"):
         "retired idle inhibitor widget must stay removed",
     )
     volume_callbacks = yasb["widgets"]["volume"]["options"]["callbacks"]
-    assert volume_callbacks["on_right"] == "do_nothing", (
+    assert volume_callbacks["on_right"] == (
+        "exec explorer.exe shell:AppsFolder\\40459File-New-Project.EarTrumpet_1sdd7yawvg6ne!EarTrumpet"
+    ), (
         yasb_name,
-        "volume right click must not relaunch EarTrumpet through the broken AppsFolder path",
+        "volume right click must directly activate the EarTrumpet packaged app",
     )
-    assert "EarTrumpet_1sdd7yawvg6ne!EarTrumpet" not in yasb_text, (
+    assert "shell:AppsFolder\\\\40459File-New-Project.EarTrumpet_1sdd7yawvg6ne!EarTrumpet" not in yasb_text, (
         yasb_name,
-        "YASB must leave EarTrumpet activation to its own Alt+V hotkey",
+        "EarTrumpet AppsFolder target must not contain the retired doubled backslash",
     )
 
     assert "workspace_move" in yasb["widgets"], (
