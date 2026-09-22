@@ -763,6 +763,10 @@ Assert-True ($yasbConfigText -notmatch 'workspace_move_hub|workspace-move-hub|wo
 Assert-True ($yasbWorkConfigText -notmatch 'workspace_move_hub|workspace-move-hub|workspace_move_group|workspace-move-grouper') "Work YASB removes the retired workspace hub slot"
 Assert-True ($yasbConfigText -match 'glazewm\.exe command move-workspace --direction left') "Normal YASB keeps direct workspace arrows"
 Assert-True ($yasbWorkConfigText -match 'glazewm\.exe command move-workspace --direction left') "Work YASB keeps direct workspace arrows"
+Assert-True ($yasbConfigText -match 'populated_label:\s*"\{display_name\}"') "Normal YASB renders GlazeWM workspace display_name values"
+Assert-True ($yasbWorkConfigText -match 'populated_label:\s*"\{display_name\}"') "Work YASB renders GlazeWM workspace display_name values"
+Assert-True ($yasbConfigText -notmatch 'populated_label:\s*"\{name\}"') "Normal YASB does not override workspace display_name with raw name"
+Assert-True ($yasbWorkConfigText -notmatch 'populated_label:\s*"\{name\}"') "Work YASB does not override workspace display_name with raw name"
 Assert-True ($yasbConfigText -notmatch 'mouse-mode-toggle|workspace_mouse') "Normal YASB contains no retired mouse-mode runtime"
 Assert-True ($yasbWorkConfigText -notmatch 'mouse-mode-toggle|workspace_mouse') "Work YASB contains no retired mouse-mode runtime"
 $glazeNormalText = Get-Content -LiteralPath (Join-Path $repoRoot "UserProfile\.glzr\glazewm\config.yaml") -Raw
