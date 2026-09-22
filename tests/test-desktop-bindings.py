@@ -5,7 +5,6 @@ import yaml
 root = Path(__file__).resolve().parents[1]
 
 APPROVED_WGDOT_RUNTIME = (
-    "wgdotw.exe mouse-mode-toggle",
     "wgdotw.exe glazewm-binding-mode-toggle",
     "wgdotw.exe bar-autohide-toggle",
     "wgdotw.exe rawaccel-toggle",
@@ -84,11 +83,14 @@ for yasb_name in ("config.yaml", "custom_work_config.yaml"):
         mode_callbacks,
     )
 
-    mouse_callbacks = yasb["widgets"]["workspace_mouse"]["options"]["callbacks"]
-    assert "wgdotw.exe mouse-mode-toggle" in mouse_callbacks["on_left"], (
+    move_hub = yasb["widgets"]["workspace_move_hub"]
+    assert move_hub["options"]["callbacks"]["on_left"] == "do_nothing", (
         yasb_name,
-        "mouse icon must toggle the scoped mouse-mode helper",
-        mouse_callbacks,
+        "workspace mover hub must stay passive",
+    )
+    assert "mouse-mode-toggle" not in yasb_text and "workspace_mouse" not in yasb_text, (
+        yasb_name,
+        "retired mouse-mode runtime returned to YASB",
     )
 
     power = yasb["widgets"]["power_menu"]
@@ -110,7 +112,19 @@ for name in ("config.yaml", "custom_work_config.yaml"):
     modes = {m["name"]: m["keybindings"] for m in config["binding_modes"]}
     is_work = name == "custom_work_config.yaml"
 
-    assert "mouse" in modes, (name, "mouse binding mode missing")
+    assert "mouse" not in modes, (name, "retired mouse binding mode returned")
+    assert "lwin+alt+m" not in glaze_text and "rwin+alt+m" not in glaze_text, (
+        name,
+        "retired Super+Alt+M mouse binding returned",
+    )
+    assert "mouse-mode-toggle" not in glaze_text, (name, "retired WGDot mouse helper returned")
+
+    expected_focus_follows_cursor = not is_work
+    assert config["focus_behavior"]["focus_follows_cursor"] is expected_focus_follows_cursor, (
+        name,
+        "focus_follows_cursor profile default regressed",
+        config["focus_behavior"]["focus_follows_cursor"],
+    )
 
     for mode, bindings in [("normal", config["keybindings"]), ("noalt", modes["noalt"])]:
         bridge_commands = [
@@ -270,9 +284,6 @@ for name in ("config.yaml", "custom_work_config.yaml"):
             rawaccel_keys,
         )
         assert "alt+shift+m" not in rawaccel_keys, (name, mode, "RawAccel must not capture Alt+Shift+M")
-
-    mouse_keys = {key for binding in modes["mouse"] for key in binding["bindings"]}
-    assert {"lwin+alt+m", "rwin+alt+m"} <= mouse_keys, (name, "mouse mode lacks Super+Alt+M exit")
 
     guest_keys = {key for binding in modes["vm"] for key in binding["bindings"]}
     assert not ({"alt+p", "lwin+d", "rwin+d", "lwin", "rwin"} & guest_keys), (
