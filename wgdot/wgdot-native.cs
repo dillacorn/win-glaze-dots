@@ -2617,6 +2617,31 @@ class WgdotHidden
                     GetUserFontRegistryValueName(package),
                     target,
                     RegistryValueKind.String);
+
+                // Older WGDot builds registered this Nerd Font using the
+                // upstream long family label instead of the TTF's embedded
+                // Windows family name. Remove only that exact WGDot-owned
+                // alias when migrating the Noto bar font.
+                if (String.Equals(
+                        GetString(package, "id"),
+                        "NerdFonts.Noto",
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    const string legacyValueName =
+                        "NotoSansM Nerd Font Mono (TrueType)";
+                    string legacyValue = Convert.ToString(
+                        key.GetValue(
+                            legacyValueName,
+                            null,
+                            RegistryValueOptions.DoNotExpandEnvironmentNames));
+                    if (String.Equals(
+                            legacyValue,
+                            target,
+                            StringComparison.OrdinalIgnoreCase))
+                    {
+                        key.DeleteValue(legacyValueName, false);
+                    }
+                }
             }
 
             if (AddFontResourceEx(target, 0, IntPtr.Zero) == 0)
