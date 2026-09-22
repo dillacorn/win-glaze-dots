@@ -499,6 +499,8 @@ widgets:
         border_color: "None"
         alignment: "right"
         direction: "down"
+        offset_top: 0
+        offset_left: 0
 
   bluetooth:
     type: "yasb.bluetooth.BluetoothWidget"
@@ -521,6 +523,8 @@ widgets:
         border_color: "None"
         alignment: "right"
         direction: "down"
+        offset_top: 0
+        offset_left: 0
 
   systray:
     type: "yasb.systray.SystrayWidget"
