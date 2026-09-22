@@ -19,7 +19,7 @@
 @import "theme.css";
 
 * {
-    font-family: "JetBrainsMono NFP";
+    font-family: "NotoSansM Nerd Font Mono", "JetBrainsMono NFP";
     font-size: 14px;
     font-weight: 400;
     color: var(--foreground);
@@ -552,7 +552,7 @@ QToolTip,
     background-color: transparent;
     border: none;
     border-radius: 0;
-    font-family: "JetBrainsMono NFP";
+    font-family: "NotoSansM Nerd Font Mono", "JetBrainsMono NFP";
     font-size: 14px;
     font-weight: 400;
     padding: 2px 0;
@@ -578,7 +578,7 @@ QToolTip,
 .quick-launch-popup .results-list-view {
     color: var(--foreground);
     background-color: transparent;
-    font-family: "JetBrainsMono NFP";
+    font-family: "NotoSansM Nerd Font Mono", "JetBrainsMono NFP";
     font-size: 14px;
     font-weight: 400;
 }
@@ -586,7 +586,7 @@ QToolTip,
 .quick-launch-popup .results-list-view .description,
 .quick-launch-popup .results-list-view .separator {
     color: var(--foreground);
-    font-family: "JetBrainsMono NFP";
+    font-family: "NotoSansM Nerd Font Mono", "JetBrainsMono NFP";
 }
 
 .quick-launch-popup .results-list-view::item {
