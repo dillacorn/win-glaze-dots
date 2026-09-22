@@ -2585,76 +2585,85 @@ class WgdotHidden
     static bool InstallGitHubFontArchivePackage(Dictionary<string, object> package)
     {
         string name = GetString(package, "name");
-        string assetName;
-        string archivePath = DownloadOfficialGitHubPackageAsset(package, out assetName);
-        if (!assetName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
-            throw new Exception(name + " font source must be a ZIP release asset.");
+        string target = GetUserFontFilePath(package);
+        bool reuseExistingFontFile =
+            File.Exists(target) &&
+            new FileInfo(target).Length > 0;
 
-        string staging = Path.Combine(
-            CacheRoot,
-            "font-extract",
-            Guid.NewGuid().ToString("N"));
-
-        try
+        if (!reuseExistingFontFile)
         {
-            ExtractZipToDirectorySafe(archivePath, staging);
-            string fontFile = GetString(package, "fontFile");
-            string stagedFont = FindPackageArchiveFile(staging, fontFile);
-            string target = GetUserFontFilePath(package);
+            string assetName;
+            string archivePath = DownloadOfficialGitHubPackageAsset(package, out assetName);
+            if (!assetName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+                throw new Exception(name + " font source must be a ZIP release asset.");
 
-            Directory.CreateDirectory(Path.GetDirectoryName(target));
-            File.Copy(stagedFont, target, true);
-            if (!File.Exists(target) || new FileInfo(target).Length == 0)
-                throw new Exception(name + " font file was not installed correctly.");
+            string staging = Path.Combine(
+                CacheRoot,
+                "font-extract",
+                Guid.NewGuid().ToString("N"));
 
-            const string fontsKeyPath = @"Software\Microsoft\Windows NT\CurrentVersion\Fonts";
-            using (RegistryKey key = Registry.CurrentUser.CreateSubKey(fontsKeyPath))
+            try
             {
-                if (key == null)
-                    throw new Exception("Could not open the current-user Windows Fonts registry key.");
+                ExtractZipToDirectorySafe(archivePath, staging);
+                string fontFile = GetString(package, "fontFile");
+                string stagedFont = FindPackageArchiveFile(staging, fontFile);
 
-                key.SetValue(
-                    GetUserFontRegistryValueName(package),
-                    target,
-                    RegistryValueKind.String);
+                Directory.CreateDirectory(Path.GetDirectoryName(target));
+                File.Copy(stagedFont, target, true);
+                if (!File.Exists(target) || new FileInfo(target).Length == 0)
+                    throw new Exception(name + " font file was not installed correctly.");
+            }
+            finally
+            {
+                SafeDeleteDirectory(staging);
+            }
+        }
 
-                // Older WGDot builds registered this Nerd Font using the
-                // upstream long family label instead of the TTF's embedded
-                // Windows family name. Remove only that exact WGDot-owned
-                // alias when migrating the Noto bar font.
+        const string fontsKeyPath = @"Software\Microsoft\Windows NT\CurrentVersion\Fonts";
+        using (RegistryKey key = Registry.CurrentUser.CreateSubKey(fontsKeyPath))
+        {
+            if (key == null)
+                throw new Exception("Could not open the current-user Windows Fonts registry key.");
+
+            key.SetValue(
+                GetUserFontRegistryValueName(package),
+                target,
+                RegistryValueKind.String);
+
+            // Older WGDot builds registered this Nerd Font using the
+            // upstream long family label instead of the TTF's embedded
+            // Windows family name. Remove only that exact WGDot-owned
+            // alias when migrating the Noto bar font.
+            if (String.Equals(
+                    GetString(package, "id"),
+                    "NerdFonts.Noto",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                const string legacyValueName =
+                    "NotoSansM Nerd Font Mono (TrueType)";
+                string legacyValue = Convert.ToString(
+                    key.GetValue(
+                        legacyValueName,
+                        null,
+                        RegistryValueOptions.DoNotExpandEnvironmentNames));
                 if (String.Equals(
-                        GetString(package, "id"),
-                        "NerdFonts.Noto",
+                        legacyValue,
+                        target,
                         StringComparison.OrdinalIgnoreCase))
                 {
-                    const string legacyValueName =
-                        "NotoSansM Nerd Font Mono (TrueType)";
-                    string legacyValue = Convert.ToString(
-                        key.GetValue(
-                            legacyValueName,
-                            null,
-                            RegistryValueOptions.DoNotExpandEnvironmentNames));
-                    if (String.Equals(
-                            legacyValue,
-                            target,
-                            StringComparison.OrdinalIgnoreCase))
-                    {
-                        key.DeleteValue(legacyValueName, false);
-                    }
+                    key.DeleteValue(legacyValueName, false);
                 }
             }
-
-            if (AddFontResourceEx(target, 0, IntPtr.Zero) == 0)
-                throw new Exception("Windows did not load the installed font resource.");
-
-            PostMessage(new IntPtr(0xFFFF), WmFontChange, IntPtr.Zero, IntPtr.Zero);
-            Console.WriteLine("Installed " + name + ": " + target);
-            return true;
         }
-        finally
-        {
-            SafeDeleteDirectory(staging);
-        }
+
+        if (AddFontResourceEx(target, 0, IntPtr.Zero) == 0)
+            throw new Exception("Windows did not load the installed font resource.");
+
+        PostMessage(new IntPtr(0xFFFF), WmFontChange, IntPtr.Zero, IntPtr.Zero);
+        Console.WriteLine(
+            (reuseExistingFontFile ? "Registered existing " : "Installed ") +
+            name + ": " + target);
+        return true;
     }
 
     static bool UninstallGitHubFontArchivePackage(Dictionary<string, object> package)
@@ -3266,7 +3275,8 @@ class WgdotHidden
             throw new Exception("Managed Noto bar font does not use the expected official GitHub font source.");
 
         WriteTitle("Awtarchy-style YASB font");
-        Console.WriteLine("Font: NotoSansM Nerd Font Mono");
+        Console.WriteLine("Font: Noto Sans Mono Nerd Font");
+        Console.WriteLine("Windows family: NotoSansM NFM");
         Console.WriteLine("Source: official ryanoasis/nerd-fonts Noto archive");
         Console.WriteLine("Scope: current user only");
         Console.WriteLine("No WinGet packages or unrelated software will be reconciled.");
