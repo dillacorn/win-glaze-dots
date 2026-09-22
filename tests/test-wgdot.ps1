@@ -482,13 +482,15 @@ Assert-True ($rawAccelProcessStartBlock -notmatch 'settings\.json|\.config|File\
 $rawAccelStartBlock = [regex]::Match($nativeSourceText, '(?ms)static int StartRawAccelGui\(\).*?^    }').Value
 Assert-True ($rawAccelStartBlock -match 'StartRawAccelGuiProcess\(\)') "RawAccel startup delegates to the shared working-directory-safe process launcher"
 Assert-True ($rawAccelStartBlock -notmatch 'SizeRawAccelHotkeyWindow') "RawAccel generic startup path does not apply hotkey-only sizing"
-Assert-True ($nativeSourceText -match 'const int RawAccelHotkeyWidth = 1200;') "RawAccel hotkey window uses the approved compact width"
-Assert-True ($nativeSourceText -match 'const int RawAccelHotkeyHeight = 900;') "RawAccel hotkey window uses the approved compact height"
+Assert-True ($nativeSourceText -match 'const double RawAccelHotkeyWidthRatio = 0\.625;') "RawAccel hotkey window width scales with active monitor working area"
+Assert-True ($nativeSourceText -match 'const double RawAccelHotkeyHeightRatio = 0\.825;') "RawAccel hotkey window height scales with active monitor working area"
 $rawAccelSizeBlock = [regex]::Match($nativeSourceText, '(?ms)static void SizeRawAccelHotkeyWindow\(.*?^    }').Value
 Assert-True (-not [string]::IsNullOrWhiteSpace($rawAccelSizeBlock)) "RawAccel hotkey window sizing helper is present"
 Assert-True ($rawAccelSizeBlock -match 'SetWindowPos\(') "RawAccel hotkey launch resizes the native GUI window"
-Assert-True ($rawAccelSizeBlock -match 'RawAccelHotkeyWidth') "RawAccel hotkey sizing uses the compact width"
-Assert-True ($rawAccelSizeBlock -match 'RawAccelHotkeyHeight') "RawAccel hotkey sizing uses the compact height"
+Assert-True ($rawAccelSizeBlock -match 'work\.Width \* RawAccelHotkeyWidthRatio') "RawAccel hotkey width derives from active monitor resolution/scale-aware working area"
+Assert-True ($rawAccelSizeBlock -match 'work\.Height \* RawAccelHotkeyHeightRatio') "RawAccel hotkey height derives from active monitor resolution/scale-aware working area"
+Assert-True ($rawAccelSizeBlock -match 'System\.Threading\.Thread\.Sleep\(300\)') "RawAccel hotkey sizing waits for GlazeWM window management before applying geometry"
+Assert-True ($rawAccelSizeBlock -match 'for \(int i = 0; i < 8; i\+\+\)') "RawAccel hotkey sizing reapplies geometry long enough to avoid the GlazeWM float-rule race"
 Assert-True ($rawAccelSizeBlock -match 'SetForegroundWindow\(window\)') "RawAccel hotkey launch brings the resized GUI forward"
 $rawAccelToggleBlock = [regex]::Match($nativeSourceText, '(?ms)static int RawAccelToggle\(\).*?^    }').Value
 Assert-True ($rawAccelToggleBlock -match 'CurrentInteractionScreen\(\)') "RawAccel hotkey sizing targets the active monitor"
@@ -610,7 +612,7 @@ $rustDeskPackage = @($manifest.packages | Where-Object { $_.id -eq 'RustDesk.Rus
 Assert-True ($null -ne $rustDeskPackage) "RustDesk catalog entry exists"
 Assert-Equal ([string]$rustDeskPackage.installMode) 'official-github' "RustDesk uses its verified official GitHub source instead of a missing WinGet ID"
 Assert-Equal ([string]$rustDeskPackage.fallbackGitHubRepo) 'rustdesk/rustdesk' "RustDesk official GitHub source remains publisher-owned"
-Assert-True ($nativeSourceText -match 'const string Version = "native-preview-76"') "native runtime version tracks current WGDot maintenance changes"
+Assert-True ($nativeSourceText -match 'const string Version = "native-preview-77"') "native runtime version tracks current WGDot maintenance changes"
 Assert-True ($nativeSourceText -match 'InstallGitHubFontArchivePackage') "native runtime installs managed Nerd Font archives without inventing a WinGet ID"
 Assert-True ($nativeSourceText -match 'AddFontResourceEx') "managed Noto font is loaded into the current Windows session"
 Assert-True ($nativeSourceText -match 'Software\\Microsoft\\Windows NT\\CurrentVersion\\Fonts') "managed Noto font registers under the current-user Windows Fonts key"
