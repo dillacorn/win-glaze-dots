@@ -985,6 +985,15 @@
       "defaultNormal": false,
       "defaultWork": false,
       "actionOnly": true
+    },
+    {
+      "id": "restore-clipboard-history",
+      "name": "Restore Windows Clipboard History (undo privacy.sexy clipboard disable)",
+      "category": "privacy",
+      "type": "restore-clipboard-history",
+      "defaultNormal": false,
+      "defaultWork": false,
+      "actionOnly": true
     }
   ],
   "browserOptions": [
