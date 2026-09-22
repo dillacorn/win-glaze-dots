@@ -53,9 +53,9 @@ The application button is a lightweight YASB `CustomWidget` that opens `wgdotw.e
 
 - Global `Alt+P` and `Super+D` open the launcher.
 - `noalt` retains `Super+D` but intentionally leaves plain `Alt+P` uncaptured.
-- Bar click opens directly below the top bar at the top-left of the active display while the bar is visible.
+- Bar click opens directly below the top bar, flush with the active display's left edge.
 - Keyboard activation opens horizontally centered just below the top bar during ordinary desktop use.
-- If YASB auto-hide is enabled, or the foreground window fills the active monitor, the launcher opens centered on that monitor.
+- For keyboard activation only, if YASB auto-hide is enabled or the foreground window fills the active monitor, the launcher opens centered on that monitor.
 - The launcher stays compact at roughly half the old search-window width while retaining normal application-name room.
 - It indexes Start Menu shortcuts, activates them through Windows shell semantics, and resolves ordinary `.lnk` target/icon metadata so results prefer the underlying application icon instead of shortcut-style presentation where Windows exposes that metadata.
 - VM mode has no ordinary launcher binding that steals guest shortcuts.
