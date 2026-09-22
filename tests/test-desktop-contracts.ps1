@@ -63,12 +63,9 @@ try {
             'EnsureHiddenLauncher',
             'ThemeManagerFromArgs',
             'ThemeWindowToggle',
-            'ClipboardAnchorFromArgs',
+            'ClipboardHistoryOpen',
             'LauncherFromArgs',
             'PowerMenu',
-            'IdleInhibitorStatus',
-            'IdleInhibitorToggle',
-            'IdleInhibitorWorker',
             'BarAutoHideToggle',
             'GlazeWmBindingModeToggleFromArgs',
             'RawAccelToggle'
@@ -191,7 +188,8 @@ try {
             Require ($text -match 'class_name:\s*"awtarchy-launcher"') ('Compiled launcher bar control missing: ' + $relative)
             Require ($text -match 'on_left:\s*"exec wgdotw\.exe launcher bar"') ('Launcher button does not open the bar-relative compiled surface: ' + $relative)
             Require ($text -match 'wgdotw\.exe theme-window-toggle') ('Quick Settings theme-window toggle missing: ' + $relative)
-            Require ($text -match 'wgdotw\.exe clipboard-anchor bar') ('Clipboard History bar anchor missing: ' + $relative)
+            Require ($text -match 'wgdotw\.exe clipboard-history-open') ('Clipboard History bar-only native Win+V helper missing: ' + $relative)
+            Require ($text -notmatch 'idle_inhibitor|idle-inhibitor-(?:status|toggle|worker)') ('Retired idle inhibitor returned: ' + $relative)
             $wifiBlock = [regex]::Match($text, '(?ms)^  wifi:\r?\n.*?(?=^  bluetooth:)').Value
             $bluetoothBlock = [regex]::Match($text, '(?ms)^  bluetooth:\r?\n.*?(?=^  systray:)').Value
             Require ($wifiBlock -match 'on_left:\s*"exec explorer\.exe ms-settings:network-status"') ('Native Windows Network surface missing: ' + $relative)
@@ -234,10 +232,19 @@ try {
         Require ($nativeSource -match 'ForegroundWindowFillsScreen') 'Launcher fullscreen placement override is missing'
     }
 
-    Check 'EarTrumpet direct Super+V configuration remains management-time only' {
-        Require ($null -ne (Get-NativeMethod 'ApplyEarTrumpetMixerSuperV')) 'EarTrumpet management integration is missing'
-        Require ($nativeSource -match 'eartrumpet-mixer-super-v') 'EarTrumpet direct-hotkey tweak ID is missing'
-        Require ($nativeSource -notmatch 'OpenEarTrumpetMixer') 'Retired EarTrumpet synthetic runtime bridge remains'
+    Check 'EarTrumpet and Clipboard keyboard ownership stays native' {
+        Require ($null -eq (Get-NativeMethod 'ApplyEarTrumpetMixerSuperV')) 'Retired EarTrumpet Super+V settings rewrite returned'
+        Require ($nativeSource -notmatch 'command == "clipboard-anchor"') 'Retired Clipboard History hotkey handoff returned'
+        Require ($nativeSource -match 'command == "clipboard-history-open"') 'Bar-only Clipboard History helper is missing'
+        foreach ($relative in @(
+            'UserProfile/.glzr/glazewm/config.yaml',
+            'UserProfile/.glzr/glazewm/custom_work_config.yaml'
+        )) {
+            $text = Get-Content -LiteralPath (Join-Path $repo ($relative -replace '/', '\')) -Raw -Encoding UTF8
+            Require ($text -notmatch 'EarTrumpet_1sdd7yawvg6ne!EarTrumpet') ('GlazeWM still launches EarTrumpet directly: ' + $relative)
+            Require ($text -notmatch 'bindings:\s*\["alt\+v",\s*"lwin\+v",\s*"rwin\+v"\]') ('GlazeWM still captures Alt+V/Super+V: ' + $relative)
+            Require ($text -notmatch 'bindings:\s*\["lwin\+c",\s*"rwin\+c"\]') ('Retired Super+C Clipboard binding returned: ' + $relative)
+        }
     }
 
     Check 'legacy YASB startup cleanup recognizes only the old direct executable command' {
