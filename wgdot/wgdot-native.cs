@@ -9034,6 +9034,274 @@ class WgdotHidden
             cloaked != 0;
     }
 
+    static string CurrentCursorThemeId()
+    {
+        Dictionary<string, object> state = ReadJson(CursorStatePath);
+        string id = state == null ? "" : GetString(state, "id");
+        if (CursorThemeLabels.ContainsKey(id)) return id;
+
+        InstallationSelection selection = ReadInstallationSelection();
+        if (selection != null && selection.Tweaks != null &&
+            selection.Tweaks.Contains("oops-all-links-cursor", StringComparer.OrdinalIgnoreCase))
+            return "oops-all-links";
+
+        return "bibata-modern-ice";
+    }
+
+    static void WriteCursorState(string id)
+    {
+        var state = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+        state["id"] = id;
+        state["label"] = CursorThemeLabels.ContainsKey(id) ? CursorThemeLabels[id] : id;
+        state["appliedAt"] = DateTime.UtcNow.ToString("o");
+        WriteJson(CursorStatePath, state);
+    }
+
+    static int CursorManagerFromArgs(string[] args)
+    {
+        if (args == null || args.Length == 0) return CursorManager();
+        if (args.Length != 1)
+        {
+            Console.Error.WriteLine("Usage: wgdot cursor [cursor-id]");
+            return 2;
+        }
+        return ApplyCursorTheme(args[0]);
+    }
+
+    static int CursorManager()
+    {
+        while (true)
+        {
+            string current = CurrentCursorThemeId();
+            var items = new List<string>();
+            foreach (string id in CursorThemeIds)
+            {
+                bool active = String.Equals(id, current, StringComparison.OrdinalIgnoreCase);
+                items.Add((active ? "* " : "  ") + CursorThemeLabels[id]);
+            }
+            items.Add("Back");
+
+            int currentIndex = Array.FindIndex(
+                CursorThemeIds,
+                x => String.Equals(x, current, StringComparison.OrdinalIgnoreCase));
+            if (currentIndex < 0) currentIndex = 0;
+
+            int choice = ReadSingleChoice(
+                "Cursor themes - Awtarchy Bibata variants + Oops",
+                items,
+                currentIndex);
+            if (choice < 0 || choice >= CursorThemeIds.Length) return 0;
+            ApplyCursorTheme(CursorThemeIds[choice]);
+        }
+    }
+
+    static Dictionary<string, string> ParseCursorInfStrings(string infPath)
+    {
+        var values = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        bool inStrings = false;
+        foreach (string rawLine in File.ReadAllLines(infPath))
+        {
+            string line = rawLine.Trim();
+            if (line.StartsWith("[", StringComparison.Ordinal) &&
+                line.EndsWith("]", StringComparison.Ordinal))
+            {
+                inStrings = String.Equals(line, "[Strings]", StringComparison.OrdinalIgnoreCase);
+                continue;
+            }
+            if (!inStrings || line.Length == 0 || line.StartsWith(";", StringComparison.Ordinal))
+                continue;
+
+            int equals = line.IndexOf('=');
+            if (equals <= 0) continue;
+            string key = line.Substring(0, equals).Trim();
+            string value = line.Substring(equals + 1).Trim();
+            if (value.Length >= 2 && value[0] == '"' && value[value.Length - 1] == '"')
+                value = value.Substring(1, value.Length - 2);
+            if (!String.IsNullOrWhiteSpace(key) && !String.IsNullOrWhiteSpace(value))
+                values[key] = value;
+        }
+        return values;
+    }
+
+    static string EnsureBibataCursorFiles(string cursorId)
+    {
+        string assetStem;
+        if (!BibataCursorAssets.TryGetValue(cursorId, out assetStem))
+            throw new Exception("Unknown Bibata cursor id: " + cursorId);
+
+        string regularDirectoryName = assetStem + "-Regular-Windows";
+        string cursorRoot = Path.Combine(InstallRoot, "cursors");
+        string destination = Path.Combine(cursorRoot, regularDirectoryName);
+        if (File.Exists(Path.Combine(destination, "install.inf"))) return destination;
+
+        Directory.CreateDirectory(cursorRoot);
+        var package = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+        package["name"] = assetStem + " cursor";
+        package["fallbackGitHubRepo"] = "ful1e5/Bibata_Cursor";
+        package["fallbackAssetRegex"] = "^" + Regex.Escape(assetStem + "-Windows.zip") + "$";
+
+        string assetName;
+        string zipPath = DownloadOfficialGitHubPackageAsset(package, out assetName);
+        using (FileStream stream = File.OpenRead(zipPath))
+        {
+            if (stream.ReadByte() != 0x50 || stream.ReadByte() != 0x4B)
+                throw new Exception("Bibata release asset was not a valid ZIP archive.");
+        }
+
+        string extractRoot = Path.Combine(CacheRoot, "bibata-cursor-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(extractRoot);
+        try
+        {
+            ExtractZipToDirectorySafe(zipPath, extractRoot);
+            string extracted = Path.Combine(extractRoot, regularDirectoryName);
+            if (!Directory.Exists(extracted) ||
+                !File.Exists(Path.Combine(extracted, "install.inf")))
+                throw new Exception("Bibata archive is missing the expected regular Windows cursor directory.");
+            if (Directory.Exists(destination)) Directory.Delete(destination, true);
+            Directory.Move(extracted, destination);
+        }
+        finally { SafeDeleteDirectory(extractRoot); }
+
+        return destination;
+    }
+
+    static int ApplyBibataCursor(string cursorId)
+    {
+        const string snapshotId = "bibata-cursor-theme";
+        RestoreRegistryOriginals("oops-all-links-cursor");
+        RestoreRegistryOriginals(snapshotId);
+
+        string themeDir = EnsureBibataCursorFiles(cursorId);
+        Dictionary<string, string> inf =
+            ParseCursorInfStrings(Path.Combine(themeDir, "install.inf"));
+
+        string[,] mappings = new string[,]
+        {
+            { "Arrow", "pointer" }, { "Help", "help" }, { "AppStarting", "work" },
+            { "Wait", "busy" }, { "Crosshair", "cross" }, { "precisionhair", "cross" },
+            { "IBeam", "text" }, { "NWPen", "handwriting" }, { "No", "unavailable" },
+            { "SizeNS", "vert" }, { "SizeWE", "horz" }, { "SizeNWSE", "dgn1" },
+            { "SizeNESW", "dgn2" }, { "Grab", "move" }, { "SizeAll", "move" },
+            { "UpArrow", "alternate" }, { "Hand", "link" }, { "Pin", "pin" },
+            { "Person", "person" }, { "Pan", "pan" }, { "Grabbing", "grabbing" },
+            { "Zoom-in", "zoom-in" }, { "Zoom-out", "zoom-out" }
+        };
+
+        var variables = new[]
+        {
+            "pointer", "help", "work", "busy", "cross", "text", "handwriting",
+            "unavailable", "vert", "horz", "dgn1", "dgn2", "move", "alternate",
+            "link", "pin", "person", "pan", "grabbing", "zoom-in", "zoom-out"
+        };
+
+        for (int i = 0; i < mappings.GetLength(0); i++)
+        {
+            string fileName;
+            if (!inf.TryGetValue(mappings[i, 1], out fileName) ||
+                String.IsNullOrWhiteSpace(fileName))
+                throw new Exception("Bibata install.inf is missing cursor mapping '" + mappings[i, 1] + "'.");
+            string path = Path.Combine(themeDir, fileName);
+            if (!File.Exists(path))
+                throw new Exception("Bibata cursor archive is missing expected file: " + fileName);
+            SetRegistryValueWithSnapshot(
+                snapshotId, "HKCU", @"Control Panel\Cursors",
+                mappings[i, 0], path, RegistryValueKind.String);
+        }
+
+        var schemePaths = new List<string>();
+        foreach (string variable in variables)
+        {
+            string fileName;
+            if (!inf.TryGetValue(variable, out fileName) || String.IsNullOrWhiteSpace(fileName))
+                throw new Exception("Bibata install.inf is missing scheme mapping '" + variable + "'.");
+            schemePaths.Add(Path.Combine(themeDir, fileName));
+        }
+
+        string schemeName;
+        if (!inf.TryGetValue("SCHEME_NAME", out schemeName) || String.IsNullOrWhiteSpace(schemeName))
+            schemeName = CursorThemeLabels[cursorId];
+
+        SetRegistryValueWithSnapshot(
+            snapshotId, "HKCU", @"Control Panel\Cursors",
+            "", schemeName, RegistryValueKind.String);
+        SetRegistryValueWithSnapshot(
+            snapshotId, "HKCU", @"Control Panel\Cursors\Schemes",
+            schemeName, String.Join(",", schemePaths.ToArray()), RegistryValueKind.String);
+
+        SystemParametersInfo(0x0057, 0, IntPtr.Zero, 0x01 | 0x02);
+        WriteCursorState(cursorId);
+        Console.WriteLine("Cursor theme applied: " + CursorThemeLabels[cursorId]);
+        return 0;
+    }
+
+    static int ApplyCursorTheme(string requestedId)
+    {
+        string id = (requestedId ?? "").Trim().Replace("_", "-").ToLowerInvariant();
+        if (id == "default") id = "windows-default";
+        if (!CursorThemeLabels.ContainsKey(id))
+        {
+            Console.Error.WriteLine("Unknown cursor theme: " + requestedId);
+            Console.Error.WriteLine("Run 'wgdot cursor' to choose a supported cursor theme.");
+            return 2;
+        }
+
+        if (id == "windows-default")
+        {
+            RestoreRegistryOriginals("bibata-cursor-theme");
+            RestoreRegistryOriginals("oops-all-links-cursor");
+            SystemParametersInfo(0x0057, 0, IntPtr.Zero, 0x01 | 0x02);
+            WriteCursorState(id);
+            Console.WriteLine("Cursor registry values restored to their pre-WGDot state.");
+            return 0;
+        }
+        if (id == "oops-all-links")
+        {
+            ApplyOopsCursor(true);
+            return 0;
+        }
+        return ApplyBibataCursor(id);
+    }
+
+    static void EnsureCursorTheme()
+    {
+        if (ApplyCursorTheme(CurrentCursorThemeId()) != 0)
+            throw new Exception("Failed to apply the remembered cursor theme.");
+    }
+
+    static void SignalDesktopWorkerStop()
+    {
+        try
+        {
+            using (var stop = System.Threading.EventWaitHandle.OpenExisting(DesktopWorkerStopEventName))
+                stop.Set();
+        }
+        catch (System.Threading.WaitHandleCannotBeOpenedException)
+        {
+        }
+    }
+
+    static string FindRegisteredAppPath(string fileName)
+    {
+        string subKey = @"Software\Microsoft\Windows\CurrentVersion\App Paths\" + fileName;
+        foreach (RegistryKey root in new[] { Registry.CurrentUser, Registry.LocalMachine })
+        {
+            try
+            {
+                using (RegistryKey key = root.OpenSubKey(subKey, false))
+                {
+                    if (key == null) continue;
+                    string registered = Convert.ToString(key.GetValue(null, ""));
+                    if (!String.IsNullOrWhiteSpace(registered) && File.Exists(registered))
+                        return registered;
+                }
+            }
+            catch
+            {
+            }
+        }
+        return "";
+    }
+
     static void ApplyCleanTaskbar(bool enable)
     {
         const string id = "clean-taskbar-items";
