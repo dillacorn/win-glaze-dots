@@ -108,17 +108,17 @@ widgets:
         enabled_active: false
         enabled_focused: false
 
-  workspace_mouse:
+  workspace_move_hub:
     type: "yasb.custom.CustomWidget"
     options:
-      label: "󰍽"
-      class_name: "workspace-mouse-hub"
+      label: "↔"
+      class_name: "workspace-move-hub"
       tooltip: true
-      tooltip_label: "Workspace mover"
+      tooltip_label: "Move workspace"
       callbacks:
-        on_left: "exec wgdotw.exe mouse-mode-toggle"
+        on_left: "do_nothing"
         on_middle: "do_nothing"
-        on_right: "exec wgdotw.exe mouse-mode-toggle"
+        on_right: "do_nothing"
 
   workspace_move:
     type: "yasb.applications.ApplicationsWidget"
@@ -144,7 +144,7 @@ widgets:
     type: "yasb.grouper.GrouperWidget"
     options:
       class_name: "workspace-move-grouper"
-      widgets: ["workspace_mouse", "workspace_move"]
+      widgets: ["workspace_move_hub", "workspace_move"]
       hide_empty: false
       # Passive hover container only. Native Grouper click-collapse stays off.
       collapse_options:
@@ -203,7 +203,7 @@ widgets:
         none: ""
         noalt: ""
         vm: ""
-      binding_modes_to_cycle_through: ["none", "noalt", "mouse", "vm"]
+      binding_modes_to_cycle_through: ["none", "noalt", "vm"]
       callbacks:
         on_left: "disable_binding_mode"
         on_middle: "do_nothing"
