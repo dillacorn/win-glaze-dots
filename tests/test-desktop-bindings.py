@@ -6,6 +6,7 @@ root = Path(__file__).resolve().parents[1]
 
 APPROVED_WGDOT_RUNTIME = (
     "wgdotw.exe glazewm-binding-mode-toggle",
+    "wgdotw.exe glazewm-window-behavior-toggle",
     "wgdotw.exe bar-autohide-toggle",
     "wgdotw.exe rawaccel-toggle",
     "wgdot.exe theme",
@@ -65,6 +66,19 @@ for yasb_name in ("config.yaml", "custom_work_config.yaml"):
         yasb_name,
         "Bluetooth must open the native Windows Bluetooth surface",
     )
+    quick_actions = yasb["widgets"]["control_center"]["options"]["sections"]["quick_actions"]
+    assert quick_actions["columns"] == 2, (yasb_name, "quick settings must use the filled two-column layout")
+    assert quick_actions["label_position"] == "inline", (yasb_name, "quick settings labels must sit next to icons")
+    floating = next((action for action in quick_actions["actions"] if action["id"] == "floating_windows"), None)
+    assert floating is not None, (yasb_name, "Floating Windows quick action is missing")
+    assert floating["label"] == "Floating Windows", (yasb_name, "Floating Windows label regressed")
+    assert floating["command"] == "wgdotw.exe glazewm-window-behavior-toggle", (
+        yasb_name,
+        "Floating Windows must use the scoped compiled GlazeWM helper",
+    )
+    display_index = next(i for i, action in enumerate(quick_actions["actions"]) if action["id"] == "display_settings")
+    floating_index = next(i for i, action in enumerate(quick_actions["actions"]) if action["id"] == "floating_windows")
+    assert floating_index == display_index + 2, (yasb_name, "Floating Windows must sit directly below Displays")
 
     mode_callbacks = yasb["widgets"]["glazewm_binding_mode"]["options"]["callbacks"]
     assert mode_callbacks["on_left"] == "disable_binding_mode", (
