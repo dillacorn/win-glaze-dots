@@ -83,18 +83,26 @@ foreach ($profileEntry in @(
     $profileText = [string]$profileEntry.Text
 
     foreach ($menuName in @("brightness_menu", "mic_menu", "audio_menu", "calendar")) {
-        if ($profileText -notmatch ("(?ms)^\s{6}" + [regex]::Escape($menuName) + ":.*?^\s{8}offset_top: 0\s*$")) {
+        $menuPattern = "(?ms)^\s{6}" + [regex]::Escape($menuName) + ":.*?^\s{8}offset_top: 0\s*$"
+        if ($profileText -notmatch $menuPattern) {
             throw "ASSERTION FAILED: $profileName $menuName must touch the YASB bar vertically"
         }
     }
 
     foreach ($widgetName in @("cpu", "memory", "wifi", "bluetooth")) {
-        if ($profileText -notmatch ("(?ms)^\s{2}" + [regex]::Escape($widgetName) + ":.*?^\s{8}offset_top: 0\s*$")) {
+        $widgetPattern = "(?ms)^\s{2}" + [regex]::Escape($widgetName) + ":.*?^\s{8}offset_top: 0\s*$"
+        if ($profileText -notmatch $widgetPattern) {
             throw "ASSERTION FAILED: $profileName $widgetName popup/menu must touch the YASB bar vertically"
         }
     }
 
-    if ($profileText -notmatch '(?ms)^\s{2}control_center:.*?^\s{8}offset_top: 0\s*Assert-Contains $config "keys: `"win+alt+backspace`"" "quick settings matches Awtarchy Super+Alt+Backspace"
+    $controlCenterPattern = "(?ms)^\s{2}control_center:.*?^\s{8}offset_top: 0\s*$"
+    if ($profileText -notmatch $controlCenterPattern) {
+        throw "ASSERTION FAILED: $profileName Control Center popup must touch the YASB bar vertically"
+    }
+}
+
+Assert-Contains $config "keys: `"win+alt+backspace`"" "quick settings matches Awtarchy Super+Alt+Backspace"
 Assert-NotContains $config "wgdot_running_apps" "running applications stay on instead of being a quick-setting toggle"
 Assert-NotContains $config "wgdot_shade_apps" "broken running-app shading is removed"
 Assert-Contains $config "wgdotw.exe theme-window-toggle" "quick settings uses the windowless theme-window toggle"
