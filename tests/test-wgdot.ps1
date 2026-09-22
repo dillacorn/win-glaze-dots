@@ -760,6 +760,11 @@ Assert-True ($glazeWorkText -notmatch 'shell-exec %LOCALAPPDATA%/FlowLauncher/Fl
 Assert-True ($glazeNormalText -match '%LOCALAPPDATA%\\wgdot\\bin\\wgdotw\.exe.*launcher hotkey') "Normal launcher hotkeys use the deterministic WGDot runtime path"
 Assert-True ($glazeWorkText -match '%LOCALAPPDATA%\\wgdot\\bin\\wgdotw\.exe.*launcher hotkey') "Work launcher hotkeys use the deterministic WGDot runtime path"
 Assert-True ($nativeSourceText -match 'UseShellExecute = true') "compiled launcher activates Start Menu shortcuts through Windows shell semantics"
+Assert-True ($nativeSourceText -match 'const int width = 380') "compiled launcher uses the compact near-half-width search surface"
+Assert-True ($nativeSourceText -match 'ResolveLauncherShortcutIconPath') "compiled launcher resolves shortcut-backed application icons"
+Assert-True ($nativeSourceText -match '"WScript\.Shell"') "compiled launcher resolves Windows shortcut targets without adding a runtime script dependency"
+Assert-True ($nativeSourceText -match '"TargetPath"') "compiled launcher prefers the underlying shortcut target for clean application icons"
+Assert-True ($nativeSourceText -match '"IconLocation"') "compiled launcher can use explicit shortcut icon locations before falling back to the shortcut object"
 
 Assert-True ($yasbConfigText -match 'yasb\.custom\.CustomWidget') "YASB uses a lightweight custom power button"
 Assert-True ($yasbConfigText -match 'on_left:\s*"exec wgdotw\.exe power-menu"') "YASB power button opens the compiled Awtarchy-style surface"
