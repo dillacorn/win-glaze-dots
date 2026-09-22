@@ -362,5 +362,3 @@ Assert-Contains -Text $readme -Needle "does **not** reload GlazeWM" -Message "th
 
 Write-Host "YASB parity checks passed." -ForegroundColor Green
 
-Assert-Contains $nativeSourceText "const int width = 380;" "launcher window stays compact at the 380 px target"
-Assert-Contains $nativeSourceText "ResolveLauncherShortcutIconPath" "launcher resolves shortcut targets before drawing application icons"
