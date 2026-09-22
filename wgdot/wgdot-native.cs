@@ -5243,8 +5243,10 @@ class WgdotHidden
         result.Components = GetStringList(state, "components");
         result.Packages = GetStringList(state, "packages");
         result.Tweaks = GetStringList(state, "tweaks");
-        // One-time selection migration from the old WGDot runtime-helper model.
-        // Flow's own Alt+P global hotkey conflicts with VM pass-through, so drop it.
+        // One-time selection migration from retired launcher/audio integrations.
+        // Flow Launcher is no longer part of the WGDot software catalog; preserve an
+        // existing installation, but stop carrying its package/tweak selections forward.
+        result.Packages.RemoveAll(x => String.Equals(x, "Flow-Launcher.Flow-Launcher", StringComparison.OrdinalIgnoreCase));
         result.Tweaks.RemoveAll(x => String.Equals(x, "flow-launcher-alt-p", StringComparison.OrdinalIgnoreCase));
         result.Tweaks.RemoveAll(x =>
             String.Equals(x, "eartrumpet-mixer-alt-v", StringComparison.OrdinalIgnoreCase) ||
