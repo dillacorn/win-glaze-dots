@@ -222,6 +222,7 @@ widgets:
         alignment: "right"
         direction: "down"
         offset_top: 0
+        offset_left: 0
         show_graph: true
         show_graph_grid: false
         graph_history_size: 60
@@ -245,6 +246,7 @@ widgets:
         alignment: "right"
         direction: "down"
         offset_top: 0
+        offset_left: 0
         show_graph: true
         show_graph_grid: false
         graph_history_size: 60
@@ -352,6 +354,8 @@ widgets:
         border_color: "None"
         alignment: "right"
         direction: "down"
+        offset_top: 0
+        offset_left: 0
       callbacks:
         on_left: "toggle_brightness_menu"
         on_middle: "do_nothing"
@@ -403,6 +407,8 @@ widgets:
         border_color: "None"
         alignment: "right"
         direction: "down"
+        offset_top: 0
+        offset_left: 0
       callbacks:
         on_left: "toggle_mic_menu"
         on_middle: "toggle_label"
@@ -429,6 +435,8 @@ widgets:
         border_color: "None"
         alignment: "right"
         direction: "down"
+        offset_top: 0
+        offset_left: 0
         show_apps: true
         show_app_labels: false
         show_app_icons: true
@@ -452,6 +460,8 @@ widgets:
         border_color: "None"
         alignment: "right"
         direction: "down"
+        offset_top: 0
+        offset_left: 0
         show_holidays: false
         show_week_numbers: false
         show_years: true
