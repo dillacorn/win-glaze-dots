@@ -9,7 +9,7 @@ The default selection is intentionally conservative for public use. Only the WGD
 
 ## privacy.sexy behavior
 
-privacy.sexy remains optional. WGDot installs/updates only from the official upstream release, detects when the installer already started the desktop app so it does not launch a duplicate window, and waits for that app instance to close before continuing. WGDot does not disable antivirus or add antivirus exclusions around privacy.sexy execution. Upstream 0.13.8 does not expose a supported unattended CLI/API for selecting a recommendation level, generating the resulting script, and executing it.
+privacy.sexy remains optional. Its recommendation-level menu uses **Skip** rather than **Cancel**: Skip bypasses only privacy.sexy and continues/finishes WGDot without implying that completed software work was cancelled. WGDot installs/updates only from the official upstream release, detects when the installer already started the desktop app so it does not launch a duplicate window, and waits for that app instance to close before continuing. WGDot does not disable antivirus or add antivirus exclusions around privacy.sexy execution. Upstream 0.13.8 does not expose a supported unattended CLI/API for selecting a recommendation level, generating the resulting script, and executing it.
 
 ## Automatic time and time zone
 
@@ -176,7 +176,7 @@ Mullvad Browser is intentionally left untouched. WGDot does not install extensio
 - **Prism Launcher** — `PrismLauncher.PrismLauncher`
 - **r2modman** — `ebkr.r2modman`
 - **Epic Games Launcher** — `EpicGames.EpicGamesLauncher`
-- **Raw Accel** — `RawAccelOfficial.RawAccel` — official release ZIP/driver installer, optional and default OFF; restart Windows after installation
+- **Raw Accel** — `RawAccelOfficial.RawAccel` — official release ZIP/driver installer, optional and default OFF; restart Windows after installation; when selected, Startup Applications exposes a separate remembered default-OFF WGDot login entry without changing the RawAccel acceleration profile
 - **Moonlight** — `MoonlightGameStreamingProject.Moonlight`
 - **Sunshine** — `LizardByte.Sunshine`
 
@@ -201,7 +201,7 @@ Mullvad Browser is intentionally left untouched. WGDot does not install extensio
 
 ## Notes
 
-- Open-Shell is enabled by default and WGDot starts it after a successful first install.
+- Open-Shell remains selectable but defaults OFF for both Normal and Work. Existing remembered selections remain authoritative, deselection/default changes do not uninstall an existing copy, and post-install setup runs only when Open-Shell was explicitly selected.
 - Micro is the preferred text editor. Notepad++ remains available only as an opt-in editor.
 - qimgv and mpv.net are default media applications.
 - Vesktop (`Vencord.Vesktop`) is the offered Discord-family client; Discord itself is not cataloged.
