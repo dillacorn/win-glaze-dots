@@ -7454,20 +7454,6 @@ class WgdotHidden
         int width,
         int height)
     {
-        bool centerScreen =
-            YasbAutoHideEnabled() ||
-            ForegroundWindowFillsScreen(foreground, screen);
-
-        if (centerScreen)
-        {
-            return ClampLauncherLocation(
-                screen,
-                screen.Bounds.Left + ((screen.Bounds.Width - width) / 2),
-                screen.Bounds.Top + ((screen.Bounds.Height - height) / 2),
-                width,
-                height);
-        }
-
         const int launcherBarGap = 1;
         int belowBarY = screen.Bounds.Top + 28 + launcherBarGap;
 
@@ -7481,6 +7467,20 @@ class WgdotHidden
                 Math.Max(
                     screen.Bounds.Top,
                     Math.Min(maxY, belowBarY)));
+        }
+
+        bool centerScreen =
+            YasbAutoHideEnabled() ||
+            ForegroundWindowFillsScreen(foreground, screen);
+
+        if (centerScreen)
+        {
+            return ClampLauncherLocation(
+                screen,
+                screen.Bounds.Left + ((screen.Bounds.Width - width) / 2),
+                screen.Bounds.Top + ((screen.Bounds.Height - height) / 2),
+                width,
+                height);
         }
 
         return ClampLauncherLocation(
