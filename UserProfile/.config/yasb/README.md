@@ -8,9 +8,9 @@ WGDot manages installation, updates, backups, and deployment. Runtime ownership 
 
 - **GlazeWM** owns window-manager keybindings, binding modes, pause, workspace actions, screenshots, and direct Windows/application launches.
 - **YASB** owns ordinary bar widgets and native callbacks; for the custom application launcher it owns only the visible bar button.
-- **Installed applications** own their native hotkeys where practical. EarTrumpet owns `Alt+V` itself; YASB volume right-click directly activates the packaged app, while WGDot does not broker the launch or rewrite the hotkey.
+- **Installed applications** own their native hotkeys where practical. EarTrumpet owns `Alt+V` itself; YASB volume right-click uses a narrow windowless WGDot bridge only to trigger that application-owned hotkey. WGDot does not rewrite the hotkey.
 - **Neither Normal nor Work has any `.ps1` runtime dependencies.** Desktop-session behavior uses native GlazeWM/YASB/Windows/application interfaces first.
-- **Compiled WGDot is used at runtime only for approved custom primitives:** the application launcher, power surface, coordinated auto-hide, theme application/window toggle, invisible GlazeWM mode dispatch where a console would otherwise flash, the narrow RawAccel GUI toggle, and the bar-only one-shot Clipboard History opener.
+- **Compiled WGDot is used at runtime only for approved custom primitives:** the application launcher, power surface, coordinated auto-hide, theme application/window toggle, invisible GlazeWM mode dispatch where a console would otherwise flash, the narrow RawAccel GUI toggle, the bar-only one-shot Clipboard History opener, and the bar-only EarTrumpet mixer-hotkey trigger.
 - Runtime actions that must stay invisible use the windowless `wgdotw.exe` frontend; the interactive theme selector uses `wgdot.exe theme` inside Windows Terminal.
 
 ## Bar layout
@@ -124,7 +124,7 @@ The power surface preserves the Awtarchy-style fullscreen 3x2 tile layout for Lo
 
 The native YASB Volume widget retains Awtarchy-like mute glyphs, thresholds, and 5-point wheel changes.
 
-EarTrumpet owns Alt+V itself through its application settings. YASB volume right-click directly launches the packaged app with `explorer.exe shell:AppsFolder\40459File-New-Project.EarTrumpet_725pr5jq8wr8a!EarTrumpet`. The target intentionally uses one backslash after `AppsFolder`; the retired doubled-backslash form opened Explorer/Documents. WGDot is not in this launch path, and Super+V remains native Clipboard History.
+EarTrumpet owns Alt+V itself through its application settings. YASB volume right-click runs `wgdotw.exe eartrumpet-mixer-toggle`. That helper verifies EarTrumpet is running, starts its Start Menu shortcut if necessary, then injects Alt+V. EarTrumpet's own hotkey handler calls `WindowHolder.OpenOrClose()`, so repeated right-clicks open and close the mixer. Direct AppsFolder activation is intentionally not used because activating the packaged app does not invoke the mixer toggle. Super+V remains native Clipboard History.
 
 ## Clipboard
 
@@ -151,7 +151,7 @@ The Windows bar uses `NotoSansM Nerd Font Mono` at 14 px to match Awtarchy, with
 | DDC brightness | native Brightness widget |
 | battery | native Battery widget with Awtarchy-like thresholds and glyph composition |
 | microphone | native Microphone widget |
-| output audio | native Volume widget + direct EarTrumpet launch |
+| output audio | native Volume widget + bar-only EarTrumpet mixer-hotkey trigger |
 | clock/date | native Clock widget |
 | network / Bluetooth | native WiFi/Bluetooth indicators opening Windows Network/Bluetooth Settings surfaces |
 | notifications / mute | native `DndWidget` |
