@@ -369,6 +369,7 @@ Software management is separate from managed-dot updates.
 - Actual WinGet installs must also be bounded when a package declares `wingetInstallTimeoutSeconds`. On timeout, terminate the stuck WinGet process tree before continuing.
 - A WinGet install timeout/failure may fall back only when the package manifest explicitly declares an approved official GitHub repository and a narrow asset regex. Never invent or scrape third-party mirrors.
 - Flow Launcher is retired from the software catalog. Loading older installation state may discard its retired package/tweak selections, but WGDot must not silently uninstall an already-installed copy solely because catalog support was removed.
+- Double Commander is retired from the software catalog. Yazi + Explorer are the preferred file-manager path. Loading older installation state must discard the retired `Alexx2000.DoubleCommander` selection without uninstalling an existing Double Commander installation.
 - Open-Shell remains selectable but defaults OFF for both Normal and Work on a fresh selection. Existing remembered package selections remain authoritative, and changing the default must never be treated as permission to uninstall an existing Open-Shell installation. Run its post-install setup only when the package was explicitly selected for installation.
 
 ## Application startup ownership
@@ -494,6 +495,7 @@ Documentation must match the current implementation.
 - Distinguish stable-release instructions from unreleased branch testing.
 - Do not claim WGDot is released merely because it exists on a feature branch or `main`.
 - Keep manual PowerShell instructions aligned with the same manifest and safety rules used by automatic WGDot behavior.
+- The paste-only restricted-network manual workflow must not require `api.github.com`, `github.com` archive/clone access, or execution of downloaded scripts. Pin its documented stable tag to the exact immutable release commit and update that tag/SHA pair whenever a new stable release becomes the supported manual source.
 - Prefer updating stale existing setup docs over creating redundant competing guides.
 
 ## Maintaining this file
