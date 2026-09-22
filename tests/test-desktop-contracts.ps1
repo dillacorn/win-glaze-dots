@@ -212,9 +212,10 @@ try {
         }
     }
 
-    Check 'Flow launcher migration no longer owns Alt+P globally' {
+    Check 'Flow Launcher stays retired' {
         Require ($nativeSource -notmatch 'ApplyFlowLauncherAltP|RestoreLegacyFlowHotkey') 'Retired Flow hotkey implementation remains'
-        Require ($nativeSource -match 'result\.Tweaks\.RemoveAll\(x => String\.Equals\(x, "flow-launcher-alt-p"') 'Saved selections no longer retire the old Flow hotkey tweak'
+        Require ($nativeSource -match 'result\.Packages\.RemoveAll\(x => String\.Equals\(x, "Flow-Launcher\.Flow-Launcher"') 'Saved selections do not keep the retired Flow package'
+        Require ($nativeSource -match 'result\.Tweaks\.RemoveAll\(x => String\.Equals\(x, "flow-launcher-alt-p"') 'Saved selections retire the old Flow hotkey tweak'
     }
 
     Check 'launcher bindings use the scoped compiled surface without relay scripts' {
