@@ -55,6 +55,8 @@ Assert-NotContains $config "keys: `"f24`"" "launcher does not use a synthetic F2
 Assert-NotContains $config "keys: `"win+alt+d`"" "YASB does not globally capture Win+Alt+D"
 Assert-Contains $config "wgdotw.exe power-menu" "normal YASB uses the compiled Awtarchy-style power surface"
 Assert-Contains $config "glazewm.workspaces.GlazewmWorkspacesWidget" "native GlazeWM workspace widget is used"
+Assert-Contains $config 'populated_label: "{display_name}"' "YASB workspace buttons render GlazeWM display_name values"
+Assert-NotContains $config 'populated_label: "{name}"' "YASB does not override GlazeWM display_name with raw workspace names"
 Assert-Contains $config "monitor_exclusive: true" "monitor-local workspace/task behavior is retained"
 Assert-Contains $config "enable_scroll_switching: true" "workspace wheel switching is enabled"
 Assert-NotContains $config "workspace_move_hub:" "retired workspace mover hub is absent"
