@@ -19,7 +19,7 @@
 @import "theme.css";
 
 * {
-    font-family: "NotoSansM Nerd Font Mono", "JetBrainsMono NFP";
+    font-family: "NotoSansM NFM", "JetBrainsMono NFP";
     font-size: 14px;
     font-weight: 400;
     color: var(--foreground);
