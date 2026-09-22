@@ -1516,6 +1516,22 @@ class WgdotHidden
         WriteInstallationSelection(selection);
         UpdateSourceStateAfterApply(source);
 
+        Dictionary<string, object> barFont =
+            FindPackageById(source.Manifest, "NerdFonts.Noto");
+        if (barFont != null &&
+            IsOfficialGitHubFontArchivePackage(barFont) &&
+            !IsOfficialGitHubFontArchivePackageInstalled(barFont))
+        {
+            Console.WriteLine();
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine(
+                "YASB font note: NotoSansM Nerd Font Mono is not installed; " +
+                "the bar will use its fallback font.");
+            Console.WriteLine(
+                "Install only the managed bar font with: wgdot bar-font-install");
+            Console.ResetColor();
+        }
+
         Console.ForegroundColor = ConsoleColor.Green;
         Console.WriteLine("WGDot managed dots applied. Software was not installed, upgraded, reconciled, or uninstalled.");
         Console.ResetColor();
