@@ -166,9 +166,8 @@ Assert-Contains $config "yasb.dnd.DndWidget" "unified notifications and Do Not D
 Assert-NotContains $config "yasb.notifications.NotificationsWidget" "separate Notifications widget stays removed after DND unification"
 Assert-Contains $config "on_left: `"exec notification_center`"" "unified DND left click opens Windows Notification Center through YASB native exec mapping"
 Assert-Contains $config "on_right: `"toggle_status`"" "unified DND right click uses its native DND toggle callback"
-Assert-Contains $config "on_right: 'exec explorer.exe shell:AppsFolder\40459File-New-Project.EarTrumpet_725pr5jq8wr8a!EarTrumpet'" "volume right click directly activates EarTrumpet without a WGDot helper"
-Assert-NotContains $config "shell:AppsFolder\\40459File-New-Project.EarTrumpet_725pr5jq8wr8a!EarTrumpet" "retired doubled-backslash EarTrumpet AppsFolder target stays absent"
-Assert-NotContains $config "40459File-New-Project.EarTrumpet_1sdd7yawvg6ne!EarTrumpet" "YASB does not use the Microsoft Store EarTrumpet family when WGDot installs the WinGet appx"
+Assert-Contains $config 'on_right: "exec wgdotw.exe eartrumpet-mixer-toggle"' "volume right click triggers EarTrumpet's application-owned mixer hotkey"
+Assert-NotContains $config "shell:AppsFolder" "YASB no longer uses direct AppsFolder activation for EarTrumpet mixer toggling"
 Assert-Contains $config "normal: `"`"" "unmuted microphone glyph is collapsed like Awtarchy"
 $mutedMicBlock = [regex]::Match($style, '(?ms)^\.microphone-widget \.label\.muted,\r?\n\.microphone-widget \.icon\.muted \{\r?\n.*?^\}').Value
 Assert-Contains $mutedMicBlock "padding: 0 8px;" "muted microphone keeps Awtarchy's 8 px horizontal control padding"
