@@ -692,13 +692,17 @@ foreach ($desktopCommand in @(
 }
 foreach ($approvedDesktopCommand in @(
     "bar-autohide-toggle",
-    "glazewm-binding-mode-toggle", "theme", "theme-window-toggle", "clipboard-history-open", "launcher", "power-menu", "rawaccel-toggle"
+    "glazewm-binding-mode-toggle", "theme", "theme-window-toggle", "clipboard-history-open", "eartrumpet-mixer-toggle", "launcher", "power-menu", "rawaccel-toggle"
 )) {
     Assert-True ($nativeSourceText -match ('command == "' + [regex]::Escape($approvedDesktopCommand) + '"')) "WGDot exposes approved scoped runtime helper: $approvedDesktopCommand"
 }
 Assert-True ($nativeSourceText -match 'const int width = 380;') "launcher remains compact at 380 px"
 Assert-True ($nativeSourceText -match 'ResolveLauncherShortcutIconPath') "launcher resolves underlying shortcut targets for clean application icons"
 Assert-True ($nativeSourceText -notmatch 'ApplyEarTrumpetMixerSuperV|EnsureEarTrumpetStorageHelper|set-win-v') "retired EarTrumpet hotkey-management helper stays removed"
+Assert-True ($nativeSourceText -match 'command == "eartrumpet-mixer-toggle"') "native runtime exposes the bar-only EarTrumpet mixer toggle"
+Assert-True ($nativeSourceText -match 'SendEarTrumpetMixerChord') "EarTrumpet toggle bridge invokes the application-owned hotkey"
+Assert-True ($nativeSourceText -match 'StartEarTrumpetFromStartMenu') "EarTrumpet toggle bridge can start the app through its Start Menu shortcut"
+Assert-True ($nativeSourceText -match 'const byte VkLmenu = 0xA4;') "EarTrumpet toggle uses left Alt rather than rewriting app settings"
 Assert-True ($nativeSourceText -match 'ApplyClassicContextMenu') "native runtime manages classic context menu"
 Assert-True ($nativeSourceText -match 'DeleteRegistryKeyIfOriginallyAbsentAndEmpty') "native tweak rollback prunes only WGDot-created empty registry keys"
 Assert-True ($nativeSourceText -notmatch 'DeleteSubKeyTree\(clsid') "classic context-menu rollback does not delete unknown pre-WGDot CLSID state"
@@ -803,8 +807,8 @@ Assert-True ($yasbWorkConfigText -match 'on_left:\s*"exec wgdotw\.exe launcher b
 Assert-True ($yasbConfigText -match 'wgdotw\.exe theme-window-toggle') "Normal YASB theme action uses the windowless theme-window toggle"
 Assert-True ($yasbWorkConfigText -match 'wgdotw\.exe theme-window-toggle') "Work YASB theme action uses the windowless theme-window toggle"
 Assert-True ($yasbConfigText -match 'wgdotw\.exe bar-autohide-toggle') "YASB auto-hide uses the approved compiled coordination helper"
-Assert-True ($yasbConfigText -notmatch '(?i)(quick-launch|flow-open|eartrumpet-mixer|clipboard-anchor|flameshot-gui|display-settings|idle-inhibitor)') "Normal YASB does not route native-capable actions through WGDot"
-Assert-True ($yasbWorkConfigText -notmatch '(?i)(quick-launch|flow-open|eartrumpet-mixer|clipboard-anchor|flameshot-gui|display-settings|idle-inhibitor)') "Work YASB does not route native-capable actions through WGDot"
+Assert-True ($yasbConfigText -notmatch '(?i)(quick-launch|flow-open|eartrumpet-mixer(?:\s|$)|clipboard-anchor|flameshot-gui|display-settings|idle-inhibitor)') "Normal YASB does not route native-capable actions through WGDot"
+Assert-True ($yasbWorkConfigText -notmatch '(?i)(quick-launch|flow-open|eartrumpet-mixer(?:\s|$)|clipboard-anchor|flameshot-gui|display-settings|idle-inhibitor)') "Work YASB does not route native-capable actions through WGDot"
 Assert-True ($yasbConfigText -notmatch '\.ps1') "Normal YASB has no PowerShell script-file runtime dependency"
 Assert-True ($yasbWorkConfigText -notmatch '\.ps1') "Work YASB has no PowerShell script-file runtime dependency"
 Assert-True ($yasbConfigText -notmatch 'border_color:\s*None') "YASB popup border colors are not invalid YAML nulls"
@@ -880,7 +884,7 @@ foreach ($text in @($glazeNormalText, $glazeWorkText)) {
     Assert-True ($text -notmatch 'bindings:\s*\["lwin\+shift\+x",\s*"rwin\+shift\+x"\]') "GlazeWM does not capture Flameshot Super+Shift+X"
     Assert-True ($text -notmatch 'bindings:\s*\["lwin\+alt\+s",\s*"rwin\+alt\+s"\]') "GlazeWM does not capture the retired Super+Alt+S Flameshot chord"
     Assert-True ($text -notmatch 'win\+shift\+f') "old Win+Shift+F Flameshot bind is removed"
-    Assert-True ($text -notmatch '(?i)wgdotw?\.exe\s+(?:quick-launch|flow-open|eartrumpet-mixer|clipboard-anchor(?:\s|$)|clipboard-history(?:\s|$)|flameshot-gui|display-settings)') "GlazeWM does not route native-capable actions through WGDot"
+    Assert-True ($text -notmatch '(?i)wgdotw?\.exe\s+(?:quick-launch|flow-open|eartrumpet-mixer(?:\s|$)|clipboard-anchor(?:\s|$)|clipboard-history(?:\s|$)|flameshot-gui|display-settings)') "GlazeWM does not route native-capable actions through WGDot"
     Assert-True ($text -notmatch 'bindings:\s*\["alt\+v",\s*"lwin\+v",\s*"rwin\+v"\]') "GlazeWM leaves Alt+V and Super+V to EarTrumpet/Windows"
     Assert-True ($text -notmatch 'bindings:\s*\["lwin\+c",\s*"rwin\+c"\]') "retired Super+C Clipboard History override stays absent"
     Assert-True ($text -notmatch 'clipboard-anchor') "retired Clipboard History hotkey handoff stays absent"
@@ -1054,7 +1058,7 @@ $managedDesktopRuntimeFiles = @(
 foreach ($managedDesktopRuntimeFile in $managedDesktopRuntimeFiles) {
     $managedDesktopRuntimeText = Get-Content -Raw -LiteralPath $managedDesktopRuntimeFile
     Assert-True ($managedDesktopRuntimeText -notmatch '\.ps1') "managed desktop runtime config contains no PowerShell script-file dependency: $managedDesktopRuntimeFile"
-    Assert-True ($managedDesktopRuntimeText -notmatch '(?i)wgdotw?\.exe\s+(?:quick-launch|flow-open|eartrumpet-mixer|clipboard-anchor(?:\s|$)|clipboard-history(?:\s|$)|flameshot-gui|display-settings)') "managed desktop config does not route native-capable actions through WGDot: $managedDesktopRuntimeFile"
+    Assert-True ($managedDesktopRuntimeText -notmatch '(?i)wgdotw?\.exe\s+(?:quick-launch|flow-open|eartrumpet-mixer(?:\s|$)|clipboard-anchor(?:\s|$)|clipboard-history(?:\s|$)|flameshot-gui|display-settings)') "managed desktop config does not route native-capable actions through WGDot: $managedDesktopRuntimeFile"
 }
 
 Write-Host "WGDot tests passed." -ForegroundColor Green
@@ -1157,7 +1161,7 @@ foreach ($text in @($glazeNormalText, $glazeWorkText)) {
     Assert-True ($text -notmatch 'bindings:\s*\["lwin\+shift\+x",\s*"rwin\+shift\+x"\]') "GlazeWM does not capture Flameshot Super+Shift+X"
     Assert-True ($text -notmatch 'bindings:\s*\["lwin\+alt\+s",\s*"rwin\+alt\+s"\]') "GlazeWM does not capture the retired Super+Alt+S Flameshot chord"
     Assert-True ($text -notmatch 'win\+shift\+f') "old Win+Shift+F Flameshot bind is removed"
-    Assert-True ($text -notmatch '(?i)wgdotw?\.exe\s+(?:quick-launch|flow-open|eartrumpet-mixer|clipboard-anchor(?:\s|$)|clipboard-history(?:\s|$)|flameshot-gui|display-settings)') "GlazeWM does not route native-capable actions through WGDot"
+    Assert-True ($text -notmatch '(?i)wgdotw?\.exe\s+(?:quick-launch|flow-open|eartrumpet-mixer(?:\s|$)|clipboard-anchor(?:\s|$)|clipboard-history(?:\s|$)|flameshot-gui|display-settings)') "GlazeWM does not route native-capable actions through WGDot"
     Assert-True ($text -notmatch 'bindings:\s*\["alt\+v",\s*"lwin\+v",\s*"rwin\+v"\]') "GlazeWM leaves Alt+V and Super+V to EarTrumpet/Windows"
     Assert-True ($text -notmatch 'bindings:\s*\["lwin\+c",\s*"rwin\+c"\]') "retired Super+C Clipboard History override stays absent"
     Assert-True ($text -notmatch 'clipboard-anchor') "retired Clipboard History hotkey handoff stays absent"
