@@ -21,7 +21,7 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-70";
+    const string Version = "native-preview-71";
     const int WingetPreflightTimeoutMs = 30000;
     const string RepoFullName = "dillacorn/win-glaze-dots";
     const string RepoUrl = "https://github.com/dillacorn/win-glaze-dots.git";
@@ -157,9 +157,6 @@ internal static class WgdotNative
     [DllImport("user32.dll")]
     static extern bool GetCursorPos(out POINT lpPoint);
 
-    [DllImport("kernel32.dll", SetLastError = true)]
-    static extern uint SetThreadExecutionState(uint esFlags);
-
     [DllImport("user32.dll", EntryPoint = "SetWindowsHookEx", SetLastError = true)]
     static extern IntPtr SetWindowsHookExKeyboard(
         int idHook,
@@ -230,10 +227,6 @@ internal static class WgdotNative
     const uint ShgfiIcon = 0x00000100;
     const uint KeyeventfKeyup = 0x0002;
     const uint WmFontChange = 0x001D;
-
-    const uint EsSystemRequired = 0x00000001;
-    const uint EsDisplayRequired = 0x00000002;
-    const uint EsContinuous = 0x80000000;
 
     const string IdleInhibitorMutexName = @"Local\WGDot.IdleInhibitor";
     const string IdleInhibitorStopEventName = @"Local\WGDot.IdleInhibitorStop";
@@ -636,14 +629,11 @@ internal static class WgdotNative
             if (command == "window-audit") return WindowAudit();
             if (command == "super-l-test") return SuperLTestFromArgs(args.Skip(1).ToArray());
             if (command == "super-l-hook") return SuperLHookWorker();
-            if (command == "idle-inhibitor-status") return IdleInhibitorStatus();
-            if (command == "idle-inhibitor-toggle") return IdleInhibitorToggle();
-            if (command == "idle-inhibitor-worker") return IdleInhibitorWorker();
             if (command == "bar-autohide-toggle") return BarAutoHideToggle();
             if (command == "glazewm-binding-mode-toggle") return GlazeWmBindingModeToggleFromArgs(args.Skip(1).ToArray());
             if (command == "theme") return ThemeManagerFromArgs(args.Skip(1).ToArray());
             if (command == "theme-window-toggle") return ThemeWindowToggle();
-            if (command == "clipboard-anchor") return ClipboardAnchorFromArgs(args.Skip(1).ToArray());
+            if (command == "clipboard-history-open") return ClipboardHistoryOpen();
             if (command == "launcher") return LauncherFromArgs(args.Skip(1).ToArray());
             if (command == "power-menu") return PowerMenu();
             if (command == "rawaccel-toggle") return RawAccelToggle();
@@ -5255,9 +5245,9 @@ class WgdotHidden
         // One-time selection migration from the old WGDot runtime-helper model.
         // Flow's own Alt+P global hotkey conflicts with VM pass-through, so drop it.
         result.Tweaks.RemoveAll(x => String.Equals(x, "flow-launcher-alt-p", StringComparison.OrdinalIgnoreCase));
-        if (result.Tweaks.RemoveAll(x => String.Equals(x, "eartrumpet-mixer-alt-v", StringComparison.OrdinalIgnoreCase)) > 0 &&
-            !result.Tweaks.Contains("eartrumpet-mixer-super-v", StringComparer.OrdinalIgnoreCase))
-            result.Tweaks.Add("eartrumpet-mixer-super-v");
+        result.Tweaks.RemoveAll(x =>
+            String.Equals(x, "eartrumpet-mixer-alt-v", StringComparison.OrdinalIgnoreCase) ||
+            String.Equals(x, "eartrumpet-mixer-super-v", StringComparison.OrdinalIgnoreCase));
         result.TweaksConfigured = state.ContainsKey("tweaks");
         result.BrowserOptions = ReadBrowserOptionsState(state);
         result.BrowserOptionsConfigured = state.ContainsKey("browserOptions");
@@ -6445,8 +6435,6 @@ class WgdotHidden
     {
         if (String.Equals(id, "micro-text-defaults", StringComparison.OrdinalIgnoreCase))
             ApplyMicroTextDefaults(enable);
-        else if (String.Equals(id, "eartrumpet-mixer-super-v", StringComparison.OrdinalIgnoreCase))
-            ApplyEarTrumpetMixerSuperV(enable);
         else if (String.Equals(id, "disable-windows-shell-hotkeys", StringComparison.OrdinalIgnoreCase))
             ApplyWindowsShellHotkeysPolicy(enable);
         else if (String.Equals(id, "clean-taskbar-items", StringComparison.OrdinalIgnoreCase))
@@ -7108,44 +7096,6 @@ class WgdotHidden
         return LaunchThemeWindow(targetScreen);
     }
 
-    static bool GlazeWmPausedForClipboard()
-    {
-        ProcResult result = Run(RequireGlazeWmExe(), "query paused", null);
-        Dictionary<string, object> response =
-            RequireGlazeWmSuccess(result, "GlazeWM pause query");
-
-        object data;
-        if (!response.TryGetValue("data", out data) || !(data is bool))
-            throw new Exception("GlazeWM pause query returned invalid pause data.");
-
-        return (bool)data;
-    }
-
-    static void ToggleGlazeWmPauseForClipboard()
-    {
-        ProcResult result = Run(
-            RequireGlazeWmExe(),
-            "command wm-toggle-pause",
-            null);
-        RequireGlazeWmSuccess(result, "GlazeWM pause toggle");
-    }
-
-    static void WaitForWindowsModifierRelease()
-    {
-        for (int i = 0; i < 200; i++)
-        {
-            bool leftDown = (GetAsyncKeyState(VkLwin) & 0x8000) != 0;
-            bool rightDown = (GetAsyncKeyState(VkRwin) & 0x8000) != 0;
-            if (!leftDown && !rightDown)
-                return;
-
-            System.Threading.Thread.Sleep(10);
-        }
-
-        throw new Exception(
-            "Windows key is still held; release it and retry Clipboard History.");
-    }
-
     static void SendNativeClipboardHistoryChord()
     {
         keybd_event(VkLwin, 0, 0, UIntPtr.Zero);
@@ -7154,61 +7104,11 @@ class WgdotHidden
         keybd_event(VkLwin, 0, KeyeventfKeyup, UIntPtr.Zero);
     }
 
-    static void WaitForGlazeWmClipboardPauseState(bool expected)
+    static int ClipboardHistoryOpen()
     {
-        for (int i = 0; i < 50; i++)
-        {
-            if (GlazeWmPausedForClipboard() == expected)
-                return;
-            System.Threading.Thread.Sleep(20);
-        }
-
-        throw new Exception(
-            "GlazeWM did not " + (expected ? "pause" : "resume") +
-            " before the Clipboard History handoff.");
-    }
-
-    static int ClipboardAnchorFromArgs(string[] args)
-    {
-        string source = args != null && args.Length > 0
-            ? (args[0] ?? "").Trim().ToLowerInvariant()
-            : "hotkey";
-
-        if (!(String.Equals(source, "bar", StringComparison.OrdinalIgnoreCase) ||
-              String.Equals(source, "hotkey", StringComparison.OrdinalIgnoreCase)))
-            throw new Exception("Usage: wgdot clipboard-anchor [bar|hotkey]");
-
-        // Reliability first: keep the user's foreground window instead of
-        // creating and then closing a temporary anchor that can dismiss the
-        // native Clipboard History surface immediately.
-        WaitForWindowsModifierRelease();
-
-        bool restorePause = false;
-        try
-        {
-            if (Process.GetProcessesByName("glazewm").Length > 0)
-            {
-                bool wasPaused = GlazeWmPausedForClipboard();
-                if (!wasPaused)
-                {
-                    ToggleGlazeWmPauseForClipboard();
-                    WaitForGlazeWmClipboardPauseState(true);
-                    restorePause = true;
-                }
-            }
-
-            SendNativeClipboardHistoryChord();
-            System.Threading.Thread.Sleep(350);
-        }
-        finally
-        {
-            if (restorePause)
-            {
-                ToggleGlazeWmPauseForClipboard();
-                WaitForGlazeWmClipboardPauseState(false);
-            }
-        }
-
+        // Keyboard Clipboard History stays native on Super+V. This helper exists
+        // only for the YASB mouse button, where no user key chord is being held.
+        SendNativeClipboardHistoryChord();
         return 0;
     }
 
@@ -7652,7 +7552,7 @@ class WgdotHidden
         form.ShowInTaskbar = false;
         form.TopMost = true;
         form.KeyPreview = true;
-        form.Opacity = 0.0;
+        form.Opacity = 0.98;
 
         var outer = new System.Windows.Forms.Panel();
         outer.Dock = System.Windows.Forms.DockStyle.Fill;
@@ -7661,8 +7561,8 @@ class WgdotHidden
 
         var searchWrap = new System.Windows.Forms.Panel();
         searchWrap.Dock = System.Windows.Forms.DockStyle.Top;
-        searchWrap.Height = 58;
-        searchWrap.Padding = new System.Windows.Forms.Padding(12, 10, 12, 8);
+        searchWrap.Height = 42;
+        searchWrap.Padding = new System.Windows.Forms.Padding(10, 7, 10, 6);
         searchWrap.BackColor = field;
 
         var search = new System.Windows.Forms.TextBox();
@@ -7861,26 +7761,6 @@ class WgdotHidden
                 }
             });
 
-            var fade = new System.Windows.Forms.Timer();
-            fade.Interval = 15;
-            fade.Tick += delegate
-            {
-                if (form.IsDisposed)
-                {
-                    fade.Stop();
-                    fade.Dispose();
-                    return;
-                }
-
-                form.Opacity = Math.Min(0.98, form.Opacity + 0.12);
-                if (form.Opacity >= 0.979)
-                {
-                    form.Opacity = 0.98;
-                    fade.Stop();
-                    fade.Dispose();
-                }
-            };
-            fade.Start();
         };
 
         System.Windows.Forms.Application.Run(form);
@@ -8440,355 +8320,6 @@ class WgdotHidden
                 stop.Set();
         }
         catch (System.Threading.WaitHandleCannotBeOpenedException) { }
-    }
-
-    static int IdleInhibitorStatus()
-    {
-        bool active = NamedMutexExists(IdleInhibitorMutexName);
-
-        // Keep stdout ASCII-only because YASB's CustomWidget decodes command
-        // output as UTF-8. JSON escapes are converted back into the same
-        // Font Awesome eye/eye-slash glyphs Awtarchy uses after json.loads().
-        Console.Write(
-            active
-                ? "{\"icon\":\"\\uf06e\",\"active\":true,\"tooltip\":\"Keep Awake: activated - click to deactivate\"}"
-                : "{\"icon\":\"\\uf070\",\"active\":false,\"tooltip\":\"Idle inhibitor: deactivated - click to activate Keep Awake\"}");
-        return 0;
-    }
-
-    static void StartIdleInhibitorWorker()
-    {
-        string exe = Process.GetCurrentProcess().MainModule.FileName;
-        var psi = new ProcessStartInfo();
-        psi.FileName = exe;
-        psi.Arguments = "idle-inhibitor-worker";
-        psi.UseShellExecute = false;
-        psi.CreateNoWindow = true;
-        psi.WindowStyle = ProcessWindowStyle.Hidden;
-        psi.EnvironmentVariables["WGDOT_SKIP_RUNTIME_REFRESH"] = "1";
-        Process process = Process.Start(psi);
-        if (process == null) throw new Exception("Failed to start the WGDot idle inhibitor worker.");
-    }
-
-    static int IdleInhibitorToggle()
-    {
-        if (NamedMutexExists(IdleInhibitorMutexName))
-        {
-            SignalIdleInhibitorStop();
-            for (int i = 0; i < 40 && NamedMutexExists(IdleInhibitorMutexName); i++)
-                System.Threading.Thread.Sleep(50);
-            if (NamedMutexExists(IdleInhibitorMutexName))
-                throw new Exception("Idle inhibitor did not stop.");
-            ProcResult disabledReload = Run("yasbc.exe", "reload -s", null);
-            if (disabledReload.ExitCode != 0)
-                Console.Error.WriteLine("YASB idle-state refresh warning: " + LastUsefulLine(disabledReload.StdErr + "\n" + disabledReload.StdOut));
-            Console.WriteLine("Idle inhibitor disabled.");
-            return 0;
-        }
-
-        StartIdleInhibitorWorker();
-        for (int i = 0; i < 40 && !NamedMutexExists(IdleInhibitorMutexName); i++)
-            System.Threading.Thread.Sleep(50);
-        if (!NamedMutexExists(IdleInhibitorMutexName))
-            throw new Exception("Idle inhibitor did not start.");
-
-        ProcResult enabledReload = Run("yasbc.exe", "reload -s", null);
-        if (enabledReload.ExitCode != 0)
-            Console.Error.WriteLine("YASB idle-state refresh warning: " + LastUsefulLine(enabledReload.StdErr + "\n" + enabledReload.StdOut));
-        Console.WriteLine("Idle inhibitor enabled. Windows sleep and display idle timeouts are blocked while it is active.");
-        return 0;
-    }
-
-    static int IdleInhibitorWorker()
-    {
-        bool createdNew;
-        using (var mutex = new System.Threading.Mutex(true, IdleInhibitorMutexName, out createdNew))
-        {
-            if (!createdNew) return 0;
-            using (var stop = new System.Threading.EventWaitHandle(
-                false,
-                System.Threading.EventResetMode.ManualReset,
-                IdleInhibitorStopEventName))
-            {
-                stop.Reset();
-                uint state = SetThreadExecutionState(EsContinuous | EsSystemRequired | EsDisplayRequired);
-                if (state == 0)
-                    throw new System.ComponentModel.Win32Exception(
-                        Marshal.GetLastWin32Error(),
-                        "Windows rejected the WGDot idle inhibitor request.");
-                try { stop.WaitOne(); }
-                finally { SetThreadExecutionState(EsContinuous); }
-            }
-        }
-        return 0;
-    }
-
-    static string CurrentCursorThemeId()
-    {
-        Dictionary<string, object> state = ReadJson(CursorStatePath);
-        string id = state == null ? "" : GetString(state, "id");
-        if (CursorThemeLabels.ContainsKey(id)) return id;
-
-        InstallationSelection selection = ReadInstallationSelection();
-        if (selection != null && selection.Tweaks != null &&
-            selection.Tweaks.Contains("oops-all-links-cursor", StringComparer.OrdinalIgnoreCase))
-            return "oops-all-links";
-
-        return "bibata-modern-ice";
-    }
-
-    static void WriteCursorState(string id)
-    {
-        var state = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
-        state["id"] = id;
-        state["label"] = CursorThemeLabels.ContainsKey(id) ? CursorThemeLabels[id] : id;
-        state["appliedAt"] = DateTime.UtcNow.ToString("o");
-        WriteJson(CursorStatePath, state);
-    }
-
-    static int CursorManagerFromArgs(string[] args)
-    {
-        if (args == null || args.Length == 0) return CursorManager();
-        if (args.Length != 1)
-        {
-            Console.Error.WriteLine("Usage: wgdot cursor [cursor-id]");
-            return 2;
-        }
-        return ApplyCursorTheme(args[0]);
-    }
-
-    static int CursorManager()
-    {
-        while (true)
-        {
-            string current = CurrentCursorThemeId();
-            var items = new List<string>();
-            foreach (string id in CursorThemeIds)
-            {
-                bool active = String.Equals(id, current, StringComparison.OrdinalIgnoreCase);
-                items.Add((active ? "* " : "  ") + CursorThemeLabels[id]);
-            }
-            items.Add("Back");
-
-            int currentIndex = Array.FindIndex(
-                CursorThemeIds,
-                x => String.Equals(x, current, StringComparison.OrdinalIgnoreCase));
-            if (currentIndex < 0) currentIndex = 0;
-
-            int choice = ReadSingleChoice(
-                "Cursor themes - Awtarchy Bibata variants + Oops",
-                items,
-                currentIndex);
-            if (choice < 0 || choice >= CursorThemeIds.Length) return 0;
-            ApplyCursorTheme(CursorThemeIds[choice]);
-        }
-    }
-
-    static Dictionary<string, string> ParseCursorInfStrings(string infPath)
-    {
-        var values = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        bool inStrings = false;
-        foreach (string rawLine in File.ReadAllLines(infPath))
-        {
-            string line = rawLine.Trim();
-            if (line.StartsWith("[", StringComparison.Ordinal) &&
-                line.EndsWith("]", StringComparison.Ordinal))
-            {
-                inStrings = String.Equals(line, "[Strings]", StringComparison.OrdinalIgnoreCase);
-                continue;
-            }
-            if (!inStrings || line.Length == 0 || line.StartsWith(";", StringComparison.Ordinal))
-                continue;
-
-            int equals = line.IndexOf('=');
-            if (equals <= 0) continue;
-            string key = line.Substring(0, equals).Trim();
-            string value = line.Substring(equals + 1).Trim();
-            if (value.Length >= 2 && value[0] == '"' && value[value.Length - 1] == '"')
-                value = value.Substring(1, value.Length - 2);
-            if (!String.IsNullOrWhiteSpace(key) && !String.IsNullOrWhiteSpace(value))
-                values[key] = value;
-        }
-        return values;
-    }
-
-    static string EnsureBibataCursorFiles(string cursorId)
-    {
-        string assetStem;
-        if (!BibataCursorAssets.TryGetValue(cursorId, out assetStem))
-            throw new Exception("Unknown Bibata cursor id: " + cursorId);
-
-        string regularDirectoryName = assetStem + "-Regular-Windows";
-        string cursorRoot = Path.Combine(InstallRoot, "cursors");
-        string destination = Path.Combine(cursorRoot, regularDirectoryName);
-        if (File.Exists(Path.Combine(destination, "install.inf"))) return destination;
-
-        Directory.CreateDirectory(cursorRoot);
-        var package = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
-        package["name"] = assetStem + " cursor";
-        package["fallbackGitHubRepo"] = "ful1e5/Bibata_Cursor";
-        package["fallbackAssetRegex"] = "^" + Regex.Escape(assetStem + "-Windows.zip") + "$";
-
-        string assetName;
-        string zipPath = DownloadOfficialGitHubPackageAsset(package, out assetName);
-        using (FileStream stream = File.OpenRead(zipPath))
-        {
-            if (stream.ReadByte() != 0x50 || stream.ReadByte() != 0x4B)
-                throw new Exception("Bibata release asset was not a valid ZIP archive.");
-        }
-
-        string extractRoot = Path.Combine(CacheRoot, "bibata-cursor-" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(extractRoot);
-        try
-        {
-            ExtractZipToDirectorySafe(zipPath, extractRoot);
-            string extracted = Path.Combine(extractRoot, regularDirectoryName);
-            if (!Directory.Exists(extracted) ||
-                !File.Exists(Path.Combine(extracted, "install.inf")))
-                throw new Exception("Bibata archive is missing the expected regular Windows cursor directory.");
-            if (Directory.Exists(destination)) Directory.Delete(destination, true);
-            Directory.Move(extracted, destination);
-        }
-        finally { SafeDeleteDirectory(extractRoot); }
-
-        return destination;
-    }
-
-    static int ApplyBibataCursor(string cursorId)
-    {
-        const string snapshotId = "bibata-cursor-theme";
-        RestoreRegistryOriginals("oops-all-links-cursor");
-        RestoreRegistryOriginals(snapshotId);
-
-        string themeDir = EnsureBibataCursorFiles(cursorId);
-        Dictionary<string, string> inf =
-            ParseCursorInfStrings(Path.Combine(themeDir, "install.inf"));
-
-        string[,] mappings = new string[,]
-        {
-            { "Arrow", "pointer" }, { "Help", "help" }, { "AppStarting", "work" },
-            { "Wait", "busy" }, { "Crosshair", "cross" }, { "precisionhair", "cross" },
-            { "IBeam", "text" }, { "NWPen", "handwriting" }, { "No", "unavailable" },
-            { "SizeNS", "vert" }, { "SizeWE", "horz" }, { "SizeNWSE", "dgn1" },
-            { "SizeNESW", "dgn2" }, { "Grab", "move" }, { "SizeAll", "move" },
-            { "UpArrow", "alternate" }, { "Hand", "link" }, { "Pin", "pin" },
-            { "Person", "person" }, { "Pan", "pan" }, { "Grabbing", "grabbing" },
-            { "Zoom-in", "zoom-in" }, { "Zoom-out", "zoom-out" }
-        };
-
-        var variables = new[]
-        {
-            "pointer", "help", "work", "busy", "cross", "text", "handwriting",
-            "unavailable", "vert", "horz", "dgn1", "dgn2", "move", "alternate",
-            "link", "pin", "person", "pan", "grabbing", "zoom-in", "zoom-out"
-        };
-
-        for (int i = 0; i < mappings.GetLength(0); i++)
-        {
-            string fileName;
-            if (!inf.TryGetValue(mappings[i, 1], out fileName) ||
-                String.IsNullOrWhiteSpace(fileName))
-                throw new Exception("Bibata install.inf is missing cursor mapping '" + mappings[i, 1] + "'.");
-            string path = Path.Combine(themeDir, fileName);
-            if (!File.Exists(path))
-                throw new Exception("Bibata cursor archive is missing expected file: " + fileName);
-            SetRegistryValueWithSnapshot(
-                snapshotId, "HKCU", @"Control Panel\Cursors",
-                mappings[i, 0], path, RegistryValueKind.String);
-        }
-
-        var schemePaths = new List<string>();
-        foreach (string variable in variables)
-        {
-            string fileName;
-            if (!inf.TryGetValue(variable, out fileName) || String.IsNullOrWhiteSpace(fileName))
-                throw new Exception("Bibata install.inf is missing scheme mapping '" + variable + "'.");
-            schemePaths.Add(Path.Combine(themeDir, fileName));
-        }
-
-        string schemeName;
-        if (!inf.TryGetValue("SCHEME_NAME", out schemeName) || String.IsNullOrWhiteSpace(schemeName))
-            schemeName = CursorThemeLabels[cursorId];
-
-        SetRegistryValueWithSnapshot(
-            snapshotId, "HKCU", @"Control Panel\Cursors",
-            "", schemeName, RegistryValueKind.String);
-        SetRegistryValueWithSnapshot(
-            snapshotId, "HKCU", @"Control Panel\Cursors\Schemes",
-            schemeName, String.Join(",", schemePaths.ToArray()), RegistryValueKind.String);
-
-        SystemParametersInfo(0x0057, 0, IntPtr.Zero, 0x01 | 0x02);
-        WriteCursorState(cursorId);
-        Console.WriteLine("Cursor theme applied: " + CursorThemeLabels[cursorId]);
-        return 0;
-    }
-
-    static int ApplyCursorTheme(string requestedId)
-    {
-        string id = (requestedId ?? "").Trim().Replace("_", "-").ToLowerInvariant();
-        if (id == "default") id = "windows-default";
-        if (!CursorThemeLabels.ContainsKey(id))
-        {
-            Console.Error.WriteLine("Unknown cursor theme: " + requestedId);
-            Console.Error.WriteLine("Run 'wgdot cursor' to choose a supported cursor theme.");
-            return 2;
-        }
-
-        if (id == "windows-default")
-        {
-            RestoreRegistryOriginals("bibata-cursor-theme");
-            RestoreRegistryOriginals("oops-all-links-cursor");
-            SystemParametersInfo(0x0057, 0, IntPtr.Zero, 0x01 | 0x02);
-            WriteCursorState(id);
-            Console.WriteLine("Cursor registry values restored to their pre-WGDot state.");
-            return 0;
-        }
-        if (id == "oops-all-links")
-        {
-            ApplyOopsCursor(true);
-            return 0;
-        }
-        return ApplyBibataCursor(id);
-    }
-
-    static void EnsureCursorTheme()
-    {
-        if (ApplyCursorTheme(CurrentCursorThemeId()) != 0)
-            throw new Exception("Failed to apply the remembered cursor theme.");
-    }
-
-    static void SignalDesktopWorkerStop()
-    {
-        try
-        {
-            using (var stop = System.Threading.EventWaitHandle.OpenExisting(DesktopWorkerStopEventName))
-                stop.Set();
-        }
-        catch (System.Threading.WaitHandleCannotBeOpenedException)
-        {
-        }
-    }
-
-    static string FindRegisteredAppPath(string fileName)
-    {
-        string subKey = @"Software\Microsoft\Windows\CurrentVersion\App Paths\" + fileName;
-        foreach (RegistryKey root in new[] { Registry.CurrentUser, Registry.LocalMachine })
-        {
-            try
-            {
-                using (RegistryKey key = root.OpenSubKey(subKey, false))
-                {
-                    if (key == null) continue;
-                    string registered = Convert.ToString(key.GetValue(null, ""));
-                    if (!String.IsNullOrWhiteSpace(registered) && File.Exists(registered))
-                        return registered;
-                }
-            }
-            catch
-            {
-            }
-        }
-        return "";
     }
 
     static int BarAutoHideToggle()
@@ -9501,259 +9032,6 @@ class WgdotHidden
         return hWnd != IntPtr.Zero &&
             DwmGetWindowAttribute(hWnd, DwmwaCloaked, out cloaked, sizeof(int)) == 0 &&
             cloaked != 0;
-    }
-
-    static string EnsureEarTrumpetStorageHelper()
-    {
-        string helperDir = Path.Combine(CacheRoot, "eartrumpet-storage-helper-v1");
-        string helperExe = Path.Combine(helperDir, "EarTrumpetStorageHelper.exe");
-        if (File.Exists(helperExe)) return helperExe;
-
-        Directory.CreateDirectory(helperDir);
-        string sourcePath = Path.Combine(helperDir, "EarTrumpetStorageHelper.cs");
-
-        string source = @"
-using System;
-using System.IO;
-using System.Text;
-using System.Windows.Forms;
-using System.Xml.Serialization;
-using Windows.Management.Core;
-
-public class HotkeyData
-{
-    public Keys Modifiers { get; set; }
-    public Keys Key { get; set; }
-}
-
-public static class Program
-{
-    const string Family = ""40459File-New-Project.EarTrumpet_1sdd7yawvg6ne"";
-    const string Setting = ""MixerHotkey"";
-
-    public static int Main(string[] args)
-    {
-        if (args.Length == 0) return 2;
-        if (args[0] == ""self-test"") return 0;
-
-        var data = ApplicationDataManager.CreateForPackageFamily(Family);
-        var values = data.LocalSettings.Values;
-
-        if (args[0] == ""get-b64"")
-        {
-            if (!values.ContainsKey(Setting))
-            {
-                Console.Write(""__MISSING__"");
-                return 0;
-            }
-
-            string value = Convert.ToString(values[Setting]) ?? """";
-            Console.Write(Convert.ToBase64String(Encoding.UTF8.GetBytes(value)));
-            return 0;
-        }
-
-        if (args[0] == ""delete"")
-        {
-            if (values.ContainsKey(Setting)) values.Remove(Setting);
-            return 0;
-        }
-
-        if (args[0] == ""set-b64"" && args.Length >= 2)
-        {
-            values[Setting] = Encoding.UTF8.GetString(Convert.FromBase64String(args[1]));
-            return 0;
-        }
-
-        if (args[0] == ""set-win-v"")
-        {
-            var hotkey = new HotkeyData { Modifiers = Keys.LWin, Key = Keys.V };
-            var serializer = new XmlSerializer(typeof(HotkeyData));
-            using (var writer = new StringWriter())
-            {
-                serializer.Serialize(writer, hotkey);
-                values[Setting] = writer.ToString();
-            }
-            return 0;
-        }
-
-        return 2;
-    }
-}
-";
-        File.WriteAllText(sourcePath, source, new UTF8Encoding(false));
-
-        string csc = GetCscPath();
-        if (String.IsNullOrWhiteSpace(csc))
-            throw new Exception("Windows .NET Framework C# compiler was not found.");
-
-        var refs = new List<string>();
-        string windows = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
-        string metadata = Path.Combine(windows, "System32", "WinMetadata");
-
-        foreach (string file in new[]
-        {
-            "Windows.Foundation.winmd",
-            "Windows.Storage.winmd",
-            "Windows.Management.winmd"
-        })
-        {
-            string path = Path.Combine(metadata, file);
-            if (File.Exists(path)) refs.Add(path);
-        }
-
-        if (refs.Count == 0)
-        {
-            string pf86 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
-            string unionRoot = Path.Combine(pf86, "Windows Kits", "10", "UnionMetadata");
-            if (Directory.Exists(unionRoot))
-            {
-                string combined = Directory.GetFiles(unionRoot, "Windows.winmd", SearchOption.AllDirectories)
-                    .OrderByDescending(x => x)
-                    .FirstOrDefault();
-                if (!String.IsNullOrWhiteSpace(combined)) refs.Add(combined);
-            }
-        }
-
-        if (refs.Count == 0)
-            throw new Exception("Windows Runtime metadata required for EarTrumpet settings was not found.");
-
-        string runtimeDir = Path.GetDirectoryName(csc);
-        string windowsRuntime = Path.Combine(runtimeDir, "System.Runtime.WindowsRuntime.dll");
-
-        string pf86Refs = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),
-            "Reference Assemblies",
-            "Microsoft",
-            "Framework",
-            ".NETFramework");
-
-        string systemRuntime = "";
-        string facadeWindowsRuntime = "";
-        if (Directory.Exists(pf86Refs))
-        {
-            systemRuntime = Directory.GetFiles(pf86Refs, "System.Runtime.dll", SearchOption.AllDirectories)
-                .Where(x => x.IndexOf("Facades", StringComparison.OrdinalIgnoreCase) >= 0)
-                .OrderByDescending(x => x)
-                .FirstOrDefault() ?? "";
-
-            facadeWindowsRuntime = Directory.GetFiles(
-                    pf86Refs,
-                    "System.Runtime.WindowsRuntime.dll",
-                    SearchOption.AllDirectories)
-                .OrderByDescending(x => x)
-                .FirstOrDefault() ?? "";
-        }
-
-        // Normal Windows installations may not have Visual Studio/.NET reference
-        // assemblies, but the .NET Framework facade assemblies are still present
-        // in the GAC. Use those as the portable fallback.
-        string gacRoot = Path.Combine(
-            windows,
-            "Microsoft.NET",
-            "assembly",
-            "GAC_MSIL");
-
-        if (String.IsNullOrWhiteSpace(systemRuntime))
-        {
-            string gacSystemRuntime = Path.Combine(gacRoot, "System.Runtime");
-            if (Directory.Exists(gacSystemRuntime))
-            {
-                systemRuntime = Directory.GetFiles(
-                        gacSystemRuntime,
-                        "System.Runtime.dll",
-                        SearchOption.AllDirectories)
-                    .OrderByDescending(x => x)
-                    .FirstOrDefault() ?? "";
-            }
-        }
-
-        if (String.IsNullOrWhiteSpace(facadeWindowsRuntime))
-        {
-            string gacWindowsRuntime = Path.Combine(gacRoot, "System.Runtime.WindowsRuntime");
-            if (Directory.Exists(gacWindowsRuntime))
-            {
-                facadeWindowsRuntime = Directory.GetFiles(
-                        gacWindowsRuntime,
-                        "System.Runtime.WindowsRuntime.dll",
-                        SearchOption.AllDirectories)
-                    .OrderByDescending(x => x)
-                    .FirstOrDefault() ?? "";
-            }
-        }
-
-        var args = new StringBuilder();
-        args.Append("/nologo /optimize+ /target:exe /out:").Append(Q(helperExe));
-        args.Append(" /r:System.Windows.Forms.dll /r:System.Xml.dll");
-        if (!String.IsNullOrWhiteSpace(systemRuntime))
-            args.Append(" /r:").Append(Q(systemRuntime));
-        if (File.Exists(windowsRuntime))
-            args.Append(" /r:").Append(Q(windowsRuntime));
-        else if (!String.IsNullOrWhiteSpace(facadeWindowsRuntime))
-            args.Append(" /r:").Append(Q(facadeWindowsRuntime));
-        foreach (string reference in refs)
-            args.Append(" /r:").Append(Q(reference));
-        args.Append(" ").Append(Q(sourcePath));
-
-        ProcResult compile = Run(csc, args.ToString(), null);
-        if (compile.ExitCode != 0)
-            throw new Exception("EarTrumpet settings helper compilation failed: " +
-                LastUsefulLine(compile.StdErr + "\n" + compile.StdOut));
-
-        return helperExe;
-    }
-
-    static void RestartEarTrumpet()
-    {
-        var psi = new ProcessStartInfo();
-        psi.FileName = "explorer.exe";
-        psi.Arguments = "shell:AppsFolder\\40459File-New-Project.EarTrumpet_1sdd7yawvg6ne!EarTrumpet";
-        psi.UseShellExecute = true;
-        Process.Start(psi);
-    }
-
-    static void ApplyEarTrumpetMixerSuperV(bool enable)
-    {
-        const string originalKey = "eartrumpet-mixer-alt-v|MixerHotkey"; // preserve existing snapshot ownership key
-        string helper = EnsureEarTrumpetStorageHelper();
-        bool wasRunning = StopProcessesByName("EarTrumpet");
-
-        if (enable)
-        {
-            ProcResult current = Run(helper, "get-b64", null);
-            if (current.ExitCode != 0)
-                throw new Exception("Could not read EarTrumpet packaged mixer-hotkey setting.");
-
-            string original = (current.StdOut ?? "").Trim();
-            bool existed = !String.Equals(original, "__MISSING__", StringComparison.Ordinal);
-            CaptureExternalSettingOriginal(originalKey, existed, existed ? original : "");
-
-            ProcResult set = Run(helper, "set-win-v", null);
-            if (set.ExitCode != 0)
-                throw new Exception("Could not set EarTrumpet mixer hotkey.");
-
-            Console.WriteLine("EarTrumpet Open Mixer hotkey set to Super+V.");
-            RestartEarTrumpet();
-            return;
-        }
-
-        var snapshot = GetExternalSettingOriginal(originalKey);
-        if (snapshot == null)
-        {
-            Console.WriteLine("No pre-WGDot EarTrumpet mixer-hotkey snapshot exists; leaving current setting unchanged.");
-            if (wasRunning) RestartEarTrumpet();
-            return;
-        }
-
-        string arguments = GetBool(snapshot, "exists")
-            ? "set-b64 " + Q(GetString(snapshot, "value"))
-            : "delete";
-
-        ProcResult restore = Run(helper, arguments, null);
-        if (restore.ExitCode != 0)
-            throw new Exception("Could not restore EarTrumpet mixer hotkey.");
-
-        Console.WriteLine("EarTrumpet mixer hotkey restored to its pre-WGDot value.");
-        if (wasRunning) RestartEarTrumpet();
     }
 
     static void ApplyCleanTaskbar(bool enable)
@@ -13376,11 +12654,6 @@ public static class Program
                     "new-runtime",
                     StringComparison.Ordinal))
                 throw new Exception("Runtime replacement helper self-test failed.");
-
-            string earHelper = EnsureEarTrumpetStorageHelper();
-            ProcResult earTest = Run(earHelper, "self-test", null);
-            if (earTest.ExitCode != 0)
-                throw new Exception("EarTrumpet packaged-settings helper self-test failed.");
 
             if (!String.Equals(ClassifyGpuHardwareVendor(@"PCI\VEN_1002&DEV_0000"), "amd", StringComparison.Ordinal) ||
                 !String.Equals(ClassifyGpuHardwareVendor(@"PCI\VEN_10DE&DEV_0000"), "nvidia", StringComparison.Ordinal) ||
