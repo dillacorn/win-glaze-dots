@@ -402,7 +402,7 @@ QToolTip,
 }
 
 .language-widget.awtarchy-caps-lock .widget-container.caps-lock-on .icon {
-    color: var(--critical);
+    color: var(--foreground);
     font-size: 18px;
     min-width: 16px;
     max-width: 16px;
