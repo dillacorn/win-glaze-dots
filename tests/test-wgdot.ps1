@@ -134,6 +134,10 @@ Assert-Equal "ryanoasis/nerd-fonts" ([string]$notoFontPackage.fallbackGitHubRepo
 Assert-Equal "^Noto\.zip$" ([string]$notoFontPackage.fallbackAssetRegex) "Noto Nerd Font accepts only the official Noto release archive"
 Assert-Equal "NotoSansMNerdFontMono-Regular.ttf" ([string]$notoFontPackage.fontFile) "Noto Nerd Font installs the Awtarchy-matching mono face"
 Assert-Equal "NotoSansM NFM" ([string]$notoFontPackage.fontFamily) "Noto Nerd Font registers the embedded Windows family name"
+Assert-True ([bool]$notoFontPackage.defaultNormal) "Noto Nerd Font is selected by default on fresh Normal installs"
+Assert-True ([bool]$notoFontPackage.defaultWork) "Noto Nerd Font is selected by default on fresh Work installs"
+Assert-Equal "official-github-font-archive" ([string]$notoFontPackage.installMode) "Noto Nerd Font uses the managed current-user font installer"
+Assert-True ($nativeSourceText -match 'scope == "work" \? GetBool\(package, "defaultWork"\) : GetBool\(package, "defaultNormal"\)') "fresh package selection honors profile default flags"
 
 $micLockTrayPackage = Get-ManifestPackage -Id "dillacorn.MicLockTray"
 Assert-True ($null -ne $micLockTrayPackage) "MicLockTray package exists"
@@ -1064,6 +1068,17 @@ try {
 } finally {
     Remove-Item -LiteralPath $temp -Recurse -Force -ErrorAction SilentlyContinue
 }
+
+$yasbComponent = $manifest.components | Where-Object { $_.id -eq "yasb" } | Select-Object -First 1
+Assert-True ($null -ne $yasbComponent) "YASB managed component exists"
+Assert-True ([bool]$yasbComponent.defaultNormal) "YASB dotfiles are enabled by default for Normal"
+Assert-True ([bool]$yasbComponent.defaultWork) "YASB dotfiles are enabled by default for Work"
+$yasbConfigFile = $yasbComponent.files | Where-Object { $_.id -eq "yasb-config" } | Select-Object -First 1
+$yasbStylesFile = $yasbComponent.files | Where-Object { $_.id -eq "yasb-styles" } | Select-Object -First 1
+Assert-Equal "UserProfile/.config/yasb/config.yaml" ([string]$yasbConfigFile.sourceByGlazeProfile.normal) "Normal deploys the managed YASB config"
+Assert-Equal "UserProfile/.config/yasb/custom_work_config.yaml" ([string]$yasbConfigFile.sourceByGlazeProfile.work) "Work deploys the managed YASB config"
+Assert-Equal "UserProfile/.config/yasb/styles.css" ([string]$yasbStylesFile.source) "Normal and Work share the corrected managed YASB stylesheet"
+Assert-Equal "%USERPROFILE%\.config\yasb\styles.css" ([string]$yasbStylesFile.destination) "corrected YASB stylesheet deploys to the live Windows dotfile path"
 
 $managedDesktopRuntimeFiles = @(
     Join-Path $repoRoot "UserProfile/.glzr/glazewm/config.yaml"
