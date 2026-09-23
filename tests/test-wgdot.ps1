@@ -931,22 +931,31 @@ Assert-True ($yasbConfigText -match 'populated_label:\s*"\{display_name\}"') "No
 Assert-True ($yasbWorkConfigText -match 'populated_label:\s*"\{display_name\}"') "Work YASB renders GlazeWM workspace display_name values"
 Assert-True ($yasbConfigText -notmatch 'populated_label:\s*"\{name\}"') "Normal YASB does not override workspace display_name with raw name"
 Assert-True ($yasbWorkConfigText -notmatch 'populated_label:\s*"\{name\}"') "Work YASB does not override workspace display_name with raw name"
-Assert-True ($glazeNormalText -match 'display_name:\s*"1 󰞷"') "Normal workspace 1 uses the Awtarchy flame glyph"
-Assert-True ($glazeNormalText -match 'display_name:\s*"2 "') "Normal workspace 2 uses the Awtarchy browser glyph"
-Assert-True ($glazeNormalText -match 'display_name:\s*"3 "') "Normal workspace 3 uses the Awtarchy voice glyph"
-Assert-True ($glazeNormalText -match 'display_name:\s*"4 "') "Normal workspace 4 uses the Awtarchy gaming glyph"
-Assert-True ($glazeNormalText -match 'display_name:\s*"5 "') "Normal workspace 5 uses the Awtarchy audio glyph"
-Assert-True ($glazeNormalText -match 'display_name:\s*"6 "') "Normal workspace 6 uses the Awtarchy chat glyph"
-Assert-True ($glazeNormalText -match 'display_name:\s*"7 "') "Normal workspace 7 uses the Awtarchy seventh glyph"
-Assert-True ($glazeNormalText -match 'display_name:\s*"8 "') "Normal workspace 8 uses the Awtarchy work glyph"
-Assert-True ($glazeNormalText -match 'display_name:\s*"9 "') "Normal workspace 9 uses the Awtarchy image/edit glyph"
-Assert-True ($glazeNormalText -match 'display_name:\s*"10 "') "Normal workspace 10 uses the Awtarchy recording glyph"
-Assert-True ($glazeNormalText -notmatch 'display_name:\s*"\d+:') "Normal workspace labels contain no number/icon colon separator"
-Assert-True ($glazeWorkText -match 'display_name:\s*"1: CHATS"') "Work profile workspace labels remain unchanged"
 Assert-True ($yasbConfigText -notmatch 'mouse-mode-toggle|workspace_mouse') "Normal YASB contains no retired mouse-mode runtime"
 Assert-True ($yasbWorkConfigText -notmatch 'mouse-mode-toggle|workspace_mouse') "Work YASB contains no retired mouse-mode runtime"
 $glazeNormalText = Get-Content -LiteralPath (Join-Path $repoRoot "UserProfile\.glzr\glazewm\config.yaml") -Raw
 $glazeWorkText = Get-Content -LiteralPath (Join-Path $repoRoot "UserProfile\.glzr\glazewm\custom_work_config.yaml") -Raw
+$glazeNormalUtf8 = [System.IO.File]::ReadAllText(
+    (Join-Path $repoRoot "UserProfile\.glzr\glazewm\config.yaml"),
+    [System.Text.Encoding]::UTF8)
+$workspaceGlyphs = @(
+    [char]::ConvertFromUtf32(0xF07B7),
+    [string][char]0xF269,
+    [string][char]0xF095,
+    [string][char]0xF1B6,
+    [string][char]0xF028,
+    [string][char]0xF086,
+    [string][char]0xF06D,
+    [string][char]0xF0F4,
+    [string][char]0xF03E,
+    [string][char]0xF03D
+)
+for ($workspaceIndex = 1; $workspaceIndex -le 10; $workspaceIndex++) {
+    $expectedDisplayName = 'display_name: "' + $workspaceIndex + ' ' + $workspaceGlyphs[$workspaceIndex - 1] + '"'
+    Assert-True ($glazeNormalUtf8.Contains($expectedDisplayName)) "Normal workspace $workspaceIndex uses the Awtarchy stock number+glyph label"
+}
+Assert-True ($glazeNormalUtf8 -notmatch 'display_name:\s*"\d+:') "Normal workspace labels contain no number/icon colon separator"
+Assert-True ($glazeWorkText -match 'display_name:\s*"1: CHATS"') "Work profile workspace labels remain unchanged"
 Assert-True ($glazeNormalText -notmatch 'flow-launcher\.ps1|yasb-quick-launch\.ps1') "Normal GlazeWM contains no launcher relay script"
 Assert-True ($glazeWorkText -notmatch 'flow-launcher\.ps1|yasb-quick-launch\.ps1') "Work GlazeWM contains no launcher relay script"
 Assert-True ($glazeNormalText -match 'wgdotw\.exe launcher hotkey') "Normal GlazeWM uses the compiled launcher"

@@ -56,9 +56,12 @@ Assert-NotContains $config "keys: `"win+alt+d`"" "YASB does not globally capture
 Assert-Contains $config "wgdotw.exe power-menu" "normal YASB uses the compiled Awtarchy-style power surface"
 Assert-Contains $config "glazewm.workspaces.GlazewmWorkspacesWidget" "native GlazeWM workspace widget is used"
 Assert-Contains $config 'populated_label: "{display_name}"' "YASB workspace buttons render GlazeWM display_name values"
-Assert-Contains $glazeNormal 'display_name: "1 󰞷"' "Normal workspace 1 uses the Awtarchy stock glyph"
-Assert-Contains $glazeNormal 'display_name: "2 "' "Normal workspace 2 replaces Brows text with the Awtarchy browser glyph"
-Assert-Contains $glazeNormal 'display_name: "10 "' "Normal workspace 10 uses the Awtarchy recording glyph"
+$workspace1Glyph = [char]::ConvertFromUtf32(0xF07B7)
+$workspace2Glyph = [string][char]0xF269
+$workspace10Glyph = [string][char]0xF03D
+Assert-Contains $glazeNormal ('display_name: "1 ' + $workspace1Glyph + '"') "Normal workspace 1 uses the Awtarchy stock glyph"
+Assert-Contains $glazeNormal ('display_name: "2 ' + $workspace2Glyph + '"') "Normal workspace 2 replaces Brows text with the Awtarchy browser glyph"
+Assert-Contains $glazeNormal ('display_name: "10 ' + $workspace10Glyph + '"') "Normal workspace 10 uses the Awtarchy recording glyph"
 Assert-NotContains $glazeNormal 'display_name: "2: Brows"' "Normal workspace labels no longer use legacy text names/colon separators"
 Assert-Contains $glazeWork 'display_name: "1: CHATS"' "Work workspace labels are intentionally unchanged"
 Assert-NotContains $config 'populated_label: "{name}"' "YASB does not override GlazeWM display_name with raw workspace names"
