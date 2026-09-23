@@ -47,6 +47,11 @@ local snapshot = ya.sync(function(self)
     return normalized(self.recents or {})
 end)
 
+local publish = ya.sync(function(self)
+    ps.pub(KIND, self.recents or {})
+    ps.pub_to(0, KIND, self.recents or {})
+end)
+
 local record = ya.sync(function(self, paths)
     local next_recents = {}
     local seen = {}
@@ -80,7 +85,7 @@ local replace = ya.sync(function(self, paths)
     ps.pub_to(0, KIND, self.recents)
 end)
 
-function M:setup()
+local subscribe = ya.sync(function(self)
     self.recents = self.recents or {}
 
     pcall(ps.unsub, KIND)
@@ -117,6 +122,10 @@ function M:setup()
             ps.pub_to(0, KIND, self.recents)
         end
     end)
+end)
+
+function M:setup()
+    subscribe()
 end
 
 function M:entry(job)
