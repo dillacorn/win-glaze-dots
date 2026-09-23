@@ -2,6 +2,8 @@
 -- %APPDATA%\yazi\config\init.lua
 
 require("recent-files"):setup()
+require("bookmarks"):setup()
+require("git"):setup { order = 1500 }
 
 function Linemode:size_and_mtime()
     local size = self._file:size()
@@ -123,6 +125,109 @@ function WgdotYaziCloseTab()
     else
         WgdotYaziConfirmQuit(false)
     end
+end
+
+function WgdotYaziSearchMenu()
+    ya.async(function()
+        local choice = ya.which {
+            cands = {
+                { on = "n", desc = "Search names recursively below current directory (fd)" },
+                { on = "c", desc = "Search file contents recursively below current directory (ripgrep)" },
+            },
+            silent = false,
+        }
+
+        if choice == 1 then
+            ya.emit("plugin", { "fd" })
+        elseif choice == 2 then
+            ya.emit("plugin", { "rg" })
+        end
+    end)
+end
+
+function WgdotYaziToggleBookmark()
+    local hovered = cx.active.current.hovered
+    local target = hovered and hovered.cha.is_dir
+        and tostring(hovered.url)
+        or tostring(cx.active.current.cwd)
+    ya.emit("plugin", { "bookmarks", "toggle", target })
+end
+
+function WgdotYaziOpenHoveredTab()
+    local hovered = cx.active.current.hovered
+    if hovered and hovered.cha.is_dir then
+        ya.emit("tab_create", { tostring(hovered.url), raw = true })
+    end
+end
+
+local WgdotYaziInitialRatio = nil
+local WgdotYaziPreviewHiddenRestore = nil
+local WgdotYaziPreviewMaxRestore = nil
+WgdotYaziPreviewMaximized = false
+
+local function WgdotYaziRatio()
+    local ratio = rt.mgr.ratio
+    if not WgdotYaziInitialRatio then
+        WgdotYaziInitialRatio = { ratio[1], ratio[2], ratio[3] }
+    end
+    return { ratio[1], ratio[2], ratio[3] }
+end
+
+local function WgdotYaziApplyRatio(ratio)
+    rt.mgr.ratio = { ratio[1], ratio[2], ratio[3] }
+    ya.emit("app:resize", {})
+end
+
+function WgdotYaziTogglePreview()
+    local ratio = WgdotYaziRatio()
+
+    if WgdotYaziPreviewMaximized then
+        WgdotYaziPreviewMaximized = false
+        ratio = WgdotYaziPreviewMaxRestore or ratio
+        WgdotYaziPreviewMaxRestore = nil
+        WgdotYaziApplyRatio(ratio)
+    end
+
+    ratio = WgdotYaziRatio()
+    if ratio[3] > 0 then
+        WgdotYaziPreviewHiddenRestore = ratio
+        WgdotYaziApplyRatio { ratio[1], ratio[2], 0 }
+    else
+        local restore = WgdotYaziPreviewHiddenRestore or WgdotYaziInitialRatio
+        if restore and restore[3] > 0 then
+            WgdotYaziApplyRatio(restore)
+        end
+        WgdotYaziPreviewHiddenRestore = nil
+    end
+end
+
+function WgdotYaziTogglePreviewMax()
+    local ratio = WgdotYaziRatio()
+    if WgdotYaziPreviewMaximized then
+        WgdotYaziPreviewMaximized = false
+        WgdotYaziApplyRatio(WgdotYaziPreviewMaxRestore or WgdotYaziInitialRatio or ratio)
+        WgdotYaziPreviewMaxRestore = nil
+        return
+    end
+
+    WgdotYaziPreviewMaxRestore = ratio
+    WgdotYaziPreviewMaximized = true
+    WgdotYaziApplyRatio { 0, 0, 9999 }
+end
+
+function WgdotYaziEscape()
+    if WgdotYaziPreviewMaximized then
+        WgdotYaziPreviewMaximized = false
+        WgdotYaziApplyRatio(
+            WgdotYaziPreviewMaxRestore
+                or WgdotYaziInitialRatio
+                or { 1, 4, 3 }
+        )
+        WgdotYaziPreviewMaxRestore = nil
+        return
+    end
+
+    ya.emit("escape", {})
 end
 
 local function WgdotYaziArchiveSnapshot()
@@ -347,8 +452,8 @@ function WgdotYaziExtractZipFolder()
     end)
 end
 
-local WgdotYaziItemActions = {
-    { label = "Open / Enter", shortcut = "Enter", action = "smart_open" },
+local WgdotYaziFileActions = {
+    { label = "Open", shortcut = "Enter", action = "smart_open" },
     { label = "Open with...", shortcut = "O", action = "open_with" },
     { label = "Rename", shortcut = "r", action = "rename" },
     { label = "Copy", shortcut = "Ctrl+C / y", action = "copy" },
@@ -471,6 +576,7 @@ local WgdotYaziFolderActions = {
     { label = "New folder", shortcut = "a /", action = "new_folder" },
     { label = "Paste", shortcut = "Ctrl+V / p", action = "paste" },
     { label = "Terminal here", shortcut = "t e", action = "terminal" },
+    { label = "Bookmark / unbookmark folder", shortcut = "g B", action = "bookmark_current" },
 }
 
 WgdotYaziContextMenu = {
@@ -535,16 +641,47 @@ function WgdotYaziContextMenu:actions()
         return WgdotYaziDropActions
     end
 
+    local hovered = cx.active.current.hovered
+    if self._selection_count > 1 then
+        return {
+            {
+                label = "Rename " .. tostring(self._selection_count) .. " items...",
+                shortcut = "r",
+                action = "bulk_rename",
+            },
+            { label = "Copy", shortcut = "Ctrl+C / y", action = "copy" },
+            { label = "Cut", shortcut = "Ctrl+X / Y", action = "cut" },
+            { label = "Compress to ZIP...", shortcut = "c z", action = "compress_zip" },
+            { label = "Trash " .. tostring(self._selection_count) .. " items", shortcut = "dd", action = "trash" },
+        }
+    end
+
+    if hovered and hovered.cha.is_dir then
+        local bookmarked = require("bookmarks"):is_bookmarked(tostring(hovered.url))
+        return {
+            { label = "Enter folder", shortcut = "Enter / l", action = "smart_open" },
+            { label = "Open in new tab", shortcut = "t n", action = "open_new_tab" },
+            {
+                label = bookmarked and "Remove bookmark" or "Add bookmark",
+                shortcut = "g B",
+                action = "bookmark_hovered",
+            },
+            { label = "Rename", shortcut = "r", action = "rename" },
+            { label = "Copy", shortcut = "Ctrl+C / y", action = "copy" },
+            { label = "Cut", shortcut = "Ctrl+X / Y", action = "cut" },
+            { label = "Copy path", shortcut = "cc", action = "copy_path" },
+            { label = "Compress to ZIP...", shortcut = "c z", action = "compress_zip" },
+            { label = "Details", shortcut = "Tab", action = "details" },
+            { label = "Trash", shortcut = "dd", action = "trash" },
+        }
+    end
+
     local actions = {}
-    for _, action in ipairs(WgdotYaziItemActions) do
+    for _, action in ipairs(WgdotYaziFileActions) do
         actions[#actions + 1] = action
     end
 
-    local hovered = cx.active.current.hovered
-    if self._selection_count <= 1
-        and hovered
-        and hovered.name:lower():sub(-4) == ".zip"
-    then
+    if hovered and hovered.name:lower():sub(-4) == ".zip" then
         actions[#actions + 1] = { label = "Extract here", shortcut = "e h", action = "extract_here" }
         actions[#actions + 1] = { label = "Extract to folder", shortcut = "e f", action = "extract_folder" }
     end
@@ -555,13 +692,26 @@ end
 function WgdotYaziContextMenu:footer()
     if self._kind == "background" then
         return {
-            "Keys: a create | Ctrl+V/p paste | t e terminal",
-            "Right-click items for file and archive actions",
+            "Keys: a create | Ctrl+V/p paste | t e terminal | g B bookmark",
+            "Navigate: g b bookmarks | g m drives | Ctrl+F recursive search",
         }
     elseif self._kind == "drop" then
         return {
             "Release chose this folder as the destination",
             "Choose Copy or Move; click elsewhere to cancel",
+        }
+    elseif self._selection_count > 1 then
+        return {
+            "Keys: r bulk rename | Ctrl+C/X copy/cut | c z ZIP",
+            "Delete: dd trash | Shift+D permanent delete",
+        }
+    end
+
+    local hovered = cx.active.current.hovered
+    if hovered and hovered.cha.is_dir then
+        return {
+            "Keys: Enter open | t n new tab | g B bookmark | r rename",
+            "More: Ctrl+C/X copy/cut | cc path | Tab info | c z ZIP | dd trash",
         }
     end
 
@@ -664,10 +814,21 @@ function WgdotYaziContextMenu:run(action)
 
     if action == "smart_open" then
         WgdotYaziSmartEnter()
+    elseif action == "open_new_tab" then
+        WgdotYaziOpenHoveredTab()
     elseif action == "open_with" then
         WgdotYaziOpenFiles(true, true)
     elseif action == "rename" then
         ya.emit("rename", { hovered = true })
+    elseif action == "bulk_rename" then
+        ya.emit("rename", {})
+    elseif action == "bookmark_hovered" then
+        local hovered = cx.active.current.hovered
+        if hovered and hovered.cha.is_dir then
+            ya.emit("plugin", { "bookmarks", "toggle", tostring(hovered.url) })
+        end
+    elseif action == "bookmark_current" then
+        ya.emit("plugin", { "bookmarks", "toggle", tostring(cx.active.current.cwd) })
     elseif action == "copy" then
         ya.emit("yank", {})
         ya.notify { title = "Yazi", content = "Copied " .. tostring(count) .. " item(s)", timeout = 2 }
@@ -750,6 +911,127 @@ function Root:move(event)
     return WgdotYaziDefaultRootMove(self, event)
 end
 
+local WgdotYaziDefaultHeaderCwd = Header.cwd
+local WgdotYaziBreadcrumbTarget = nil
+
+local function WgdotYaziPathIsAncestor(base, target)
+    local lhs = base:gsub("\\", "/"):lower()
+    local rhs = target:gsub("\\", "/"):lower()
+    if lhs == rhs then
+        return true
+    end
+    if lhs:sub(-1) == "/" then
+        return rhs:sub(1, #lhs) == lhs
+    end
+    return rhs:sub(1, #lhs + 1) == lhs .. "/"
+end
+
+local function WgdotYaziBreadcrumbSegments(path)
+    local normalized = path:gsub("\\", "/")
+    local drive, rest = normalized:match("^([A-Za-z]:)/(.*)$")
+    if not drive then
+        return nil
+    end
+
+    local segments = {
+        { text = drive .. "/", target = drive .. "\\" },
+    }
+    local current = drive .. "\\"
+
+    for part in rest:gmatch("[^/]+") do
+        if current:sub(-1) == "\\" then
+            current = current .. part
+        else
+            current = current .. "\\" .. part
+        end
+        segments[#segments + 1] = {
+            text = "/" .. part,
+            target = current,
+        }
+    end
+
+    return segments
+end
+
+ps.sub("cd", function()
+    if not WgdotYaziBreadcrumbTarget then
+        return
+    end
+
+    local cwd = tostring(cx.active.current.cwd)
+    if cwd:lower() == WgdotYaziBreadcrumbTarget:lower()
+        or not WgdotYaziPathIsAncestor(cwd, WgdotYaziBreadcrumbTarget)
+    then
+        WgdotYaziBreadcrumbTarget = nil
+    end
+end)
+
+function Header:cwd()
+    local max = self._area.w - self._right_width
+    local cwd = tostring(self._current.cwd)
+    local flags = self:flags()
+
+    self._wgdot_breadcrumbs = {}
+    if max <= 0 or flags ~= "" then
+        return WgdotYaziDefaultHeaderCwd(self)
+    end
+
+    local segments = WgdotYaziBreadcrumbSegments(cwd)
+    if not segments then
+        return WgdotYaziDefaultHeaderCwd(self)
+    end
+
+    if WgdotYaziBreadcrumbTarget
+        and cwd:lower() ~= WgdotYaziBreadcrumbTarget:lower()
+        and WgdotYaziPathIsAncestor(cwd, WgdotYaziBreadcrumbTarget)
+    then
+        for _, segment in ipairs(WgdotYaziBreadcrumbSegments(WgdotYaziBreadcrumbTarget) or {}) do
+            if segment.target:lower() ~= cwd:lower()
+                and WgdotYaziPathIsAncestor(cwd, segment.target)
+            then
+                segment.forward = true
+                segments[#segments + 1] = segment
+            end
+        end
+    end
+
+    local total = 0
+    for _, segment in ipairs(segments) do
+        total = total + ui.Line(segment.text):width()
+    end
+
+    local clipped = false
+    while total > max and #segments > 1 do
+        total = total - ui.Line(segments[1].text):width()
+        table.remove(segments, 1)
+        clipped = true
+    end
+    if clipped then total = total + 1 end
+    if total > max then return WgdotYaziDefaultHeaderCwd(self) end
+
+    local spans = {}
+    local x = self._area.x
+    if clipped then
+        spans[#spans + 1] = ui.Span("…"):style(ui.Style():dim())
+        x = x + 1
+    end
+
+    for _, segment in ipairs(segments) do
+        local width = ui.Line(segment.text):width()
+        local style = segment.forward and ui.Style():dim() or th.mgr.cwd
+        spans[#spans + 1] = ui.Span(segment.text):style(style)
+        self._wgdot_breadcrumbs[#self._wgdot_breadcrumbs + 1] = {
+            x1 = x,
+            x2 = x + width - 1,
+            target = segment.target,
+            forward = segment.forward == true,
+        }
+        x = x + width
+    end
+
+    return ui.Line(spans)
+end
+
 function Header:click(event, up)
     if up or (not event.is_left and not event.is_right) then
         return
@@ -760,13 +1042,29 @@ function Header:click(event, up)
         return
     end
 
-    local cwd = ya.readable_path(tostring(self._current.cwd))
-    ya.emit("copy", { "dirpath" })
-    ya.notify {
-        title = "Clipboard",
-        content = "Copied to clipboard: " .. cwd,
-        timeout = 2,
-    }
+    if event.is_right then
+        local cwd = ya.readable_path(tostring(self._current.cwd))
+        ya.emit("copy", { "dirpath" })
+        ya.notify {
+            title = "Clipboard",
+            content = "Copied to clipboard: " .. cwd,
+            timeout = 2,
+        }
+        return
+    end
+
+    local cwd = tostring(self._current.cwd)
+    for _, region in ipairs(self._wgdot_breadcrumbs or {}) do
+        if event.x >= region.x1 and event.x <= region.x2
+            and region.target:lower() ~= cwd:lower()
+        then
+            if not region.forward and WgdotYaziPathIsAncestor(region.target, cwd) then
+                WgdotYaziBreadcrumbTarget = WgdotYaziBreadcrumbTarget or cwd
+            end
+            ya.emit("cd", { Url(region.target), raw = true })
+            return
+        end
+    end
 end
 
 local WgdotYaziPendingClick = nil
@@ -912,6 +1210,34 @@ function Status:selected_count()
     return string.format(" %d selected ", count)
 end
 
+function Status:task_summary()
+    local summary = cx.tasks.summary
+    if summary.total == 0 then
+        return ""
+    end
+
+    local active = math.max(0, summary.total - summary.success)
+    if summary.failed > 0 then
+        return ui.Span(
+            string.format(" %d tasks · %d failed ", active, summary.failed)
+        ):style(th.status.progress_error)
+    end
+
+    return ui.Span(
+        string.format(" %d task%s ", active, active == 1 and "" or "s")
+    ):style(th.status.progress_label)
+end
+
+local WgdotYaziDefaultStatusClick = Status.click
+
+function Status:click(event, up)
+    if not up and event.is_left and cx.tasks.summary.total > 0 then
+        ya.emit("tasks:show", {})
+        return
+    end
+    return WgdotYaziDefaultStatusClick(self, event, up)
+end
+
 function Status:modified_time()
     local hovered = self._current.hovered
     if not hovered then
@@ -956,6 +1282,10 @@ end
 Status:children_add(function(self)
     return self:selected_count()
 end, 450, Status.RIGHT)
+
+Status:children_add(function(self)
+    return self:task_summary()
+end, 400, Status.RIGHT)
 
 Status:children_add(function(self)
     return self:modified_time()
