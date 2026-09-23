@@ -155,3 +155,86 @@ jobs:
         run: |
           set "WGDOT_TEST_ROOT=%TEMP%\wgdot-native-maintenance-state"
           "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" maintenance-self-test
+
+  release-v4-5-4-one-use:
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.title == 'Release v4.5.4 bridge' &&
+      github.event.pull_request.head.ref == 'release/v4.5.4-one-use' &&
+      github.event.pull_request.base.ref == 'main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_TAG: v4.5.4
+      RELEASE_TARGET: 4b97a4d1e7fb62bf5d71b7beba2adb9baa8c53eb
+    steps:
+      - name: Verify release target and absence
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${{ github.event.pull_request.base.sha }}" = "$RELEASE_TARGET"
+          if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$RELEASE_TAG" >/dev/null 2>&1; then
+            echo "$RELEASE_TAG tag already exists" >&2
+            exit 1
+          fi
+          if gh api "repos/$GITHUB_REPOSITORY/releases/tags/$RELEASE_TAG" >/dev/null 2>&1; then
+            echo "$RELEASE_TAG release already exists" >&2
+            exit 1
+          fi
+
+      - name: Create WGDot v4.5.4
+        shell: bash
+        run: |
+          set -euo pipefail
+          notes="$RUNNER_TEMP/v4.5.4-notes.md"
+          printf '%s\n' \
+            '# WGDot v4.5.4' \
+            '' \
+            'WGDot v4.5.4 hardens Windows tweak compatibility and adds an Awtarchy-style btop toggle.' \
+            '' \
+            '## Install and update' \
+            '' \
+            '- **Install:** [INSTALL.md](https://github.com/dillacorn/win-glaze-dots/blob/main/INSTALL.md)' \
+            '- **Update:** [UPDATE.md](https://github.com/dillacorn/win-glaze-dots/blob/main/UPDATE.md)' \
+            '' \
+            '## Changes' \
+            '' \
+            '- Taskbar cleanup now handles protected Windows Widgets registry values safely: WGDot falls back to the supported machine policy and, if Windows protects that too, reports a compatibility warning while continuing the remaining cleanup instead of failing reconciliation.' \
+            '- Registry mutation now normalizes both .NET access-denied exception paths so protected Windows keys are handled consistently.' \
+            '- Normal/personal adds an Awtarchy-style Super+Shift+B btop toggle that resolves the installed btop executable, opens one centered floating Windows Terminal titled btop, and closes that exact terminal on the next press.' \
+            '- The setup-tweak menu retires the old Windows shell-hotkey filter, Flameshot Print Screen interception, and Oops-all-links entry while preserving bounded rollback/migration behavior; cursor choices remain under Cursor themes.' \
+            '- Preference-sensitive tweaks now default OFF for both profiles, with a one-time saved-selection migration for Enhance pointer precision disabling, Snap Assist disabling, Remote Assistance disabling, Windows sudo, reduced visual effects, and classic context menu.' \
+            '' \
+            '## Validation' \
+            '' \
+            '- Exact release target: `4b97a4d1e7fb62bf5d71b7beba2adb9baa8c53eb`.' \
+            '- Validate WGDot push run `35807675017` passed on the exact merged main target.' \
+            '- The maintainer completed real-Windows branch acceptance before merge, including the managed update path and the requested btop/tweak behavior.' \
+            > "$notes"
+
+          gh release create "$RELEASE_TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$RELEASE_TARGET" \
+            --title 'WGDot v4.5.4' \
+            --notes-file "$notes"
+
+      - name: Verify published release
+        shell: bash
+        run: |
+          set -euo pipefail
+          release_json="$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json tagName,name,isDraft,isPrerelease,targetCommitish)"
+          test "$(jq -r '.tagName' <<<"$release_json")" = "$RELEASE_TAG"
+          test "$(jq -r '.name' <<<"$release_json")" = 'WGDot v4.5.4'
+          test "$(jq -r '.isDraft' <<<"$release_json")" = 'false'
+          test "$(jq -r '.isPrerelease' <<<"$release_json")" = 'false'
+          test "$(jq -r '.targetCommitish' <<<"$release_json")" = "$RELEASE_TARGET"
+          tag_sha="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$RELEASE_TAG" --jq '.object.sha')"
+          test "$tag_sha" = "$RELEASE_TARGET"
+
+      - name: Delete one-use helper branch
+        if: success()
+        shell: bash
+        run: |
+          gh api -X DELETE "repos/$GITHUB_REPOSITORY/git/refs/heads/release/v4.5.4-one-use"
