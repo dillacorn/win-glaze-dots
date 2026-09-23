@@ -155,3 +155,65 @@ jobs:
         run: |
           set "WGDOT_TEST_ROOT=%TEMP%\wgdot-native-maintenance-state"
           "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" maintenance-self-test
+
+  delete-merged-branches-one-use:
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.title == 'Delete merged branches bridge' &&
+      github.event.pull_request.head.ref == 'maintenance/delete-merged-branches-one-use' &&
+      github.event.pull_request.base.ref == 'main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+      EXPECTED_MAIN: 4b97a4d1e7fb62bf5d71b7beba2adb9baa8c53eb
+    steps:
+      - name: Verify exact base and merged branch heads
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${{ github.event.pull_request.base.sha }}" = "$EXPECTED_MAIN"
+
+          check_branch() {
+            branch="$1"
+            expected="$2"
+            pr="$3"
+
+            ref_sha="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$branch" --jq '.object.sha')"
+            test "$ref_sha" = "$expected"
+
+            pr_json="$(gh pr view "$pr" --repo "$GITHUB_REPOSITORY" --json mergedAt,headRefName,headRefOid)"
+            test "$(jq -r '.mergedAt // empty' <<<"$pr_json")" != ""
+            test "$(jq -r '.headRefName' <<<"$pr_json")" = "$branch"
+            test "$(jq -r '.headRefOid' <<<"$pr_json")" = "$expected"
+          }
+
+          check_branch 'yazi-hover-modified-time' '940fec6081123164040b989e7aa0bc7b72ab9572' '51'
+          check_branch 'fix/rawaccel-startup-command' '85d01d6109a7b5385674173449e0a3d943e86f1a' '53'
+          check_branch 'tune/rawaccel-hotkey-window-size' '8035eeb85d6be745a3ce32e20a77c1471ab559bf' '54'
+          check_branch 'tune/yasb-theme-sliders' '43be6a852e88a7bbe6639396cb9b770695e4ace6' '55'
+          check_branch 'perf/launcher-cache-smooth-scroll' '8a1ea49adb92f69ba4916f8ef17df56698f166bc' '56'
+          check_branch 'fix/taskbar-widgets-access-denied' '3697c123441ab09d689d892b16c3dc935b37e70e' '58'
+
+      - name: Delete verified merged branches
+        shell: bash
+        run: |
+          set -euo pipefail
+          for branch in \
+            'yazi-hover-modified-time' \
+            'fix/rawaccel-startup-command' \
+            'tune/rawaccel-hotkey-window-size' \
+            'tune/yasb-theme-sliders' \
+            'perf/launcher-cache-smooth-scroll' \
+            'fix/taskbar-widgets-access-denied'
+          do
+            gh api -X DELETE "repos/$GITHUB_REPOSITORY/git/refs/heads/$branch"
+          done
+
+      - name: Delete one-use helper branch
+        if: success()
+        shell: bash
+        run: |
+          gh api -X DELETE "repos/$GITHUB_REPOSITORY/git/refs/heads/maintenance/delete-merged-branches-one-use"
