@@ -80,16 +80,21 @@ function WgdotYaziSmartEnter()
     end
 end
 
-function WgdotYaziEnsureRangeSelect()
+WgdotYaziShiftRangeActive = false
+
+function WgdotYaziShiftArrow(step)
     if cx.active.mode.is_normal then
         ya.emit("visual_mode", {})
     end
+    WgdotYaziShiftRangeActive = true
+    ya.emit("arrow", { step })
 end
 
 function WgdotYaziArrow(step)
-    if not cx.active.mode.is_normal then
+    if WgdotYaziShiftRangeActive and not cx.active.mode.is_normal then
         ya.emit("escape", { visual = true })
     end
+    WgdotYaziShiftRangeActive = false
     ya.emit("arrow", { step })
 end
 
