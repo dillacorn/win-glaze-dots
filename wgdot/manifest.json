@@ -130,6 +130,12 @@
           "source": "UserProfile/AppData/Roaming/yazi/config/plugins/system-clipboard.yazi/main.lua",
           "destination": "%APPDATA%\\yazi\\config\\plugins\\system-clipboard.yazi\\main.lua",
           "merge": true
+        },
+        {
+          "id": "yazi-recent-files",
+          "source": "UserProfile/AppData/Roaming/yazi/config/plugins/recent-files.yazi/main.lua",
+          "destination": "%APPDATA%\\yazi\\config\\plugins\\recent-files.yazi\\main.lua",
+          "merge": true
         }
       ],
       "postActions": [
