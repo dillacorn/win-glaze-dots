@@ -121,7 +121,7 @@ Assert-True ($yaziInitText -match 'function Entity:drag\(event\)') "Yazi handles
 Assert-True ($yaziInitText -match 'WgdotYaziContextMenu:show_drop') "Yazi drag release over a directory opens the Copy/Move destination menu"
 Assert-True ($yaziInitText -match 'WgdotYaziDropInto\("copy"') "Yazi internal drag can copy selected items into a folder"
 Assert-True ($yaziInitText -match 'WgdotYaziDropInto\("move"') "Yazi internal drag can move selected items into a folder"
-Assert-True ($yaziInitText -match '\\wgdot\\bin\\wgdotw\.exe') "Yazi resolves the installed windowless WGDot helper for outbound drag"
+Assert-True ($yaziInitText -match '\\\\wgdot\\\\bin\\\\wgdotw\.exe') "Yazi resolves the installed windowless WGDot helper for outbound drag"
 Assert-True ($yaziInitText -match 'Command\(helper\):arg\(\{ "yazi-drag", list_path \}\)') "Yazi invokes native drag only from its drag path"
 Assert-True ($yaziInitText -match 'ya\.readable_size\(size\)') "Yazi combined linemode uses native readable file sizes"
 Assert-True ($yaziInitText -match 'self\._file\.cha\.mtime') "Yazi combined linemode uses the current stable Yazi file cha mtime API"
