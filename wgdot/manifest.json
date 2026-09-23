@@ -136,6 +136,30 @@
           "source": "UserProfile/AppData/Roaming/yazi/config/plugins/recent-files.yazi/main.lua",
           "destination": "%APPDATA%\\yazi\\config\\plugins\\recent-files.yazi\\main.lua",
           "merge": true
+        },
+        {
+          "id": "yazi-bookmarks",
+          "source": "UserProfile/AppData/Roaming/yazi/config/plugins/bookmarks.yazi/main.lua",
+          "destination": "%APPDATA%\\yazi\\config\\plugins\\bookmarks.yazi\\main.lua",
+          "merge": true
+        },
+        {
+          "id": "yazi-drives",
+          "source": "UserProfile/AppData/Roaming/yazi/config/plugins/drives.yazi/main.lua",
+          "destination": "%APPDATA%\\yazi\\config\\plugins\\drives.yazi\\main.lua",
+          "merge": true
+        },
+        {
+          "id": "yazi-git",
+          "source": "UserProfile/AppData/Roaming/yazi/config/plugins/git.yazi/main.lua",
+          "destination": "%APPDATA%\\yazi\\config\\plugins\\git.yazi\\main.lua",
+          "merge": true
+        },
+        {
+          "id": "yazi-git-license",
+          "source": "UserProfile/AppData/Roaming/yazi/config/plugins/git.yazi/LICENSE",
+          "destination": "%APPDATA%\\yazi\\config\\plugins\\git.yazi\\LICENSE",
+          "merge": true
         }
       ],
       "postActions": [
