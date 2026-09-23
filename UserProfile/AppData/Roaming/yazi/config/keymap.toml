@@ -40,6 +40,7 @@ prepend_keymap = [
   # Creation/search stay on Yazi defaults: a=create, /=find, n/N=next/previous match.
   { on = ["r"],       run = "rename",               desc = "Rename" },
   { on = ["d", "d"], run = "remove",               desc = "Trash selection" },
+  { on = ["t", "e"], run = "shell --orphan -- wt.exe -w new new-tab -d .", desc = "Open terminal here" },
 
   # Display
   { on = ["m", "t"], run = 'lua "WgdotYaziToggleTimeFormat()"', desc = "Toggle modified time 24h/12h" },
