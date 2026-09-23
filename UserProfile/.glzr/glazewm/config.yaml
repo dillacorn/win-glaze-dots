@@ -182,6 +182,8 @@ window_rules:
       # title is fixed with Windows Terminal --suppressApplicationTitle.
       - window_process: { regex: "^WindowsTerminal(\\.exe)?$" }
         window_title: { equals: "Win Glaze Themes" }
+      - window_process: { regex: "^WindowsTerminal(\\.exe)?$" }
+        window_title: { equals: "btop" }
 
 binding_modes:
   - name: "resize"
@@ -232,6 +234,8 @@ binding_modes:
         bindings: ["lwin+enter", "rwin+enter", "lwin+shift+enter", "rwin+shift+enter"]
       - commands: ["shell-exec wt.exe -w new new-tab --title \"Yazi\" --suppressApplicationTitle powershell.exe -NoProfile -NoLogo -NoExit -Command yazi"]
         bindings: ["lwin+shift+e", "rwin+shift+e"]
+      - commands: ["shell-exec wt.exe -w new new-tab --title \"btop\" --suppressApplicationTitle btop4win.exe"]
+        bindings: ["lwin+shift+b", "rwin+shift+b"]
       - commands: ["shell-exec explorer.exe http:"]
         bindings: ["lwin+b", "rwin+b"]
       - commands: ["shell-exec C:\\Program Files (x86)\\SpeedCrunch\\speedcrunch.exe"]
@@ -485,6 +489,10 @@ keybindings:
   # Launch Yazi in a dedicated Windows Terminal window.
   - commands: ["shell-exec wt.exe -w new new-tab --title \"Yazi\" --suppressApplicationTitle powershell.exe -NoProfile -NoLogo -NoExit -Command yazi"]
     bindings: ["lwin+shift+e", "rwin+shift+e"]
+
+  # Match Awtarchy's Super+Shift+B system-monitor launcher.
+  - commands: ["shell-exec wt.exe -w new new-tab --title \"btop\" --suppressApplicationTitle btop4win.exe"]
+    bindings: ["lwin+shift+b", "rwin+shift+b"]
 
   - commands: ["focus --next-workspace"]
     bindings: ["alt+]"]

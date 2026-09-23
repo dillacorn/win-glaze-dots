@@ -953,6 +953,12 @@ Assert-True ($glazeNormalText -match 'wgdotw\.exe launcher hotkey') "Normal Glaz
 Assert-True ($glazeWorkText -match 'wgdotw\.exe launcher hotkey') "Work GlazeWM uses the compiled launcher"
 Assert-True ($glazeWorkText -notmatch 'shell-exec %LOCALAPPDATA%/FlowLauncher/Flow\.Launcher\.exe') "Work GlazeWM no longer defaults launcher hotkeys to Flow Launcher"
 Assert-True ($glazeNormalText -match '%LOCALAPPDATA%\\wgdot\\bin\\wgdotw\.exe.*launcher hotkey') "Normal launcher hotkeys use the deterministic WGDot runtime path"
+Assert-True (($glazeNormalText | Select-String -Pattern 'btop4win\.exe' -AllMatches).Matches.Count -ge 2) "Normal profile launches btop4win from both global and noalt Super+Shift+B bindings"
+Assert-True (($glazeNormalText | Select-String -Pattern 'lwin\+shift\+b' -AllMatches).Matches.Count -ge 2) "Normal profile binds left Super+Shift+B globally and in noalt mode"
+Assert-True (($glazeNormalText | Select-String -Pattern 'rwin\+shift\+b' -AllMatches).Matches.Count -ge 2) "Normal profile binds right Super+Shift+B globally and in noalt mode"
+Assert-True ($glazeNormalText -match 'window_title:\s*\{ equals: "btop" \}') "Normal btop Windows Terminal receives a centered floating rule"
+Assert-True ($glazeWorkText -notmatch 'btop4win\.exe') "Work profile does not carry a dead btop launcher while btop defaults off"
+
 Assert-True ($glazeWorkText -match '%LOCALAPPDATA%\\wgdot\\bin\\wgdotw\.exe.*launcher hotkey') "Work launcher hotkeys use the deterministic WGDot runtime path"
 Assert-True ($nativeSourceText -match 'UseShellExecute = true') "compiled launcher activates Start Menu shortcuts through Windows shell semantics"
 Assert-True ($nativeSourceText -match 'const int width = 380') "compiled launcher uses the compact near-half-width search surface"
