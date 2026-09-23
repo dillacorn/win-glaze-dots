@@ -758,11 +758,67 @@ QToolTip,
     background-color: var(--subtle-active);
 }
 
+/* Keep every native Qt slider on the active WGDot/YASB palette instead of
+   leaking the Windows/Qt default blue. This covers Control Center
+   brightness/volume/microphone plus the standalone display brightness and
+   contrast controls. */
+.control-center-menu .section.sliders .slider-control,
 .volume-slider,
 .microphone-menu .volume-slider,
 .brightness-slider,
 .contrast-slider {
+    background-color: transparent;
     border: none;
+}
+
+.control-center-menu .section.sliders .slider-control::groove:horizontal,
+.volume-slider::groove:horizontal,
+.microphone-menu .volume-slider::groove:horizontal,
+.brightness-slider::groove:horizontal,
+.contrast-slider::groove:horizontal {
+    background-color: var(--active);
+    border: 1px solid var(--focus);
+    height: 6px;
+    margin: 0;
+}
+
+.control-center-menu .section.sliders .slider-control::sub-page:horizontal,
+.volume-slider::sub-page:horizontal,
+.microphone-menu .volume-slider::sub-page:horizontal,
+.brightness-slider::sub-page:horizontal,
+.contrast-slider::sub-page:horizontal {
+    background-color: var(--foreground);
+    border: 1px solid var(--foreground);
+}
+
+.control-center-menu .section.sliders .slider-control::add-page:horizontal,
+.volume-slider::add-page:horizontal,
+.microphone-menu .volume-slider::add-page:horizontal,
+.brightness-slider::add-page:horizontal,
+.contrast-slider::add-page:horizontal {
+    background-color: var(--active);
+    border: 1px solid var(--focus);
+}
+
+.control-center-menu .section.sliders .slider-control::handle:horizontal,
+.volume-slider::handle:horizontal,
+.microphone-menu .volume-slider::handle:horizontal,
+.brightness-slider::handle:horizontal,
+.contrast-slider::handle:horizontal {
+    background-color: var(--foreground);
+    border: 1px solid var(--background);
+    border-radius: 0;
+    width: 12px;
+    margin: -4px 0;
+}
+
+.control-center-menu .section.sliders .slider-control::handle:horizontal:hover,
+.volume-slider::handle:horizontal:hover,
+.microphone-menu .volume-slider::handle:horizontal:hover,
+.brightness-slider::handle:horizontal:hover,
+.contrast-slider::handle:horizontal:hover {
+    background-color: var(--focus);
+    border-color: var(--foreground);
 }
 
 .cpu-popup .header,

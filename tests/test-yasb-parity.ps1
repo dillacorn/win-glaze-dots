@@ -334,6 +334,16 @@ foreach ($widgetType in @(
 }
 
 Assert-Contains -Text $style -Needle ".control-center-menu .section.quick-actions .button:hover" -Message "quick settings hover applies to the full labeled action cell"
+Assert-Contains -Text $style -Needle ".control-center-menu .section.sliders .slider-control::groove:horizontal" -Message "Control Center sliders override the native Qt groove"
+Assert-Contains -Text $style -Needle ".control-center-menu .section.sliders .slider-control::sub-page:horizontal" -Message "Control Center slider filled tracks are explicitly themed"
+Assert-Contains -Text $style -Needle ".control-center-menu .section.sliders .slider-control::handle:horizontal" -Message "Control Center slider handles are explicitly themed"
+Assert-Contains -Text $style -Needle ".brightness-slider::groove:horizontal" -Message "display brightness slider groove is explicitly themed"
+Assert-Contains -Text $style -Needle ".contrast-slider::groove:horizontal" -Message "display contrast slider groove is explicitly themed"
+Assert-Contains -Text $style -Needle ".brightness-slider::sub-page:horizontal" -Message "display brightness filled track follows the active theme"
+Assert-Contains -Text $style -Needle ".contrast-slider::sub-page:horizontal" -Message "display contrast filled track follows the active theme"
+Assert-Contains -Text $style -Needle "background-color: var(--foreground);" -Message "slider fill/thumb uses the active theme foreground instead of native blue"
+Assert-Contains -Text $style -Needle "background-color: var(--active);" -Message "slider unfilled track uses the active theme surface"
+Assert-Contains -Text $style -Needle "border: 1px solid var(--focus);" -Message "slider groove uses the active theme focus edge"
 Assert-Contains -Text $style -Needle "min-width: 90px;" -Message "quick settings titles reserve readable inline label width"
 Assert-Contains -Text $style -Needle ".glazewm-workspaces .ws-btn.empty" -Message "inactive empty workspace buttons collapse"
 Assert-Contains -Text $style -Needle "min-height: 28px;" -Message "workspace shading spans the full 28 px bar height"
