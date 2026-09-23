@@ -34,7 +34,10 @@
       ],
       "postActions": [
         {
-          "type": "migrate-legacy-windows-hotkeys"
+          "type": "retire-windows-shell-hotkeys"
+        },
+        {
+          "type": "retire-printscreen-snipping"
         }
       ]
     },
@@ -883,7 +886,8 @@
       "category": "keybinds",
       "type": "disable-windows-shell-hotkeys",
       "defaultNormal": false,
-      "defaultWork": false
+      "defaultWork": false,
+      "hiddenFromMenu": true
     },
     {
       "id": "clean-taskbar-items",
@@ -898,16 +902,17 @@
       "name": "Let Flameshot own Print Screen (disable Snipping Tool PrintScreen interception)",
       "category": "Windows settings",
       "type": "disable-printscreen-snipping",
-      "defaultNormal": true,
-      "defaultWork": true
+      "defaultNormal": false,
+      "defaultWork": false,
+      "hiddenFromMenu": true
     },
     {
       "id": "disable-enhanced-pointer-precision",
       "name": "Disable Enhance pointer precision",
       "category": "Windows settings",
       "type": "disable-enhanced-pointer-precision",
-      "defaultNormal": true,
-      "defaultWork": true
+      "defaultNormal": false,
+      "defaultWork": false
     },
     {
       "id": "communications-do-nothing",
@@ -922,8 +927,8 @@
       "name": "Disable Windows Snap Assist / snap layouts",
       "category": "Windows settings",
       "type": "disable-snap-assist",
-      "defaultNormal": true,
-      "defaultWork": true
+      "defaultNormal": false,
+      "defaultWork": false
     },
     {
       "id": "automatic-time-and-timezone",
@@ -971,7 +976,8 @@
       "category": "appearance",
       "type": "oops-all-links-cursor",
       "defaultNormal": false,
-      "defaultWork": false
+      "defaultWork": false,
+      "hiddenFromMenu": true
     },
     {
       "id": "privacy-sexy",

@@ -354,6 +354,7 @@ foreach ($id in @(
     "classic-context-menu",
     "oops-all-links-cursor",
     "privacy-sexy",
+
     "disable-remote-assistance",
     "enable-windows-sudo",
     "reduce-visual-effects",
@@ -617,7 +618,7 @@ $rustDeskPackage = @($manifest.packages | Where-Object { $_.id -eq 'RustDesk.Rus
 Assert-True ($null -ne $rustDeskPackage) "RustDesk catalog entry exists"
 Assert-Equal ([string]$rustDeskPackage.installMode) 'official-github' "RustDesk uses its verified official GitHub source instead of a missing WinGet ID"
 Assert-Equal ([string]$rustDeskPackage.fallbackGitHubRepo) 'rustdesk/rustdesk' "RustDesk official GitHub source remains publisher-owned"
-Assert-True ($nativeSourceText -match 'const string Version = "native-preview-81"') "native runtime version tracks current WGDot maintenance changes"
+Assert-True ($nativeSourceText -match 'const string Version = "native-preview-82"') "native runtime version tracks current WGDot maintenance changes"
 Assert-True ($nativeSourceText -match 'InstallGitHubFontArchivePackage') "native runtime installs managed Nerd Font archives without inventing a WinGet ID"
 Assert-True ($nativeSourceText -match 'AddFontResourceEx') "managed Noto font is loaded into the current Windows session"
 Assert-True ($nativeSourceText -match 'Software\\Microsoft\\Windows NT\\CurrentVersion\\Fonts') "managed Noto font registers under the current-user Windows Fonts key"
@@ -684,7 +685,7 @@ Assert-True ($nativeSourceText -match 'GetList\(component, "files"\)\.Count == 0
 Assert-True ($nativeSourceText -match 'dotsOnly && !IsDotsOnlyPostAction\(type\)') "dots-only post-actions remain strictly gated"
 $dotsPostActionAllowlist = [regex]::Match($nativeSourceText, '(?s)static bool IsDotsOnlyPostAction\(string type\).*?(?=\r?\n    static void RunPostActions)').Value
 Assert-True ($dotsPostActionAllowlist -match 'return false;') "dots-only runs no post-actions"
-Assert-True ($dotsPostActionAllowlist -notmatch 'ensure-desktop-worker|ensure-hidden-launcher|ensure-yasb-theme|yazi-package-install|set-yazi-file-one|migrate-legacy-windows-hotkeys|ensure-cursor-theme') "dots-only has no runtime/system post-action exceptions"
+Assert-True ($dotsPostActionAllowlist -notmatch 'ensure-desktop-worker|ensure-hidden-launcher|ensure-yasb-theme|yazi-package-install|set-yazi-file-one|migrate-legacy-windows-hotkeys|retire-windows-shell-hotkeys|retire-printscreen-snipping|ensure-cursor-theme') "dots-only has no runtime/system post-action exceptions"
 Assert-True ($nativeSourceText -match 'PrepareRawRevisionSource') "native runtime can acquire exact managed sources from raw.githubusercontent.com"
 Assert-True ($nativeSourceText -match 'WGDOT_FORCE_RAW_SOURCE') "CI can force the restricted-network raw source path"
 Assert-True ($nativeSourceText -match 'source-self-test') "native runtime exposes an internal exact-source validation command"
@@ -820,7 +821,27 @@ Assert-True ($nativeSourceText -match 'ApplyWindowsShellHotkeysPolicy') "native 
 Assert-True ($nativeSourceText -match 'MigrateLegacyWindowsShellHotkeys') "native runtime migrates WGDot-owned legacy NoWinKeys state"
 Assert-True ($nativeSourceText -match '(?s)MigrateLegacyWindowsShellHotkeys\(bool allowElevation\).*?if \(!IsAdministrator\(\)\).*?RunElevatedSelf\("migrate-legacy-hotkeys"\)') "legacy NoWinKeys migration elevates before opening the protected policy key for write"
 Assert-True ($nativeSourceText -match 'DiscardRegistryOriginalSnapshot\(id, "HKCU", legacyPath, legacyName\)') "legacy NoWinKeys ownership is retired after migration"
-Assert-True ([bool](@(($manifest.components | Where-Object { $_.id -eq "glazewm" }).postActions | Where-Object { $_.type -eq "migrate-legacy-windows-hotkeys" }).Count -eq 1)) "managed GlazeWM updates run the legacy hotkey migration"
+Assert-True ([bool](@(($manifest.components | Where-Object { $_.id -eq "glazewm" }).postActions | Where-Object { $_.type -eq "retire-windows-shell-hotkeys" }).Count -eq 1)) "managed GlazeWM updates retire the optional Windows shell-hotkey filter"
+Assert-True ([bool](@(($manifest.components | Where-Object { $_.id -eq "glazewm" }).postActions | Where-Object { $_.type -eq "retire-printscreen-snipping" }).Count -eq 1)) "managed GlazeWM updates restore the retired Print Screen interception tweak"
+foreach ($hiddenTweakId in @("disable-printscreen-snipping", "disable-windows-shell-hotkeys", "oops-all-links-cursor")) {
+    $hiddenTweak = $manifest.tweaks | Where-Object { $_.id -eq $hiddenTweakId }
+    Assert-True ([bool]$hiddenTweak.hiddenFromMenu) "retired setup tweak is hidden from the interactive menu: $hiddenTweakId"
+    Assert-True (-not [bool]$hiddenTweak.defaultNormal -and -not [bool]$hiddenTweak.defaultWork) "retired setup tweak defaults off: $hiddenTweakId"
+}
+foreach ($defaultOffTweakId in @(
+    "disable-enhanced-pointer-precision",
+    "disable-snap-assist",
+    "disable-remote-assistance",
+    "enable-windows-sudo",
+    "reduce-visual-effects",
+    "classic-context-menu"
+)) {
+    $defaultOffTweak = $manifest.tweaks | Where-Object { $_.id -eq $defaultOffTweakId }
+    Assert-True (-not [bool]$defaultOffTweak.defaultNormal -and -not [bool]$defaultOffTweak.defaultWork) "preference-sensitive tweak defaults off: $defaultOffTweakId"
+}
+Assert-True ($nativeSourceText -match 'CurrentTweakDefaultsVersion = 1') "tweak defaults carry a one-time saved-selection migration version"
+Assert-True ($nativeSourceText -match 'savedTweakDefaultsVersion < CurrentTweakDefaultsVersion') "existing tweak selections migrate to the new preference-sensitive defaults once"
+Assert-True ($nativeSourceText -match 'hiddenFromMenu') "tweak menu skips retired compatibility entries"
 Assert-True ($nativeSourceText -match '"DisabledHotkeys"') "native runtime uses selective Explorer DisabledHotkeys instead of blanket NoWinKeys"
 Assert-True ($nativeSourceText -match '"ABCDEFGHIJKLMOPQRSTUWXYZ0123456789"') "selective shell filter preserves native Win+V and Win+N"
 Assert-True ($nativeSourceText -match 'RestoreRegistryOriginals\(id\)') "Windows hotkey tweak participates in registry rollback"

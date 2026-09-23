@@ -22,8 +22,9 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-81";
+    const string Version = "native-preview-82";
     const int WingetPreflightTimeoutMs = 30000;
+    const int CurrentTweakDefaultsVersion = 1;
     const double RawAccelHotkeyWidthRatio = 0.625;
     const double RawAccelHotkeyHeightRatio = 0.825;
     const string RepoFullName = "dillacorn/win-glaze-dots";
@@ -378,6 +379,7 @@ internal static class WgdotNative
         public List<string> Packages = new List<string>();
         public List<string> Tweaks = new List<string>();
         public bool TweaksConfigured;
+        public int TweakDefaultsVersion = CurrentTweakDefaultsVersion;
         public Dictionary<string, List<string>> BrowserOptions =
             new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
         public bool BrowserOptionsConfigured;
@@ -6205,6 +6207,36 @@ class WgdotHidden
         result.Tweaks.RemoveAll(x =>
             String.Equals(x, "eartrumpet-mixer-alt-v", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(x, "eartrumpet-mixer-super-v", StringComparison.OrdinalIgnoreCase));
+
+        // These integrations no longer belong in the interactive setup-tweak
+        // menu. Retire stale remembered selections while keeping their runtime
+        // implementation available for bounded rollback/migration.
+        result.Tweaks.RemoveAll(x =>
+            String.Equals(x, "disable-printscreen-snipping", StringComparison.OrdinalIgnoreCase) ||
+            String.Equals(x, "disable-windows-shell-hotkeys", StringComparison.OrdinalIgnoreCase) ||
+            String.Equals(x, "oops-all-links-cursor", StringComparison.OrdinalIgnoreCase));
+
+        int savedTweakDefaultsVersion = GetInt(state, "tweakDefaultsVersion");
+        if (savedTweakDefaultsVersion < CurrentTweakDefaultsVersion)
+        {
+            // Preference-sensitive items used to be sticky from older WGDot
+            // selections. Clear them once so the new default-OFF policy is
+            // visible on existing installs. After the migrated selection is
+            // saved, users may explicitly re-enable any of them and that
+            // choice remains persistent.
+            string[] resetOnce =
+            {
+                "disable-enhanced-pointer-precision",
+                "disable-snap-assist",
+                "disable-remote-assistance",
+                "enable-windows-sudo",
+                "reduce-visual-effects",
+                "classic-context-menu"
+            };
+            result.Tweaks.RemoveAll(x =>
+                resetOnce.Contains(x, StringComparer.OrdinalIgnoreCase));
+        }
+        result.TweakDefaultsVersion = CurrentTweakDefaultsVersion;
         result.TweaksConfigured = state.ContainsKey("tweaks");
         result.BrowserOptions = ReadBrowserOptionsState(state);
         result.BrowserOptionsConfigured = state.ContainsKey("browserOptions");
@@ -6225,6 +6257,7 @@ class WgdotHidden
         state["components"] = selection.Components.ToArray();
         state["packages"] = selection.Packages.ToArray();
         state["tweaks"] = selection.Tweaks.ToArray();
+        state["tweakDefaultsVersion"] = selection.TweakDefaultsVersion;
         if (selection.BrowserOptionsConfigured)
         {
             var browserOptions = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
@@ -6314,6 +6347,8 @@ class WgdotHidden
             var tweak = AsDictionary(raw);
             string id = GetString(tweak, "id");
             bool actionOnly = GetBool(tweak, "actionOnly");
+            bool hiddenFromMenu = GetBool(tweak, "hiddenFromMenu");
+            if (hiddenFromMenu) continue;
             if (actionOnly && !includeActionOnly) continue;
 
             bool selected = actionOnly
@@ -6338,7 +6373,7 @@ class WgdotHidden
         foreach (object raw in GetList(manifest, "tweaks"))
         {
             var tweak = AsDictionary(raw);
-            if (GetBool(tweak, "actionOnly")) continue;
+            if (GetBool(tweak, "actionOnly") || GetBool(tweak, "hiddenFromMenu")) continue;
             bool selected = scope == "work" ? GetBool(tweak, "defaultWork") : GetBool(tweak, "defaultNormal");
             if (selected) result.Add(GetString(tweak, "id"));
         }
@@ -12295,9 +12330,13 @@ class WgdotHidden
                         Console.ResetColor();
                     }
                 }
-                else if (String.Equals(type, "migrate-legacy-windows-hotkeys", StringComparison.OrdinalIgnoreCase))
+                else if (String.Equals(type, "retire-windows-shell-hotkeys", StringComparison.OrdinalIgnoreCase))
                 {
-                    MigrateLegacyWindowsShellHotkeys(true);
+                    ApplyTweak("disable-windows-shell-hotkeys", false, true);
+                }
+                else if (String.Equals(type, "retire-printscreen-snipping", StringComparison.OrdinalIgnoreCase))
+                {
+                    ApplyTweak("disable-printscreen-snipping", false, true);
                 }
                 else if (String.Equals(type, "ensure-cursor-theme", StringComparison.OrdinalIgnoreCase))
                 {
