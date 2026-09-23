@@ -61,8 +61,12 @@ jobs:
         run: python -m pip install --disable-pip-version-check "pydantic==2.13.4" "PyYAML==6.0.3"
       - name: Validate managed YASB config against upstream stable schemas
         run: python tests/test-yasb-config.py upstream-yasb
-      - name: Validate managed Yazi TOML syntax
-        run: python tests/test-yazi-config.py
+      - name: Install Yazi Lua validation tool
+        run: sudo apt-get update && sudo apt-get install -y lua5.4
+      - name: Validate managed Yazi config syntax
+        run: |
+          python tests/test-yazi-config.py
+          luac -p UserProfile/AppData/Roaming/yazi/config/init.lua
       - name: Validate desktop launcher ownership
         run: python tests/test-desktop-bindings.py
 
