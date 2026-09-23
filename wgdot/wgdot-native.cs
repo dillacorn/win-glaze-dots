@@ -21,8 +21,10 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-75";
+    const string Version = "native-preview-77";
     const int WingetPreflightTimeoutMs = 30000;
+    const double RawAccelHotkeyWidthRatio = 0.625;
+    const double RawAccelHotkeyHeightRatio = 0.825;
     const string RepoFullName = "dillacorn/win-glaze-dots";
     const string RepoUrl = "https://github.com/dillacorn/win-glaze-dots.git";
     const string ApiBase = "https://api.github.com/repos/dillacorn/win-glaze-dots";
@@ -4056,7 +4058,7 @@ class WgdotHidden
             .FirstOrDefault(IsRawAccelGuiExecutable) ?? "";
     }
 
-    static int StartRawAccelGui()
+    static Process StartRawAccelGuiProcess()
     {
         string exe = FindRawAccelExe();
         if (String.IsNullOrWhiteSpace(exe))
@@ -4075,7 +4077,102 @@ class WgdotHidden
         if (started == null)
             throw new Exception("RawAccel GUI did not start.");
 
+        return started;
+    }
+
+    static int StartRawAccelGui()
+    {
+        using (Process started = StartRawAccelGuiProcess())
+        {
+        }
+
         return 0;
+    }
+
+    static void SizeRawAccelHotkeyWindow(
+        Process process,
+        System.Windows.Forms.Screen targetScreen)
+    {
+        if (process == null)
+            return;
+
+        try
+        {
+            process.WaitForInputIdle(2000);
+        }
+        catch
+        {
+        }
+
+        IntPtr window = IntPtr.Zero;
+        for (int i = 0; i < 120; i++)
+        {
+            try
+            {
+                if (process.HasExited)
+                    return;
+
+                process.Refresh();
+                window = process.MainWindowHandle;
+                if (window != IntPtr.Zero && IsWindow(window))
+                    break;
+            }
+            catch
+            {
+                return;
+            }
+
+            System.Threading.Thread.Sleep(25);
+        }
+
+        if (window == IntPtr.Zero || !IsWindow(window))
+            return;
+
+        System.Windows.Forms.Screen screen =
+            targetScreen ??
+            System.Windows.Forms.Screen.FromHandle(window) ??
+            System.Windows.Forms.Screen.PrimaryScreen;
+        if (screen == null)
+            return;
+
+        System.Drawing.Rectangle work = screen.WorkingArea;
+        int width = Math.Max(
+            1,
+            Math.Min(
+                work.Width - 16,
+                (int)Math.Round(work.Width * RawAccelHotkeyWidthRatio)));
+        int height = Math.Max(
+            1,
+            Math.Min(
+                work.Height - 16,
+                (int)Math.Round(work.Height * RawAccelHotkeyHeightRatio)));
+        int x = work.Left + Math.Max(0, (work.Width - width) / 2);
+        int y = work.Top + Math.Max(0, (work.Height - height) / 2);
+
+        // Let GlazeWM finish applying its set-floating rule, then make the
+        // hotkey-requested geometry authoritative. Reapplying briefly also
+        // lets GlazeWM observe the final floating placement instead of racing
+        // the first SetWindowPos call.
+        System.Threading.Thread.Sleep(300);
+
+        for (int i = 0; i < 8; i++)
+        {
+            if (!IsWindow(window))
+                return;
+
+            SetWindowPos(
+                window,
+                IntPtr.Zero,
+                x,
+                y,
+                width,
+                height,
+                SwpNoZOrder | SwpShowWindow);
+
+            System.Threading.Thread.Sleep(75);
+        }
+
+        SetForegroundWindow(window);
     }
 
     static bool IsLegacyYasbStartupCommand(string command)
@@ -9239,7 +9336,13 @@ class WgdotHidden
             return 0;
         }
 
-        return StartRawAccelGui();
+        System.Windows.Forms.Screen targetScreen = CurrentInteractionScreen();
+        using (Process started = StartRawAccelGuiProcess())
+        {
+            SizeRawAccelHotkeyWindow(started, targetScreen);
+        }
+
+        return 0;
     }
 
     sealed class WindowAuditRow
