@@ -26,6 +26,7 @@ prepend_keymap = [
   # History
   { on = ["H"],       run = "back",      desc = "Back in history" },
   { on = ["L"],       run = "forward",   desc = "Forward in history" },
+  { on = ["g", "r"], run = "plugin recent-files", desc = "Go to recently opened file" },
 
   # Selection
   { on = ["<Space>"],   run = 'lua "WgdotYaziToggleOrCommitSelection()"', desc = "Toggle or commit selection" },
@@ -49,6 +50,9 @@ prepend_keymap = [
 
   # File ops
   # Creation/search stay on Yazi defaults: a=create, /=find, n/N=next/previous match.
+  { on = ["o"],       run = 'lua "WgdotYaziOpen(false)"', desc = "Open selected files" },
+  { on = ["O"],       run = 'lua "WgdotYaziOpen(true)"', desc = "Open selected files interactively" },
+  { on = ["<S-Enter>"], run = 'lua "WgdotYaziOpen(true)"', desc = "Open selected files interactively" },
   { on = ["r"],       run = "rename",               desc = "Rename" },
   { on = ["d", "d"], run = "remove",               desc = "Trash selection" },
   { on = ["t", "e"], run = "shell --orphan -- wt.exe -w new new-tab -d .", desc = "Open terminal here" },
