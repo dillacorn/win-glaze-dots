@@ -145,7 +145,7 @@ Assert-True ($yaziInitText -match 'string\.format\("%s \(%d\)\.zip", stem, index
 Assert-True ($yaziInitText -match '"-aou"') "Yazi extract-here auto-renames colliding files"
 Assert-True ($yaziInitText -match 'ya\.emit\("shell", \{ "wt\.exe -w new new-tab -d \.", orphan = true \}\)') "Yazi Terminal here uses the managed Windows Terminal path without a helper script"
 Assert-True ($yaziInitText -match 'elseif was_hovered then') "Yazi second click acts on the already highlighted item"
-Assert-True ($yaziInitText -match 'ya\.emit\("open", \{ hovered = true \}\)') "Yazi second click opens highlighted files"
+Assert-True ($yaziInitText -match 'WgdotYaziOpenFiles\(false, true\)') "Yazi second click opens highlighted files and records recents"
 Assert-True ($yaziInitText -match 'event\.is_middle') "Yazi recognizes middle-click directory actions"
 Assert-True ($yaziInitText -match 'ya\.emit\("tab_create", \{ tostring\(self\._file\.url\) \}\)') "Yazi middle-click opens directories in a new tab"
 Assert-True ($yaziInitText -match 'self\._selection_count > 1') "Yazi context menu displays multi-selection counts"
