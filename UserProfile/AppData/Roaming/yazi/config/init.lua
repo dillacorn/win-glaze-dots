@@ -59,12 +59,16 @@ WgdotYaziContextMenu = {
     _y = 0,
     _area = ui.Rect {},
     _list_area = ui.Rect {},
+    _hovered_row = nil,
+    _selection_count = 0,
 }
 
-function WgdotYaziContextMenu:show(kind, x, y)
+function WgdotYaziContextMenu:show(kind, x, y, selection_count)
     self._kind = kind
     self._x = x
     self._y = y
+    self._selection_count = selection_count or 0
+    self._hovered_row = nil
     self._visible = true
     ui.render()
 end
@@ -75,7 +79,18 @@ function WgdotYaziContextMenu:hide()
     end
 
     self._visible = false
+    self._hovered_row = nil
     ui.render()
+end
+
+function WgdotYaziContextMenu:title()
+    if self._kind == "background" then
+        return " Folder actions "
+    elseif self._selection_count > 1 then
+        return " " .. tostring(self._selection_count) .. " selected "
+    end
+
+    return " Item actions "
 end
 
 function WgdotYaziContextMenu:actions()
@@ -147,14 +162,18 @@ function WgdotYaziContextMenu:redraw()
 
     local rows = {}
     local content_width = self._list_area.w
-    for _, action in ipairs(self:actions()) do
+    for i, action in ipairs(self:actions()) do
         local gap = math.max(1, content_width - #action.label - #action.shortcut - 2)
-        rows[#rows + 1] = ui.Line {
+        local row = ui.Line {
             ui.Span(" " .. action.label):style(th.help.action),
             ui.Span(string.rep(" ", gap)),
             ui.Span(action.shortcut):style(th.help.chord),
             ui.Span(" "),
         }
+        if i == self._hovered_row then
+            row:style(th.help.hovered)
+        end
+        rows[#rows + 1] = row
     end
 
     local footer = self:footer()
@@ -164,8 +183,7 @@ function WgdotYaziContextMenu:redraw()
             :area(self._area)
             :type(ui.Border.ROUNDED)
             :style(th.help.border)
-            :title(ui.Line(self._kind == "background" and " Folder actions " or " Item actions ")
-                :align(ui.Align.CENTER)),
+            :title(ui.Line(self:title()):align(ui.Align.CENTER)),
         ui.List(rows):area(self._list_area),
         ui.Text({
             ui.Line(" " .. footer[1]):style(ui.Style():dim()),
@@ -175,7 +193,9 @@ function WgdotYaziContextMenu:redraw()
 end
 
 function WgdotYaziContextMenu:run(action)
+    local count = self._selection_count > 0 and self._selection_count or 1
     self._visible = false
+    self._hovered_row = nil
     ui.render()
 
     if action == "smart_open" then
@@ -186,10 +206,13 @@ function WgdotYaziContextMenu:run(action)
         ya.emit("rename", { hovered = true })
     elseif action == "copy" then
         ya.emit("yank", {})
+        ya.notify { title = "Yazi", content = "Copied " .. tostring(count) .. " item(s)", timeout = 2 }
     elseif action == "cut" then
         ya.emit("yank", { cut = true })
+        ya.notify { title = "Yazi", content = "Cut " .. tostring(count) .. " item(s)", timeout = 2 }
     elseif action == "copy_path" then
         ya.emit("copy", { "path", hovered = true })
+        ya.notify { title = "Clipboard", content = "Path copied", timeout = 2 }
     elseif action == "details" then
         ya.emit("spot", {})
     elseif action == "trash" then
@@ -199,9 +222,32 @@ function WgdotYaziContextMenu:run(action)
     elseif action == "new_folder" then
         ya.emit("create", { dir = true })
     elseif action == "paste" then
+        local yanked = #cx.yanked
         ya.emit("paste", {})
+        if yanked > 0 then
+            ya.notify { title = "Yazi", content = "Pasting " .. tostring(yanked) .. " item(s)...", timeout = 2 }
+        end
     elseif action == "terminal" then
         ya.emit("shell", { "wt.exe -w new new-tab -d .", orphan = true })
+    end
+end
+
+function WgdotYaziContextMenu:move(event)
+    local row = nil
+    if event.x >= self._list_area.x
+        and event.x < self._list_area.x + self._list_area.w
+        and event.y >= self._list_area.y
+        and event.y < self._list_area.y + self._list_area.h
+    then
+        local candidate = event.y - self._list_area.y + 1
+        if self:actions()[candidate] then
+            row = candidate
+        end
+    end
+
+    if row ~= self._hovered_row then
+        self._hovered_row = row
+        ui.render()
     end
 end
 
@@ -220,6 +266,15 @@ function WgdotYaziContextMenu:click(event, up)
 end
 
 Modal:children_add(WgdotYaziContextMenu, 20)
+
+local WgdotYaziDefaultRootMove = Root.move
+
+function Root:move(event)
+    if WgdotYaziContextMenu._visible then
+        return WgdotYaziContextMenu:move(event)
+    end
+    return WgdotYaziDefaultRootMove(self, event)
+end
 
 function Header:click(event, up)
     if up or (not event.is_left and not event.is_right) then
@@ -259,22 +314,40 @@ end
 function Entity:click(event, up)
     if up then
         return
-    elseif not event.is_left and not event.is_right then
+    elseif not event.is_left and not event.is_right and not event.is_middle then
+        return
+    end
+
+    if event.is_middle then
+        WgdotYaziContextMenu:hide()
+        if self._file.cha.is_dir then
+            ya.emit("tab_create", { tostring(self._file.url) })
+        end
         return
     end
 
     local was_hovered = self._file.is_hovered
-    if event.is_right and not self._file:is_selected() then
+    local was_selected = self._file:is_selected()
+    local selected_count = #cx.active.selected
+
+    if event.is_right and not was_selected then
         ya.emit("toggle_all", { state = "off" })
+        selected_count = 1
+    elseif event.is_right then
+        selected_count = math.max(1, selected_count)
     end
 
     ya.emit("reveal", { self._file.url })
 
     if event.is_right then
-        WgdotYaziContextMenu:show("item", event.x, event.y)
-    elseif was_hovered and self._file.cha.is_dir then
+        WgdotYaziContextMenu:show("item", event.x, event.y, selected_count)
+    elseif was_hovered then
         WgdotYaziContextMenu:hide()
-        ya.emit("enter", {})
+        if self._file.cha.is_dir then
+            ya.emit("enter", {})
+        else
+            ya.emit("open", { hovered = true })
+        end
     else
         WgdotYaziContextMenu:hide()
     end
