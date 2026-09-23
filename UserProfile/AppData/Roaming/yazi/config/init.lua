@@ -1,6 +1,9 @@
 -- github.com/dillacorn/win-glaze-dots
 -- %APPDATA%\yazi\config\init.lua
 
+local WgdotYaziRecentFiles = require("recent-files")
+WgdotYaziRecentFiles:setup()
+
 function Linemode:size_and_mtime()
     local size = self._file:size()
     local size_text
@@ -28,9 +31,50 @@ function Linemode:size_and_mtime()
     return string.format("%9s  %8s", size_text, date_text)
 end
 
+local function WgdotYaziOpenFiles(interactive, hovered_only)
+    local tab = cx.active
+    local recent = {}
+
+    if hovered_only then
+        local file = tab.current.hovered
+        if file and not file.cha.is_dir then
+            recent[1] = tostring(file.path)
+        end
+    elseif #tab.selected > 0 then
+        for _, file in pairs(tab.selected) do
+            if not file.cha.is_dir then
+                recent[#recent + 1] = tostring(file.path)
+            end
+        end
+    elseif tab.current.hovered and not tab.current.hovered.cha.is_dir then
+        recent[1] = tostring(tab.current.hovered.path)
+    end
+
+    if #recent > 0 then
+        WgdotYaziRecentFiles:record(recent)
+    end
+
+    local args = {}
+    if interactive then
+        args.interactive = true
+    end
+    if hovered_only then
+        args.hovered = true
+    end
+    ya.emit("open", args)
+end
+
+function WgdotYaziOpen(interactive)
+    WgdotYaziOpenFiles(interactive == true, false)
+end
+
 function WgdotYaziSmartEnter()
     local hovered = cx.active.current.hovered
-    ya.emit(hovered and hovered.cha.is_dir and "enter" or "open", {})
+    if hovered and hovered.cha.is_dir then
+        ya.emit("enter", {})
+    else
+        WgdotYaziOpenFiles(false, false)
+    end
 end
 
 function WgdotYaziEnsureRangeSelect()
@@ -614,7 +658,7 @@ function WgdotYaziContextMenu:run(action)
     if action == "smart_open" then
         WgdotYaziSmartEnter()
     elseif action == "open_with" then
-        ya.emit("open", { interactive = true, hovered = true })
+        WgdotYaziOpenFiles(true, true)
     elseif action == "rename" then
         ya.emit("rename", { hovered = true })
     elseif action == "copy" then
@@ -815,7 +859,7 @@ function Entity:click(event, up)
         if self._file.cha.is_dir then
             ya.emit("enter", {})
         else
-            ya.emit("open", { hovered = true })
+            WgdotYaziOpenFiles(false, true)
         end
     else
         WgdotYaziContextMenu:hide()
