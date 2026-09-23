@@ -21,7 +21,7 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-77";
+    const string Version = "native-preview-79";
     const int WingetPreflightTimeoutMs = 30000;
     const double RawAccelHotkeyWidthRatio = 0.625;
     const double RawAccelHotkeyHeightRatio = 0.825;
@@ -51,6 +51,7 @@ internal static class WgdotNative
     static readonly string GlazeBindingModeStatePath = Path.Combine(StateRoot, "glazewm-binding-mode.json");
     static readonly string StartupStatePath = Path.Combine(StateRoot, "startup.json");
     static readonly string CursorStatePath = Path.Combine(StateRoot, "cursor.json");
+    static readonly string LauncherCachePath = Path.Combine(CacheRoot, "launcher-apps.json");
     static readonly JavaScriptSerializer Json = new JavaScriptSerializer { MaxJsonLength = int.MaxValue, RecursionLimit = 100 };
 
     static readonly IntPtr HwndBroadcast = new IntPtr(0xffff);
@@ -471,6 +472,554 @@ internal static class WgdotNative
         }
     }
 
+    sealed class LauncherResultsView : System.Windows.Forms.Control
+    {
+        const int ItemHeight = 40;
+        const int ScrollbarWidth = 16;
+        const int ScrollbarThumbWidth = 12;
+        const int MinThumbHeight = 32;
+        const double WheelPixelsPerNotch = 48.0;
+
+        readonly System.Drawing.Color _backgroundColor;
+        readonly System.Drawing.Color _foregroundColor;
+        readonly System.Drawing.Color _hoverColor;
+        readonly System.Drawing.Color _fieldColor;
+        readonly System.Drawing.Color _focusColor;
+        readonly System.Windows.Forms.Timer _scrollTimer;
+
+        List<LauncherApp> _items = new List<LauncherApp>();
+        int _selectedIndex = -1;
+        double _scrollOffset;
+        double _targetScrollOffset;
+        bool _draggingScrollThumb;
+        int _scrollDragOffsetY;
+        bool _scrollThumbHover;
+
+        public event EventHandler ItemActivated;
+
+        public LauncherResultsView(
+            System.Drawing.Color backgroundColor,
+            System.Drawing.Color foregroundColor,
+            System.Drawing.Color hoverColor,
+            System.Drawing.Color fieldColor,
+            System.Drawing.Color focusColor)
+        {
+            _backgroundColor = backgroundColor;
+            _foregroundColor = foregroundColor;
+            _hoverColor = hoverColor;
+            _fieldColor = fieldColor;
+            _focusColor = focusColor;
+
+            SetStyle(
+                System.Windows.Forms.ControlStyles.AllPaintingInWmPaint |
+                System.Windows.Forms.ControlStyles.UserPaint |
+                System.Windows.Forms.ControlStyles.OptimizedDoubleBuffer |
+                System.Windows.Forms.ControlStyles.ResizeRedraw |
+                System.Windows.Forms.ControlStyles.Selectable,
+                true);
+
+            BackColor = backgroundColor;
+            ForeColor = foregroundColor;
+            TabStop = true;
+            Cursor = System.Windows.Forms.Cursors.Default;
+
+            _scrollTimer = new System.Windows.Forms.Timer();
+            _scrollTimer.Interval = 15;
+            _scrollTimer.Tick += delegate
+            {
+                double distance = _targetScrollOffset - _scrollOffset;
+                if (Math.Abs(distance) < 0.5)
+                {
+                    _scrollOffset = _targetScrollOffset;
+                    _scrollTimer.Stop();
+                }
+                else
+                {
+                    _scrollOffset += distance * 0.35;
+                }
+
+                Invalidate();
+            };
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing && _scrollTimer != null)
+            {
+                _scrollTimer.Stop();
+                _scrollTimer.Dispose();
+            }
+
+            base.Dispose(disposing);
+        }
+
+        public int ItemCount
+        {
+            get { return _items.Count; }
+        }
+
+        public int SelectedIndex
+        {
+            get { return _selectedIndex; }
+        }
+
+        public LauncherApp SelectedApp
+        {
+            get
+            {
+                return _selectedIndex >= 0 && _selectedIndex < _items.Count
+                    ? _items[_selectedIndex]
+                    : null;
+            }
+        }
+
+        double MaxScrollOffset()
+        {
+            return Math.Max(0.0, (_items.Count * (double)ItemHeight) - ClientSize.Height);
+        }
+
+        double ClampScrollOffset(double value)
+        {
+            return Math.Max(0.0, Math.Min(MaxScrollOffset(), value));
+        }
+
+        bool ScrollbarVisible()
+        {
+            return MaxScrollOffset() > 0.5 && ClientSize.Width >= ScrollbarWidth;
+        }
+
+        System.Drawing.Rectangle ScrollTrackRectangle()
+        {
+            return new System.Drawing.Rectangle(
+                Math.Max(0, ClientSize.Width - ScrollbarWidth),
+                0,
+                Math.Min(ScrollbarWidth, ClientSize.Width),
+                Math.Max(0, ClientSize.Height));
+        }
+
+        System.Drawing.Rectangle ScrollThumbRectangle()
+        {
+            System.Drawing.Rectangle track = ScrollTrackRectangle();
+            int innerTop = track.Top + 2;
+            int innerHeight = Math.Max(1, track.Height - 4);
+            int contentHeight = Math.Max(1, _items.Count * ItemHeight);
+            int thumbHeight = Math.Max(
+                MinThumbHeight,
+                Math.Min(
+                    innerHeight,
+                    (int)Math.Round(innerHeight * Math.Min(1.0, ClientSize.Height / (double)contentHeight))));
+            int travel = Math.Max(0, innerHeight - thumbHeight);
+            int top = innerTop;
+
+            double maxScroll = MaxScrollOffset();
+            if (travel > 0 && maxScroll > 0.0)
+                top += (int)Math.Round(travel * (_scrollOffset / maxScroll));
+
+            int thumbWidth = Math.Min(
+                ScrollbarThumbWidth,
+                Math.Max(1, track.Width - 4));
+            int left = track.Left + Math.Max(0, (track.Width - thumbWidth) / 2);
+
+            return new System.Drawing.Rectangle(
+                left,
+                top,
+                thumbWidth,
+                thumbHeight);
+        }
+
+        void SetScrollOffset(double value, bool animate)
+        {
+            _targetScrollOffset = ClampScrollOffset(value);
+
+            if (!animate)
+            {
+                _scrollTimer.Stop();
+                _scrollOffset = _targetScrollOffset;
+                Invalidate();
+                return;
+            }
+
+            if (Math.Abs(_targetScrollOffset - _scrollOffset) < 0.5)
+            {
+                _scrollOffset = _targetScrollOffset;
+                Invalidate();
+                return;
+            }
+
+            if (!_scrollTimer.Enabled)
+                _scrollTimer.Start();
+        }
+
+        void EnsureSelectedVisible(bool animate)
+        {
+            if (_selectedIndex < 0 || _selectedIndex >= _items.Count)
+                return;
+
+            double itemTop = _selectedIndex * (double)ItemHeight;
+            double itemBottom = itemTop + ItemHeight;
+            double viewportTop = _targetScrollOffset;
+            double viewportBottom = viewportTop + ClientSize.Height;
+
+            if (itemTop < viewportTop)
+                SetScrollOffset(itemTop, animate);
+            else if (itemBottom > viewportBottom)
+                SetScrollOffset(itemBottom - ClientSize.Height, animate);
+        }
+
+        void SetSelectedIndex(int index, bool ensureVisible)
+        {
+            int next = _items.Count == 0
+                ? -1
+                : Math.Max(0, Math.Min(_items.Count - 1, index));
+
+            if (_selectedIndex == next)
+                return;
+
+            _selectedIndex = next;
+            if (ensureVisible)
+                EnsureSelectedVisible(true);
+            Invalidate();
+        }
+
+        public void SetItems(List<LauncherApp> items)
+        {
+            _items = items == null
+                ? new List<LauncherApp>()
+                : new List<LauncherApp>(items);
+            _selectedIndex = _items.Count > 0 ? 0 : -1;
+            _scrollOffset = 0.0;
+            _targetScrollOffset = 0.0;
+            _scrollTimer.Stop();
+            Invalidate();
+        }
+
+        public void MoveSelection(int delta)
+        {
+            if (_items.Count == 0)
+                return;
+
+            int current = _selectedIndex < 0 ? 0 : _selectedIndex;
+            SetSelectedIndex(current + delta, true);
+        }
+
+        public void SelectFirst()
+        {
+            if (_items.Count > 0)
+                SetSelectedIndex(0, true);
+        }
+
+        public void SelectLast()
+        {
+            if (_items.Count > 0)
+                SetSelectedIndex(_items.Count - 1, true);
+        }
+
+        public void ActivateSelected()
+        {
+            if (SelectedApp == null)
+                return;
+
+            EventHandler handler = ItemActivated;
+            if (handler != null)
+                handler(this, EventArgs.Empty);
+        }
+
+        protected override bool IsInputKey(System.Windows.Forms.Keys keyData)
+        {
+            System.Windows.Forms.Keys key = keyData & System.Windows.Forms.Keys.KeyCode;
+            if (key == System.Windows.Forms.Keys.Up ||
+                key == System.Windows.Forms.Keys.Down ||
+                key == System.Windows.Forms.Keys.Home ||
+                key == System.Windows.Forms.Keys.End ||
+                key == System.Windows.Forms.Keys.PageUp ||
+                key == System.Windows.Forms.Keys.PageDown)
+                return true;
+
+            return base.IsInputKey(keyData);
+        }
+
+        protected override void OnKeyDown(System.Windows.Forms.KeyEventArgs e)
+        {
+            if (e.KeyCode == System.Windows.Forms.Keys.Down)
+            {
+                MoveSelection(1);
+                e.Handled = true;
+            }
+            else if (e.KeyCode == System.Windows.Forms.Keys.Up)
+            {
+                MoveSelection(-1);
+                e.Handled = true;
+            }
+            else if (e.KeyCode == System.Windows.Forms.Keys.Home)
+            {
+                SelectFirst();
+                e.Handled = true;
+            }
+            else if (e.KeyCode == System.Windows.Forms.Keys.End)
+            {
+                SelectLast();
+                e.Handled = true;
+            }
+            else if (e.KeyCode == System.Windows.Forms.Keys.PageDown)
+            {
+                MoveSelection(Math.Max(1, ClientSize.Height / ItemHeight));
+                e.Handled = true;
+            }
+            else if (e.KeyCode == System.Windows.Forms.Keys.PageUp)
+            {
+                MoveSelection(-Math.Max(1, ClientSize.Height / ItemHeight));
+                e.Handled = true;
+            }
+            else if (e.KeyCode == System.Windows.Forms.Keys.Enter)
+            {
+                ActivateSelected();
+                e.Handled = true;
+            }
+
+            base.OnKeyDown(e);
+        }
+
+        protected override void OnMouseWheel(System.Windows.Forms.MouseEventArgs e)
+        {
+            if (e.Delta == 0 || MaxScrollOffset() <= 0.0)
+                return;
+
+            double movement =
+                -(e.Delta / 120.0) * WheelPixelsPerNotch;
+            SetScrollOffset(_targetScrollOffset + movement, true);
+        }
+
+        void SetScrollFromThumbTop(int desiredThumbTop)
+        {
+            if (!ScrollbarVisible())
+                return;
+
+            System.Drawing.Rectangle track = ScrollTrackRectangle();
+            System.Drawing.Rectangle thumb = ScrollThumbRectangle();
+            int innerTop = track.Top + 2;
+            int innerHeight = Math.Max(1, track.Height - 4);
+            int travel = Math.Max(1, innerHeight - thumb.Height);
+            int top = Math.Max(
+                innerTop,
+                Math.Min(innerTop + travel, desiredThumbTop));
+            double ratio = (top - innerTop) / (double)travel;
+            SetScrollOffset(MaxScrollOffset() * ratio, false);
+        }
+
+        protected override void OnMouseDown(System.Windows.Forms.MouseEventArgs e)
+        {
+            if (e.Button != System.Windows.Forms.MouseButtons.Left)
+            {
+                base.OnMouseDown(e);
+                return;
+            }
+
+            Focus();
+
+            if (ScrollbarVisible() &&
+                ScrollTrackRectangle().Contains(e.Location))
+            {
+                System.Drawing.Rectangle thumb = ScrollThumbRectangle();
+                if (thumb.Contains(e.Location))
+                {
+                    _draggingScrollThumb = true;
+                    _scrollDragOffsetY = e.Y - thumb.Top;
+                }
+                else
+                {
+                    _scrollDragOffsetY = thumb.Height / 2;
+                    SetScrollFromThumbTop(e.Y - _scrollDragOffsetY);
+                }
+
+                Capture = true;
+                Invalidate();
+                return;
+            }
+
+            int viewportWidth = ClientSize.Width -
+                (ScrollbarVisible() ? ScrollbarWidth : 0);
+            if (e.X >= 0 && e.X < viewportWidth)
+            {
+                int index = (int)Math.Floor(
+                    (_scrollOffset + e.Y) / ItemHeight);
+                if (index >= 0 && index < _items.Count)
+                    SetSelectedIndex(index, false);
+            }
+
+            base.OnMouseDown(e);
+        }
+
+        protected override void OnMouseMove(System.Windows.Forms.MouseEventArgs e)
+        {
+            if (_draggingScrollThumb)
+            {
+                SetScrollFromThumbTop(e.Y - _scrollDragOffsetY);
+                return;
+            }
+
+            bool hover = ScrollbarVisible() &&
+                ScrollThumbRectangle().Contains(e.Location);
+            if (_scrollThumbHover != hover)
+            {
+                _scrollThumbHover = hover;
+                Invalidate();
+            }
+
+            base.OnMouseMove(e);
+        }
+
+        protected override void OnMouseUp(System.Windows.Forms.MouseEventArgs e)
+        {
+            if (_draggingScrollThumb)
+            {
+                _draggingScrollThumb = false;
+                Capture = false;
+                Invalidate();
+            }
+
+            base.OnMouseUp(e);
+        }
+
+        protected override void OnMouseLeave(EventArgs e)
+        {
+            if (!_draggingScrollThumb && _scrollThumbHover)
+            {
+                _scrollThumbHover = false;
+                Invalidate();
+            }
+
+            base.OnMouseLeave(e);
+        }
+
+        protected override void OnMouseDoubleClick(System.Windows.Forms.MouseEventArgs e)
+        {
+            if (e.Button == System.Windows.Forms.MouseButtons.Left &&
+                (!ScrollbarVisible() ||
+                 !ScrollTrackRectangle().Contains(e.Location)))
+                ActivateSelected();
+
+            base.OnMouseDoubleClick(e);
+        }
+
+        protected override void OnResize(EventArgs e)
+        {
+            base.OnResize(e);
+            _scrollOffset = ClampScrollOffset(_scrollOffset);
+            _targetScrollOffset = ClampScrollOffset(_targetScrollOffset);
+            Invalidate();
+        }
+
+        protected override void OnPaint(System.Windows.Forms.PaintEventArgs e)
+        {
+            e.Graphics.Clear(_backgroundColor);
+
+            bool showScrollbar = ScrollbarVisible();
+            int viewportWidth = Math.Max(
+                0,
+                ClientSize.Width - (showScrollbar ? ScrollbarWidth : 0));
+            System.Drawing.Rectangle viewport =
+                new System.Drawing.Rectangle(
+                    0,
+                    0,
+                    viewportWidth,
+                    ClientSize.Height);
+
+            System.Drawing.Drawing2D.GraphicsState state =
+                e.Graphics.Save();
+            e.Graphics.SetClip(viewport);
+
+            int firstIndex = Math.Max(
+                0,
+                (int)Math.Floor(_scrollOffset / ItemHeight));
+            int y = (int)Math.Round(
+                (firstIndex * ItemHeight) - _scrollOffset);
+
+            for (int index = firstIndex;
+                 index < _items.Count && y < ClientSize.Height;
+                 index++, y += ItemHeight)
+            {
+                System.Drawing.Rectangle row =
+                    new System.Drawing.Rectangle(
+                        0,
+                        y,
+                        viewportWidth,
+                        ItemHeight);
+
+                if (index == _selectedIndex)
+                {
+                    using (var selectedBrush =
+                        new System.Drawing.SolidBrush(_hoverColor))
+                        e.Graphics.FillRectangle(selectedBrush, row);
+                }
+
+                LauncherApp app = _items[index];
+                System.Drawing.Image icon = GetLauncherAppIcon(app);
+                int textLeft = row.Left + 12;
+
+                if (icon != null)
+                {
+                    const int iconSize = 24;
+                    int iconY = row.Top +
+                        Math.Max(0, (row.Height - iconSize) / 2);
+                    e.Graphics.DrawImage(
+                        icon,
+                        new System.Drawing.Rectangle(
+                            row.Left + 10,
+                            iconY,
+                            iconSize,
+                            iconSize));
+                    textLeft = row.Left + 44;
+                }
+
+                System.Drawing.Rectangle textBounds =
+                    new System.Drawing.Rectangle(
+                        textLeft,
+                        row.Top,
+                        Math.Max(
+                            1,
+                            row.Right - textLeft - 12),
+                        row.Height);
+
+                System.Windows.Forms.TextRenderer.DrawText(
+                    e.Graphics,
+                    app == null ? "" : app.Name,
+                    Font,
+                    textBounds,
+                    _foregroundColor,
+                    System.Windows.Forms.TextFormatFlags.Left |
+                    System.Windows.Forms.TextFormatFlags.VerticalCenter |
+                    System.Windows.Forms.TextFormatFlags.EndEllipsis |
+                    System.Windows.Forms.TextFormatFlags.NoPadding);
+            }
+
+            e.Graphics.Restore(state);
+
+            if (!showScrollbar)
+                return;
+
+            System.Drawing.Rectangle track = ScrollTrackRectangle();
+            using (var trackBrush =
+                new System.Drawing.SolidBrush(_fieldColor))
+                e.Graphics.FillRectangle(trackBrush, track);
+            using (var trackPen =
+                new System.Drawing.Pen(_focusColor))
+                e.Graphics.DrawRectangle(
+                    trackPen,
+                    track.Left,
+                    track.Top,
+                    Math.Max(0, track.Width - 1),
+                    Math.Max(0, track.Height - 1));
+
+            System.Drawing.Rectangle thumb = ScrollThumbRectangle();
+            using (var thumbBrush =
+                new System.Drawing.SolidBrush(
+                    _scrollThumbHover || _draggingScrollThumb
+                        ? _focusColor
+                        : _foregroundColor))
+                e.Graphics.FillRectangle(thumbBrush, thumb);
+        }
+    }
+
     // Windows/YASB equivalents of the current Awtarchy theme palettes.
     // GlazeWM is intentionally excluded so applying a theme never reloads the WM.
     sealed class YasbTheme
@@ -845,6 +1394,17 @@ internal static class WgdotNative
             CopyRuntimeWithRetry(currentExe, targetExe);
 
         EnsureHiddenLauncher();
+
+        if (String.IsNullOrWhiteSpace(TestRootOverride))
+        {
+            try
+            {
+                RefreshLauncherAppCache();
+            }
+            catch
+            {
+            }
+        }
 
         string cmd = "@echo off\r\n\"%~dp0wgdot.exe\" %*\r\n";
         File.WriteAllText(Path.Combine(BinRoot, "wgdot.cmd"), cmd, Encoding.ASCII);
@@ -8127,6 +8687,115 @@ class WgdotHidden
         }
     }
 
+    static List<LauncherApp> ReadLauncherAppCache()
+    {
+        var result = new List<LauncherApp>();
+
+        try
+        {
+            Dictionary<string, object> root = ReadJson(LauncherCachePath);
+            if (root == null || GetInt(root, "schemaVersion") != 1)
+                return result;
+
+            foreach (object raw in GetList(root, "apps"))
+            {
+                Dictionary<string, object> item = AsDictionary(raw);
+                string name = GetString(item, "name").Trim();
+                string path = GetString(item, "path").Trim();
+                string iconPath = GetString(item, "iconPath").Trim();
+
+                if (String.IsNullOrWhiteSpace(name) ||
+                    String.IsNullOrWhiteSpace(path))
+                    continue;
+
+                result.Add(new LauncherApp
+                {
+                    Name = name,
+                    Path = path,
+                    IconPath = String.IsNullOrWhiteSpace(iconPath)
+                        ? path
+                        : iconPath
+                });
+            }
+        }
+        catch
+        {
+            return new List<LauncherApp>();
+        }
+
+        return result
+            .OrderBy(x => x.Name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    static void WriteLauncherAppCache(List<LauncherApp> apps)
+    {
+        var rows = new List<object>();
+        foreach (LauncherApp app in apps ?? new List<LauncherApp>())
+        {
+            if (app == null ||
+                String.IsNullOrWhiteSpace(app.Name) ||
+                String.IsNullOrWhiteSpace(app.Path))
+                continue;
+
+            var row = new Dictionary<string, object>();
+            row["name"] = app.Name;
+            row["path"] = app.Path;
+            row["iconPath"] = String.IsNullOrWhiteSpace(app.IconPath)
+                ? app.Path
+                : app.IconPath;
+            rows.Add(row);
+        }
+
+        var root = new Dictionary<string, object>();
+        root["schemaVersion"] = 1;
+        root["updatedAt"] = DateTime.UtcNow.ToString("o");
+        root["apps"] = rows;
+        WriteJson(LauncherCachePath, root);
+    }
+
+    static bool LauncherAppsEquivalent(
+        List<LauncherApp> first,
+        List<LauncherApp> second)
+    {
+        first = first ?? new List<LauncherApp>();
+        second = second ?? new List<LauncherApp>();
+
+        if (first.Count != second.Count)
+            return false;
+
+        for (int i = 0; i < first.Count; i++)
+        {
+            LauncherApp a = first[i];
+            LauncherApp b = second[i];
+            if (a == null || b == null)
+                return false;
+
+            if (!String.Equals(
+                    a.Name,
+                    b.Name,
+                    StringComparison.OrdinalIgnoreCase) ||
+                !String.Equals(
+                    a.Path,
+                    b.Path,
+                    StringComparison.OrdinalIgnoreCase) ||
+                !String.Equals(
+                    a.IconPath ?? "",
+                    b.IconPath ?? "",
+                    StringComparison.OrdinalIgnoreCase))
+                return false;
+        }
+
+        return true;
+    }
+
+    static List<LauncherApp> RefreshLauncherAppCache()
+    {
+        List<LauncherApp> apps = GetLauncherApps();
+        WriteLauncherAppCache(apps);
+        return apps;
+    }
+
     static List<LauncherApp> GetLauncherApps()
     {
         var byName = new Dictionary<string, LauncherApp>(StringComparer.OrdinalIgnoreCase);
@@ -8253,7 +8922,7 @@ class WgdotHidden
             return 0;
         }
 
-        List<LauncherApp> apps = new List<LauncherApp>();
+        List<LauncherApp> apps = ReadLauncherAppCache();
 
         IntPtr foreground = GetForegroundWindow();
         POINT cursor;
@@ -8300,7 +8969,9 @@ class WgdotHidden
         form.ShowInTaskbar = false;
         form.TopMost = true;
         form.KeyPreview = true;
-        form.Opacity = 0.98;
+        // Hide the HWND until the complete themed surface paints once.
+        // Shown reveals it immediately; there is no fade/timer delay.
+        form.Opacity = 0.0;
 
         var outer = new System.Windows.Forms.Panel();
         outer.Dock = System.Windows.Forms.DockStyle.Fill;
@@ -8324,230 +8995,29 @@ class WgdotHidden
             System.Drawing.FontStyle.Regular,
             System.Drawing.GraphicsUnit.Pixel);
 
-        var results = new System.Windows.Forms.ListBox();
+        var results = new LauncherResultsView(
+            background,
+            foregroundColor,
+            hover,
+            field,
+            focus);
         results.Dock = System.Windows.Forms.DockStyle.Fill;
-        results.BorderStyle = System.Windows.Forms.BorderStyle.None;
-        results.BackColor = background;
-        results.ForeColor = foregroundColor;
         results.Font = new System.Drawing.Font(
             "Segoe UI",
             15f,
             System.Drawing.FontStyle.Regular,
             System.Drawing.GraphicsUnit.Pixel);
-        results.DrawMode = System.Windows.Forms.DrawMode.OwnerDrawFixed;
-        results.ItemHeight = 40;
-        results.IntegralHeight = false;
-
-        var resultsHost = new System.Windows.Forms.Panel();
-        resultsHost.Dock = System.Windows.Forms.DockStyle.Fill;
-        resultsHost.BackColor = background;
-
-        var scrollTrack = new System.Windows.Forms.Panel();
-        scrollTrack.Dock = System.Windows.Forms.DockStyle.Right;
-        scrollTrack.Width = 7;
-        scrollTrack.Padding = new System.Windows.Forms.Padding(1, 2, 1, 2);
-        scrollTrack.BackColor = field;
-        scrollTrack.Visible = false;
-
-        var scrollThumb = new System.Windows.Forms.Panel();
-        scrollThumb.Width = 5;
-        scrollThumb.Height = 24;
-        scrollThumb.Left = 1;
-        scrollThumb.Top = 2;
-        scrollThumb.BackColor = focus;
-        scrollThumb.Cursor = System.Windows.Forms.Cursors.Hand;
-        scrollTrack.Controls.Add(scrollThumb);
-
-        bool draggingScrollThumb = false;
-        int scrollDragOffset = 0;
-
-        Action updateLauncherScrollBar = null;
-        updateLauncherScrollBar = delegate
-        {
-            if (results.IsDisposed || scrollTrack.IsDisposed)
-                return;
-
-            if (results.IsHandleCreated)
-                ShowScrollBar(results.Handle, SbVert, false);
-
-            int itemCount = results.Items.Count;
-            int visibleItems = Math.Max(
-                1,
-                results.ClientSize.Height / Math.Max(1, results.ItemHeight));
-            int maxTop = Math.Max(0, itemCount - visibleItems);
-
-            scrollTrack.Visible = maxTop > 0;
-            if (!scrollTrack.Visible)
-                return;
-
-            int usableHeight = Math.Max(
-                1,
-                scrollTrack.ClientSize.Height - scrollTrack.Padding.Vertical);
-            int thumbHeight = Math.Max(
-                24,
-                Math.Min(
-                    usableHeight,
-                    (int)Math.Round(
-                        usableHeight * Math.Min(1.0, visibleItems / (double)Math.Max(1, itemCount)))));
-            int travel = Math.Max(0, usableHeight - thumbHeight);
-            int top = scrollTrack.Padding.Top;
-            if (maxTop > 0 && travel > 0)
-                top += (int)Math.Round(travel * Math.Min(maxTop, Math.Max(0, results.TopIndex)) / (double)maxTop);
-
-            scrollThumb.Height = thumbHeight;
-            scrollThumb.Top = top;
-            scrollThumb.Left = Math.Max(0, (scrollTrack.ClientSize.Width - scrollThumb.Width) / 2);
-        };
-
-        Action<int> setLauncherTopIndexFromTrackY = delegate(int y)
-        {
-            int itemCount = results.Items.Count;
-            int visibleItems = Math.Max(
-                1,
-                results.ClientSize.Height / Math.Max(1, results.ItemHeight));
-            int maxTop = Math.Max(0, itemCount - visibleItems);
-            if (maxTop <= 0)
-                return;
-
-            int usableHeight = Math.Max(
-                1,
-                scrollTrack.ClientSize.Height - scrollTrack.Padding.Vertical);
-            int thumbHeight = Math.Max(
-                24,
-                Math.Min(
-                    usableHeight,
-                    (int)Math.Round(
-                        usableHeight * Math.Min(1.0, visibleItems / (double)Math.Max(1, itemCount)))));
-            int travel = Math.Max(1, usableHeight - thumbHeight);
-            int desiredTop = y - scrollTrack.Padding.Top - scrollDragOffset;
-            desiredTop = Math.Max(0, Math.Min(travel, desiredTop));
-            results.TopIndex = Math.Max(
-                0,
-                Math.Min(
-                    maxTop,
-                    (int)Math.Round(maxTop * desiredTop / (double)travel)));
-            updateLauncherScrollBar();
-        };
-
-        results.HandleCreated += delegate
-        {
-            ShowScrollBar(results.Handle, SbVert, false);
-        };
-        results.SizeChanged += delegate { updateLauncherScrollBar(); };
-        results.SelectedIndexChanged += delegate { updateLauncherScrollBar(); };
-        results.MouseWheel += delegate
-        {
-            if (!form.IsDisposed)
-            {
-                try { form.BeginInvoke(updateLauncherScrollBar); } catch { }
-            }
-        };
-        scrollTrack.SizeChanged += delegate { updateLauncherScrollBar(); };
-        scrollTrack.MouseDown += delegate(object sender, System.Windows.Forms.MouseEventArgs e)
-        {
-            if (e.Button != System.Windows.Forms.MouseButtons.Left)
-                return;
-
-            scrollDragOffset = scrollThumb.Height / 2;
-            setLauncherTopIndexFromTrackY(e.Y);
-        };
-        scrollThumb.MouseDown += delegate(object sender, System.Windows.Forms.MouseEventArgs e)
-        {
-            if (e.Button != System.Windows.Forms.MouseButtons.Left)
-                return;
-
-            draggingScrollThumb = true;
-            scrollDragOffset = e.Y;
-            scrollThumb.Capture = true;
-        };
-        scrollThumb.MouseMove += delegate(object sender, System.Windows.Forms.MouseEventArgs e)
-        {
-            if (!draggingScrollThumb || (e.Button & System.Windows.Forms.MouseButtons.Left) == 0)
-                return;
-
-            System.Drawing.Point trackPoint = scrollTrack.PointToClient(
-                scrollThumb.PointToScreen(e.Location));
-            setLauncherTopIndexFromTrackY(trackPoint.Y);
-        };
-        scrollThumb.MouseUp += delegate(object sender, System.Windows.Forms.MouseEventArgs e)
-        {
-            draggingScrollThumb = false;
-            scrollThumb.Capture = false;
-        };
-
-        resultsHost.Controls.Add(results);
-        resultsHost.Controls.Add(scrollTrack);
-        scrollTrack.BringToFront();
 
         Action refresh = delegate
         {
-            List<LauncherApp> filtered = FilterLauncherApps(apps, search.Text, 12);
-            results.BeginUpdate();
-            try
-            {
-                results.Items.Clear();
-                foreach (LauncherApp app in filtered)
-                    results.Items.Add(app);
-
-                if (results.Items.Count > 0)
-                    results.SelectedIndex = 0;
-            }
-            finally
-            {
-                results.EndUpdate();
-                updateLauncherScrollBar();
-            }
-        };
-
-        results.DrawItem += delegate(
-            object sender,
-            System.Windows.Forms.DrawItemEventArgs e)
-        {
-            if (e.Index < 0 || e.Index >= results.Items.Count)
-                return;
-
-            bool selected = (e.State & System.Windows.Forms.DrawItemState.Selected) != 0;
-            using (var brush = new System.Drawing.SolidBrush(selected ? hover : background))
-                e.Graphics.FillRectangle(brush, e.Bounds);
-
-            LauncherApp app = results.Items[e.Index] as LauncherApp;
-            string label = app == null ? "" : app.Name;
-            System.Drawing.Image icon = GetLauncherAppIcon(app);
-            int textLeft = e.Bounds.Left + 12;
-            if (icon != null)
-            {
-                const int iconSize = 24;
-                int iconY = e.Bounds.Top + Math.Max(0, (e.Bounds.Height - iconSize) / 2);
-                e.Graphics.DrawImage(
-                    icon,
-                    new System.Drawing.Rectangle(
-                        e.Bounds.Left + 10,
-                        iconY,
-                        iconSize,
-                        iconSize));
-                textLeft = e.Bounds.Left + 44;
-            }
-
-            System.Drawing.Rectangle textBounds = new System.Drawing.Rectangle(
-                textLeft,
-                e.Bounds.Top,
-                Math.Max(1, e.Bounds.Right - textLeft - 12),
-                e.Bounds.Height);
-
-            System.Windows.Forms.TextRenderer.DrawText(
-                e.Graphics,
-                label,
-                results.Font,
-                textBounds,
-                foregroundColor,
-                System.Windows.Forms.TextFormatFlags.Left |
-                System.Windows.Forms.TextFormatFlags.VerticalCenter |
-                System.Windows.Forms.TextFormatFlags.EndEllipsis);
+            List<LauncherApp> filtered =
+                FilterLauncherApps(apps, search.Text, 12);
+            results.SetItems(filtered);
         };
 
         Action launchSelected = delegate
         {
-            LauncherApp app = results.SelectedItem as LauncherApp;
+            LauncherApp app = results.SelectedApp;
             if (app == null)
                 return;
 
@@ -8567,6 +9037,8 @@ class WgdotHidden
             }
         };
 
+        results.ItemActivated += delegate { launchSelected(); };
+
         search.TextChanged += delegate { refresh(); };
         search.KeyDown += delegate(
             object sender,
@@ -8574,15 +9046,13 @@ class WgdotHidden
         {
             if (e.KeyCode == System.Windows.Forms.Keys.Down)
             {
-                if (results.Items.Count > 0)
-                    results.SelectedIndex = Math.Min(results.Items.Count - 1, results.SelectedIndex + 1);
+                results.MoveSelection(1);
                 e.Handled = true;
                 e.SuppressKeyPress = true;
             }
             else if (e.KeyCode == System.Windows.Forms.Keys.Up)
             {
-                if (results.Items.Count > 0)
-                    results.SelectedIndex = Math.Max(0, results.SelectedIndex - 1);
+                results.MoveSelection(-1);
                 e.Handled = true;
                 e.SuppressKeyPress = true;
             }
@@ -8600,17 +9070,11 @@ class WgdotHidden
             }
         };
 
-        results.DoubleClick += delegate { launchSelected(); };
         results.KeyDown += delegate(
             object sender,
             System.Windows.Forms.KeyEventArgs e)
         {
-            if (e.KeyCode == System.Windows.Forms.Keys.Enter)
-            {
-                launchSelected();
-                e.Handled = true;
-            }
-            else if (e.KeyCode == System.Windows.Forms.Keys.Escape)
+            if (e.KeyCode == System.Windows.Forms.Keys.Escape)
             {
                 form.Close();
                 e.Handled = true;
@@ -8624,17 +9088,45 @@ class WgdotHidden
         };
 
         searchWrap.Controls.Add(search);
-        outer.Controls.Add(resultsHost);
+        outer.Controls.Add(results);
         outer.Controls.Add(searchWrap);
         form.Controls.Add(outer);
 
+        if (apps.Count > 0)
+            refresh();
+
         form.Shown += delegate
         {
+            // Paint while transparent so DWM never exposes an unpainted
+            // WinForms/default-color frame before the themed launcher.
+            form.Refresh();
+            outer.Refresh();
+            searchWrap.Refresh();
+            search.Refresh();
+            results.Refresh();
+            form.Opacity = 0.98;
             search.Focus();
+
+            List<LauncherApp> cachedApps =
+                new List<LauncherApp>(apps);
 
             System.Threading.ThreadPool.QueueUserWorkItem(delegate
             {
                 List<LauncherApp> loadedApps = GetLauncherApps();
+                bool changed =
+                    !LauncherAppsEquivalent(cachedApps, loadedApps);
+
+                if (changed)
+                {
+                    try
+                    {
+                        WriteLauncherAppCache(loadedApps);
+                    }
+                    catch
+                    {
+                    }
+                }
+
                 if (form.IsDisposed)
                     return;
 
@@ -8642,15 +9134,17 @@ class WgdotHidden
                 {
                     form.BeginInvoke((Action)delegate
                     {
-                        apps = loadedApps;
-                        refresh();
+                        if (changed || apps.Count == 0)
+                        {
+                            apps = loadedApps;
+                            refresh();
+                        }
                     });
                 }
                 catch
                 {
                 }
             });
-
         };
 
         System.Windows.Forms.Application.Run(form);

@@ -56,6 +56,12 @@ Assert-NotContains $config "keys: `"win+alt+d`"" "YASB does not globally capture
 Assert-Contains $config "wgdotw.exe power-menu" "normal YASB uses the compiled Awtarchy-style power surface"
 Assert-Contains $config "glazewm.workspaces.GlazewmWorkspacesWidget" "native GlazeWM workspace widget is used"
 Assert-Contains $config 'populated_label: "{display_name}"' "YASB workspace buttons render GlazeWM display_name values"
+foreach ($workspaceIndex in 1..10) {
+    Assert-Contains $glazeNormal ('display_name: "' + $workspaceIndex + '"') "Normal workspace $workspaceIndex defaults to numbers only"
+    Assert-Contains $glazeWork ('display_name: "' + $workspaceIndex + '"') "Work workspace $workspaceIndex defaults to numbers only"
+}
+Assert-Contains $config 'populated_label: "{display_name}"' "Normal YASB preserves user-editable GlazeWM display_name labels"
+Assert-Contains $workConfig 'populated_label: "{display_name}"' "Work YASB preserves user-editable GlazeWM display_name labels"
 Assert-NotContains $config 'populated_label: "{name}"' "YASB does not override GlazeWM display_name with raw workspace names"
 Assert-Contains $config "monitor_exclusive: true" "monitor-local workspace/task behavior is retained"
 Assert-Contains $config "enable_scroll_switching: true" "workspace wheel switching is enabled"
