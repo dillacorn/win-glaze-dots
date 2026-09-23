@@ -230,6 +230,71 @@ function WgdotYaziEscape()
     ya.emit("escape", {})
 end
 
+WgdotYaziPreviewButton = {
+    _id = "wgdot-yazi-preview-button",
+}
+
+function WgdotYaziPreviewButton:new(area)
+    return setmetatable({ _area = area }, { __index = self })
+end
+
+function WgdotYaziPreviewButton:reflow()
+    return { self }
+end
+
+function WgdotYaziPreviewButton:redraw()
+    local label = WgdotYaziPreviewMaximized and "[ Restore ]" or "[ Maximize ]"
+    return {
+        ui.Text(ui.Line(label):style(ui.Style():reverse()))
+            :area(self._area)
+            :align(ui.Align.RIGHT),
+    }
+end
+
+function WgdotYaziPreviewButton:click(event, up)
+    if up or not event.is_left then
+        return
+    end
+    WgdotYaziTogglePreviewMax()
+end
+
+local WgdotYaziDefaultPreviewNew = Preview.new
+local WgdotYaziDefaultPreviewRedraw = Preview.redraw
+
+function Preview:new(area, tab)
+    local reserve_control_row = area.w >= 12 and area.h >= 2
+    local preview_area = reserve_control_row
+        and ui.Rect { x = area.x, y = area.y, w = area.w, h = area.h - 1 }
+        or area
+
+    local me = WgdotYaziDefaultPreviewNew(self, preview_area, tab)
+    if reserve_control_row then
+        me._wgdot_preview_button = WgdotYaziPreviewButton:new(ui.Rect {
+            x = area.x + area.w - 12,
+            y = area.y + area.h - 1,
+            w = 12,
+            h = 1,
+        })
+    end
+    return me
+end
+
+function Preview:reflow()
+    local components = { self }
+    if self._wgdot_preview_button then
+        components[#components + 1] = self._wgdot_preview_button
+    end
+    return components
+end
+
+function Preview:redraw()
+    local elements = WgdotYaziDefaultPreviewRedraw(self) or {}
+    if self._wgdot_preview_button then
+        elements = ya.list_merge(elements, ui.redraw(self._wgdot_preview_button))
+    end
+    return elements
+end
+
 local function WgdotYaziArchiveSnapshot()
     local tab = cx.active
     local files = {}
