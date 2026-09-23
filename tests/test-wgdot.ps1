@@ -928,9 +928,6 @@ Assert-True ($yasbWorkConfigText -notmatch 'workspace_move_hub|workspace-move-hu
 Assert-True ($yasbConfigText -match 'glazewm\.exe command move-workspace --direction left') "Normal YASB keeps direct workspace arrows"
 Assert-True ($yasbWorkConfigText -match 'glazewm\.exe command move-workspace --direction left') "Work YASB keeps direct workspace arrows"
 Assert-True ($yasbConfigText -match 'populated_label:\s*"\{display_name\}"') "Normal YASB renders GlazeWM workspace display_name values"
-$yasbStyleText = Get-Content -LiteralPath (Join-Path $repoRoot "UserProfile\.config\yasb\styles.css") -Raw
-Assert-True ($yasbStyleText -match 'font-family:\s*"Segoe UI Variable Text",\s*"Segoe UI",\s*"NotoSansM NFM"') "workspace labels use UI digits with Nerd Font glyph fallback"
-Assert-True ($yasbStyleText -match '(?s)\.glazewm-workspaces \.ws-btn \{.*?font-size:\s*18px;') "workspace Nerd glyphs use the larger optical size"
 Assert-True ($yasbWorkConfigText -match 'populated_label:\s*"\{display_name\}"') "Work YASB renders GlazeWM workspace display_name values"
 Assert-True ($yasbConfigText -notmatch 'populated_label:\s*"\{name\}"') "Normal YASB does not override workspace display_name with raw name"
 Assert-True ($yasbWorkConfigText -notmatch 'populated_label:\s*"\{name\}"') "Work YASB does not override workspace display_name with raw name"
@@ -938,27 +935,13 @@ Assert-True ($yasbConfigText -notmatch 'mouse-mode-toggle|workspace_mouse') "Nor
 Assert-True ($yasbWorkConfigText -notmatch 'mouse-mode-toggle|workspace_mouse') "Work YASB contains no retired mouse-mode runtime"
 $glazeNormalText = Get-Content -LiteralPath (Join-Path $repoRoot "UserProfile\.glzr\glazewm\config.yaml") -Raw
 $glazeWorkText = Get-Content -LiteralPath (Join-Path $repoRoot "UserProfile\.glzr\glazewm\custom_work_config.yaml") -Raw
-$glazeNormalUtf8 = [System.IO.File]::ReadAllText(
-    (Join-Path $repoRoot "UserProfile\.glzr\glazewm\config.yaml"),
-    [System.Text.Encoding]::UTF8)
-$workspaceGlyphs = @(
-    [char]::ConvertFromUtf32(0xF07B7),
-    [string][char]0xF269,
-    [string][char]0xF095,
-    [string][char]0xF1B6,
-    [string][char]0xF028,
-    [string][char]0xF086,
-    [string][char]0xF06D,
-    [string][char]0xF0F4,
-    [string][char]0xF03E,
-    [string][char]0xF03D
-)
 for ($workspaceIndex = 1; $workspaceIndex -le 10; $workspaceIndex++) {
-    $expectedDisplayName = 'display_name: "' + $workspaceIndex + ' ' + $workspaceGlyphs[$workspaceIndex - 1] + '"'
-    Assert-True ($glazeNormalUtf8.Contains($expectedDisplayName)) "Normal workspace $workspaceIndex uses the Awtarchy stock number+glyph label"
+    $expectedDisplayName = 'display_name: "' + $workspaceIndex + '"'
+    Assert-True ($glazeNormalText.Contains($expectedDisplayName)) "Normal workspace $workspaceIndex defaults to a numeric display_name"
+    Assert-True ($glazeWorkText.Contains($expectedDisplayName)) "Work workspace $workspaceIndex defaults to a numeric display_name"
 }
-Assert-True ($glazeNormalUtf8 -notmatch 'display_name:\s*"\d+:') "Normal workspace labels contain no number/icon colon separator"
-Assert-True ($glazeWorkText -match 'display_name:\s*"1: CHATS"') "Work profile workspace labels remain unchanged"
+Assert-True ($yasbConfigText -match 'populated_label:\s*"\{display_name\}"') "Normal YASB still renders editable GlazeWM display_name values"
+Assert-True ($yasbWorkConfigText -match 'populated_label:\s*"\{display_name\}"') "Work YASB still renders editable GlazeWM display_name values"
 Assert-True ($glazeNormalText -notmatch 'flow-launcher\.ps1|yasb-quick-launch\.ps1') "Normal GlazeWM contains no launcher relay script"
 Assert-True ($glazeWorkText -notmatch 'flow-launcher\.ps1|yasb-quick-launch\.ps1') "Work GlazeWM contains no launcher relay script"
 Assert-True ($glazeNormalText -match 'wgdotw\.exe launcher hotkey') "Normal GlazeWM uses the compiled launcher"

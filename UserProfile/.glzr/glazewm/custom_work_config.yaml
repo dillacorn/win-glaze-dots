@@ -67,26 +67,28 @@ window_behavior:
       shown_on_top: true
 
 workspaces:
+  # Numbers-only defaults. YASB renders display_name directly, so users can
+  # replace any display_name with a custom workspace label if desired.
   - name: "1"
-    display_name: "1: CHATS"
+    display_name: "1"
   - name: "2"
-    display_name: "2: WORK"
+    display_name: "2"
   - name: "3"
-    display_name: "3: MAIL"
+    display_name: "3"
   - name: "4"
-    display_name: "4: FILES"
+    display_name: "4"
   - name: "5"
-    display_name: "5: HTTP"
+    display_name: "5"
   - name: "6"
-    display_name: "6: OFFICE"
+    display_name: "6"
   - name: "7"
-    display_name: "7: PDF"
+    display_name: "7"
   - name: "8"
-    display_name: "8:    "
+    display_name: "8"
   - name: "9"
-    display_name: "9:    "
+    display_name: "9"
   - name: "10"
-    display_name: "10:   "
+    display_name: "10"
 
 window_rules:
   # HARD IGNORE: GlazeWM must not manage Civil 3D at all.

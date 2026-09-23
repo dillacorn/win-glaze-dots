@@ -4,7 +4,7 @@ This YASB configuration mirrors the current Awtarchy bar where Windows, YASB, an
 
 WGDot manages installation, updates, backups, and deployment. Runtime ownership is hybrid: GlazeWM, YASB, Windows, and applications own behavior they can provide natively, while a small compiled WGDot runtime handles only custom Windows behavior that genuinely needs code or low-level APIs.
 
-- Workspace buttons use GlazeWM `display_name` values rather than raw workspace IDs. The Normal/personal profile uses Awtarchy's stock number+glyph labels with no colon (`1 󰞷` through `10 `); the Work profile intentionally keeps its existing text labels.\n\n## Runtime ownership
+- Workspace buttons use GlazeWM `display_name` values rather than raw workspace IDs. Both profiles ship with numbers-only labels (`1` through `10`) at the normal bar text size. These are defaults only: users can edit any workspace `display_name` in the relevant GlazeWM config and YASB will render that custom label directly.\n\n## Runtime ownership
 
 - **GlazeWM** owns window-manager keybindings, binding modes, pause, workspace actions, screenshots, and direct Windows/application launches.
 - **YASB** owns ordinary bar widgets and native callbacks; for the custom application launcher it owns only the visible bar button.
@@ -174,7 +174,7 @@ The Noto face renders Nerd Font glyphs smaller than the previous JetBrains fallb
 - Awtarchy's persistent global "new windows float" bar indicator is not mirrored, but Quick Settings can now toggle GlazeWM `window_behavior.initial_state` between `tiling` and `floating`; existing windows keep their current state.
 - A dedicated privacy/screen-capture indicator has no verified native YASB equivalent.
 - Current YASB bar placement is top/bottom; left/right vertical bars are not faked.
-- Workspace urgent-state coloring and Awtarchy's static number+glyph mappings do not have exact YASB equivalents.
+- Workspace urgent-state coloring does not have an exact YASB equivalent; WGDot defaults to numeric labels while preserving GlazeWM `display_name` for user-defined names.
 - The experimental mouse binding mode is intentionally omitted. Its placeholder/hub is also removed; the four directional workspace arrows remain directly available.
 - Awtarchy can retint task/tray image pixels; stock YASB does not expose an equivalent image-tint option.
 - At exactly 15% battery, YASB's shared threshold controls both critical styling and glyph selection, so the exact Awtarchy glyph boundary cannot be reproduced independently.

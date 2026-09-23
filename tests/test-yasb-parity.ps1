@@ -56,14 +56,12 @@ Assert-NotContains $config "keys: `"win+alt+d`"" "YASB does not globally capture
 Assert-Contains $config "wgdotw.exe power-menu" "normal YASB uses the compiled Awtarchy-style power surface"
 Assert-Contains $config "glazewm.workspaces.GlazewmWorkspacesWidget" "native GlazeWM workspace widget is used"
 Assert-Contains $config 'populated_label: "{display_name}"' "YASB workspace buttons render GlazeWM display_name values"
-$workspace1Glyph = [char]::ConvertFromUtf32(0xF07B7)
-$workspace2Glyph = [string][char]0xF269
-$workspace10Glyph = [string][char]0xF03D
-Assert-Contains $glazeNormal ('display_name: "1 ' + $workspace1Glyph + '"') "Normal workspace 1 uses the Awtarchy stock glyph"
-Assert-Contains $glazeNormal ('display_name: "2 ' + $workspace2Glyph + '"') "Normal workspace 2 replaces Brows text with the Awtarchy browser glyph"
-Assert-Contains $glazeNormal ('display_name: "10 ' + $workspace10Glyph + '"') "Normal workspace 10 uses the Awtarchy recording glyph"
-Assert-NotContains $glazeNormal 'display_name: "2: Brows"' "Normal workspace labels no longer use legacy text names/colon separators"
-Assert-Contains $glazeWork 'display_name: "1: CHATS"' "Work workspace labels are intentionally unchanged"
+foreach ($workspaceIndex in 1..10) {
+    Assert-Contains $glazeNormal ('display_name: "' + $workspaceIndex + '"') "Normal workspace $workspaceIndex defaults to numbers only"
+    Assert-Contains $glazeWork ('display_name: "' + $workspaceIndex + '"') "Work workspace $workspaceIndex defaults to numbers only"
+}
+Assert-Contains $config 'populated_label: "{display_name}"' "Normal YASB preserves user-editable GlazeWM display_name labels"
+Assert-Contains $workConfig 'populated_label: "{display_name}"' "Work YASB preserves user-editable GlazeWM display_name labels"
 Assert-NotContains $config 'populated_label: "{name}"' "YASB does not override GlazeWM display_name with raw workspace names"
 Assert-Contains $config "monitor_exclusive: true" "monitor-local workspace/task behavior is retained"
 Assert-Contains $config "enable_scroll_switching: true" "workspace wheel switching is enabled"
@@ -353,8 +351,6 @@ Assert-Contains -Text $style -Needle "background-color: var(--foreground);" -Mes
 Assert-Contains -Text $style -Needle "background-color: var(--active);" -Message "slider unfilled track uses the active theme surface"
 Assert-Contains -Text $style -Needle "border: 1px solid var(--focus);" -Message "slider groove uses the active theme focus edge"
 Assert-Contains -Text $style -Needle "min-width: 90px;" -Message "quick settings titles reserve readable inline label width"
-Assert-Contains -Text $style -Needle 'font-family: "Segoe UI Variable Text", "Segoe UI", "NotoSansM NFM", "JetBrainsMono NFP";' -Message "workspace numbers use UI font while Nerd glyphs fall back to Nerd Font"
-Assert-Contains -Text $style -Needle "font-size: 18px;" -Message "workspace glyph line uses the larger Awtarchy-like optical size"
 Assert-Contains -Text $style -Needle ".glazewm-workspaces .ws-btn.empty" -Message "inactive empty workspace buttons collapse"
 Assert-Contains -Text $style -Needle "min-height: 28px;" -Message "workspace shading spans the full 28 px bar height"
 Assert-Contains -Text $style -Needle "margin-left: 2px;" -Message "CPU and memory icons have a tiny separation from their values"
