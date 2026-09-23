@@ -574,6 +574,8 @@ Assert-True ($nativeSourceText -match 'Firefox extension policy:') "Firefox poli
 Assert-True ($nativeSourceText -match 'OpenRegistryKeyForValueWrite') "registry writes open existing keys before attempting to create them"
 Assert-True ($nativeSourceText -match 'RegistryRights\.QueryValues \| RegistryRights\.SetValue') "existing registry keys request only value query/write rights"
 Assert-True ($nativeSourceText -match 'Registry access denied:') "registry failures identify the exact hive/path/value"
+Assert-True ($nativeSourceText -match 'catch \(SecurityException ex\)') "registry mutation helper normalizes SecurityException access denials"
+Assert-True ($nativeSourceText -match 'Microsoft\.Win32 can surface protected registry writes as either') "registry helper documents both Windows access-denied exception paths"
 Assert-True ($nativeSourceText -match 'DiscardRegistryOriginalSnapshot') "failed TaskbarDa writes do not leave a false rollback snapshot"
 Assert-True ($nativeSourceText -match 'AllowNewsAndInterests') "protected TaskbarDa falls back to the documented Widgets policy"
 Assert-True ($nativeSourceText -match 'using the supported Widgets policy fallback') "Widgets fallback is visible during reconciliation"

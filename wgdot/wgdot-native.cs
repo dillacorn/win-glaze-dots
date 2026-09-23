@@ -11,6 +11,7 @@ using System.Linq;
 using System.Net;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
+using System.Security;
 using System.Security.AccessControl;
 using System.Security.Principal;
 using System.Text;
@@ -7637,6 +7638,16 @@ class WgdotHidden
         }
         catch (UnauthorizedAccessException ex)
         {
+            throw new UnauthorizedAccessException(
+                "Registry access denied: " + hive + "\\" + path + "\\" + name,
+                ex);
+        }
+        catch (SecurityException ex)
+        {
+            // Microsoft.Win32 can surface protected registry writes as either
+            // UnauthorizedAccessException or SecurityException depending on
+            // the key ACL / Windows build. Normalize both so callers can
+            // handle access-denied compatibility paths consistently.
             throw new UnauthorizedAccessException(
                 "Registry access denied: " + hive + "\\" + path + "\\" + name,
                 ex);
