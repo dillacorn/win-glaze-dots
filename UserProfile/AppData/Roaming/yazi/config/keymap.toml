@@ -16,6 +16,7 @@ prepend_keymap = [
   { on = ["<Right>"], run = "enter",     desc = "Enter directory" },
   { on = ["l"],       run = "enter",     desc = "Enter directory" },
   { on = ["<Enter>"], run = 'lua "WgdotYaziSmartEnter()"', desc = "Enter directory or open file" },
+  { on = ["<Esc>"],   run = 'lua "WgdotYaziEscape()"', desc = "Exit maximized preview or cancel" },
   { on = ["q"],       run = 'lua "WgdotYaziConfirmQuit(false)"', desc = "Quit with confirmation" },
   { on = ["Q"],       run = 'lua "WgdotYaziConfirmQuit(true)"', desc = "Quit without cwd file (confirm)" },
   { on = ["<C-w>"],   run = 'lua "WgdotYaziCloseTab()"', desc = "Close tab (confirm if last)" },
@@ -23,10 +24,14 @@ prepend_keymap = [
   { on = ["h"],       run = "leave",     desc = "Up one dir" },
   { on = ["<Backspace>"], run = "leave", desc = "Up one dir" },
 
-  # History
+  # History / navigation
   { on = ["H"],       run = "back",      desc = "Back in history" },
   { on = ["L"],       run = "forward",   desc = "Forward in history" },
   { on = ["g", "r"], run = "plugin recent-files", desc = "Go to recently opened file" },
+  { on = ["g", "b"], run = "plugin bookmarks", desc = "Go to bookmarked folder" },
+  { on = ["g", "B"], run = 'lua "WgdotYaziToggleBookmark()"', desc = "Bookmark hovered/current folder" },
+  { on = ["g", "m"], run = "plugin drives", desc = "Open Windows drive picker" },
+  { on = ["<C-f>"],  run = 'lua "WgdotYaziSearchMenu()"', desc = "Search current directory tree" },
 
   # Selection
   { on = ["<Space>"],   run = "toggle", desc = "Toggle selection" },
@@ -57,9 +62,12 @@ prepend_keymap = [
   { on = ["d", "d"], run = "remove",               desc = "Trash selection" },
   { on = ["<Delete>"], run = "remove",                    desc = "Trash selection" },
   { on = ["t", "e"], run = "shell --orphan -- wt.exe -w new new-tab -d .", desc = "Open terminal here" },
+  { on = ["t", "n"], run = 'lua "WgdotYaziOpenHoveredTab()"', desc = "Open hovered folder in new tab" },
 
   # Display
   { on = ["m", "t"], run = 'lua "WgdotYaziToggleTimeFormat()"', desc = "Toggle modified time 24h/12h" },
+  { on = ["m", "v"], run = 'lua "WgdotYaziTogglePreview()"', desc = "Toggle preview pane" },
+  { on = ["m", "x"], run = 'lua "WgdotYaziTogglePreviewMax()"', desc = "Maximize/restore preview" },
 
   # Help
   { on = ["?"],       run = "help",       desc = "Help" }
