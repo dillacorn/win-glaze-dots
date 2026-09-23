@@ -15,7 +15,7 @@ prepend_keymap = [
   # Enter/leave
   { on = ["<Right>"], run = "enter",     desc = "Enter directory" },
   { on = ["l"],       run = "enter",     desc = "Enter directory" },
-  { on = ["<Enter>"], run = "open",      desc = "Open file" },
+  { on = ["<Enter>"], run = 'lua "WgdotYaziSmartEnter()"', desc = "Enter directory or open file" },
   { on = ["<Left>"],  run = "leave",     desc = "Up one dir" },
   { on = ["h"],       run = "leave",     desc = "Up one dir" },
   { on = ["<Backspace>"], run = "leave", desc = "Up one dir" },
