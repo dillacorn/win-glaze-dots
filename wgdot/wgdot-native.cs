@@ -22,7 +22,7 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-80";
+    const string Version = "native-preview-81";
     const int WingetPreflightTimeoutMs = 30000;
     const double RawAccelHotkeyWidthRatio = 0.625;
     const double RawAccelHotkeyHeightRatio = 0.825;
@@ -1198,6 +1198,7 @@ internal static class WgdotNative
             if (command == "eartrumpet-startup") return EarTrumpetStartup();
             if (command == "launcher") return LauncherFromArgs(args.Skip(1).ToArray());
             if (command == "power-menu") return PowerMenu();
+            if (command == "btop-toggle") return BtopToggle();
             if (command == "rawaccel-toggle") return RawAccelToggle();
             if (command == "rawaccel-startup") return RawAccelStartup();
             if (command == "gpu-driver") return GpuDriverMaintenance();
@@ -4539,6 +4540,69 @@ class WgdotHidden
                 Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "AltSnap", "AltSnap.exe"),
                 Path.Combine(local, "Programs", "AltSnap", "AltSnap.exe")
             });
+    }
+
+    static string FindBtopExe()
+    {
+        string local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        string programFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
+        string programFilesX86 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
+
+        var candidates = new List<string>
+        {
+            Path.Combine(local, "Microsoft", "WinGet", "Links", "btop.exe"),
+            Path.Combine(local, "Microsoft", "WinGet", "Links", "btop4win.exe")
+        };
+
+        if (!String.IsNullOrWhiteSpace(programFiles))
+        {
+            candidates.Add(Path.Combine(programFiles, "WinGet", "Links", "btop.exe"));
+            candidates.Add(Path.Combine(programFiles, "WinGet", "Links", "btop4win.exe"));
+        }
+        if (!String.IsNullOrWhiteSpace(programFilesX86))
+        {
+            candidates.Add(Path.Combine(programFilesX86, "WinGet", "Links", "btop.exe"));
+            candidates.Add(Path.Combine(programFilesX86, "WinGet", "Links", "btop4win.exe"));
+        }
+
+        string found = FindExecutableWithCandidates("btop.exe", candidates);
+        if (!String.IsNullOrWhiteSpace(found))
+            return found;
+
+        found = FindExecutableWithCandidates("btop4win.exe", candidates);
+        if (!String.IsNullOrWhiteSpace(found))
+            return found;
+
+        // Portable WinGet packages normally expose a command link. If that
+        // link is missing or stale, inspect only the btop4win package payload.
+        string packagesRoot = Path.Combine(local, "Microsoft", "WinGet", "Packages");
+        if (!Directory.Exists(packagesRoot))
+            return "";
+
+        try
+        {
+            foreach (string packageDir in Directory.GetDirectories(packagesRoot))
+            {
+                string packageName = Path.GetFileName(packageDir) ?? "";
+                if (!packageName.StartsWith("aristocratos.btop4win", StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                foreach (string fileName in new[] { "btop.exe", "btop4win.exe" })
+                {
+                    string[] matches = Directory.GetFiles(
+                        packageDir,
+                        fileName,
+                        SearchOption.AllDirectories);
+                    if (matches.Length > 0)
+                        return matches[0];
+                }
+            }
+        }
+        catch
+        {
+        }
+
+        return "";
     }
 
     static bool IsRawAccelGuiExecutable(string path)
@@ -8327,6 +8391,35 @@ class WgdotHidden
             System.Threading.Thread.Sleep(25);
 
         return LaunchThemeWindow(targetScreen);
+    }
+
+    static int LaunchBtopWindow()
+    {
+        string btopExe = FindBtopExe();
+        if (String.IsNullOrWhiteSpace(btopExe))
+            throw new Exception(
+                "btop is selected but its installed executable could not be resolved.");
+
+        var psi = new ProcessStartInfo();
+        psi.FileName = "wt.exe";
+        psi.Arguments =
+            "-w new new-tab --title \"btop\" --suppressApplicationTitle " +
+            Q(btopExe);
+        psi.UseShellExecute = true;
+        Process.Start(psi);
+        return 0;
+    }
+
+    static int BtopToggle()
+    {
+        IntPtr existing = FindTopLevelWindowByExactTitle("btop");
+        if (existing != IntPtr.Zero)
+        {
+            PostMessage(existing, WmClose, IntPtr.Zero, IntPtr.Zero);
+            return 0;
+        }
+
+        return LaunchBtopWindow();
     }
 
     static void SendNativeClipboardHistoryChord()

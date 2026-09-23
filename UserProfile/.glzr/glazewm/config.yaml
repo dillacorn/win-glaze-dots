@@ -234,7 +234,7 @@ binding_modes:
         bindings: ["lwin+enter", "rwin+enter", "lwin+shift+enter", "rwin+shift+enter"]
       - commands: ["shell-exec wt.exe -w new new-tab --title \"Yazi\" --suppressApplicationTitle powershell.exe -NoProfile -NoLogo -NoExit -Command yazi"]
         bindings: ["lwin+shift+e", "rwin+shift+e"]
-      - commands: ["shell-exec wt.exe -w new new-tab --title \"btop\" --suppressApplicationTitle btop4win.exe"]
+      - commands: ['shell-exec %LOCALAPPDATA%\wgdot\bin\wgdotw.exe btop-toggle']
         bindings: ["lwin+shift+b", "rwin+shift+b"]
       - commands: ["shell-exec explorer.exe http:"]
         bindings: ["lwin+b", "rwin+b"]
@@ -491,7 +491,7 @@ keybindings:
     bindings: ["lwin+shift+e", "rwin+shift+e"]
 
   # Match Awtarchy's Super+Shift+B system-monitor launcher.
-  - commands: ["shell-exec wt.exe -w new new-tab --title \"btop\" --suppressApplicationTitle btop4win.exe"]
+  - commands: ['shell-exec %LOCALAPPDATA%\wgdot\bin\wgdotw.exe btop-toggle']
     bindings: ["lwin+shift+b", "rwin+shift+b"]
 
   - commands: ["focus --next-workspace"]

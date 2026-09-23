@@ -617,7 +617,7 @@ $rustDeskPackage = @($manifest.packages | Where-Object { $_.id -eq 'RustDesk.Rus
 Assert-True ($null -ne $rustDeskPackage) "RustDesk catalog entry exists"
 Assert-Equal ([string]$rustDeskPackage.installMode) 'official-github' "RustDesk uses its verified official GitHub source instead of a missing WinGet ID"
 Assert-Equal ([string]$rustDeskPackage.fallbackGitHubRepo) 'rustdesk/rustdesk' "RustDesk official GitHub source remains publisher-owned"
-Assert-True ($nativeSourceText -match 'const string Version = "native-preview-80"') "native runtime version tracks current WGDot maintenance changes"
+Assert-True ($nativeSourceText -match 'const string Version = "native-preview-81"') "native runtime version tracks current WGDot maintenance changes"
 Assert-True ($nativeSourceText -match 'InstallGitHubFontArchivePackage') "native runtime installs managed Nerd Font archives without inventing a WinGet ID"
 Assert-True ($nativeSourceText -match 'AddFontResourceEx') "managed Noto font is loaded into the current Windows session"
 Assert-True ($nativeSourceText -match 'Software\\Microsoft\\Windows NT\\CurrentVersion\\Fonts') "managed Noto font registers under the current-user Windows Fonts key"
@@ -837,7 +837,7 @@ foreach ($desktopCommand in @(
 }
 foreach ($approvedDesktopCommand in @(
     "bar-autohide-toggle",
-    "glazewm-binding-mode-toggle", "glazewm-window-behavior-toggle", "theme", "theme-window-toggle", "clipboard-history-open", "eartrumpet-mixer-toggle", "launcher", "power-menu", "rawaccel-toggle"
+    "glazewm-binding-mode-toggle", "glazewm-window-behavior-toggle", "theme", "theme-window-toggle", "clipboard-history-open", "eartrumpet-mixer-toggle", "launcher", "power-menu", "btop-toggle", "rawaccel-toggle"
 )) {
     Assert-True ($nativeSourceText -match ('command == "' + [regex]::Escape($approvedDesktopCommand) + '"')) "WGDot exposes approved scoped runtime helper: $approvedDesktopCommand"
 }
@@ -953,11 +953,18 @@ Assert-True ($glazeNormalText -match 'wgdotw\.exe launcher hotkey') "Normal Glaz
 Assert-True ($glazeWorkText -match 'wgdotw\.exe launcher hotkey') "Work GlazeWM uses the compiled launcher"
 Assert-True ($glazeWorkText -notmatch 'shell-exec %LOCALAPPDATA%/FlowLauncher/Flow\.Launcher\.exe') "Work GlazeWM no longer defaults launcher hotkeys to Flow Launcher"
 Assert-True ($glazeNormalText -match '%LOCALAPPDATA%\\wgdot\\bin\\wgdotw\.exe.*launcher hotkey') "Normal launcher hotkeys use the deterministic WGDot runtime path"
-Assert-True (($glazeNormalText | Select-String -Pattern 'btop4win\.exe' -AllMatches).Matches.Count -ge 2) "Normal profile launches btop4win from both global and noalt Super+Shift+B bindings"
+Assert-True (($glazeNormalText | Select-String -Pattern 'wgdotw\.exe btop-toggle' -AllMatches).Matches.Count -ge 2) "Normal profile routes global and noalt Super+Shift+B through the windowless btop toggle"
 Assert-True (($glazeNormalText | Select-String -Pattern 'lwin\+shift\+b' -AllMatches).Matches.Count -ge 2) "Normal profile binds left Super+Shift+B globally and in noalt mode"
 Assert-True (($glazeNormalText | Select-String -Pattern 'rwin\+shift\+b' -AllMatches).Matches.Count -ge 2) "Normal profile binds right Super+Shift+B globally and in noalt mode"
 Assert-True ($glazeNormalText -match 'window_title:\s*\{ equals: "btop" \}') "Normal btop Windows Terminal receives a centered floating rule"
-Assert-True ($glazeWorkText -notmatch 'btop4win\.exe') "Work profile does not carry a dead btop launcher while btop defaults off"
+Assert-True ($glazeNormalText -notmatch 'shell-exec wt\.exe.*btop4win\.exe') "Normal profile no longer assumes btop4win.exe is directly launchable"
+Assert-True ($glazeWorkText -notmatch 'btop-toggle|btop4win\.exe') "Work profile does not carry a dead btop launcher while btop defaults off"
+Assert-True ($nativeSourceText -match 'static string FindBtopExe\(\)') "compiled btop helper resolves the installed executable"
+Assert-True ($nativeSourceText -match 'FindExecutableWithCandidates\("btop\.exe"') "btop resolver prefers the WinGet btop command/link"
+Assert-True ($nativeSourceText -match 'aristocratos\.btop4win') "btop resolver falls back only within the WinGet btop package payload"
+Assert-True ($nativeSourceText -match 'static int BtopToggle\(\)') "compiled btop toggle exists"
+Assert-True ($nativeSourceText -match 'FindTopLevelWindowByExactTitle\("btop"\)') "btop toggle targets its dedicated terminal title"
+Assert-True ($nativeSourceText -match 'PostMessage\(existing, WmClose') "second btop invocation closes the existing dedicated terminal"
 
 Assert-True ($glazeWorkText -match '%LOCALAPPDATA%\\wgdot\\bin\\wgdotw\.exe.*launcher hotkey') "Work launcher hotkeys use the deterministic WGDot runtime path"
 Assert-True ($nativeSourceText -match 'UseShellExecute = true') "compiled launcher activates Start Menu shortcuts through Windows shell semantics"
