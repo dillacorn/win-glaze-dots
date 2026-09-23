@@ -33,13 +33,236 @@ function WgdotYaziSmartEnter()
     ya.emit(hovered and hovered.cha.is_dir and "enter" or "open", {})
 end
 
+local WgdotYaziArchiveSnapshot = ya.sync(function()
+    local tab = cx.active
+    local files = {}
+
+    if #tab.selected > 0 then
+        for _, file in pairs(tab.selected) do
+            files[#files + 1] = {
+                path = tostring(file.path),
+                name = file.name,
+                stem = file.url.stem or file.name,
+                parent = file.url.parent and tostring(file.url.parent) or "",
+                is_dir = file.cha.is_dir,
+            }
+        end
+    elseif tab.current.hovered then
+        local file = tab.current.hovered
+        files[1] = {
+            path = tostring(file.path),
+            name = file.name,
+            stem = file.url.stem or file.name,
+            parent = file.url.parent and tostring(file.url.parent) or "",
+            is_dir = file.cha.is_dir,
+        }
+    end
+
+    return {
+        cwd = tostring(tab.current.cwd),
+        files = files,
+    }
+end)
+
+local function WgdotYaziArchiveNotify(content, level)
+    ya.notify {
+        title = "Archive",
+        content = content,
+        timeout = 4,
+        level = level,
+    }
+end
+
+local function WgdotYaziRun7z(args, cwd)
+    local commands = ya.target_os() == "windows"
+        and { "7z.exe", "7zz.exe", "7z" }
+        or { "7zz", "7z" }
+    local last_error = nil
+
+    for _, command in ipairs(commands) do
+        local output, err = Command(command):arg(args):cwd(cwd):output()
+        if output then
+            return output, nil
+        end
+        last_error = err
+    end
+
+    return nil, last_error
+end
+
+local function WgdotYaziUniqueZip(cwd, requested)
+    local name = requested
+    if name:lower():sub(-4) ~= ".zip" then
+        name = name .. ".zip"
+    end
+
+    local stem = name:sub(1, -5)
+    local index = 1
+    while true do
+        local candidate = index == 1
+            and name
+            or string.format("%s (%d).zip", stem, index)
+        local url = Url(cwd):join(candidate)
+        local cha = fs.cha(url)
+        if not cha then
+            return url
+        end
+        index = index + 1
+    end
+end
+
+function WgdotYaziCompressSelection()
+    ya.async(function()
+        local snapshot = WgdotYaziArchiveSnapshot()
+        if #snapshot.files == 0 then
+            return WgdotYaziArchiveNotify("Nothing selected.", "warn")
+        end
+
+        for _, file in ipairs(snapshot.files) do
+            if file.parent ~= snapshot.cwd then
+                return WgdotYaziArchiveNotify(
+                    "ZIP creation currently requires all selected items to be in the current directory.",
+                    "warn"
+                )
+            end
+        end
+
+        local default_name
+        if #snapshot.files == 1 then
+            default_name = (snapshot.files[1].stem ~= "" and snapshot.files[1].stem or snapshot.files[1].name) .. ".zip"
+        else
+            default_name = "Archive.zip"
+        end
+
+        local requested, event = ya.input {
+            pos = { "center", w = 52 },
+            title = "Compress to ZIP:",
+            value = default_name,
+        }
+        if event ~= 1 or not requested then
+            return
+        end
+
+        requested = requested:match("^%s*(.-)%s*$") or ""
+        if requested == "" then
+            return WgdotYaziArchiveNotify("Archive name cannot be empty.", "warn")
+        elseif requested == "." or requested == ".."
+            or requested:find("[/\\]")
+            or requested:find(":", 1, true)
+        then
+            return WgdotYaziArchiveNotify("Enter a file name, not a path.", "warn")
+        end
+
+        local target = WgdotYaziUniqueZip(snapshot.cwd, requested)
+        local args = { "a", "-tzip", tostring(target), "--" }
+        for _, file in ipairs(snapshot.files) do
+            args[#args + 1] = file.name
+        end
+
+        local output, err = WgdotYaziRun7z(args, snapshot.cwd)
+        if not output then
+            return WgdotYaziArchiveNotify(
+                "7-Zip is unavailable. Install 7-Zip/7zip to use ZIP actions.",
+                "error"
+            )
+        elseif not output.status.success then
+            local detail = output.stderr ~= "" and output.stderr or tostring(err or "7-Zip failed")
+            return WgdotYaziArchiveNotify(detail, "error")
+        end
+
+        WgdotYaziArchiveNotify("Created " .. tostring(target.name or target), "info")
+        ya.emit("reveal", { target })
+    end)
+end
+
+local function WgdotYaziSingleZipSnapshot()
+    local snapshot = WgdotYaziArchiveSnapshot()
+    if #snapshot.files ~= 1 or snapshot.files[1].name:lower():sub(-4) ~= ".zip" then
+        return nil
+    end
+    return snapshot
+end
+
+function WgdotYaziExtractZipHere()
+    ya.async(function()
+        local snapshot = WgdotYaziSingleZipSnapshot()
+        if not snapshot then
+            return WgdotYaziArchiveNotify("Select one .zip file to extract.", "warn")
+        end
+
+        local zip = snapshot.files[1]
+        local output = WgdotYaziRun7z(
+            { "x", "-y", "-aou", zip.path, "-o" .. snapshot.cwd },
+            snapshot.cwd
+        )
+        if not output then
+            return WgdotYaziArchiveNotify(
+                "7-Zip is unavailable. Install 7-Zip/7zip to use ZIP actions.",
+                "error"
+            )
+        elseif not output.status.success then
+            return WgdotYaziArchiveNotify(output.stderr ~= "" and output.stderr or "Extraction failed.", "error")
+        end
+
+        WgdotYaziArchiveNotify("Extracted into current directory.", "info")
+        ya.emit("refresh", {})
+    end)
+end
+
+function WgdotYaziExtractZipFolder()
+    ya.async(function()
+        local snapshot = WgdotYaziSingleZipSnapshot()
+        if not snapshot then
+            return WgdotYaziArchiveNotify("Select one .zip file to extract.", "warn")
+        end
+
+        local zip = snapshot.files[1]
+        local base = zip.stem ~= "" and zip.stem or "Extracted"
+        local index = 1
+        local target
+
+        while true do
+            local name = index == 1 and base or string.format("%s (%d)", base, index)
+            local candidate = Url(snapshot.cwd):join(name)
+            if not fs.cha(candidate) then
+                target = candidate
+                break
+            end
+            index = index + 1
+        end
+
+        local ok, mkdir_err = fs.create("dir", target)
+        if not ok then
+            return WgdotYaziArchiveNotify("Could not create extraction folder: " .. tostring(mkdir_err), "error")
+        end
+
+        local output = WgdotYaziRun7z(
+            { "x", "-y", zip.path, "-o" .. tostring(target) },
+            snapshot.cwd
+        )
+        if not output then
+            return WgdotYaziArchiveNotify(
+                "7-Zip is unavailable. Install 7-Zip/7zip to use ZIP actions.",
+                "error"
+            )
+        elseif not output.status.success then
+            return WgdotYaziArchiveNotify(output.stderr ~= "" and output.stderr or "Extraction failed.", "error")
+        end
+
+        WgdotYaziArchiveNotify("Extracted to " .. tostring(target.name or target), "info")
+        ya.emit("refresh", {})
+        ya.emit("reveal", { target })
+    end)
+end
+
 local WgdotYaziItemActions = {
     { label = "Open / Enter", shortcut = "Enter", action = "smart_open" },
     { label = "Open with...", shortcut = "O", action = "open_with" },
     { label = "Rename", shortcut = "r", action = "rename" },
-    { label = "Copy", shortcut = "y", action = "copy" },
-    { label = "Cut", shortcut = "Y", action = "cut" },
+    { label = "Copy", shortcut = "Ctrl+C / y", action = "copy" },
+    { label = "Cut", shortcut = "Ctrl+X / Y", action = "cut" },
     { label = "Copy path", shortcut = "cc", action = "copy_path" },
+    { label = "Compress to ZIP...", shortcut = "c z", action = "compress_zip" },
     { label = "Details", shortcut = "Tab", action = "details" },
     { label = "Trash", shortcut = "dd", action = "trash" },
 }
@@ -47,7 +270,7 @@ local WgdotYaziItemActions = {
 local WgdotYaziFolderActions = {
     { label = "New file", shortcut = "a", action = "new_file" },
     { label = "New folder", shortcut = "a /", action = "new_folder" },
-    { label = "Paste", shortcut = "p", action = "paste" },
+    { label = "Paste", shortcut = "Ctrl+V / p", action = "paste" },
     { label = "Terminal here", shortcut = "t e", action = "terminal" },
 }
 
@@ -94,20 +317,38 @@ function WgdotYaziContextMenu:title()
 end
 
 function WgdotYaziContextMenu:actions()
-    return self._kind == "background" and WgdotYaziFolderActions or WgdotYaziItemActions
+    if self._kind == "background" then
+        return WgdotYaziFolderActions
+    end
+
+    local actions = {}
+    for _, action in ipairs(WgdotYaziItemActions) do
+        actions[#actions + 1] = action
+    end
+
+    local hovered = cx.active.current.hovered
+    if self._selection_count <= 1
+        and hovered
+        and hovered.name:lower():sub(-4) == ".zip"
+    then
+        actions[#actions + 1] = { label = "Extract here", shortcut = "e h", action = "extract_here" }
+        actions[#actions + 1] = { label = "Extract to folder", shortcut = "e f", action = "extract_folder" }
+    end
+
+    return actions
 end
 
 function WgdotYaziContextMenu:footer()
     if self._kind == "background" then
         return {
-            "Keys: a create | p paste | t e terminal",
-            "Folder: choose a, then end the name with /",
+            "Keys: a create | Ctrl+V/p paste | t e terminal",
+            "Right-click items for file and archive actions",
         }
     end
 
     return {
-        "Keys: Enter open | O open with | r rename | y/Y copy/cut",
-        "More: cc path | Tab info | dd trash",
+        "Keys: Enter open | r rename | Ctrl+C/X copy/cut | c z ZIP",
+        "More: cc path | Tab info | dd trash | e h/e f extract ZIP",
     }
 end
 
@@ -213,6 +454,12 @@ function WgdotYaziContextMenu:run(action)
     elseif action == "copy_path" then
         ya.emit("copy", { "path", hovered = true })
         ya.notify { title = "Clipboard", content = "Path copied", timeout = 2 }
+    elseif action == "compress_zip" then
+        WgdotYaziCompressSelection()
+    elseif action == "extract_here" then
+        WgdotYaziExtractZipHere()
+    elseif action == "extract_folder" then
+        WgdotYaziExtractZipFolder()
     elseif action == "details" then
         ya.emit("spot", {})
     elseif action == "trash" then
