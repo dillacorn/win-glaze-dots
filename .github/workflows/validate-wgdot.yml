@@ -155,3 +155,87 @@ jobs:
         run: |
           set "WGDOT_TEST_ROOT=%TEMP%\wgdot-native-maintenance-state"
           "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" maintenance-self-test
+
+
+  release-v4-5-3-one-use:
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.title == 'Release v4.5.3 bridge' &&
+      github.event.pull_request.head.ref == 'release/v4.5.3-one-use' &&
+      github.event.pull_request.base.ref == 'main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_TAG: v4.5.3
+      RELEASE_TARGET: 54569f94fd6e636f3ed5fd7058e95d1632e145d9
+    steps:
+      - name: Verify release target and absence
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${{ github.event.pull_request.base.sha }}" = "$RELEASE_TARGET"
+          if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$RELEASE_TAG" >/dev/null 2>&1; then
+            echo "$RELEASE_TAG tag already exists" >&2
+            exit 1
+          fi
+          if gh api "repos/$GITHUB_REPOSITORY/releases/tags/$RELEASE_TAG" >/dev/null 2>&1; then
+            echo "$RELEASE_TAG release already exists" >&2
+            exit 1
+          fi
+
+      - name: Create WGDot v4.5.3
+        shell: bash
+        run: |
+          set -euo pipefail
+          notes="$RUNNER_TEMP/v4.5.3-notes.md"
+          printf '%s\n' \
+            '# WGDot v4.5.3' \
+            '' \
+            'WGDot v4.5.3 improves Windows-login startup reliability and polishes the YASB desktop experience.' \
+            '' \
+            '## Install and update' \
+            '' \
+            '- **Install:** [INSTALL.md](https://github.com/dillacorn/win-glaze-dots/blob/main/INSTALL.md)' \
+            '- **Update:** [UPDATE.md](https://github.com/dillacorn/win-glaze-dots/blob/main/UPDATE.md)' \
+            '' \
+            '## Changes' \
+            '' \
+            '- RawAccel login startup now launches through the windowless WGDot helper with the correct working directory, preventing the startup crash seen with a bare Run entry. EarTrumpet login startup also avoids the Explorer/Documents-prone AppsFolder command.' \
+            '- RawAccel Super+Shift+M launch sizing now scales to the active display working area while Windows-login startup keeps normal application sizing.' \
+            '- YASB quick-settings and display brightness/contrast sliders now follow the active WGDot theme instead of the default Qt/Windows blue styling.' \
+            '- The application launcher now uses a prewarmed persistent Start Menu index, pixel-smooth scrolling, a wider theme-matched scrollbar, and an immediate themed first paint that removes the white startup flash.' \
+            '- Normal and Work profiles now default to simple numeric workspace labels while continuing to render GlazeWM display_name values so users can define custom workspace names.' \
+            '' \
+            '## Validation' \
+            '' \
+            '- Exact release target: `54569f94fd6e636f3ed5fd7058e95d1632e145d9`.' \
+            '- All four Validate WGDot jobs passed on the exact merged main target in run `35803352386`.' \
+            '- The maintainer confirmed the RawAccel login-startup fix and the optimized application launcher on real Windows, and approved the themed slider presentation before release.' \
+            > "$notes"
+
+          gh release create "$RELEASE_TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$RELEASE_TARGET" \
+            --title 'WGDot v4.5.3' \
+            --notes-file "$notes"
+
+      - name: Verify published release
+        shell: bash
+        run: |
+          set -euo pipefail
+          release_json="$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json tagName,name,isDraft,isPrerelease,targetCommitish)"
+          test "$(jq -r '.tagName' <<<"$release_json")" = "$RELEASE_TAG"
+          test "$(jq -r '.name' <<<"$release_json")" = 'WGDot v4.5.3'
+          test "$(jq -r '.isDraft' <<<"$release_json")" = 'false'
+          test "$(jq -r '.isPrerelease' <<<"$release_json")" = 'false'
+          test "$(jq -r '.targetCommitish' <<<"$release_json")" = "$RELEASE_TARGET"
+          tag_sha="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$RELEASE_TAG" --jq '.object.sha')"
+          test "$tag_sha" = "$RELEASE_TARGET"
+
+      - name: Delete one-use helper branch
+        if: success()
+        shell: bash
+        run: |
+          gh api -X DELETE "repos/$GITHUB_REPOSITORY/git/refs/heads/release/v4.5.3-one-use"
