@@ -22,7 +22,7 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-82";
+    const string Version = "native-preview-83";
     const int WingetPreflightTimeoutMs = 30000;
     const int CurrentTweakDefaultsVersion = 1;
     const double RawAccelHotkeyWidthRatio = 0.625;
@@ -1199,6 +1199,7 @@ internal static class WgdotNative
             if (command == "eartrumpet-mixer-toggle") return EarTrumpetMixerToggle();
             if (command == "eartrumpet-startup") return EarTrumpetStartup();
             if (command == "launcher") return LauncherFromArgs(args.Skip(1).ToArray());
+            if (command == "yazi-drag") return YaziDragFromArgs(args.Skip(1).ToArray());
             if (command == "power-menu") return PowerMenu();
             if (command == "btop-toggle") return BtopToggle();
             if (command == "rawaccel-toggle") return RawAccelToggle();
@@ -14819,6 +14820,120 @@ class WgdotHidden
             foreach (byte b in bytes) sb.Append(b.ToString("x2"));
             return sb.ToString();
         }
+    }
+
+    static string NormalizeYaziDragListPath(string path)
+    {
+        if (String.IsNullOrWhiteSpace(path))
+            throw new Exception("Yazi drag manifest path is required.");
+
+        string full = Path.GetFullPath(path);
+        string temp = Path.GetFullPath(Path.GetTempPath())
+            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) +
+            Path.DirectorySeparatorChar;
+        string fileName = Path.GetFileName(full);
+
+        if (!full.StartsWith(temp, StringComparison.OrdinalIgnoreCase) ||
+            !fileName.StartsWith("wgdot-yazi-drag-", StringComparison.OrdinalIgnoreCase) ||
+            !fileName.EndsWith(".txt", StringComparison.OrdinalIgnoreCase))
+            throw new Exception("Yazi drag manifest must be a WGDot Yazi temp file.");
+
+        return full;
+    }
+
+    static List<string> LoadYaziDragPaths(string manifestPath)
+    {
+        string manifest = NormalizeYaziDragListPath(manifestPath);
+        if (!File.Exists(manifest))
+            throw new Exception("Yazi drag manifest does not exist.");
+
+        var info = new FileInfo(manifest);
+        if (info.Length > 1024 * 1024)
+            throw new Exception("Yazi drag manifest is too large.");
+
+        var files = new List<string>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (string raw in File.ReadAllLines(manifest, Encoding.UTF8))
+        {
+            if (String.IsNullOrEmpty(raw))
+                continue;
+            if (raw.IndexOf('\0') >= 0 || !Path.IsPathRooted(raw))
+                throw new Exception("Yazi drag manifest contains an invalid path.");
+
+            string full = Path.GetFullPath(raw);
+            if (!File.Exists(full) && !Directory.Exists(full))
+                throw new Exception("Yazi drag item no longer exists: " + full);
+
+            if (seen.Add(full))
+                files.Add(full);
+
+            if (files.Count > 256)
+                throw new Exception("Yazi drag is limited to 256 items.");
+        }
+
+        if (files.Count == 0)
+            throw new Exception("Yazi drag manifest contains no files.");
+
+        return files;
+    }
+
+    static bool PointInsideRect(POINT point, RECT rect)
+    {
+        return point.X >= rect.Left &&
+               point.X < rect.Right &&
+               point.Y >= rect.Top &&
+               point.Y < rect.Bottom;
+    }
+
+    static int YaziDragFromArgs(string[] args)
+    {
+        if (args == null || args.Length != 1)
+            throw new Exception("Usage: wgdotw.exe yazi-drag <WGDot Yazi drag manifest>");
+
+        string manifest = NormalizeYaziDragListPath(args[0]);
+        List<string> files;
+        try
+        {
+            files = LoadYaziDragPaths(manifest);
+        }
+        finally
+        {
+            SafeDeleteFile(manifest);
+        }
+
+        IntPtr sourceWindow = GetForegroundWindow();
+        RECT sourceRect;
+        if (sourceWindow == IntPtr.Zero || !GetWindowRect(sourceWindow, out sourceRect))
+            return 0;
+
+        var watch = Stopwatch.StartNew();
+        while ((GetAsyncKeyState(0x01) & 0x8000) != 0 && watch.ElapsedMilliseconds < 30000)
+        {
+            POINT point;
+            if (GetCursorPos(out point) && !PointInsideRect(point, sourceRect))
+            {
+                var dropList = new System.Collections.Specialized.StringCollection();
+                dropList.AddRange(files.ToArray());
+
+                var data = new System.Windows.Forms.DataObject();
+                data.SetFileDropList(dropList);
+
+                using (var dragSource = new System.Windows.Forms.Control())
+                {
+                    IntPtr unused = dragSource.Handle;
+                    dragSource.DoDragDrop(
+                        data,
+                        System.Windows.Forms.DragDropEffects.Copy |
+                        System.Windows.Forms.DragDropEffects.Move);
+                }
+                return 0;
+            }
+
+            System.Threading.Thread.Sleep(10);
+        }
+
+        return 0;
     }
 
     static void SafeDeleteFile(string path)
