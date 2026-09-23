@@ -11,6 +11,7 @@ using System.Linq;
 using System.Net;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
+using System.Security;
 using System.Security.AccessControl;
 using System.Security.Principal;
 using System.Text;
@@ -21,8 +22,9 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-79";
+    const string Version = "native-preview-82";
     const int WingetPreflightTimeoutMs = 30000;
+    const int CurrentTweakDefaultsVersion = 1;
     const double RawAccelHotkeyWidthRatio = 0.625;
     const double RawAccelHotkeyHeightRatio = 0.825;
     const string RepoFullName = "dillacorn/win-glaze-dots";
@@ -377,6 +379,7 @@ internal static class WgdotNative
         public List<string> Packages = new List<string>();
         public List<string> Tweaks = new List<string>();
         public bool TweaksConfigured;
+        public int TweakDefaultsVersion = CurrentTweakDefaultsVersion;
         public Dictionary<string, List<string>> BrowserOptions =
             new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
         public bool BrowserOptionsConfigured;
@@ -1197,6 +1200,7 @@ internal static class WgdotNative
             if (command == "eartrumpet-startup") return EarTrumpetStartup();
             if (command == "launcher") return LauncherFromArgs(args.Skip(1).ToArray());
             if (command == "power-menu") return PowerMenu();
+            if (command == "btop-toggle") return BtopToggle();
             if (command == "rawaccel-toggle") return RawAccelToggle();
             if (command == "rawaccel-startup") return RawAccelStartup();
             if (command == "gpu-driver") return GpuDriverMaintenance();
@@ -4540,6 +4544,69 @@ class WgdotHidden
             });
     }
 
+    static string FindBtopExe()
+    {
+        string local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        string programFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
+        string programFilesX86 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
+
+        var candidates = new List<string>
+        {
+            Path.Combine(local, "Microsoft", "WinGet", "Links", "btop.exe"),
+            Path.Combine(local, "Microsoft", "WinGet", "Links", "btop4win.exe")
+        };
+
+        if (!String.IsNullOrWhiteSpace(programFiles))
+        {
+            candidates.Add(Path.Combine(programFiles, "WinGet", "Links", "btop.exe"));
+            candidates.Add(Path.Combine(programFiles, "WinGet", "Links", "btop4win.exe"));
+        }
+        if (!String.IsNullOrWhiteSpace(programFilesX86))
+        {
+            candidates.Add(Path.Combine(programFilesX86, "WinGet", "Links", "btop.exe"));
+            candidates.Add(Path.Combine(programFilesX86, "WinGet", "Links", "btop4win.exe"));
+        }
+
+        string found = FindExecutableWithCandidates("btop.exe", candidates);
+        if (!String.IsNullOrWhiteSpace(found))
+            return found;
+
+        found = FindExecutableWithCandidates("btop4win.exe", candidates);
+        if (!String.IsNullOrWhiteSpace(found))
+            return found;
+
+        // Portable WinGet packages normally expose a command link. If that
+        // link is missing or stale, inspect only the btop4win package payload.
+        string packagesRoot = Path.Combine(local, "Microsoft", "WinGet", "Packages");
+        if (!Directory.Exists(packagesRoot))
+            return "";
+
+        try
+        {
+            foreach (string packageDir in Directory.GetDirectories(packagesRoot))
+            {
+                string packageName = Path.GetFileName(packageDir) ?? "";
+                if (!packageName.StartsWith("aristocratos.btop4win", StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                foreach (string fileName in new[] { "btop.exe", "btop4win.exe" })
+                {
+                    string[] matches = Directory.GetFiles(
+                        packageDir,
+                        fileName,
+                        SearchOption.AllDirectories);
+                    if (matches.Length > 0)
+                        return matches[0];
+                }
+            }
+        }
+        catch
+        {
+        }
+
+        return "";
+    }
+
     static bool IsRawAccelGuiExecutable(string path)
     {
         if (String.IsNullOrWhiteSpace(path) ||
@@ -6140,6 +6207,36 @@ class WgdotHidden
         result.Tweaks.RemoveAll(x =>
             String.Equals(x, "eartrumpet-mixer-alt-v", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(x, "eartrumpet-mixer-super-v", StringComparison.OrdinalIgnoreCase));
+
+        // These integrations no longer belong in the interactive setup-tweak
+        // menu. Retire stale remembered selections while keeping their runtime
+        // implementation available for bounded rollback/migration.
+        result.Tweaks.RemoveAll(x =>
+            String.Equals(x, "disable-printscreen-snipping", StringComparison.OrdinalIgnoreCase) ||
+            String.Equals(x, "disable-windows-shell-hotkeys", StringComparison.OrdinalIgnoreCase) ||
+            String.Equals(x, "oops-all-links-cursor", StringComparison.OrdinalIgnoreCase));
+
+        int savedTweakDefaultsVersion = GetInt(state, "tweakDefaultsVersion");
+        if (savedTweakDefaultsVersion < CurrentTweakDefaultsVersion)
+        {
+            // Preference-sensitive items used to be sticky from older WGDot
+            // selections. Clear them once so the new default-OFF policy is
+            // visible on existing installs. After the migrated selection is
+            // saved, users may explicitly re-enable any of them and that
+            // choice remains persistent.
+            string[] resetOnce =
+            {
+                "disable-enhanced-pointer-precision",
+                "disable-snap-assist",
+                "disable-remote-assistance",
+                "enable-windows-sudo",
+                "reduce-visual-effects",
+                "classic-context-menu"
+            };
+            result.Tweaks.RemoveAll(x =>
+                resetOnce.Contains(x, StringComparer.OrdinalIgnoreCase));
+        }
+        result.TweakDefaultsVersion = CurrentTweakDefaultsVersion;
         result.TweaksConfigured = state.ContainsKey("tweaks");
         result.BrowserOptions = ReadBrowserOptionsState(state);
         result.BrowserOptionsConfigured = state.ContainsKey("browserOptions");
@@ -6160,6 +6257,7 @@ class WgdotHidden
         state["components"] = selection.Components.ToArray();
         state["packages"] = selection.Packages.ToArray();
         state["tweaks"] = selection.Tweaks.ToArray();
+        state["tweakDefaultsVersion"] = selection.TweakDefaultsVersion;
         if (selection.BrowserOptionsConfigured)
         {
             var browserOptions = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
@@ -6249,6 +6347,8 @@ class WgdotHidden
             var tweak = AsDictionary(raw);
             string id = GetString(tweak, "id");
             bool actionOnly = GetBool(tweak, "actionOnly");
+            bool hiddenFromMenu = GetBool(tweak, "hiddenFromMenu");
+            if (hiddenFromMenu) continue;
             if (actionOnly && !includeActionOnly) continue;
 
             bool selected = actionOnly
@@ -6273,7 +6373,7 @@ class WgdotHidden
         foreach (object raw in GetList(manifest, "tweaks"))
         {
             var tweak = AsDictionary(raw);
-            if (GetBool(tweak, "actionOnly")) continue;
+            if (GetBool(tweak, "actionOnly") || GetBool(tweak, "hiddenFromMenu")) continue;
             bool selected = scope == "work" ? GetBool(tweak, "defaultWork") : GetBool(tweak, "defaultNormal");
             if (selected) result.Add(GetString(tweak, "id"));
         }
@@ -7641,6 +7741,16 @@ class WgdotHidden
                 "Registry access denied: " + hive + "\\" + path + "\\" + name,
                 ex);
         }
+        catch (SecurityException ex)
+        {
+            // Microsoft.Win32 can surface protected registry writes as either
+            // UnauthorizedAccessException or SecurityException depending on
+            // the key ACL / Windows build. Normalize both so callers can
+            // handle access-denied compatibility paths consistently.
+            throw new UnauthorizedAccessException(
+                "Registry access denied: " + hive + "\\" + path + "\\" + name,
+                ex);
+        }
     }
 
     static Dictionary<string, object> GetRegistryOriginal(
@@ -8316,6 +8426,35 @@ class WgdotHidden
             System.Threading.Thread.Sleep(25);
 
         return LaunchThemeWindow(targetScreen);
+    }
+
+    static int LaunchBtopWindow()
+    {
+        string btopExe = FindBtopExe();
+        if (String.IsNullOrWhiteSpace(btopExe))
+            throw new Exception(
+                "btop is selected but its installed executable could not be resolved.");
+
+        var psi = new ProcessStartInfo();
+        psi.FileName = "wt.exe";
+        psi.Arguments =
+            "-w new new-tab --title \"btop\" --suppressApplicationTitle " +
+            Q(btopExe);
+        psi.UseShellExecute = true;
+        Process.Start(psi);
+        return 0;
+    }
+
+    static int BtopToggle()
+    {
+        IntPtr existing = FindTopLevelWindowByExactTitle("btop");
+        if (existing != IntPtr.Zero)
+        {
+            PostMessage(existing, WmClose, IntPtr.Zero, IntPtr.Zero);
+            return 0;
+        }
+
+        return LaunchBtopWindow();
     }
 
     static void SendNativeClipboardHistoryChord()
@@ -10799,13 +10938,41 @@ class WgdotHidden
                 "using the supported Widgets policy fallback.");
             Console.ResetColor();
 
-            SetRegistryValueWithSnapshot(
-                id,
-                "HKLM",
-                @"SOFTWARE\Policies\Microsoft\Dsh",
-                "AllowNewsAndInterests",
-                0,
-                RegistryValueKind.DWord);
+            const string widgetsPolicyPath =
+                @"SOFTWARE\Policies\Microsoft\Dsh";
+            const string widgetsPolicyName = "AllowNewsAndInterests";
+
+            try
+            {
+                SetRegistryValueWithSnapshot(
+                    id,
+                    "HKLM",
+                    widgetsPolicyPath,
+                    widgetsPolicyName,
+                    0,
+                    RegistryValueKind.DWord);
+                Console.WriteLine("Taskbar Widgets hidden through Windows policy.");
+            }
+            catch (UnauthorizedAccessException)
+            {
+                // A domain, MDM policy, security product, or Windows build can
+                // protect both the user setting and the machine policy key.
+                // Neither failed write mutated the registry. Do not claim
+                // rollback ownership for the machine policy, and do not fail
+                // the entire software reconciliation over this one cosmetic
+                // taskbar item. Continue applying the other cleanup values.
+                DiscardRegistryOriginalSnapshot(
+                    id,
+                    "HKLM",
+                    widgetsPolicyPath,
+                    widgetsPolicyName);
+
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine(
+                    "Windows also protected the Widgets machine policy. " +
+                    "Widgets were left unchanged; the remaining taskbar cleanup will continue.");
+                Console.ResetColor();
+            }
         }
         SetRegistryValueWithSnapshot(id, "HKCU",
             @"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced",
@@ -12163,9 +12330,13 @@ class WgdotHidden
                         Console.ResetColor();
                     }
                 }
-                else if (String.Equals(type, "migrate-legacy-windows-hotkeys", StringComparison.OrdinalIgnoreCase))
+                else if (String.Equals(type, "retire-windows-shell-hotkeys", StringComparison.OrdinalIgnoreCase))
                 {
-                    MigrateLegacyWindowsShellHotkeys(true);
+                    ApplyTweak("disable-windows-shell-hotkeys", false, true);
+                }
+                else if (String.Equals(type, "retire-printscreen-snipping", StringComparison.OrdinalIgnoreCase))
+                {
+                    ApplyTweak("disable-printscreen-snipping", false, true);
                 }
                 else if (String.Equals(type, "ensure-cursor-theme", StringComparison.OrdinalIgnoreCase))
                 {
