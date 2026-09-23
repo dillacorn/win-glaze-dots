@@ -33,6 +33,23 @@ function WgdotYaziSmartEnter()
     ya.emit(hovered and hovered.cha.is_dir and "enter" or "open", {})
 end
 
+function Entity:click(event, up)
+    if up then
+        return
+    elseif not event.is_left and not event.is_right then
+        return
+    end
+
+    local was_hovered = self._file.is_hovered
+    ya.emit("reveal", { self._file.url })
+
+    if event.is_right then
+        ya.emit("open", {})
+    elseif was_hovered and self._file.cha.is_dir then
+        ya.emit("enter", {})
+    end
+end
+
 WgdotYaziTimeFormat = "24h"
 
 ps.sub("@wgdot-yazi-time-format", function(value)
