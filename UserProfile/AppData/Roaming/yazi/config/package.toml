@@ -1,2 +1,2 @@
-# No external Yazi plugins are currently required.
-# Windows file-copy clipboard support is provided by plugins/system-clipboard.yazi.
+# WGDot vendors its managed Yazi plugins under %APPDATA%\yazi\config\plugins.
+# package.toml intentionally has no external ya-pkg locks, so updates remain self-contained.
