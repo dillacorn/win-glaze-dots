@@ -65,6 +65,7 @@ try {
             'ThemeWindowToggle',
             'ClipboardHistoryOpen',
             'LauncherFromArgs',
+            'YaziDragFromArgs',
             'PowerMenu',
             'BarAutoHideToggle',
             'GlazeWmBindingModeToggleFromArgs',
@@ -94,6 +95,37 @@ try {
         )) {
             Require ($null -eq (Get-NativeMethod $name)) ('Native-capable desktop helper must stay absent: ' + $name)
         }
+    }
+
+    Check 'Yazi native drag helper is gesture-scoped and path-only' {
+        Require ($nativeSource -match 'if \(command == "yazi-drag"\) return YaziDragFromArgs') 'Yazi native drag command dispatch is missing'
+        $dragBlock = [regex]::Match($nativeSource, '(?ms)static int YaziDragFromArgs\(string\[\] args\).*?^    }').Value
+        Require ($dragBlock -match 'GetAsyncKeyState\(0x01\)') 'Yazi drag does not require held Mouse1'
+        Require ($dragBlock -match 'PointInsideRect\(point, sourceRect\)') 'Yazi drag does not wait for the pointer to leave the terminal window'
+        Require ($dragBlock -match 'DoDragDrop') 'Yazi drag is not using native OLE/WinForms drag-drop'
+        Require ($dragBlock -notmatch 'Clipboard|keybd_event|SendKeys|SetWindowsHookEx') 'Yazi drag must not mutate clipboard, inject keys, or install hooks'
+
+        $refreshBlock = [regex]::Match($nativeSource, '(?ms)static bool ShouldAutoRefreshRuntime\(string command\).*?^    }').Value
+        Require ($refreshBlock -notmatch 'yazi-drag') 'Yazi drag must not trigger runtime/network refresh'
+
+        $dragFile = Join-Path $temp 'drag-source.txt'
+        Set-Content -LiteralPath $dragFile -Value 'x' -NoNewline
+        $manifest = Join-Path ([IO.Path]::GetTempPath()) ('wgdot-yazi-drag-' + [guid]::NewGuid().ToString('N') + '.txt')
+        try {
+            Set-Content -LiteralPath $manifest -Value $dragFile -Encoding UTF8
+            $paths = @(Invoke-Native 'LoadYaziDragPaths' @($manifest))
+            Require ($paths.Count -eq 1) 'Yazi drag manifest did not return exactly one path'
+            Require ([IO.Path]::GetFullPath([string]$paths[0]) -eq [IO.Path]::GetFullPath($dragFile)) 'Yazi drag manifest path changed unexpectedly'
+        }
+        finally {
+            Remove-Item -LiteralPath $manifest -Force -ErrorAction SilentlyContinue
+        }
+
+        $outsideManifest = Join-Path $repo 'wgdot-yazi-drag-invalid.txt'
+        $rejected = $false
+        try { Invoke-Native 'NormalizeYaziDragListPath' @($outsideManifest) | Out-Null }
+        catch { $rejected = $true }
+        Require $rejected 'Yazi drag accepted a manifest outside the temporary directory'
     }
 
     Check 'retired mouse mode stays removed while legacy cleanup remains' {
