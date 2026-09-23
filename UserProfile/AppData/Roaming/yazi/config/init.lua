@@ -267,6 +267,113 @@ local WgdotYaziItemActions = {
     { label = "Trash", shortcut = "dd", action = "trash" },
 }
 
+local WgdotYaziDropActions = {
+    { label = "Copy to folder", shortcut = "copy", action = "drop_copy" },
+    { label = "Move to folder", shortcut = "move", action = "drop_move" },
+}
+
+local WgdotYaziDragState = nil
+
+local function WgdotYaziDragSources(file)
+    local sources = {}
+
+    if file:is_selected() and #cx.active.selected > 0 then
+        for _, selected in pairs(cx.active.selected) do
+            sources[#sources + 1] = {
+                path = tostring(selected.path),
+                name = selected.name,
+                is_dir = selected.cha.is_dir,
+            }
+        end
+    else
+        sources[1] = {
+            path = tostring(file.path),
+            name = file.name,
+            is_dir = file.cha.is_dir,
+        }
+    end
+
+    return sources
+end
+
+local function WgdotYaziCanDropInto(target, sources)
+    local target_url = Url(target)
+    for _, source in ipairs(sources) do
+        if source.is_dir and target_url:starts_with(Url(source.path)) then
+            return false
+        end
+    end
+    return true
+end
+
+local function WgdotYaziDropInto(op, target, sources)
+    if not target or not sources or #sources == 0 then
+        return
+    end
+
+    ya.async(function()
+        for _, source in ipairs(sources) do
+            local from = Url(source.path)
+            local to = Url(target):join(source.name)
+            ya.task(op, { from = from, to = to }):spawn()
+        end
+    end)
+
+    ya.notify {
+        title = "Yazi",
+        content = string.format(
+            "%s %d item(s) to %s",
+            op == "move" and "Moving" or "Copying",
+            #sources,
+            tostring(Url(target).name or target)
+        ),
+        timeout = 2,
+    }
+end
+
+local function WgdotYaziStartOutboundDrag(sources)
+    local local_app_data = os.getenv("LOCALAPPDATA")
+    local temp_dir = os.getenv("TEMP")
+    if not local_app_data or local_app_data == "" or not temp_dir or temp_dir == "" then
+        return
+    end
+
+    local helper = local_app_data .. "\\wgdot\\bin\\wgdotw.exe"
+    local probe = io.open(helper, "rb")
+    if not probe then
+        return
+    end
+    probe:close()
+
+    local list_path = string.format(
+        "%s\\wgdot-yazi-drag-%d-%d.txt",
+        temp_dir,
+        os.time(),
+        math.floor(os.clock() * 1000000)
+    )
+    local list = io.open(list_path, "wb")
+    if not list then
+        return
+    end
+    for _, source in ipairs(sources) do
+        list:write(source.path, "\n")
+    end
+    list:close()
+
+    ya.async(function()
+        local status, err = Command(helper):arg({ "yazi-drag", list_path }):status()
+        if err or (status and not status.success) then
+            os.remove(list_path)
+            ya.notify {
+                title = "Yazi drag",
+                content = "Native Windows drag is unavailable; Yazi itself remains usable.",
+                timeout = 4,
+                level = "warn",
+            }
+        end
+    end)
+end
+
 local WgdotYaziFolderActions = {
     { label = "New file", shortcut = "a", action = "new_file" },
     { label = "New folder", shortcut = "a /", action = "new_folder" },
@@ -284,6 +391,8 @@ WgdotYaziContextMenu = {
     _list_area = ui.Rect {},
     _hovered_row = nil,
     _selection_count = 0,
+    _drop_target = nil,
+    _drop_sources = nil,
 }
 
 function WgdotYaziContextMenu:show(kind, x, y, selection_count)
@@ -296,6 +405,12 @@ function WgdotYaziContextMenu:show(kind, x, y, selection_count)
     ui.render()
 end
 
+function WgdotYaziContextMenu:show_drop(target, sources, x, y)
+    self._drop_target = tostring(target)
+    self._drop_sources = sources
+    self:show("drop", x, y, #sources)
+end
+
 function WgdotYaziContextMenu:hide()
     if not self._visible then
         return
@@ -303,12 +418,17 @@ function WgdotYaziContextMenu:hide()
 
     self._visible = false
     self._hovered_row = nil
+    self._drop_target = nil
+    self._drop_sources = nil
     ui.render()
 end
 
 function WgdotYaziContextMenu:title()
     if self._kind == "background" then
         return " Folder actions "
+    elseif self._kind == "drop" then
+        local target = self._drop_target and Url(self._drop_target) or nil
+        return " Drop into " .. tostring(target and target.name or "folder") .. " "
     elseif self._selection_count > 1 then
         return " " .. tostring(self._selection_count) .. " selected "
     end
@@ -319,6 +439,8 @@ end
 function WgdotYaziContextMenu:actions()
     if self._kind == "background" then
         return WgdotYaziFolderActions
+    elseif self._kind == "drop" then
+        return WgdotYaziDropActions
     end
 
     local actions = {}
@@ -343,6 +465,11 @@ function WgdotYaziContextMenu:footer()
         return {
             "Keys: a create | Ctrl+V/p paste | t e terminal",
             "Right-click items for file and archive actions",
+        }
+    elseif self._kind == "drop" then
+        return {
+            "Release chose this folder as the destination",
+            "Choose Copy or Move; click elsewhere to cancel",
         }
     end
 
@@ -435,8 +562,12 @@ end
 
 function WgdotYaziContextMenu:run(action)
     local count = self._selection_count > 0 and self._selection_count or 1
+    local drop_target = self._drop_target
+    local drop_sources = self._drop_sources
     self._visible = false
     self._hovered_row = nil
+    self._drop_target = nil
+    self._drop_sources = nil
     ui.render()
 
     if action == "smart_open" then
@@ -476,6 +607,10 @@ function WgdotYaziContextMenu:run(action)
         end
     elseif action == "terminal" then
         ya.emit("shell", { "wt.exe -w new new-tab -d .", orphan = true })
+    elseif action == "drop_copy" then
+        WgdotYaziDropInto("copy", drop_target, drop_sources)
+    elseif action == "drop_move" then
+        WgdotYaziDropInto("move", drop_target, drop_sources)
     end
 end
 
@@ -545,6 +680,13 @@ end
 local WgdotYaziDefaultCurrentClick = Current.click
 
 function Current:click(event, up)
+    if up and event.is_left and WgdotYaziDragState then
+        WgdotYaziDragState = nil
+        return
+    elseif not up and event.is_left then
+        WgdotYaziDragState = nil
+    end
+
     if not up and event.is_right then
         local row = event.y - self._area.y + 1
         if not self._folder.window[row] then
@@ -558,11 +700,50 @@ function Current:click(event, up)
     return WgdotYaziDefaultCurrentClick(self, event, up)
 end
 
+function Entity:drag(event)
+    if WgdotYaziDragState then
+        return
+    end
+
+    local sources = WgdotYaziDragSources(self._file)
+    if #sources == 0 then
+        return
+    end
+
+    if not self._file:is_selected() then
+        ya.emit("toggle_all", { state = "off" })
+        ya.emit("reveal", { self._file.url })
+    end
+
+    WgdotYaziContextMenu:hide()
+    WgdotYaziDragState = { sources = sources }
+    WgdotYaziStartOutboundDrag(sources)
+end
+
 function Entity:click(event, up)
     if up then
+        if event.is_left and WgdotYaziDragState then
+            local drag = WgdotYaziDragState
+            WgdotYaziDragState = nil
+
+            if self._file.cha.is_dir
+                and WgdotYaziCanDropInto(tostring(self._file.url), drag.sources)
+            then
+                WgdotYaziContextMenu:show_drop(
+                    self._file.url,
+                    drag.sources,
+                    event.x,
+                    event.y
+                )
+            end
+        end
         return
     elseif not event.is_left and not event.is_right and not event.is_middle then
         return
+    end
+
+    if event.is_left then
+        WgdotYaziDragState = nil
     end
 
     if event.is_middle then
