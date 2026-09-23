@@ -66,7 +66,7 @@ jobs:
       - name: Validate managed Yazi config syntax
         run: |
           python tests/test-yazi-config.py
-          luac -p UserProfile/AppData/Roaming/yazi/config/init.lua
+          find UserProfile/AppData/Roaming/yazi/config -type f -name '*.lua' -print0 | xargs -0 -n1 luac -p
       - name: Validate desktop launcher ownership
         run: python tests/test-desktop-bindings.py
 
