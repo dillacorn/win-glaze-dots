@@ -28,12 +28,14 @@ prepend_keymap = [
   { on = ["<Space>"], run = "toggle",    desc = "Toggle select" },
   { on = ["v"],       run = "visual_mode", desc = "Visual select mode" },
   { on = ["<C-a>"],   run = "toggle_all --state=on",  desc = "Select all" },
-  { on = ["<C-x>"],   run = "toggle_all --state=off", desc = "Clear selection" },
 
   # Copy/Cut/Paste
   { on = ["y"],       run = "yank",       desc = "Yank (copy)" },
   { on = ["Y"],       run = "yank --cut", desc = "Yank (cut)" },
   { on = ["p"],       run = "paste",      desc = "Paste" },
+  { on = ["<C-c>"],   run = "yank",       desc = "Copy selected files" },
+  { on = ["<C-x>"],   run = "yank --cut", desc = "Cut selected files" },
+  { on = ["<C-v>"],   run = "paste",      desc = "Paste copied/cut files" },
   { on = ["c", "y"],  run = ["yank", "plugin system-clipboard"], desc = "Copy file(s) to system clipboard" },
 
   # File ops
