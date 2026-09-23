@@ -61,26 +61,28 @@ window_behavior:
       shown_on_top: true
 
 workspaces:
+  # Match Awtarchy's stock workspace glyph sequence. Keep the number and glyph
+  # separated by a plain space with no colon so YASB renders compact labels.
   - name: "1"
-    display_name: "1: Flame"
+    display_name: "1 󰞷"
   - name: "2"
-    display_name: "2: Brows"
+    display_name: "2 "
   - name: "3"
-    display_name: "3: Voip"
+    display_name: "3 "
   - name: "4"
-    display_name: "4: Game"
+    display_name: "4 "
   - name: "5"
-    display_name: "5: Music"
+    display_name: "5 "
   - name: "6"
-    display_name: "6: Chat"
+    display_name: "6 "
   - name: "7"
-    display_name: "7: Dev"
+    display_name: "7 "
   - name: "8"
-    display_name: "8: Work"
+    display_name: "8 "
   - name: "9"
-    display_name: "9: Edit"
+    display_name: "9 "
   - name: "10"
-    display_name: "10: Rec"
+    display_name: "10 "
 
 window_rules:
   - commands: ["ignore"]

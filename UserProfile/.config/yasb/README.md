@@ -4,7 +4,7 @@ This YASB configuration mirrors the current Awtarchy bar where Windows, YASB, an
 
 WGDot manages installation, updates, backups, and deployment. Runtime ownership is hybrid: GlazeWM, YASB, Windows, and applications own behavior they can provide natively, while a small compiled WGDot runtime handles only custom Windows behavior that genuinely needs code or low-level APIs.
 
-## Runtime ownership
+- Workspace buttons use GlazeWM `display_name` values rather than raw workspace IDs. The Normal/personal profile uses Awtarchy's stock number+glyph labels with no colon (`1 󰞷` through `10 `); the Work profile intentionally keeps its existing text labels.\n\n## Runtime ownership
 
 - **GlazeWM** owns window-manager keybindings, binding modes, pause, workspace actions, screenshots, and direct Windows/application launches.
 - **YASB** owns ordinary bar widgets and native callbacks; for the custom application launcher it owns only the visible bar button.
