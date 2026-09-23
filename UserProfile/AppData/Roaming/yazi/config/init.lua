@@ -74,7 +74,7 @@ function WgdotYaziCloseTab()
     end
 end
 
-local WgdotYaziArchiveSnapshot = ya.sync(function()
+local function WgdotYaziArchiveSnapshot()
     local tab = cx.active
     local files = {}
 
@@ -103,7 +103,7 @@ local WgdotYaziArchiveSnapshot = ya.sync(function()
         cwd = tostring(tab.current.cwd),
         files = files,
     }
-end)
+end
 
 local function WgdotYaziArchiveNotify(content, level)
     ya.notify {
@@ -153,8 +153,8 @@ local function WgdotYaziUniqueZip(cwd, requested)
 end
 
 function WgdotYaziCompressSelection()
+    local snapshot = WgdotYaziArchiveSnapshot()
     ya.async(function()
-        local snapshot = WgdotYaziArchiveSnapshot()
         if #snapshot.files == 0 then
             return WgdotYaziArchiveNotify("Nothing selected.", "warn")
         end
@@ -225,8 +225,8 @@ local function WgdotYaziSingleZipSnapshot()
 end
 
 function WgdotYaziExtractZipHere()
+    local snapshot = WgdotYaziSingleZipSnapshot()
     ya.async(function()
-        local snapshot = WgdotYaziSingleZipSnapshot()
         if not snapshot then
             return WgdotYaziArchiveNotify("Select one .zip file to extract.", "warn")
         end
@@ -251,8 +251,8 @@ function WgdotYaziExtractZipHere()
 end
 
 function WgdotYaziExtractZipFolder()
+    local snapshot = WgdotYaziSingleZipSnapshot()
     ya.async(function()
-        local snapshot = WgdotYaziSingleZipSnapshot()
         if not snapshot then
             return WgdotYaziArchiveNotify("Select one .zip file to extract.", "warn")
         end
