@@ -39,6 +39,14 @@ function WgdotYaziEnsureRangeSelect()
     end
 end
 
+function WgdotYaziToggleOrCommitSelection()
+    if cx.active.mode.is_normal then
+        ya.emit("toggle", {})
+    else
+        ya.emit("escape", { visual = true })
+    end
+end
+
 function WgdotYaziConfirmQuit(no_cwd_file)
     ya.async(function()
         local confirmed = ya.confirm {
