@@ -5,8 +5,8 @@
 [mgr]
 prepend_keymap = [
   # Movement
-  { on = ["<Up>"],    run = "arrow prev", desc = "Up" },
-  { on = ["<Down>"],  run = "arrow next", desc = "Down" },
+  { on = ["<Up>"],    run = 'lua "WgdotYaziArrow(-1)"', desc = "Up" },
+  { on = ["<Down>"],  run = 'lua "WgdotYaziArrow(1)"', desc = "Down" },
   { on = ["k"],       run = "arrow prev", desc = "Up" },
   { on = ["j"],       run = "arrow next", desc = "Down" },
   { on = ["g", "g"], run = "arrow top", desc = "Top" },
@@ -29,10 +29,10 @@ prepend_keymap = [
   { on = ["g", "r"], run = "plugin recent-files", desc = "Go to recently opened file" },
 
   # Selection
-  { on = ["<Space>"],   run = 'lua "WgdotYaziToggleOrCommitSelection()"', desc = "Toggle or commit selection" },
+  { on = ["<Space>"],   run = "toggle", desc = "Toggle selection" },
   { on = ["<C-Space>"], run = "toggle", desc = "Toggle individual selection" },
-  { on = ["<S-Up>"],    run = ['lua "WgdotYaziEnsureRangeSelect()"', "arrow prev"], desc = "Extend selection up" },
-  { on = ["<S-Down>"],  run = ['lua "WgdotYaziEnsureRangeSelect()"', "arrow next"], desc = "Extend selection down" },
+  { on = ["<S-Up>"],    run = 'lua "WgdotYaziShiftArrow(-1)"', desc = "Extend selection up" },
+  { on = ["<S-Down>"],  run = 'lua "WgdotYaziShiftArrow(1)"', desc = "Extend selection down" },
   { on = ["v"],         run = "visual_mode", desc = "Visual select mode" },
   { on = ["<C-a>"],     run = "toggle_all --state=on", desc = "Select all" },
 
@@ -55,6 +55,7 @@ prepend_keymap = [
   { on = ["<S-Enter>"], run = 'lua "WgdotYaziOpen(true)"', desc = "Open selected files interactively" },
   { on = ["r"],       run = "rename",               desc = "Rename" },
   { on = ["d", "d"], run = "remove",               desc = "Trash selection" },
+  { on = ["<Delete>"], run = "remove",                    desc = "Trash selection" },
   { on = ["t", "e"], run = "shell --orphan -- wt.exe -w new new-tab -d .", desc = "Open terminal here" },
 
   # Display
