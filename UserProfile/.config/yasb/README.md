@@ -57,7 +57,8 @@ The application button is a lightweight YASB `CustomWidget` that opens `wgdotw.e
 - Keyboard activation opens horizontally centered just below the top bar during ordinary desktop use.
 - For keyboard activation only, if YASB auto-hide is enabled or the foreground window fills the active monitor, the launcher opens centered on that monitor.
 - The launcher stays compact at roughly half the old search-window width while retaining normal application-name room.
-- Its results scrollbar is WGDot-drawn with the active YASB theme instead of the bright native Windows scrollbar.
+- Its results viewport uses pixel-smooth wheel scrolling with a wider WGDot-drawn scrollbar: a 16 px hit area and 12 px thumb colored from the active YASB theme instead of the bright native Windows scrollbar.
+- It loads a persistent WGDot-owned Start Menu index before the window is shown, refreshes that index asynchronously, and prewarms it during real WGDot runtime installation/refresh so repeat opens do not rescan and resolve every shortcut before results are usable.
 - It indexes Start Menu shortcuts, activates them through Windows shell semantics, and resolves ordinary `.lnk` target/icon metadata so results prefer the underlying application icon instead of shortcut-style presentation where Windows exposes that metadata.
 - VM mode has no ordinary launcher binding that steals guest shortcuts.
 
