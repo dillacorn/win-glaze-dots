@@ -16,6 +16,8 @@ prepend_keymap = [
   { on = ["<Right>"], run = "enter",     desc = "Enter directory" },
   { on = ["l"],       run = "enter",     desc = "Enter directory" },
   { on = ["<Enter>"], run = 'lua "WgdotYaziSmartEnter()"', desc = "Enter directory or open file" },
+  { on = ["q"],       run = 'lua "WgdotYaziConfirmQuit(false)"', desc = "Quit with confirmation" },
+  { on = ["Q"],       run = 'lua "WgdotYaziConfirmQuit(true)"', desc = "Quit without cwd file (confirm)" },
   { on = ["<Left>"],  run = "leave",     desc = "Up one dir" },
   { on = ["h"],       run = "leave",     desc = "Up one dir" },
   { on = ["<Backspace>"], run = "leave", desc = "Up one dir" },
@@ -25,15 +27,18 @@ prepend_keymap = [
   { on = ["L"],       run = "forward",   desc = "Forward in history" },
 
   # Selection
-  { on = ["<Space>"], run = "toggle",    desc = "Toggle select" },
-  { on = ["v"],       run = "visual_mode", desc = "Visual select mode" },
-  { on = ["<C-a>"],   run = "toggle_all --state=on",  desc = "Select all" },
+  { on = ["<Space>"],   run = "toggle", desc = "Toggle select" },
+  { on = ["<C-Space>"], run = "toggle", desc = "Toggle individual selection" },
+  { on = ["<S-Up>"],    run = ['lua "WgdotYaziEnsureRangeSelect()"', "arrow prev"], desc = "Extend selection up" },
+  { on = ["<S-Down>"],  run = ['lua "WgdotYaziEnsureRangeSelect()"', "arrow next"], desc = "Extend selection down" },
+  { on = ["v"],         run = "visual_mode", desc = "Visual select mode" },
+  { on = ["<C-a>"],     run = "toggle_all --state=on", desc = "Select all" },
 
   # Copy/Cut/Paste
   { on = ["y"],       run = "yank",       desc = "Yank (copy)" },
   { on = ["Y"],       run = "yank --cut", desc = "Yank (cut)" },
   { on = ["p"],       run = "paste",      desc = "Paste" },
-  { on = ["<C-c>"],   run = "yank",       desc = "Copy selected files" },
+  { on = ["<C-c>"],   run = ["yank", "plugin system-clipboard"], desc = "Copy files + system clipboard" },
   { on = ["<C-x>"],   run = "yank --cut", desc = "Cut selected files" },
   { on = ["<C-v>"],   run = "paste",      desc = "Paste copied/cut files" },
   { on = ["c", "y"],  run = ["yank", "plugin system-clipboard"], desc = "Copy file(s) to system clipboard" },
@@ -57,6 +62,13 @@ prepend_keymap = [
 [input]
 prepend_keymap = [
   { on = ["<Esc>"], run = "close", desc = "Cancel input" }
+]
+
+[confirm]
+prepend_keymap = [
+  { on = ["<Space>"], run = "close --submit", desc = "Confirm" },
+  { on = ["Y"],       run = "close --submit", desc = "Confirm" },
+  { on = ["N"],       run = "close",          desc = "Cancel" }
 ]
 
 [help]
