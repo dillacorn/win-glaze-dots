@@ -21,7 +21,7 @@ No third-party geolocation or IP-location service is used. Windows itself determ
 
 ## Taskbar Widgets compatibility
 
-WGDot normally hides the Windows 11 Widgets button through the current-user `TaskbarDa` setting. Some Windows builds protect that specific value even when other taskbar values remain writable. If Windows rejects only `TaskbarDa`, WGDot discards the untouched value's rollback snapshot and uses Microsoft's machine-level Widgets policy `SOFTWARE\Policies\Microsoft\Dsh\AllowNewsAndInterests=0` inside the existing elevated setup batch. The pre-WGDot policy state is snapshotted for rollback.
+WGDot normally hides the Windows 11 Widgets button through the current-user `TaskbarDa` setting. Some Windows builds protect that specific value even when other taskbar values remain writable. If Windows rejects `TaskbarDa`, WGDot discards the untouched value's rollback snapshot and tries Microsoft's machine-level Widgets policy `SOFTWARE\Policies\Microsoft\Dsh\AllowNewsAndInterests=0` inside the existing elevated setup batch. When that policy write succeeds, the pre-WGDot policy state is snapshotted for rollback. If Windows, domain policy, MDM, or security software also protects the machine-policy value, WGDot discards the unapplied snapshot, reports that Widgets alone were left unchanged, continues hiding the other selected taskbar items, and does not fail the entire software reconciliation for that compatibility case.
 
 ## Automated acceptance audit
 

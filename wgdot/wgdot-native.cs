@@ -21,7 +21,7 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-79";
+    const string Version = "native-preview-80";
     const int WingetPreflightTimeoutMs = 30000;
     const double RawAccelHotkeyWidthRatio = 0.625;
     const double RawAccelHotkeyHeightRatio = 0.825;
@@ -10799,13 +10799,41 @@ class WgdotHidden
                 "using the supported Widgets policy fallback.");
             Console.ResetColor();
 
-            SetRegistryValueWithSnapshot(
-                id,
-                "HKLM",
-                @"SOFTWARE\Policies\Microsoft\Dsh",
-                "AllowNewsAndInterests",
-                0,
-                RegistryValueKind.DWord);
+            const string widgetsPolicyPath =
+                @"SOFTWARE\Policies\Microsoft\Dsh";
+            const string widgetsPolicyName = "AllowNewsAndInterests";
+
+            try
+            {
+                SetRegistryValueWithSnapshot(
+                    id,
+                    "HKLM",
+                    widgetsPolicyPath,
+                    widgetsPolicyName,
+                    0,
+                    RegistryValueKind.DWord);
+                Console.WriteLine("Taskbar Widgets hidden through Windows policy.");
+            }
+            catch (UnauthorizedAccessException)
+            {
+                // A domain, MDM policy, security product, or Windows build can
+                // protect both the user setting and the machine policy key.
+                // Neither failed write mutated the registry. Do not claim
+                // rollback ownership for the machine policy, and do not fail
+                // the entire software reconciliation over this one cosmetic
+                // taskbar item. Continue applying the other cleanup values.
+                DiscardRegistryOriginalSnapshot(
+                    id,
+                    "HKLM",
+                    widgetsPolicyPath,
+                    widgetsPolicyName);
+
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine(
+                    "Windows also protected the Widgets machine policy. " +
+                    "Widgets were left unchanged; the remaining taskbar cleanup will continue.");
+                Console.ResetColor();
+            }
         }
         SetRegistryValueWithSnapshot(id, "HKCU",
             @"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced",
