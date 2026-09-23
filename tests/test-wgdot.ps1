@@ -63,7 +63,7 @@ Assert-True ($yaziKeymapText -match 'on = \["g", "g"\], run = "arrow top"') "Yaz
 Assert-True ($yaziKeymapText -match 'on = \["G"\],\s+run = "arrow bot"') "Yazi G still jumps to bottom"
 Assert-True ($yaziKeymapText -notmatch 'run = "arrow -1"') "Yazi old non-wrapping previous navigation is removed"
 Assert-True ($yaziKeymapText -notmatch 'run = "arrow 1"') "Yazi old non-wrapping next navigation is removed"
-Assert-True ($yaziKeymapText -notmatch 'on = \["n"\]') "Yazi n is inherited from native find-next instead of custom create"
+Assert-True ($yaziKeymapText -cnotmatch 'on = \["n"\]') "Yazi lowercase n is inherited from native find-next instead of custom create"
 Assert-True ($yaziKeymapText -notmatch 'create --interactive') "Yazi no longer duplicates create on n"
 Assert-True ($yaziKeymapText -match 'on = \["\?"\],\s+run = "help"') "Yazi custom question-mark help binding is intentionally preserved"
 Assert-True ($yaziKeymapText -match 'on = \["m", "t"\].*WgdotYaziToggleTimeFormat') "Yazi m t toggles highlighted-item time format"
