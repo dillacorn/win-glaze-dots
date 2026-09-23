@@ -1,8 +1,7 @@
 -- github.com/dillacorn/win-glaze-dots
 -- %APPDATA%\yazi\config\init.lua
 
-local WgdotYaziRecentFiles = require("recent-files")
-WgdotYaziRecentFiles:setup()
+require("recent-files"):setup()
 
 function Linemode:size_and_mtime()
     local size = self._file:size()
@@ -51,7 +50,11 @@ local function WgdotYaziOpenFiles(interactive, hovered_only)
     end
 
     if #recent > 0 then
-        WgdotYaziRecentFiles:record(recent)
+        local record = { "recent-files", "record" }
+        for _, path in ipairs(recent) do
+            record[#record + 1] = path
+        end
+        ya.emit("plugin", record)
     end
 
     local args = {}
@@ -83,12 +86,11 @@ function WgdotYaziEnsureRangeSelect()
     end
 end
 
-function WgdotYaziToggleOrCommitSelection()
-    if cx.active.mode.is_normal then
-        ya.emit("toggle", {})
-    else
+function WgdotYaziArrow(step)
+    if not cx.active.mode.is_normal then
         ya.emit("escape", { visual = true })
     end
+    ya.emit("arrow", { step })
 end
 
 function WgdotYaziConfirmQuit(no_cwd_file)
@@ -762,47 +764,51 @@ function Header:click(event, up)
     }
 end
 
-local WgdotYaziDefaultCurrentClick = Current.click
+local WgdotYaziPendingClick = nil
+local WgdotYaziDefaultCurrentDrag = Current.drag
 
 function Current:click(event, up)
-    if up and event.is_left and WgdotYaziDragState then
-        WgdotYaziDragState = nil
-        return
-    elseif not up and event.is_left then
-        WgdotYaziDragState = nil
+    local row = event.y - self._area.y + 1
+    local file = self._folder.window[row]
+
+    if file then
+        return Entity:new(file):click(event, up)
     end
 
     if not up and event.is_right then
-        local row = event.y - self._area.y + 1
-        if not self._folder.window[row] then
-            WgdotYaziContextMenu:show("background", event.x, event.y)
-            return
+        WgdotYaziPendingClick = nil
+        WgdotYaziContextMenu:show("background", event.x, event.y)
+    elseif event.is_left then
+        WgdotYaziPendingClick = nil
+        if up then
+            WgdotYaziDragState = nil
+        else
+            WgdotYaziContextMenu:hide()
         end
-    elseif not up and event.is_left then
-        WgdotYaziContextMenu:hide()
     end
-
-    return WgdotYaziDefaultCurrentClick(self, event, up)
 end
 
-function Entity:drag(event)
-    if WgdotYaziDragState then
-        return
+function Current:drag(event)
+    WgdotYaziPendingClick = nil
+
+    if not WgdotYaziDragState then
+        local source = self._folder.hovered
+        if source then
+            local sources = WgdotYaziDragSources(source)
+            if #sources > 0 then
+                if not source:is_selected() then
+                    ya.emit("toggle_all", { state = "off" })
+                    ya.emit("reveal", { source.url })
+                end
+
+                WgdotYaziContextMenu:hide()
+                WgdotYaziDragState = { sources = sources }
+                WgdotYaziStartOutboundDrag(sources)
+            end
+        end
     end
 
-    local sources = WgdotYaziDragSources(self._file)
-    if #sources == 0 then
-        return
-    end
-
-    if not self._file:is_selected() then
-        ya.emit("toggle_all", { state = "off" })
-        ya.emit("reveal", { self._file.url })
-    end
-
-    WgdotYaziContextMenu:hide()
-    WgdotYaziDragState = { sources = sources }
-    WgdotYaziStartOutboundDrag(sources)
+    return WgdotYaziDefaultCurrentDrag(self, event)
 end
 
 function Entity:click(event, up)
@@ -810,6 +816,7 @@ function Entity:click(event, up)
         if event.is_left and WgdotYaziDragState then
             local drag = WgdotYaziDragState
             WgdotYaziDragState = nil
+            WgdotYaziPendingClick = nil
 
             if self._file.cha.is_dir
                 and WgdotYaziCanDropInto(tostring(self._file.url), drag.sources)
@@ -821,20 +828,32 @@ function Entity:click(event, up)
                     event.y
                 )
             end
+            return
+        end
+
+        if event.is_left and WgdotYaziPendingClick then
+            local pending = WgdotYaziPendingClick
+            WgdotYaziPendingClick = nil
+
+            if pending.path == tostring(self._file.url) and pending.was_hovered then
+                WgdotYaziContextMenu:hide()
+                if self._file.cha.is_dir then
+                    ya.emit("enter", {})
+                else
+                    WgdotYaziOpenFiles(false, true)
+                end
+            end
         end
         return
     elseif not event.is_left and not event.is_right and not event.is_middle then
         return
     end
 
-    if event.is_left then
-        WgdotYaziDragState = nil
-    end
-
     if event.is_middle then
+        WgdotYaziPendingClick = nil
         WgdotYaziContextMenu:hide()
         if self._file.cha.is_dir then
-            ya.emit("tab_create", { tostring(self._file.url) })
+            ya.emit("tab_create", { tostring(self._file.url), raw = true })
         end
         return
     end
@@ -843,27 +862,26 @@ function Entity:click(event, up)
     local was_selected = self._file:is_selected()
     local selected_count = #cx.active.selected
 
-    if event.is_right and not was_selected then
-        ya.emit("toggle_all", { state = "off" })
-        selected_count = 1
-    elseif event.is_right then
-        selected_count = math.max(1, selected_count)
-    end
-
-    ya.emit("reveal", { self._file.url })
-
     if event.is_right then
-        WgdotYaziContextMenu:show("item", event.x, event.y, selected_count)
-    elseif was_hovered then
-        WgdotYaziContextMenu:hide()
-        if self._file.cha.is_dir then
-            ya.emit("enter", {})
+        WgdotYaziPendingClick = nil
+        if not was_selected then
+            ya.emit("toggle_all", { state = "off" })
+            selected_count = 1
         else
-            WgdotYaziOpenFiles(false, true)
+            selected_count = math.max(1, selected_count)
         end
-    else
-        WgdotYaziContextMenu:hide()
+
+        ya.emit("reveal", { self._file.url })
+        WgdotYaziContextMenu:show("item", event.x, event.y, selected_count)
+        return
     end
+
+    WgdotYaziContextMenu:hide()
+    WgdotYaziPendingClick = {
+        path = tostring(self._file.url),
+        was_hovered = was_hovered,
+    }
+    ya.emit("reveal", { self._file.url })
 end
 
 WgdotYaziTimeFormat = "24h"
