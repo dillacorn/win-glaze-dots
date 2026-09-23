@@ -58,6 +58,14 @@ function WgdotYaziConfirmQuit(no_cwd_file)
     end)
 end
 
+function WgdotYaziCloseTab()
+    if #cx.tabs > 1 then
+        ya.emit("close", {})
+    else
+        WgdotYaziConfirmQuit(false)
+    end
+end
+
 local WgdotYaziArchiveSnapshot = ya.sync(function()
     local tab = cx.active
     local files = {}
