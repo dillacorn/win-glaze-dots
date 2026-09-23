@@ -21,3 +21,13 @@ open = [
 play = [
     { run = 'cmd.exe /d /c start "" /D %d1 %s1', orphan = true, desc = "Open", for = "windows" },
 ]
+
+[[plugin.prepend_fetchers]]
+url = "*"
+run = "git"
+group = "git"
+
+[[plugin.prepend_fetchers]]
+url = "*/"
+run = "git"
+group = "git"
