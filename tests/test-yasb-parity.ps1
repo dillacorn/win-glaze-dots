@@ -353,6 +353,8 @@ Assert-Contains -Text $style -Needle "background-color: var(--foreground);" -Mes
 Assert-Contains -Text $style -Needle "background-color: var(--active);" -Message "slider unfilled track uses the active theme surface"
 Assert-Contains -Text $style -Needle "border: 1px solid var(--focus);" -Message "slider groove uses the active theme focus edge"
 Assert-Contains -Text $style -Needle "min-width: 90px;" -Message "quick settings titles reserve readable inline label width"
+Assert-Contains -Text $style -Needle 'font-family: "Segoe UI Variable Text", "Segoe UI", "NotoSansM NFM", "JetBrainsMono NFP";' -Message "workspace numbers use UI font while Nerd glyphs fall back to Nerd Font"
+Assert-Contains -Text $style -Needle "font-size: 18px;" -Message "workspace glyph line uses the larger Awtarchy-like optical size"
 Assert-Contains -Text $style -Needle ".glazewm-workspaces .ws-btn.empty" -Message "inactive empty workspace buttons collapse"
 Assert-Contains -Text $style -Needle "min-height: 28px;" -Message "workspace shading spans the full 28 px bar height"
 Assert-Contains -Text $style -Needle "margin-left: 2px;" -Message "CPU and memory icons have a tiny separation from their values"

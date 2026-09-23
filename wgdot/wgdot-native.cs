@@ -21,7 +21,7 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-78";
+    const string Version = "native-preview-79";
     const int WingetPreflightTimeoutMs = 30000;
     const double RawAccelHotkeyWidthRatio = 0.625;
     const double RawAccelHotkeyHeightRatio = 0.825;
@@ -8969,7 +8969,9 @@ class WgdotHidden
         form.ShowInTaskbar = false;
         form.TopMost = true;
         form.KeyPreview = true;
-        form.Opacity = 0.98;
+        // Hide the HWND until the complete themed surface paints once.
+        // Shown reveals it immediately; there is no fade/timer delay.
+        form.Opacity = 0.0;
 
         var outer = new System.Windows.Forms.Panel();
         outer.Dock = System.Windows.Forms.DockStyle.Fill;
@@ -9095,6 +9097,14 @@ class WgdotHidden
 
         form.Shown += delegate
         {
+            // Paint while transparent so DWM never exposes an unpainted
+            // WinForms/default-color frame before the themed launcher.
+            form.Refresh();
+            outer.Refresh();
+            searchWrap.Refresh();
+            search.Refresh();
+            results.Refresh();
+            form.Opacity = 0.98;
             search.Focus();
 
             List<LauncherApp> cachedApps =
