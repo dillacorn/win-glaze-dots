@@ -28,6 +28,11 @@ function Linemode:size_and_mtime()
     return string.format("%9s  %8s", size_text, date_text)
 end
 
+function WgdotYaziSmartEnter()
+    local hovered = cx.active.current.hovered
+    ya.emit(hovered and hovered.cha.is_dir and "enter" or "open", {})
+end
+
 WgdotYaziTimeFormat = "24h"
 
 ps.sub("@wgdot-yazi-time-format", function(value)
