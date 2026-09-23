@@ -94,7 +94,9 @@ Assert-True ($yaziKeymapText -match 'on = \["e", "h"\].*WgdotYaziExtractZipHere'
 Assert-True ($yaziKeymapText -match 'on = \["e", "f"\].*WgdotYaziExtractZipFolder') "Yazi e f extracts ZIP into a named folder"
 $yaziConfigPath = Join-Path $repoRoot "UserProfile\AppData\Roaming\yazi\config\yazi.toml"
 $yaziConfigText = Get-Content -LiteralPath $yaziConfigPath -Raw
-Assert-True ($yaziConfigText -match '(?m)^linemode = "size_and_mtime"\r?$yaziInitPath = Join-Path $repoRoot "UserProfile\AppData\Roaming\yazi\config\init.lua"
+Assert-True ($yaziConfigText -match '(?m)^linemode = "size_and_mtime"\r?$') "Yazi starts with combined size and modified-date linemode"
+Assert-True ($yaziConfigText -match '(?m)^mouse_events = \["click", "scroll", "drag", "move"\]\r?$') "Yazi enables event-driven mouse move for menu hover"
+$yaziInitPath = Join-Path $repoRoot "UserProfile\AppData\Roaming\yazi\config\init.lua"
 $yaziInitText = Get-Content -LiteralPath $yaziInitPath -Raw
 $yaziRecentPath = Join-Path $repoRoot "UserProfile\AppData\Roaming\yazi\config\plugins\recent-files.yazi\main.lua"
 $yaziRecentText = Get-Content -LiteralPath $yaziRecentPath -Raw
