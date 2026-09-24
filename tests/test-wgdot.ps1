@@ -104,6 +104,8 @@ Assert-True ($yaziKeymapText -match 'on = \["c", "z"\].*WgdotYaziCompressSelecti
 Assert-True ($yaziKeymapText -match 'on = \["e", "h"\].*WgdotYaziExtractZipHere') "Yazi e h extracts ZIP into current directory"
 Assert-True ($yaziKeymapText -match 'on = \["e", "f"\].*WgdotYaziExtractZipFolder') "Yazi e f extracts ZIP into a named folder"
 $yaziConfigPath = Join-Path $repoRoot "UserProfile\AppData\Roaming\yazi\config\yazi.toml"
+$yaziThemePath = Join-Path $repoRoot "UserProfile\AppData\Roaming\yazi\config\theme.toml"
+$yaziThemeText = Get-Content -LiteralPath $yaziThemePath -Raw
 $yaziConfigText = Get-Content -LiteralPath $yaziConfigPath -Raw
 Assert-True ($yaziConfigText -match '(?m)^linemode = "size_and_mtime"\r?$') "Yazi starts with combined size and modified-date linemode"
 Assert-True ($yaziConfigText -match '(?m)^mouse_events = \["click", "scroll", "drag", "move"\]\r?$') "Yazi enables event-driven mouse move for menu hover"
@@ -262,6 +264,10 @@ Assert-True (@($yaziComponent.files | Where-Object { $_.id -eq "yazi-bookmarks" 
 Assert-True (@($yaziComponent.files | Where-Object { $_.id -eq "yazi-drives" }).Count -eq 1) "Yazi Windows drive picker plugin is managed"
 Assert-True (@($yaziComponent.files | Where-Object { $_.id -eq "yazi-git" }).Count -eq 1) "Yazi Git status plugin is managed"
 Assert-True (@($yaziComponent.files | Where-Object { $_.id -eq "yazi-git-license" }).Count -eq 1) "Yazi Git plugin license is managed"
+Assert-True (@($yaziComponent.files | Where-Object { $_.id -eq "yazi-theme" }).Count -eq 1) "Yazi theme override is managed"
+Assert-True ($yaziThemeText -match 'sep_inner\s*=\s*\{ open = "", close = "" \}') "Yazi tabs use square separators"
+Assert-True ($yaziThemeText -match 'padding\s*=\s*\{ open = " ", close = " " \}') "Yazi hovered-row indicator uses square padding"
+Assert-True ($yaziThemeText -match 'sep_left\s*=\s*\{ open = "", close = "" \}') "Yazi status cells use square separators"
 Assert-True ($componentIds -notcontains "desktop-scripts") "obsolete desktop scripts component is removed"
 
 $yasb = $manifest.components | Where-Object { $_.id -eq "yasb" } | Select-Object -First 1
