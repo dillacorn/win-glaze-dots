@@ -160,6 +160,12 @@
           "source": "UserProfile/AppData/Roaming/yazi/config/plugins/git.yazi/LICENSE",
           "destination": "%APPDATA%\\yazi\\config\\plugins\\git.yazi\\LICENSE",
           "merge": true
+        },
+        {
+          "id": "yazi-theme",
+          "source": "UserProfile/AppData/Roaming/yazi/config/theme.toml",
+          "destination": "%APPDATA%\\yazi\\config\\theme.toml",
+          "merge": true
         }
       ],
       "postActions": [
