@@ -7,6 +7,12 @@
 
 [mgr]
 linemode = "size_and_mtime"
+mouse_events = ["click", "scroll", "drag", "move"]
+
+[preview]
+wrap = "yes"
+max_width = 2000
+max_height = 2000
 
 [opener]
 edit = [
@@ -20,3 +26,13 @@ open = [
 play = [
     { run = 'cmd.exe /d /c start "" /D %d1 %s1', orphan = true, desc = "Open", for = "windows" },
 ]
+
+[[plugin.prepend_fetchers]]
+url = "*"
+run = "git"
+group = "git"
+
+[[plugin.prepend_fetchers]]
+url = "*/"
+run = "git"
+group = "git"

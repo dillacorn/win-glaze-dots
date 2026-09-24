@@ -22,7 +22,7 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-82";
+    const string Version = "native-preview-83";
     const int WingetPreflightTimeoutMs = 30000;
     const int CurrentTweakDefaultsVersion = 1;
     const double RawAccelHotkeyWidthRatio = 0.625;
@@ -1039,6 +1039,7 @@ internal static class WgdotNative
         public string Charging;
         public string Critical;
         public string Muted;
+        public string MicroColorScheme;
 
         public YasbTheme(
             string id,
@@ -1052,7 +1053,8 @@ internal static class WgdotNative
             string dark,
             string charging,
             string critical,
-            string muted)
+            string muted,
+            string microColorScheme)
         {
             Id = id;
             Label = label;
@@ -1066,6 +1068,7 @@ internal static class WgdotNative
             Charging = charging;
             Critical = critical;
             Muted = muted;
+            MicroColorScheme = microColorScheme;
         }
     }
 
@@ -1073,15 +1076,15 @@ internal static class WgdotNative
     // GlazeWM is intentionally excluded so applying a theme never reloads the WM.
     static readonly List<YasbTheme> YasbThemes = new List<YasbTheme>
     {
-        new YasbTheme("carbon-night", "Carbon Night", "#353535", "#d0d0d0", "#404040", "#4a4a4a", "#2b2b2b", "#ff5555", "#1a1a1a", "#6a9955", "#ff5555", "#5c5c5c"),
-        new YasbTheme("catppuccin-frappe", "Catppuccin Frappe", "#303446", "#c6d0f5", "#414559", "#535970", "#383c4d", "#e78284", "#232634", "#a6d189", "#ef9f76", "#a5adce"),
-        new YasbTheme("crimson-red", "Crimson Red", "#1e1e2e", "#f38ba8", "#352630", "#5a3442", "#292330", "#f38ba8", "#1e1e2e", "#fab387", "#f38ba8", "#9f8994"),
-        new YasbTheme("electric-blue", "Electric Blue", "#1e1e2e", "#89b4fa", "#293448", "#34445e", "#252938", "#f38ba8", "#1e1e2e", "#a6e3a1", "#fab387", "#8993a8"),
-        new YasbTheme("gruvbox", "Gruvbox", "#282828", "#ebdbb2", "#4a423c", "#665c4e", "#3c3836", "#b16286", "#fbf1c7", "#98971a", "#cc241d", "#a89984"),
-        new YasbTheme("iron-forge", "Iron Forge", "#0f1113", "#bcd2d2", "#1f2328", "#242a32", "#0d0f12", "#a31717", "#ffffff", "#1f6f6f", "#a31717", "#6a7b86"),
-        new YasbTheme("obsidian-night", "Obsidian Night", "#0f0f0f", "#cdd6f4", "#1e1e2e", "#313244", "#1a1a1a", "#ff5555", "#1e1e2e", "#6a9955", "#ff5555", "#4b4b4b"),
-        new YasbTheme("pink", "Pink", "#D297A1", "#2E2E2E", "#B77F91", "#C0AFC0", "#C0AFC0", "#B04155", "#FFFFFF", "#D3D3D3", "#B04155", "#7A7A7A"),
-        new YasbTheme("pipboy", "Pip-Boy", "#050805", "#a4ff47", "#1f301f", "#1b281b", "#101810", "#263826", "#050805", "#a4ff47", "#3c1b1b", "#2a3d2a")
+        new YasbTheme("carbon-night", "Carbon Night", "#353535", "#d0d0d0", "#404040", "#4a4a4a", "#2b2b2b", "#ff5555", "#1a1a1a", "#6a9955", "#ff5555", "#5c5c5c", "geany"),
+        new YasbTheme("catppuccin-frappe", "Catppuccin Frappe", "#303446", "#c6d0f5", "#414559", "#535970", "#383c4d", "#e78284", "#232634", "#a6d189", "#ef9f76", "#a5adce", "catppuccin-frappe-transparent"),
+        new YasbTheme("crimson-red", "Crimson Red", "#1e1e2e", "#f38ba8", "#352630", "#5a3442", "#292330", "#f38ba8", "#1e1e2e", "#fab387", "#f38ba8", "#9f8994", "zenburn"),
+        new YasbTheme("electric-blue", "Electric Blue", "#1e1e2e", "#89b4fa", "#293448", "#34445e", "#252938", "#f38ba8", "#1e1e2e", "#a6e3a1", "#fab387", "#8993a8", "geany"),
+        new YasbTheme("gruvbox", "Gruvbox", "#282828", "#ebdbb2", "#4a423c", "#665c4e", "#3c3836", "#b16286", "#fbf1c7", "#98971a", "#cc241d", "#a89984", "gruvbox"),
+        new YasbTheme("iron-forge", "Iron Forge", "#0f1113", "#bcd2d2", "#1f2328", "#242a32", "#0d0f12", "#a31717", "#ffffff", "#1f6f6f", "#a31717", "#6a7b86", "gotham"),
+        new YasbTheme("obsidian-night", "Obsidian Night", "#0f0f0f", "#cdd6f4", "#1e1e2e", "#313244", "#1a1a1a", "#ff5555", "#1e1e2e", "#6a9955", "#ff5555", "#4b4b4b", "railscast"),
+        new YasbTheme("pink", "Pink", "#D297A1", "#2E2E2E", "#B77F91", "#C0AFC0", "#C0AFC0", "#B04155", "#FFFFFF", "#D3D3D3", "#B04155", "#7A7A7A", "catppuccin-mocha-transparent"),
+        new YasbTheme("pipboy", "Pip-Boy", "#050805", "#a4ff47", "#1f301f", "#1b281b", "#101810", "#263826", "#050805", "#a4ff47", "#3c1b1b", "#2a3d2a", "cmc-16")
     };
 
     static readonly string[] CursorThemeIds = new[]
@@ -1199,6 +1202,7 @@ internal static class WgdotNative
             if (command == "eartrumpet-mixer-toggle") return EarTrumpetMixerToggle();
             if (command == "eartrumpet-startup") return EarTrumpetStartup();
             if (command == "launcher") return LauncherFromArgs(args.Skip(1).ToArray());
+            if (command == "yazi-drag") return YaziDragFromArgs(args.Skip(1).ToArray());
             if (command == "power-menu") return PowerMenu();
             if (command == "btop-toggle") return BtopToggle();
             if (command == "rawaccel-toggle") return RawAccelToggle();
@@ -2028,7 +2032,8 @@ class WgdotHidden
         return plan.Any(item =>
             item != null &&
             (String.Equals(item.FileId, "yasb-theme", StringComparison.OrdinalIgnoreCase) ||
-             String.Equals(item.FileId, "terminal-settings", StringComparison.OrdinalIgnoreCase)) &&
+             String.Equals(item.FileId, "terminal-settings", StringComparison.OrdinalIgnoreCase) ||
+             item.FileId.StartsWith("micro-theme-", StringComparison.OrdinalIgnoreCase)) &&
             (String.Equals(item.Action, "APPLY", StringComparison.OrdinalIgnoreCase) ||
              String.Equals(item.Action, "REPLACE", StringComparison.OrdinalIgnoreCase) ||
              String.Equals(item.Action, "MERGE", StringComparison.OrdinalIgnoreCase)));
@@ -2079,6 +2084,9 @@ class WgdotHidden
             Console.ResetColor();
             return 0;
         }
+
+        if (!ConfirmYaziClosedForManagedApply(plan))
+            return 0;
 
         ApplyPlan(plan, source.Manifest, selection, source, true);
         RestoreRememberedThemeAfterManagedApply(plan);
@@ -8062,6 +8070,43 @@ class WgdotHidden
         }
     }
 
+    static bool ManagedPlanWritesYazi(List<PlanItem> plan)
+    {
+        if (plan == null) return false;
+
+        return plan.Any(item =>
+            item != null &&
+            !String.IsNullOrWhiteSpace(item.FileId) &&
+            item.FileId.StartsWith("yazi-", StringComparison.OrdinalIgnoreCase) &&
+            (String.Equals(item.Action, "APPLY", StringComparison.OrdinalIgnoreCase) ||
+             String.Equals(item.Action, "REPLACE", StringComparison.OrdinalIgnoreCase) ||
+             String.Equals(item.Action, "MERGE", StringComparison.OrdinalIgnoreCase)));
+    }
+
+    static bool ConfirmYaziClosedForManagedApply(List<PlanItem> plan)
+    {
+        if (!ManagedPlanWritesYazi(plan) || !ProcessIsRunning("yazi"))
+            return true;
+
+        Console.WriteLine();
+        Console.ForegroundColor = ConsoleColor.Yellow;
+        Console.WriteLine("Yazi is currently running and its managed configuration is about to be updated.");
+        Console.ResetColor();
+
+        if (!ReadYesNo("Close Yazi and continue? [Y/n]", true))
+        {
+            Console.WriteLine("Yazi was left running. No managed files were changed.");
+            return false;
+        }
+
+        StopProcessesByName("yazi");
+        if (!WaitForProcessState("yazi", false, 5000))
+            throw new Exception("Yazi could not be closed. No managed files were changed.");
+
+        Console.WriteLine("Closed Yazi.");
+        return true;
+    }
+
     static bool WaitForProcessState(string processName, bool running, int timeoutMs)
     {
         int waited = 0;
@@ -8241,6 +8286,52 @@ class WgdotHidden
         return Path.Combine(profileRoot, ".config", "yasb", "theme.css");
     }
 
+    static string MicroConfigRoot()
+    {
+        if (!String.IsNullOrWhiteSpace(TestRootOverride))
+            return Path.Combine(TestRootOverride, "user-profile", ".config", "micro");
+
+        string microConfigHome = Environment.GetEnvironmentVariable("MICRO_CONFIG_HOME");
+        if (!String.IsNullOrWhiteSpace(microConfigHome))
+            return Environment.ExpandEnvironmentVariables(microConfigHome);
+
+        string xdgConfigHome = Environment.GetEnvironmentVariable("XDG_CONFIG_HOME");
+        if (!String.IsNullOrWhiteSpace(xdgConfigHome))
+            return Path.Combine(Environment.ExpandEnvironmentVariables(xdgConfigHome), "micro");
+
+        return Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            ".config",
+            "micro");
+    }
+
+    static string MicroSettingsPath()
+    {
+        return Path.Combine(MicroConfigRoot(), "settings.json");
+    }
+
+    static bool ApplyMicroTheme(YasbTheme theme)
+    {
+        if (theme == null || String.IsNullOrWhiteSpace(theme.MicroColorScheme))
+            return false;
+
+        string root = MicroConfigRoot();
+        string settingsPath = MicroSettingsPath();
+        string colorschemePath = Path.Combine(
+            root,
+            "colorschemes",
+            theme.MicroColorScheme + ".micro");
+
+        Directory.CreateDirectory(root);
+        Dictionary<string, object> settings = ReadJson(settingsPath);
+        if (settings == null)
+            settings = new Dictionary<string, object>();
+        settings["colorscheme"] = theme.MicroColorScheme;
+        WriteJson(settingsPath, settings);
+
+        return File.Exists(colorschemePath);
+    }
+
     static int ThemeManagerFromArgs(string[] args)
     {
         if (args == null || args.Length == 0)
@@ -8273,7 +8364,7 @@ class WgdotHidden
             if (currentIndex < 0) currentIndex = 0;
 
             int choice = ReadSingleChoice(
-                "Themes - YASB + Windows Terminal; GlazeWM is not reloaded",
+                "Themes - YASB + Windows Terminal + Micro; GlazeWM is not reloaded",
                 items,
                 currentIndex);
 
@@ -8305,6 +8396,7 @@ class WgdotHidden
         File.AppendAllText(cssPath, Environment.NewLine, new UTF8Encoding(false));
 
         bool terminalSynced = ApplyWindowsTerminalTheme(theme);
+        bool microSynced = ApplyMicroTheme(theme);
 
         var state = new Dictionary<string, object>();
         state["id"] = theme.Id;
@@ -8313,6 +8405,9 @@ class WgdotHidden
         state["cssPath"] = cssPath;
         state["terminalSynced"] = terminalSynced;
         state["terminalSettingsPath"] = WindowsTerminalSettingsPath();
+        state["microColorScheme"] = theme.MicroColorScheme;
+        state["microSynced"] = microSynced;
+        state["microSettingsPath"] = MicroSettingsPath();
         state["glazewmReloaded"] = false;
         WriteJson(ThemeStatePath, state);
 
@@ -8320,6 +8415,9 @@ class WgdotHidden
         Console.WriteLine(terminalSynced
             ? "Windows Terminal theme applied: " + theme.Label
             : "Windows Terminal settings were not found; terminal theme sync was skipped.");
+        Console.WriteLine(microSynced
+            ? "Micro theme applied: " + theme.MicroColorScheme
+            : "Micro colorscheme file was not found; settings were updated but theme installation is incomplete.");
         Console.WriteLine("GlazeWM was not reloaded; window tiling/layout state is untouched.");
         return 0;
     }
@@ -11802,6 +11900,9 @@ class WgdotHidden
             return 0;
         }
 
+        if (!ConfirmYaziClosedForManagedApply(plan))
+            return 0;
+
         string pendingGitRuntime = PrepareGitRuntimeSync(source);
         ApplyPlan(plan, source.Manifest, selection, source);
         RestoreRememberedThemeAfterManagedApply(plan);
@@ -14819,6 +14920,120 @@ class WgdotHidden
             foreach (byte b in bytes) sb.Append(b.ToString("x2"));
             return sb.ToString();
         }
+    }
+
+    static string NormalizeYaziDragListPath(string path)
+    {
+        if (String.IsNullOrWhiteSpace(path))
+            throw new Exception("Yazi drag manifest path is required.");
+
+        string full = Path.GetFullPath(path);
+        string temp = Path.GetFullPath(Path.GetTempPath())
+            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) +
+            Path.DirectorySeparatorChar;
+        string fileName = Path.GetFileName(full);
+
+        if (!full.StartsWith(temp, StringComparison.OrdinalIgnoreCase) ||
+            !fileName.StartsWith("wgdot-yazi-drag-", StringComparison.OrdinalIgnoreCase) ||
+            !fileName.EndsWith(".txt", StringComparison.OrdinalIgnoreCase))
+            throw new Exception("Yazi drag manifest must be a WGDot Yazi temp file.");
+
+        return full;
+    }
+
+    static List<string> LoadYaziDragPaths(string manifestPath)
+    {
+        string manifest = NormalizeYaziDragListPath(manifestPath);
+        if (!File.Exists(manifest))
+            throw new Exception("Yazi drag manifest does not exist.");
+
+        var info = new FileInfo(manifest);
+        if (info.Length > 1024 * 1024)
+            throw new Exception("Yazi drag manifest is too large.");
+
+        var files = new List<string>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (string raw in File.ReadAllLines(manifest, Encoding.UTF8))
+        {
+            if (String.IsNullOrEmpty(raw))
+                continue;
+            if (raw.IndexOf('\0') >= 0 || !Path.IsPathRooted(raw))
+                throw new Exception("Yazi drag manifest contains an invalid path.");
+
+            string full = Path.GetFullPath(raw);
+            if (!File.Exists(full) && !Directory.Exists(full))
+                throw new Exception("Yazi drag item no longer exists: " + full);
+
+            if (seen.Add(full))
+                files.Add(full);
+
+            if (files.Count > 256)
+                throw new Exception("Yazi drag is limited to 256 items.");
+        }
+
+        if (files.Count == 0)
+            throw new Exception("Yazi drag manifest contains no files.");
+
+        return files;
+    }
+
+    static bool PointInsideRect(POINT point, RECT rect)
+    {
+        return point.X >= rect.Left &&
+               point.X < rect.Right &&
+               point.Y >= rect.Top &&
+               point.Y < rect.Bottom;
+    }
+
+    static int YaziDragFromArgs(string[] args)
+    {
+        if (args == null || args.Length != 1)
+            throw new Exception("Usage: wgdotw.exe yazi-drag <WGDot Yazi drag manifest>");
+
+        string manifest = NormalizeYaziDragListPath(args[0]);
+        List<string> files;
+        try
+        {
+            files = LoadYaziDragPaths(manifest);
+        }
+        finally
+        {
+            SafeDeleteFile(manifest);
+        }
+
+        IntPtr sourceWindow = GetForegroundWindow();
+        RECT sourceRect;
+        if (sourceWindow == IntPtr.Zero || !GetWindowRect(sourceWindow, out sourceRect))
+            return 0;
+
+        var watch = Stopwatch.StartNew();
+        while ((GetAsyncKeyState(0x01) & 0x8000) != 0 && watch.ElapsedMilliseconds < 30000)
+        {
+            POINT point;
+            if (GetCursorPos(out point) && !PointInsideRect(point, sourceRect))
+            {
+                var dropList = new System.Collections.Specialized.StringCollection();
+                dropList.AddRange(files.ToArray());
+
+                var data = new System.Windows.Forms.DataObject();
+                data.SetFileDropList(dropList);
+
+                using (var dragSource = new System.Windows.Forms.Control())
+                {
+                    IntPtr unused = dragSource.Handle;
+                    dragSource.DoDragDrop(
+                        data,
+                        System.Windows.Forms.DragDropEffects.Copy |
+                        System.Windows.Forms.DragDropEffects.Move);
+                }
+                return 0;
+            }
+
+            System.Threading.Thread.Sleep(10);
+        }
+
+        return 0;
     }
 
     static void SafeDeleteFile(string path)

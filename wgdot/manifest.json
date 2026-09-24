@@ -120,6 +120,12 @@
           "merge": true
         },
         {
+          "id": "yazi-vfs",
+          "source": "UserProfile/AppData/Roaming/yazi/config/vfs.toml",
+          "destination": "%APPDATA%\\yazi\\config\\vfs.toml",
+          "merge": true
+        },
+        {
           "id": "yazi-init",
           "source": "UserProfile/AppData/Roaming/yazi/config/init.lua",
           "destination": "%APPDATA%\\yazi\\config\\init.lua",
@@ -129,6 +135,48 @@
           "id": "yazi-system-clipboard",
           "source": "UserProfile/AppData/Roaming/yazi/config/plugins/system-clipboard.yazi/main.lua",
           "destination": "%APPDATA%\\yazi\\config\\plugins\\system-clipboard.yazi\\main.lua",
+          "merge": true
+        },
+        {
+          "id": "yazi-recent-files",
+          "source": "UserProfile/AppData/Roaming/yazi/config/plugins/recent-files.yazi/main.lua",
+          "destination": "%APPDATA%\\yazi\\config\\plugins\\recent-files.yazi\\main.lua",
+          "merge": true
+        },
+        {
+          "id": "yazi-bookmarks",
+          "source": "UserProfile/AppData/Roaming/yazi/config/plugins/bookmarks.yazi/main.lua",
+          "destination": "%APPDATA%\\yazi\\config\\plugins\\bookmarks.yazi\\main.lua",
+          "merge": true
+        },
+        {
+          "id": "yazi-preview-refit",
+          "source": "UserProfile/AppData/Roaming/yazi/config/plugins/preview-refit.yazi/main.lua",
+          "destination": "%APPDATA%\\yazi\\config\\plugins\\preview-refit.yazi\\main.lua",
+          "merge": true
+        },
+        {
+          "id": "yazi-drives",
+          "source": "UserProfile/AppData/Roaming/yazi/config/plugins/drives.yazi/main.lua",
+          "destination": "%APPDATA%\\yazi\\config\\plugins\\drives.yazi\\main.lua",
+          "merge": true
+        },
+        {
+          "id": "yazi-git",
+          "source": "UserProfile/AppData/Roaming/yazi/config/plugins/git.yazi/main.lua",
+          "destination": "%APPDATA%\\yazi\\config\\plugins\\git.yazi\\main.lua",
+          "merge": true
+        },
+        {
+          "id": "yazi-git-license",
+          "source": "UserProfile/AppData/Roaming/yazi/config/plugins/git.yazi/LICENSE",
+          "destination": "%APPDATA%\\yazi\\config\\plugins\\git.yazi\\LICENSE",
+          "merge": true
+        },
+        {
+          "id": "yazi-theme",
+          "source": "UserProfile/AppData/Roaming/yazi/config/theme.toml",
+          "destination": "%APPDATA%\\yazi\\config\\theme.toml",
           "merge": true
         }
       ],
@@ -154,6 +202,22 @@
           "merge": true,
           "validator": "json"
         }
+      ]
+    },
+    {
+      "id": "micro",
+      "name": "Micro themes",
+      "defaultNormal": true,
+      "defaultWork": true,
+      "files": [
+        { "id": "micro-theme-geany", "source": "UserProfile/.config/micro/colorschemes/geany.micro", "destination": "%USERPROFILE%\\.config\\micro\\colorschemes\\geany.micro", "merge": false },
+        { "id": "micro-theme-zenburn", "source": "UserProfile/.config/micro/colorschemes/zenburn.micro", "destination": "%USERPROFILE%\\.config\\micro\\colorschemes\\zenburn.micro", "merge": false },
+        { "id": "micro-theme-gruvbox", "source": "UserProfile/.config/micro/colorschemes/gruvbox.micro", "destination": "%USERPROFILE%\\.config\\micro\\colorschemes\\gruvbox.micro", "merge": false },
+        { "id": "micro-theme-gotham", "source": "UserProfile/.config/micro/colorschemes/gotham.micro", "destination": "%USERPROFILE%\\.config\\micro\\colorschemes\\gotham.micro", "merge": false },
+        { "id": "micro-theme-railscast", "source": "UserProfile/.config/micro/colorschemes/railscast.micro", "destination": "%USERPROFILE%\\.config\\micro\\colorschemes\\railscast.micro", "merge": false },
+        { "id": "micro-theme-cmc-16", "source": "UserProfile/.config/micro/colorschemes/cmc-16.micro", "destination": "%USERPROFILE%\\.config\\micro\\colorschemes\\cmc-16.micro", "merge": false },
+        { "id": "micro-theme-catppuccin-frappe-transparent", "source": "UserProfile/.config/micro/colorschemes/catppuccin-frappe-transparent.micro", "destination": "%USERPROFILE%\\.config\\micro\\colorschemes\\catppuccin-frappe-transparent.micro", "merge": false },
+        { "id": "micro-theme-catppuccin-mocha-transparent", "source": "UserProfile/.config/micro/colorschemes/catppuccin-mocha-transparent.micro", "destination": "%USERPROFILE%\\.config\\micro\\colorschemes\\catppuccin-mocha-transparent.micro", "merge": false }
       ]
     },
     {

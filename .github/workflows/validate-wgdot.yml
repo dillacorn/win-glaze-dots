@@ -7,10 +7,12 @@ on:
       - "wgdot/**"
       - "tests/test-wgdot.ps1"
       - "tests/test-yasb-config.py"
+      - "tests/test-yazi-config.py"
       - "tests/test-yasb-parity.ps1"
       - "tests/test-desktop-*"
       - "UserProfile/.config/yasb/**"
       - "UserProfile/.glzr/glazewm/**"
+      - "UserProfile/AppData/Roaming/yazi/**"
       - "MANUAL_POWERSHELL.md"
       - "UPDATE.md"
       - "AGENTS.md"
@@ -20,10 +22,12 @@ on:
       - "wgdot/**"
       - "tests/test-wgdot.ps1"
       - "tests/test-yasb-config.py"
+      - "tests/test-yazi-config.py"
       - "tests/test-yasb-parity.ps1"
       - "tests/test-desktop-*"
       - "UserProfile/.config/yasb/**"
       - "UserProfile/.glzr/glazewm/**"
+      - "UserProfile/AppData/Roaming/yazi/**"
       - "MANUAL_POWERSHELL.md"
       - "UPDATE.md"
       - "AGENTS.md"
@@ -57,6 +61,12 @@ jobs:
         run: python -m pip install --disable-pip-version-check "pydantic==2.13.4" "PyYAML==6.0.3"
       - name: Validate managed YASB config against upstream stable schemas
         run: python tests/test-yasb-config.py upstream-yasb
+      - name: Install Yazi Lua validation tool
+        run: sudo apt-get update && sudo apt-get install -y lua5.4
+      - name: Validate managed Yazi config syntax
+        run: |
+          python tests/test-yazi-config.py
+          find UserProfile/AppData/Roaming/yazi/config -type f -name '*.lua' -print0 | xargs -0 -n1 luac -p
       - name: Validate desktop launcher ownership
         run: python tests/test-desktop-bindings.py
 
