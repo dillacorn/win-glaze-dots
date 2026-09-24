@@ -1,0 +1,30 @@
+# Managed Yazi readability overrides.
+# Keep upstream colors, but remove rounded/powerline cell caps and strengthen neutral shading.
+
+[tabs]
+active   = { bg = "blue", bold = true }
+inactive = { fg = "reset", bg = "darkgray" }
+sep_inner = { open = "", close = "" }
+sep_outer = { open = "", close = "" }
+
+[mode]
+normal_main = { fg = "reset", bg = "blue", bold = true }
+normal_alt  = { fg = "reset", bg = "darkgray" }
+select_main = { fg = "reset", bg = "red", bold = true }
+select_alt  = { fg = "reset", bg = "darkgray" }
+unset_main  = { fg = "reset", bg = "red", bold = true }
+unset_alt   = { fg = "reset", bg = "darkgray" }
+
+[indicator]
+padding = { open = " ", close = " " }
+
+[status]
+sep_left  = { open = "", close = "" }
+sep_right = { open = "", close = "" }
+
+[which]
+rest = { fg = "gray" }
+desc = { fg = "lightcyan" }
+
+[help]
+hovered = { reversed = true, bold = true }
