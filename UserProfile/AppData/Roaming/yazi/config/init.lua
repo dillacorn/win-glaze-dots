@@ -39,16 +39,16 @@ local function WgdotYaziOpenFiles(interactive, hovered_only)
     if hovered_only then
         local file = tab.current.hovered
         if file and not file.cha.is_dir then
-            recent[1] = tostring(file.path)
+            recent[1] = tostring(file.url)
         end
     elseif #tab.selected > 0 then
         for _, file in pairs(tab.selected) do
             if not file.cha.is_dir then
-                recent[#recent + 1] = tostring(file.path)
+                recent[#recent + 1] = tostring(file.url)
             end
         end
     elseif tab.current.hovered and not tab.current.hovered.cha.is_dir then
-        recent[1] = tostring(tab.current.hovered.path)
+        recent[1] = tostring(tab.current.hovered.url)
     end
 
     if #recent > 0 then
@@ -79,6 +79,25 @@ function WgdotYaziSmartEnter()
         ya.emit("enter", {})
     else
         WgdotYaziOpenFiles(false, false)
+    end
+end
+
+function WgdotYaziRight()
+    local hovered = cx.active.current.hovered
+    if not hovered then
+        return
+    elseif hovered.cha.is_dir then
+        ya.emit("enter", {})
+    elseif not WgdotYaziPreviewMaximized and WgdotYaziRatio()[3] > 0 then
+        WgdotYaziTogglePreviewMax()
+    end
+end
+
+function WgdotYaziLeft()
+    if WgdotYaziPreviewMaximized then
+        WgdotYaziTogglePreviewMax()
+    else
+        ya.emit("leave", {})
     end
 end
 
@@ -131,16 +150,16 @@ function WgdotYaziSearchMenu()
     ya.async(function()
         local choice = ya.which {
             cands = {
-                { on = "n", desc = "Search names recursively below current directory (fd)" },
-                { on = "c", desc = "Search file contents recursively below current directory (ripgrep)" },
+                { on = "n", desc = "Name search" },
+                { on = "c", desc = "Content search" },
             },
             silent = false,
         }
 
         if choice == 1 then
-            ya.emit("plugin", { "fd" })
+            ya.emit("search", { via = "fd" })
         elseif choice == 2 then
-            ya.emit("plugin", { "rg" })
+            ya.emit("search", { via = "rg" })
         end
     end)
 end
@@ -291,6 +310,70 @@ function Preview:redraw()
     local elements = WgdotYaziDefaultPreviewRedraw(self) or {}
     if self._wgdot_preview_button then
         elements = ya.list_merge(elements, ui.redraw(self._wgdot_preview_button))
+    end
+    return elements
+end
+
+WgdotYaziPreviewToggleButton = { _id = "wgdot-yazi-preview-toggle-button" }
+
+function WgdotYaziPreviewToggleButton:new(area)
+    return setmetatable({ _area = area }, { __index = self })
+end
+
+function WgdotYaziPreviewToggleButton:reflow()
+    return { self }
+end
+
+function WgdotYaziPreviewToggleButton:redraw()
+    local visible = WgdotYaziRatio()[3] > 0
+    local label = visible and " 󰞔 " or " 󰞓 "
+    return {
+        ui.Text(ui.Line(label):style(ui.Style():reverse()))
+            :area(self._area)
+            :align(ui.Align.CENTER),
+    }
+end
+
+function WgdotYaziPreviewToggleButton:click(event, up)
+    if up or not event.is_left then
+        return
+    end
+    WgdotYaziTogglePreview()
+end
+
+local WgdotYaziDefaultCurrentNew = Current.new
+local WgdotYaziDefaultCurrentRedraw = Current.redraw
+
+function Current:new(area, tab)
+    local reserve_control_row = area.w >= 3 and area.h >= 2
+    local current_area = reserve_control_row
+        and ui.Rect { x = area.x, y = area.y, w = area.w, h = area.h - 1 }
+        or area
+
+    local me = WgdotYaziDefaultCurrentNew(self, current_area, tab)
+    if reserve_control_row then
+        me._wgdot_preview_toggle_button = WgdotYaziPreviewToggleButton:new(ui.Rect {
+            x = area.x + math.floor((area.w - 3) / 2),
+            y = area.y + area.h - 1,
+            w = 3,
+            h = 1,
+        })
+    end
+    return me
+end
+
+function Current:reflow()
+    local components = { self }
+    if self._wgdot_preview_toggle_button then
+        components[#components + 1] = self._wgdot_preview_toggle_button
+    end
+    return components
+end
+
+function Current:redraw()
+    local elements = WgdotYaziDefaultCurrentRedraw(self) or {}
+    if self._wgdot_preview_toggle_button then
+        elements = ya.list_merge(elements, ui.redraw(self._wgdot_preview_toggle_button))
     end
     return elements
 end
@@ -856,7 +939,7 @@ function WgdotYaziContextMenu:redraw()
         ui.Clear(self._area),
         ui.Border(ui.Edge.ALL)
             :area(self._area)
-            :type(ui.Border.ROUNDED)
+            :type(ui.Border.PLAIN)
             :style(th.help.border)
             :title(ui.Line(self:title()):align(ui.Align.CENTER)),
         ui.List(rows):area(self._list_area),
@@ -1119,16 +1202,45 @@ function Header:click(event, up)
     end
 
     local cwd = tostring(self._current.cwd)
-    for _, region in ipairs(self._wgdot_breadcrumbs or {}) do
-        if event.x >= region.x1 and event.x <= region.x2
-            and region.target:lower() ~= cwd:lower()
+    local segments = WgdotYaziBreadcrumbSegments(cwd) or {}
+    if WgdotYaziBreadcrumbTarget
+        and cwd:lower() ~= WgdotYaziBreadcrumbTarget:lower()
+        and WgdotYaziPathIsAncestor(cwd, WgdotYaziBreadcrumbTarget)
+    then
+        for _, segment in ipairs(WgdotYaziBreadcrumbSegments(WgdotYaziBreadcrumbTarget) or {}) do
+            if segment.target:lower() ~= cwd:lower()
+                and WgdotYaziPathIsAncestor(cwd, segment.target)
+            then
+                segment.forward = true
+                segments[#segments + 1] = segment
+            end
+        end
+    end
+
+    local total = 0
+    for _, segment in ipairs(segments) do
+        total = total + ui.Line(segment.text):width()
+    end
+    local clipped = false
+    while total > path_width and #segments > 1 do
+        total = total - ui.Line(segments[1].text):width()
+        table.remove(segments, 1)
+        clipped = true
+    end
+
+    local x = self._area.x + (clipped and 1 or 0)
+    for _, segment in ipairs(segments) do
+        local width = ui.Line(segment.text):width()
+        if event.x >= x and event.x < x + width
+            and segment.target:lower() ~= cwd:lower()
         then
-            if not region.forward and WgdotYaziPathIsAncestor(region.target, cwd) then
+            if not segment.forward and WgdotYaziPathIsAncestor(segment.target, cwd) then
                 WgdotYaziBreadcrumbTarget = WgdotYaziBreadcrumbTarget or cwd
             end
-            ya.emit("cd", { Url(region.target), raw = true })
+            ya.emit("cd", { Url(segment.target), raw = true })
             return
         end
+        x = x + width
     end
 end
 
