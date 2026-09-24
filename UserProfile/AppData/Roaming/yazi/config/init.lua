@@ -451,24 +451,9 @@ local function WgdotYaziRatio()
     return { ratio[1], ratio[2], ratio[3] }
 end
 
-local function WgdotYaziQueuePreviewRefit(path)
-    ya.async(function()
-        ya.sleep(25)
-        ya.emit("plugin", {
-            "preview-refit",
-            WgdotYaziPluginArgs("refit", { path }),
-        })
-    end)
-end
-
 local function WgdotYaziApplyRatio(ratio)
     rt.mgr.ratio = { ratio[1], ratio[2], ratio[3] }
     ya.emit("app:resize", {})
-
-    local hovered = cx.active.current.hovered
-    if ratio[3] > 0 and hovered and not hovered.cha.is_dir then
-        WgdotYaziQueuePreviewRefit(tostring(hovered.url))
-    end
 end
 
 function WgdotYaziTogglePreview()
@@ -506,6 +491,40 @@ function WgdotYaziTogglePreviewMax()
     WgdotYaziPreviewMaxRestore = ratio
     WgdotYaziPreviewMaximized = true
     WgdotYaziApplyRatio({ 0, 0, 9999 })
+end
+
+local function WgdotYaziPreviewTextSelectable()
+    if not WgdotYaziPreviewMaximized then return false end
+    local hovered = cx.active.current.hovered
+    if not hovered or hovered.cha.is_dir then return false end
+
+    local mime = hovered:mime() or ""
+    return mime:match("^text/") ~= nil
+        or mime == "application/json"
+        or mime == "application/xml"
+        or mime == "application/javascript"
+        or mime == "application/x-javascript"
+        or mime == "application/x-shellscript"
+end
+
+local function WgdotYaziPowerShellQuote(value)
+    return "'" .. tostring(value):gsub("'", "''") .. "'"
+end
+
+function WgdotYaziSelectPreviewText()
+    if not WgdotYaziPreviewTextSelectable() then return end
+
+    local hovered = cx.active.current.hovered
+    local path = WgdotYaziPowerShellQuote(tostring(hovered.url))
+    local command = 'powershell.exe -NoLogo -NoProfile -Command "' ..
+        "$p=" .. path .. "; " ..
+        "[Console]::OutputEncoding=[System.Text.UTF8Encoding]::new($false); " ..
+        "Get-Content -LiteralPath $p; " ..
+        "Write-Host ''; " ..
+        "[void](Read-Host 'Select text with the mouse; it copies automatically. Press Enter to return to Yazi')" ..
+        '"'
+
+    ya.emit("shell", { command, block = true })
 end
 
 function WgdotYaziEscape()
@@ -556,6 +575,32 @@ function WgdotYaziPreviewButton:click(event, up)
     WgdotYaziTogglePreviewMax()
 end
 
+WgdotYaziTextSelectButton = {
+    _id = "wgdot-yazi-text-select-button",
+}
+
+function WgdotYaziTextSelectButton:new(area)
+    return setmetatable({ _area = area }, { __index = self })
+end
+
+function WgdotYaziTextSelectButton:reflow()
+    return { self }
+end
+
+function WgdotYaziTextSelectButton:redraw()
+    if not WgdotYaziPreviewTextSelectable() then return {} end
+    return {
+        ui.Text(ui.Line(" Select text "):style(ui.Style():reverse()))
+            :area(self._area)
+            :align(ui.Align.LEFT),
+    }
+end
+
+function WgdotYaziTextSelectButton:click(event, up)
+    if up or not event.is_left or not WgdotYaziPreviewTextSelectable() then return end
+    WgdotYaziSelectPreviewText()
+end
+
 local WgdotYaziDefaultPreviewNew = Preview.new
 local WgdotYaziDefaultPreviewRedraw = Preview.redraw
 
@@ -567,6 +612,12 @@ function Preview:new(area, tab)
 
     local me = WgdotYaziDefaultPreviewNew(self, preview_area, tab)
     if reserve_control_row then
+        me._wgdot_text_select_button = WgdotYaziTextSelectButton:new(ui.Rect {
+            x = area.x,
+            y = area.y + area.h - 1,
+            w = math.min(13, math.max(0, area.w - 3)),
+            h = 1,
+        })
         me._wgdot_preview_button = WgdotYaziPreviewButton:new(ui.Rect {
             x = area.x + area.w - 3,
             y = area.y + area.h - 1,
@@ -579,6 +630,9 @@ end
 
 function Preview:reflow()
     local components = { self }
+    if self._wgdot_text_select_button then
+        components[#components + 1] = self._wgdot_text_select_button
+    end
     if self._wgdot_preview_button then
         components[#components + 1] = self._wgdot_preview_button
     end
@@ -587,6 +641,9 @@ end
 
 function Preview:redraw()
     local elements = WgdotYaziDefaultPreviewRedraw(self) or {}
+    if self._wgdot_text_select_button then
+        elements = ya.list_merge(elements, ui.redraw(self._wgdot_text_select_button))
+    end
     if self._wgdot_preview_button then
         elements = ya.list_merge(elements, ui.redraw(self._wgdot_preview_button))
     end
