@@ -172,7 +172,7 @@ Assert-True ($yaziInitText -match 'action = "bulk_rename"') "Yazi multi-selectio
 Assert-True ($yaziInitText -match 'local function WgdotYaziOpenFiles\(interactive, hovered_only\)') "Yazi central file-open recorder is defined"
 Assert-True ($yaziInitText -match 'if file and not file\.cha\.is_dir then') "Yazi recent history excludes hovered directories"
 Assert-True ($yaziInitText -match 'if not file\.cha\.is_dir then') "Yazi recent history excludes selected directories"
-Assert-True ($yaziInitText -match 'local record = \{ "recent-files", "record" \}') "Yazi records opened files through the recent-files plugin runtime"
+Assert-True ($yaziInitText -match 'WgdotYaziPluginArgs\("record", recent\)') "Yazi records opened files through the recent-files plugin argument payload"
 Assert-True ($yaziInitText -match 'function WgdotYaziShiftArrow\(step\)') "Yazi Shift+Arrow range-selection helper is defined"
 Assert-True ($yaziInitText -match 'WgdotYaziShiftRangeActive = true') "Yazi tracks ranges started specifically by Shift+Arrow"
 Assert-True ($yaziInitText -match 'function WgdotYaziArrow\(step\)') "Yazi plain-arrow range commit helper is defined"
