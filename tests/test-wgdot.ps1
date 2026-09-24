@@ -804,12 +804,15 @@ Assert-True ($manifestText -notmatch 'script-theme-switcher|theme-switcher\.ps1|
 Assert-True ($manifestText -match 'yasb-theme') "YASB theme CSS is a tracked managed dotfile"
 foreach ($microTheme in @("geany", "zenburn", "gruvbox", "gotham", "railscast", "cmc-16", "catppuccin-frappe-transparent", "catppuccin-mocha-transparent")) {
     Assert-True ($manifestText -match ("micro-theme-" + [regex]::Escape($microTheme))) "Micro theme is managed: $microTheme"
-    Assert-True (Test-Path -LiteralPath (Join-Path $repoRoot ("UserProfile\AppData\Roaming\micro\colorschemes\" + $microTheme + ".micro")) -PathType Leaf) "Micro theme source exists: $microTheme"
+    Assert-True (Test-Path -LiteralPath (Join-Path $repoRoot ("UserProfile\.config\micro\colorschemes\" + $microTheme + ".micro")) -PathType Leaf) "Micro theme source exists: $microTheme"
 }
 Assert-True ($nativeSourceText -match '(?s)requiredRefreshCommands.*?"cursor"') "acceptance audit requires cursor runtime auto-refresh"
 Assert-True ($nativeSourceText -match '(?s)requiredRefreshCommands.*?"dots-only"') "acceptance audit requires dots-only runtime auto-refresh"
 Assert-True ($nativeSourceText -match 'BuildYasbThemeCss') "compiled WGDot retains YASB theme generation for restricted Work"
 Assert-True ($nativeSourceText -match 'ApplyMicroTheme') "compiled WGDot theme manager synchronizes Micro"
+Assert-True ($nativeSourceText -match 'MICRO_CONFIG_HOME') "WGDot Micro theme sync honors MICRO_CONFIG_HOME"
+Assert-True ($nativeSourceText -match 'XDG_CONFIG_HOME') "WGDot Micro theme sync honors XDG_CONFIG_HOME"
+Assert-True ($nativeSourceText -match 'SpecialFolder\.UserProfile') "WGDot Micro theme sync defaults to the user profile .config path"
 Assert-True ($nativeSourceText -match '"carbon-night".*"geany"') "Carbon Night maps to Awtarchy Micro geany"
 Assert-True ($nativeSourceText -match '"catppuccin-frappe".*"catppuccin-frappe-transparent"') "Catppuccin Frappe maps to Awtarchy Micro theme"
 Assert-True ($nativeSourceText -match '"pink".*"catppuccin-mocha-transparent"') "Pink maps to Awtarchy Micro theme"
