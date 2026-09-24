@@ -243,7 +243,7 @@ function WgdotYaziPreviewButton:reflow()
 end
 
 function WgdotYaziPreviewButton:redraw()
-    local label = WgdotYaziPreviewMaximized and "[ Restore ]" or "[ Maximize ]"
+    local label = WgdotYaziPreviewMaximized and " 󰘕 " or " 󰹶 "
     return {
         ui.Text(ui.Line(label):style(ui.Style():reverse()))
             :area(self._area)
@@ -262,7 +262,7 @@ local WgdotYaziDefaultPreviewNew = Preview.new
 local WgdotYaziDefaultPreviewRedraw = Preview.redraw
 
 function Preview:new(area, tab)
-    local reserve_control_row = area.w >= 12 and area.h >= 2
+    local reserve_control_row = area.w >= 3 and area.h >= 2
     local preview_area = reserve_control_row
         and ui.Rect { x = area.x, y = area.y, w = area.w, h = area.h - 1 }
         or area
@@ -270,9 +270,9 @@ function Preview:new(area, tab)
     local me = WgdotYaziDefaultPreviewNew(self, preview_area, tab)
     if reserve_control_row then
         me._wgdot_preview_button = WgdotYaziPreviewButton:new(ui.Rect {
-            x = area.x + area.w - 12,
+            x = area.x + area.w - 3,
             y = area.y + area.h - 1,
-            w = 12,
+            w = 3,
             h = 1,
         })
     end
