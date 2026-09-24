@@ -52,7 +52,8 @@ prepend_keymap = [
   { on = ["<C-a>"],     run = "toggle_all --state=on", desc = "Select all" },
 
   # Copy/Cut/Paste
-  { on = ["y"],       run = "yank",       desc = "Yank (copy)" },
+  { on = ["y"],       run = 'lua "WgdotYaziYank()"', desc = "Yank (copy) or confirm trash" },
+  { on = ["D"],       run = 'lua "WgdotYaziPermanentDelete()"', desc = "Permanently delete selection" },
   { on = ["Y"],       run = "yank --cut", desc = "Yank (cut)" },
   { on = ["p"],       run = "paste",      desc = "Paste" },
   { on = ["<C-c>"],   run = ["yank", "plugin system-clipboard"], desc = "Copy files + system clipboard" },

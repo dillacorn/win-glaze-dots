@@ -158,6 +158,11 @@ function WgdotYaziOpen(interactive)
 end
 
 function WgdotYaziSmartEnter()
+    if WgdotYaziDeleteMenu and WgdotYaziDeleteMenu._visible then
+        WgdotYaziDeleteMenu:submit()
+        return
+    end
+
     local hovered = cx.active.current.hovered
     if WgdotYaziNavigateCollection(hovered, false) then
         return
@@ -202,6 +207,11 @@ function WgdotYaziShiftArrow(step)
 end
 
 function WgdotYaziArrow(step)
+    if WgdotYaziDeleteMenu and WgdotYaziDeleteMenu._visible then
+        WgdotYaziDeleteMenu:move(step)
+        return
+    end
+
     if WgdotYaziShiftRangeActive and not cx.active.mode.is_normal then
         ya.emit("escape", { visual = true })
     end
@@ -236,21 +246,129 @@ function WgdotYaziCloseTab()
     end
 end
 
-function WgdotYaziRemoveMenu()
-    ya.async(function()
-        local choice = ya.which {
-            cands = {
-                { on = "y", desc = "Move to trash" },
-                { on = "D", desc = "Permanently delete..." },
-            },
-            silent = false,
+WgdotYaziDeleteMenu = {
+    _id = "wgdot-yazi-delete-menu",
+    _visible = false,
+    _selected = 1,
+    _area = ui.Rect {},
+    _list_area = ui.Rect {},
+}
+
+function WgdotYaziDeleteMenu:show()
+    self._selected = 1
+    self._visible = true
+    ui.render()
+end
+
+function WgdotYaziDeleteMenu:hide()
+    if not self._visible then
+        return
+    end
+    self._visible = false
+    ui.render()
+end
+
+function WgdotYaziDeleteMenu:move(step)
+    self._selected = ((self._selected - 1 + step) % 2) + 1
+    ui.render()
+end
+
+function WgdotYaziDeleteMenu:submit(choice)
+    local selected = choice or self._selected
+    self._visible = false
+    ui.render()
+
+    if selected == 1 then
+        ya.emit("remove", { force = true })
+    elseif selected == 2 then
+        ya.emit("remove", { permanently = true })
+    end
+end
+
+function WgdotYaziDeleteMenu:new(area)
+    if not self._visible then
+        self._area = ui.Rect {}
+        self._list_area = ui.Rect {}
+        return self
+    end
+
+    local width = math.min(50, area.w)
+    local height = math.min(6, area.h)
+    if width < 34 or height < 6 then
+        self._area = ui.Rect {}
+        self._list_area = ui.Rect {}
+        return self
+    end
+
+    local x = area.x + math.floor((area.w - width) / 2)
+    local y = area.y + math.floor((area.h - height) / 2)
+    self._area = ui.Rect { x = x, y = y, w = width, h = height }
+    self._list_area = ui.Rect { x = x + 1, y = y + 1, w = width - 2, h = 2 }
+    self._footer_area = ui.Rect { x = x + 1, y = y + 4, w = width - 2, h = 1 }
+    return self
+end
+
+function WgdotYaziDeleteMenu:reflow()
+    return self._visible and self._area.w > 0 and { self } or {}
+end
+
+function WgdotYaziDeleteMenu:redraw()
+    if not self._visible or self._area.w == 0 then
+        return {}
+    end
+
+    local actions = {
+        { label = "Move to trash", shortcut = "y / Enter" },
+        { label = "Permanently delete...", shortcut = "D" },
+    }
+    local rows = {}
+    for i, action in ipairs(actions) do
+        local gap = math.max(1, self._list_area.w - #action.label - #action.shortcut - 2)
+        local row = ui.Line {
+            ui.Span(" " .. action.label):style(th.help.action),
+            ui.Span(string.rep(" ", gap)),
+            ui.Span(action.shortcut):style(th.help.chord),
+            ui.Span(" "),
         }
-        if choice == 1 then
-            ya.emit("remove", { force = true })
-        elseif choice == 2 then
-            ya.emit("remove", { permanently = true })
+        if i == self._selected then
+            row:style(th.help.hovered)
         end
-    end)
+        rows[#rows + 1] = row
+    end
+
+    return {
+        ui.Clear(self._area),
+        ui.Border(ui.Edge.ALL)
+            :area(self._area)
+            :type(ui.Border.PLAIN)
+            :style(th.help.border)
+            :title(ui.Line(" Delete "):align(ui.Align.CENTER)),
+        ui.List(rows):area(self._list_area),
+        ui.Text(ui.Line(" ↑/↓ choose   Enter confirm   Esc cancel "):align(ui.Align.CENTER))
+            :area(self._footer_area),
+    }
+end
+
+Modal:children_add(WgdotYaziDeleteMenu, 30)
+
+function WgdotYaziRemoveMenu()
+    WgdotYaziDeleteMenu:show()
+end
+
+function WgdotYaziYank()
+    if WgdotYaziDeleteMenu._visible then
+        WgdotYaziDeleteMenu:submit(1)
+    else
+        ya.emit("yank", {})
+    end
+end
+
+function WgdotYaziPermanentDelete()
+    if WgdotYaziDeleteMenu._visible then
+        WgdotYaziDeleteMenu:submit(2)
+    else
+        ya.emit("remove", { permanently = true })
+    end
 end
 
 function WgdotYaziSearchMenu()
@@ -350,6 +468,11 @@ function WgdotYaziTogglePreviewMax()
 end
 
 function WgdotYaziEscape()
+    if WgdotYaziDeleteMenu and WgdotYaziDeleteMenu._visible then
+        WgdotYaziDeleteMenu:hide()
+        return
+    end
+
     if WgdotYaziPreviewMaximized then
         WgdotYaziPreviewMaximized = false
         WgdotYaziApplyRatio(
