@@ -69,8 +69,8 @@ prepend_keymap = [
   { on = ["O"],       run = 'lua "WgdotYaziOpen(true)"', desc = "Open selected files interactively" },
   { on = ["<S-Enter>"], run = 'lua "WgdotYaziOpen(true)"', desc = "Open selected files interactively" },
   { on = ["r"],       run = "rename",               desc = "Rename" },
-  { on = ["d", "d"], run = "remove",               desc = "Trash selection" },
-  { on = ["<Delete>"], run = "remove",                    desc = "Trash selection" },
+  { on = ["d", "d"], run = 'lua "WgdotYaziRemoveMenu()"', desc = "Trash or permanently delete selection" },
+  { on = ["<Delete>"], run = 'lua "WgdotYaziRemoveMenu()"', desc = "Trash or permanently delete selection" },
   { on = ["t", "e"], run = "shell --orphan -- wt.exe -w new new-tab -d .", desc = "Open terminal here" },
   { on = ["t", "n"], run = 'lua "WgdotYaziOpenHoveredTab()"', desc = "Open hovered folder in new tab" },
 

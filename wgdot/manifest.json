@@ -120,6 +120,12 @@
           "merge": true
         },
         {
+          "id": "yazi-vfs",
+          "source": "UserProfile/AppData/Roaming/yazi/config/vfs.toml",
+          "destination": "%APPDATA%\\yazi\\config\\vfs.toml",
+          "merge": true
+        },
+        {
           "id": "yazi-init",
           "source": "UserProfile/AppData/Roaming/yazi/config/init.lua",
           "destination": "%APPDATA%\\yazi\\config\\init.lua",
@@ -141,6 +147,12 @@
           "id": "yazi-bookmarks",
           "source": "UserProfile/AppData/Roaming/yazi/config/plugins/bookmarks.yazi/main.lua",
           "destination": "%APPDATA%\\yazi\\config\\plugins\\bookmarks.yazi\\main.lua",
+          "merge": true
+        },
+        {
+          "id": "yazi-preview-refit",
+          "source": "UserProfile/AppData/Roaming/yazi/config/plugins/preview-refit.yazi/main.lua",
+          "destination": "%APPDATA%\\yazi\\config\\plugins\\preview-refit.yazi\\main.lua",
           "merge": true
         },
         {

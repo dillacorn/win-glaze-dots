@@ -10,6 +10,7 @@ linemode = "size_and_mtime"
 mouse_events = ["click", "scroll", "drag", "move"]
 
 [preview]
+wrap = "yes"
 max_width = 2000
 max_height = 2000
 

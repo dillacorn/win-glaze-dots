@@ -5,11 +5,38 @@ require("recent-files"):setup()
 require("bookmarks"):setup()
 require("git"):setup { order = 1500 }
 
-Entity:children_add(function()
-    return " "
-end, 500)
+local function WgdotYaziIsCollectionUrl(value)
+    local url = tostring(value or "")
+    return url:match("^wgdot%-bookmarks://") ~= nil
+        or url:match("^wgdot%-recents://") ~= nil
+end
+
+local function WgdotYaziCollectionTarget(file)
+    if not file or not WgdotYaziIsCollectionUrl(file.url) or not file.link_to then return nil end
+    return tostring(file.link_to), file.cha.is_dir
+end
+
+local function WgdotYaziCollectionCwd()
+    return WgdotYaziIsCollectionUrl(cx.active.current.cwd)
+end
+
+local WgdotYaziDefaultEntityHighlights = Entity.highlights
+local WgdotYaziDefaultEntitySymlink = Entity.symlink
+
+function Entity:highlights()
+    if WgdotYaziIsCollectionUrl(self._file.url) then
+        return ui.printable(tostring(self._file.url.name or ""):gsub("^%d+%-%-", ""))
+    end
+    return WgdotYaziDefaultEntityHighlights(self)
+end
+
+function Entity:symlink()
+    if WgdotYaziIsCollectionUrl(self._file.url) then return "" end
+    return WgdotYaziDefaultEntitySymlink(self)
+end
 
 function Linemode:size_and_mtime()
+    if WgdotYaziIsCollectionUrl(self._file.url) then return "" end
     local size = self._file:size()
     local size_text
 
@@ -50,11 +77,42 @@ local function WgdotYaziPluginArgs(command, values)
     return table.concat(args, " ")
 end
 
-local function WgdotYaziBookmarkTarget(target)
+local function WgdotYaziBookmarkTarget(target, is_dir)
     ya.emit("plugin", {
         "bookmarks",
-        WgdotYaziPluginArgs("toggle", { target }),
+        WgdotYaziPluginArgs("toggle", { is_dir and "D" or "F", target }),
     })
+end
+
+local function WgdotYaziNavigateCollection(file, new_tab)
+    local target, is_dir = WgdotYaziCollectionTarget(file)
+    if not target then return false end
+
+    if not fs.cha(Url(target), true) then
+        ya.notify {
+            title = "Yazi",
+            content = "Target no longer exists; removing stale collection entry.",
+            timeout = 3,
+            level = "warn",
+        }
+        ya.emit("remove", { hovered = true, force = true })
+        return true
+    end
+
+    local url = Url(target)
+    if new_tab then
+        if is_dir then
+            ya.emit("tab_create", { target, raw = true })
+        elseif url.parent then
+            ya.emit("tab_create", { tostring(url.parent), raw = true })
+            ya.emit("reveal", { url, raw = true })
+        end
+    elseif is_dir then
+        ya.emit("cd", { url, raw = true })
+    else
+        ya.emit("reveal", { url, raw = true })
+    end
+    return true
 end
 
 local function WgdotYaziOpenFiles(interactive, hovered_only)
@@ -99,7 +157,9 @@ end
 
 function WgdotYaziSmartEnter()
     local hovered = cx.active.current.hovered
-    if hovered and hovered.cha.is_dir then
+    if WgdotYaziNavigateCollection(hovered, false) then
+        return
+    elseif hovered and hovered.cha.is_dir then
         ya.emit("enter", {})
     else
         WgdotYaziOpenFiles(false, false)
@@ -109,6 +169,8 @@ end
 function WgdotYaziRight()
     local hovered = cx.active.current.hovered
     if not hovered then
+        return
+    elseif WgdotYaziNavigateCollection(hovered, false) then
         return
     elseif hovered.cha.is_dir then
         ya.emit("enter", {})
@@ -120,6 +182,8 @@ end
 function WgdotYaziLeft()
     if WgdotYaziPreviewMaximized then
         WgdotYaziTogglePreviewMax()
+    elseif WgdotYaziCollectionCwd() then
+        ya.emit("back", {})
     else
         ya.emit("leave", {})
     end
@@ -170,6 +234,23 @@ function WgdotYaziCloseTab()
     end
 end
 
+function WgdotYaziRemoveMenu()
+    ya.async(function()
+        local choice = ya.which {
+            cands = {
+                { on = "y", desc = "Move to trash" },
+                { on = "D", desc = "Permanently delete..." },
+            },
+            silent = false,
+        }
+        if choice == 1 then
+            ya.emit("remove", { force = true })
+        elseif choice == 2 then
+            ya.emit("remove", { permanently = true })
+        end
+    end)
+end
+
 function WgdotYaziSearchMenu()
     ya.async(function()
         local choice = ya.which {
@@ -189,12 +270,14 @@ function WgdotYaziSearchMenu()
 end
 
 function WgdotYaziToggleBookmark()
-    WgdotYaziBookmarkTarget(tostring(cx.active.current.cwd))
+    WgdotYaziBookmarkTarget(tostring(cx.active.current.cwd), true)
 end
 
 function WgdotYaziOpenHoveredTab()
     local hovered = cx.active.current.hovered
-    if hovered and hovered.cha.is_dir then
+    if WgdotYaziNavigateCollection(hovered, true) then
+        return
+    elseif hovered and hovered.cha.is_dir then
         ya.emit("tab_create", { tostring(hovered.url), raw = true })
     end
 end
@@ -212,10 +295,19 @@ local function WgdotYaziRatio()
     return { ratio[1], ratio[2], ratio[3] }
 end
 
-local function WgdotYaziApplyRatio(ratio)
+local function WgdotYaziApplyRatio(ratio, invalidate_cache)
     rt.mgr.ratio = { ratio[1], ratio[2], ratio[3] }
     ya.emit("app:resize", {})
-    ya.emit("peek", { force = true })
+
+    local hovered = cx.active.current.hovered
+    if invalidate_cache and hovered and not hovered.cha.is_dir then
+        ya.emit("plugin", {
+            "preview-refit",
+            WgdotYaziPluginArgs("refit", { tostring(hovered.url) }),
+        })
+    else
+        ya.emit("peek", { force = true })
+    end
 end
 
 function WgdotYaziTogglePreview()
@@ -252,7 +344,7 @@ function WgdotYaziTogglePreviewMax()
 
     WgdotYaziPreviewMaxRestore = ratio
     WgdotYaziPreviewMaximized = true
-    WgdotYaziApplyRatio { 0, 0, 9999 }
+    WgdotYaziApplyRatio({ 0, 0, 9999 }, true)
 end
 
 function WgdotYaziEscape()
@@ -995,10 +1087,10 @@ function WgdotYaziContextMenu:run(action)
     elseif action == "bookmark_hovered" then
         local hovered = cx.active.current.hovered
         if hovered then
-            WgdotYaziBookmarkTarget(tostring(hovered.url))
+            WgdotYaziBookmarkTarget(tostring(hovered.url), hovered.cha.is_dir)
         end
     elseif action == "bookmark_current" then
-        WgdotYaziBookmarkTarget(tostring(cx.active.current.cwd))
+        WgdotYaziBookmarkTarget(tostring(cx.active.current.cwd), true)
     elseif action == "copy" then
         ya.emit("yank", {})
         ya.notify { title = "Yazi", content = "Copied " .. tostring(count) .. " item(s)", timeout = 2 }
@@ -1339,7 +1431,9 @@ function Entity:click(event, up)
 
             if pending.path == tostring(self._file.url) and pending.was_hovered then
                 WgdotYaziContextMenu:hide()
-                if self._file.cha.is_dir then
+                if WgdotYaziNavigateCollection(self._file, false) then
+                    return
+                elseif self._file.cha.is_dir then
                     ya.emit("enter", {})
                 else
                     WgdotYaziOpenFiles(false, true)
@@ -1354,7 +1448,9 @@ function Entity:click(event, up)
     if event.is_middle then
         WgdotYaziPendingClick = nil
         WgdotYaziContextMenu:hide()
-        if self._file.cha.is_dir then
+        if WgdotYaziNavigateCollection(self._file, true) then
+            return
+        elseif self._file.cha.is_dir then
             ya.emit("tab_create", { tostring(self._file.url), raw = true })
         end
         return
