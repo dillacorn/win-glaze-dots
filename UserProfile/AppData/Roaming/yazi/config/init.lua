@@ -525,7 +525,7 @@ function WgdotYaziSelectPreviewText()
         "[void](Read-Host 'Select text with the mouse; it copies automatically. Press Enter to return to Yazi')" ..
         '"'
 
-    ya.emit("shell", { command, block = true })
+    ya.emit("shell", { run = command, block = true })
 end
 
 function WgdotYaziEscape()

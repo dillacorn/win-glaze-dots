@@ -148,6 +148,8 @@ Assert-True ($yaziInitText -match 'Select text with the mouse; it copies automat
 Assert-True ($yaziInitText -match '"Clear-Host; "') "Yazi selectable text mode clears the terminal before rendering file text"
 Assert-True ($yaziInitText -match 'Select text \[m c\]') "Yazi selectable text control teaches the m c shortcut"
 Assert-True ($yaziInitText -match 'block = true') "Yazi selectable text mode suspends Yazi so terminal selection can own the mouse"
+Assert-True ($yaziInitText -match 'ya\.emit\("shell", \{ run = command, block = true \}\)') "Yazi selectable text mode passes its command through the stable shell run field"
+Assert-True ($yaziInitText -notmatch 'ya\.emit\("shell", \{ command, block = true \}\)') "Yazi selectable text mode does not use the ignored positional variable form"
 Assert-True ($yaziInitText -match 'ui\.render\(\)') "Yazi time toggle requests an immediate redraw"
 Assert-True ($yaziInitText -match 'ui\.Span\(flags\):style\(th\.mgr\.find_keyword\)') "Yazi header filter/search/find suffix uses a distinct command color"
 Assert-True ($yaziInitText -notmatch 'Entity:children_add\(function\(\)') "Yazi rejected global row/icon padding is removed"
