@@ -165,3 +165,88 @@ jobs:
         run: |
           set "WGDOT_TEST_ROOT=%TEMP%\wgdot-native-maintenance-state"
           "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" maintenance-self-test
+
+  release-v460-post-update:
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.title == 'Release bridge: update v4.6.0 post-release notes' &&
+      github.event.pull_request.head.ref == 'release-bridge/v4.6.0-post-update' &&
+      github.event.pull_request.base.ref == 'main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_TAG: v4.6.0
+      RELEASE_NAME: WGDot v4.6.0 Yazi
+      RELEASE_TARGET: 1b2a87f619e14a15fd29c52913372dd434691493
+      POST_UPDATE_COMMIT: 5220b6c3773a643262854041cd6802db3b34ecae
+    steps:
+      - name: Update and verify the existing v4.6.0 release body
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" \
+            --json tagName,name,isDraft,isPrerelease,targetCommitish,body > before.json
+          tag_sha="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$RELEASE_TAG" --jq '.object.sha')"
+          test "$tag_sha" = "$RELEASE_TARGET"
+
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          before = json.loads(Path("before.json").read_text(encoding="utf-8"))
+          expected = {
+              "tagName": os.environ["RELEASE_TAG"],
+              "name": os.environ["RELEASE_NAME"],
+              "isDraft": False,
+              "isPrerelease": False,
+              "targetCommitish": os.environ["RELEASE_TARGET"],
+          }
+          for key, value in expected.items():
+              if before.get(key) != value:
+                  raise SystemExit(f"Unexpected release {key}: {before.get(key)!r}")
+
+          marker = "## Post-release update - WGDot security hardening"
+          body = before["body"]
+          if marker in body:
+              raise SystemExit("The v4.6.0 security post-update is already present.")
+
+          commit = os.environ["POST_UPDATE_COMMIT"]
+          section = f"""{marker}
+
+          - On 2026-09-24, WGDot runtime security hardening from [PR #65](https://github.com/dillacorn/win-glaze-dots/pull/65) was merged to `main` at [`{commit[:7]}`](https://github.com/dillacorn/win-glaze-dots/commit/{commit}). Existing installs receive the updated runtime through WGDot's normal `main` self-refresh; no installation method, application selection, desktop behavior, or extra executable was added.
+          - Elevated software and GPU handoffs now verify exact file bytes before use, elevated WinGet and DDU launches are restricted to validated absolute locations, and `wgdotw.exe` now preserves argument boundaries for paths and values containing spaces or quotes.
+          - `wgdotw.exe` is rebuilt once because its frontend version changed. Enterprise application control may require approval for the new `wgdot.exe` and `wgdotw.exe` hashes.
+          - The v4.6.0 tag and managed Yazi/config release target remain unchanged at `{os.environ['RELEASE_TARGET']}`; this post-release note documents the runtime hardening now on `main`.
+          - `Validate WGDot` passed on PR #65. Real ThreatLocker and GPU Safe Mode/DDU behavior were not exercised by CI.
+          """
+          intended = body.rstrip() + "\n\n" + section
+          Path("notes.md").write_text(intended, encoding="utf-8")
+          Path("metadata.json").write_text(
+              json.dumps({key: before[key] for key in expected}, sort_keys=True),
+              encoding="utf-8",
+          )
+          PY
+
+          gh release edit "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --notes-file notes.md
+          gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" \
+            --json tagName,name,isDraft,isPrerelease,targetCommitish,body > after.json
+
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          after = json.loads(Path("after.json").read_text(encoding="utf-8"))
+          intended = Path("notes.md").read_text(encoding="utf-8")
+          expected_metadata = json.loads(Path("metadata.json").read_text(encoding="utf-8"))
+          if after["body"] != intended:
+              raise SystemExit("Published release body does not match the intended complete body.")
+          actual_metadata = {key: after[key] for key in expected_metadata}
+          if actual_metadata != expected_metadata:
+              raise SystemExit("Release metadata changed during the body-only edit.")
+          PY
+
+          after_tag_sha="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$RELEASE_TAG" --jq '.object.sha')"
+          test "$after_tag_sha" = "$RELEASE_TARGET"
