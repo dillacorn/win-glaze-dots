@@ -22,7 +22,8 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-83";
+    const string Version = "native-preview-84";
+    const string HiddenLauncherVersion = "2.0.0.0";
     const int WingetPreflightTimeoutMs = 30000;
     const int CurrentTweakDefaultsVersion = 1;
     const double RawAccelHotkeyWidthRatio = 0.625;
@@ -1164,6 +1165,7 @@ internal static class WgdotNative
             }
 
             if (command == "install") return Install();
+            if (command == "ensure-hidden-launcher") { EnsureHiddenLauncher(); return 0; }
             if (command == "status") return Status();
             if (command == "menu") return Menu();
             if (command == "self-test") return SelfTest();
@@ -1209,7 +1211,7 @@ internal static class WgdotNative
             if (command == "rawaccel-startup") return RawAccelStartup();
             if (command == "gpu-driver") return GpuDriverMaintenance();
             if (command == "gpu-stage-safe") return GpuStageSafeFromArgs(args.Skip(1).ToArray());
-            if (command == "gpu-safe-resume") return GpuSafeResume();
+            if (command == "gpu-safe-resume") return GpuSafeResumeFromArgs(args.Skip(1).ToArray());
             if (command == "gpu-install") return GpuInstallFromArgs(args.Skip(1).ToArray());
             if (command == "update") return ManagedOperation("update", ResolveStableSource());
             if (command == "reset") return ManagedOperation("reset", ResolveStableSource());
@@ -1480,7 +1482,7 @@ internal static class WgdotNative
     static int Menu()
     {
         if (IsSafeMode() && HasPendingGpuSafeModeCleanup())
-            return GpuSafeResume();
+            return GpuSafeResume(ReadPendingGpuStateSha256());
 
         if (ShowGpuPendingNotice())
             Pause();
@@ -1818,22 +1820,105 @@ internal static class WgdotNative
         return Path.Combine(BinRoot, "wgdotw.exe");
     }
 
+    static bool HiddenLauncherIsCurrent(string path)
+    {
+        if (!File.Exists(path))
+            return false;
+
+        try
+        {
+            return String.Equals(
+                FileVersionInfo.GetVersionInfo(path).FileVersion,
+                HiddenLauncherVersion,
+                StringComparison.Ordinal);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
     static void EnsureHiddenLauncher()
     {
         string destination = HiddenLauncherPath();
-        if (File.Exists(destination))
+        if (HiddenLauncherIsCurrent(destination))
             return;
 
         Directory.CreateDirectory(BinRoot);
         Directory.CreateDirectory(CacheRoot);
         string sourcePath = Path.Combine(CacheRoot, "wgdotw-wrapper.cs");
+        string candidatePath = Path.Combine(
+            CacheRoot,
+            "wgdotw-next-" + Guid.NewGuid().ToString("N") + ".exe");
         string source = @"
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Reflection;
+using System.Text;
+
+[assembly: AssemblyFileVersion(""__WGDOTW_VERSION__"")]
 
 class WgdotHidden
 {
+    static string QuoteForwardedArgument(string value)
+    {
+        value = value ?? """";
+        bool needsQuotes = value.Length == 0;
+        foreach (char c in value)
+        {
+            if (Char.IsWhiteSpace(c) || c == '""')
+            {
+                needsQuotes = true;
+                break;
+            }
+        }
+        if (!needsQuotes)
+            return value;
+
+        var quoted = new StringBuilder();
+        quoted.Append('""');
+        int backslashes = 0;
+        foreach (char c in value)
+        {
+            if (c == '\\')
+            {
+                backslashes++;
+                continue;
+            }
+
+            if (c == '""')
+            {
+                quoted.Append('\\', backslashes * 2 + 1);
+                quoted.Append('""');
+                backslashes = 0;
+                continue;
+            }
+
+            quoted.Append('\\', backslashes);
+            backslashes = 0;
+            quoted.Append(c);
+        }
+        quoted.Append('\\', backslashes * 2);
+        quoted.Append('""');
+        return quoted.ToString();
+    }
+
+    static string BuildForwardedArguments(string[] args)
+    {
+        if (args == null || args.Length == 0)
+            return """";
+
+        var commandLine = new StringBuilder();
+        for (int i = 0; i < args.Length; i++)
+        {
+            if (i > 0)
+                commandLine.Append(' ');
+            commandLine.Append(QuoteForwardedArgument(args[i]));
+        }
+        return commandLine.ToString();
+    }
+
     static int Main(string[] args)
     {
         string exe = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, ""wgdot.exe"");
@@ -1842,7 +1927,7 @@ class WgdotHidden
 
         var psi = new ProcessStartInfo();
         psi.FileName = exe;
-        psi.Arguments = String.Join("" "", args ?? new string[0]);
+        psi.Arguments = BuildForwardedArguments(args);
         psi.UseShellExecute = false;
         psi.CreateNoWindow = true;
 
@@ -1853,21 +1938,32 @@ class WgdotHidden
         }
     }
 }
-";
+".Replace("__WGDOTW_VERSION__", HiddenLauncherVersion);
         File.WriteAllText(sourcePath, source, new UTF8Encoding(false));
 
         string csc = GetCscPath();
         if (String.IsNullOrWhiteSpace(csc))
             throw new Exception("Windows .NET Framework C# compiler was not found for wgdotw.exe.");
 
-        ProcResult compile = Run(
-            csc,
-            "/nologo /optimize+ /target:winexe /out:" + Q(destination) + " " + Q(sourcePath),
-            null);
-        if (compile.ExitCode != 0)
-            throw new Exception(
-                "Hidden WGDot launcher compilation failed: " +
-                LastUsefulLine((compile.StdErr ?? "") + "\n" + (compile.StdOut ?? "")));
+        try
+        {
+            ProcResult compile = Run(
+                csc,
+                "/nologo /optimize+ /target:winexe /out:" + Q(candidatePath) + " " + Q(sourcePath),
+                null);
+            if (compile.ExitCode != 0)
+                throw new Exception(
+                    "Hidden WGDot launcher compilation failed: " +
+                    LastUsefulLine((compile.StdErr ?? "") + "\n" + (compile.StdOut ?? "")));
+
+            CopyRuntimeWithRetry(candidatePath, destination);
+            if (!HiddenLauncherIsCurrent(destination))
+                throw new Exception("Hidden WGDot launcher update did not produce the expected version.");
+        }
+        finally
+        {
+            SafeDeleteFile(candidatePath);
+        }
     }
 
     static string GetCscPath()
@@ -1901,6 +1997,8 @@ class WgdotHidden
         lines.Add("ping 127.0.0.1 -n 2 >nul");
         lines.Add("goto retry");
         lines.Add(":copied");
+        lines.Add("\"%DST%\" ensure-hidden-launcher >nul 2>&1");
+        lines.Add("if errorlevel 1 goto failed");
         lines.Add("\"%DST%\" mark-runtime --ref " + Q(sourceRef) + " --revision " + Q(revision) + " >nul 2>&1");
         lines.Add("if errorlevel 1 goto failed");
         lines.Add("\"%DST%\" runtime-swap-restore --state \"%STATE%\" >nul 2>&1");
@@ -2546,6 +2644,102 @@ class WgdotHidden
             string liveRoot = Path.Combine(root, "live");
             Directory.CreateDirectory(sourceRoot);
             Directory.CreateDirectory(liveRoot);
+
+            string verifiedJsonPath = Path.Combine(root, "verified-plan.json");
+            byte[] verifiedJsonBytes = new UTF8Encoding(false).GetBytes("{\"value\":\"original\"}");
+            File.WriteAllBytes(verifiedJsonPath, verifiedJsonBytes);
+            string verifiedJsonHash = Sha256Bytes(verifiedJsonBytes);
+            Dictionary<string, object> verifiedJson = ReadVerifiedJson(verifiedJsonPath, verifiedJsonHash);
+            if (!String.Equals(GetString(verifiedJson, "value"), "original", StringComparison.Ordinal))
+                throw new Exception("Verified JSON self-test failed.");
+
+            File.WriteAllText(verifiedJsonPath, "{\"value\":\"changed\"}", new UTF8Encoding(false));
+            bool tamperRejected = false;
+            try
+            {
+                ReadVerifiedJson(verifiedJsonPath, verifiedJsonHash);
+            }
+            catch (Exception ex)
+            {
+                tamperRejected = ex.Message.IndexOf(
+                    "changed before elevation",
+                    StringComparison.OrdinalIgnoreCase) >= 0;
+            }
+            if (!tamperRejected)
+                throw new Exception("Verified JSON tamper self-test failed.");
+
+            bool malformedDigestRejected = false;
+            try
+            {
+                ReadVerifiedJson(verifiedJsonPath, "not-a-sha256");
+            }
+            catch (Exception ex)
+            {
+                malformedDigestRejected = ex.Message.IndexOf(
+                    "full SHA-256 digest",
+                    StringComparison.OrdinalIgnoreCase) >= 0;
+            }
+            if (!malformedDigestRejected)
+                throw new Exception("Verified JSON digest validation self-test failed.");
+
+            byte[] malformedJsonBytes = new UTF8Encoding(false).GetBytes("{not-json");
+            File.WriteAllBytes(verifiedJsonPath, malformedJsonBytes);
+            bool malformedJsonRejected = false;
+            try
+            {
+                ReadVerifiedJson(verifiedJsonPath, Sha256Bytes(malformedJsonBytes));
+            }
+            catch
+            {
+                malformedJsonRejected = true;
+            }
+            if (!malformedJsonRejected)
+                throw new Exception("Verified malformed JSON self-test failed.");
+
+            string containmentRoot = Path.Combine(root, "WindowsApps");
+            string containedPath = Path.Combine(containmentRoot, "winget.exe");
+            string siblingPath = Path.Combine(root, "WindowsApps Evil", "winget.exe");
+            string escapedPath = Path.Combine(containmentRoot, "..", "winget.exe");
+            if (!IsPathWithinRoot(containedPath, containmentRoot) ||
+                IsPathWithinRoot(siblingPath, containmentRoot) ||
+                IsPathWithinRoot(escapedPath, containmentRoot))
+                throw new Exception("Canonical path containment self-test failed.");
+
+            string installedWinget = FindWingetExe();
+            if (!String.IsNullOrWhiteSpace(installedWinget) &&
+                (!Path.IsPathRooted(installedWinget) ||
+                 !File.Exists(installedWinget) ||
+                 !IsPathWithinRoot(installedWinget, GetWindowsAppsRoot()) ||
+                 String.Equals(installedWinget, "winget.exe", StringComparison.OrdinalIgnoreCase)))
+                throw new Exception("Canonical WinGet path self-test failed.");
+
+            string programFilesRoot = Path.Combine(root, "Program Files");
+            string protectedDduPath = Path.Combine(
+                programFilesRoot,
+                "Display Driver Uninstaller",
+                "Display Driver Uninstaller.exe");
+            string siblingDduPath = Path.Combine(
+                root,
+                "Program Files Evil",
+                "Display Driver Uninstaller.exe");
+            string escapedDduPath = Path.Combine(
+                programFilesRoot,
+                "..",
+                "Display Driver Uninstaller.exe");
+            if (!IsPathWithinProtectedProgramRoot(protectedDduPath, new[] { programFilesRoot }) ||
+                IsPathWithinProtectedProgramRoot(siblingDduPath, new[] { programFilesRoot }) ||
+                IsPathWithinProtectedProgramRoot(escapedDduPath, new[] { programFilesRoot }))
+                throw new Exception("Protected Program Files path self-test failed.");
+
+            string runOnceDigest = new string('A', 64);
+            string parsedRunOnceDigest = ExtractGpuStateSha256FromRunOnce(
+                "\"C:\\Program Files\\WGDot\\wgdot.exe\" gpu-safe-resume --state-sha256 \"" +
+                runOnceDigest + "\"");
+            if (!String.Equals(
+                parsedRunOnceDigest,
+                runOnceDigest.ToLowerInvariant(),
+                StringComparison.Ordinal))
+                throw new Exception("GPU RunOnce digest parsing self-test failed.");
 
             string target = Path.Combine(sourceRoot, "target.txt");
             string live = Path.Combine(liveRoot, "target.txt");
@@ -3453,7 +3647,8 @@ class WgdotHidden
             throw new Exception("The WGDot software worker requires administrator rights.");
 
         string planPath = GetOption(args, "--plan");
-        return RunSoftwareElevatedPlan(planPath);
+        string planSha256 = GetOption(args, "--plan-sha256");
+        return RunSoftwareElevatedPlan(planPath, planSha256);
     }
 
     static int GetWingetInstallTimeoutMs(Dictionary<string, object> package)
@@ -3471,7 +3666,7 @@ class WgdotHidden
             !String.IsNullOrWhiteSpace(GetString(package, "fallbackAssetRegex"));
     }
 
-    static int RunSoftwareElevatedPlan(string rawPlanPath)
+    static int RunSoftwareElevatedPlan(string rawPlanPath, string expectedPlanSha256)
     {
         string planPath = NormalizeSoftwarePlanPath(rawPlanPath);
         string resultPath = planPath + ".result";
@@ -3489,9 +3684,7 @@ class WgdotHidden
 
         try
         {
-            Dictionary<string, object> plan = ReadJson(planPath);
-            if (plan == null)
-                throw new Exception("WGDot elevated software plan was not found.");
+            Dictionary<string, object> plan = ReadVerifiedJson(planPath, expectedPlanSha256);
 
             SourceContext source = ResolveDefaultSource();
             Dictionary<string, object> manifest = source.Manifest;
@@ -3500,7 +3693,7 @@ class WgdotHidden
                 !String.Equals(expectedRevision, source.Revision, StringComparison.OrdinalIgnoreCase))
                 throw new Exception("WGDot software plan source changed before elevation. Re-run software reconciliation.");
 
-            EnsureWingetAvailable();
+            string winget = RequireWingetExe();
 
             foreach (string id in GetStringList(plan, "packageIds")
                 .Distinct(StringComparer.OrdinalIgnoreCase))
@@ -3561,7 +3754,7 @@ class WgdotHidden
                 }
 
                 ProcResult show = RunWithTimeout(
-                    "winget.exe",
+                    winget,
                     "show --id " + Q(id) + " --exact --source winget --accept-source-agreements --disable-interactivity",
                     null,
                     WingetPreflightTimeoutMs);
@@ -3606,7 +3799,7 @@ class WgdotHidden
 
                 int installTimeoutMs = GetWingetInstallTimeoutMs(package);
                 ProcResult install = RunInteractiveWithTimeout(
-                    "winget.exe",
+                    winget,
                     "install --id " + Q(id) + " --exact --source winget --accept-source-agreements --accept-package-agreements --disable-interactivity",
                     installTimeoutMs);
 
@@ -3663,7 +3856,7 @@ class WgdotHidden
                 Console.WriteLine();
                 Console.WriteLine("Upgrading " + id + "...");
                 ProcResult upgrade = RunInteractive(
-                    "winget.exe",
+                    winget,
                     "upgrade --id " + Q(id) + " --exact --source winget --accept-source-agreements --accept-package-agreements --disable-interactivity");
 
                 if (upgrade.ExitCode == 0)
@@ -5688,6 +5881,9 @@ class WgdotHidden
             plan["firefoxPolicyConfigured"] = firefoxPolicyConfigured;
             plan["firefoxInstallUrls"] = firefoxInstallUrls;
             WriteJson(planPath, plan);
+            string planSha256 = NormalizeSha256(
+                Sha256OrNull(planPath),
+                "WGDot elevated software plan digest");
 
             Dictionary<string, object> workerResult = null;
             int workerExitCode = 1;
@@ -5702,8 +5898,8 @@ class WgdotHidden
                 }
 
                 workerExitCode = IsAdministrator()
-                    ? RunSoftwareElevatedPlan(planPath)
-                    : RunElevatedSelfWithExitCode("software-elevated --plan " + Q(planPath));
+                    ? RunSoftwareElevatedPlan(planPath, planSha256)
+                    : RunElevatedSelfWithExitCode("software-elevated --plan " + Q(planPath) + " --plan-sha256 " + Q(planSha256));
 
                 workerResult = ReadJson(resultPath);
                 if (workerResult == null)
@@ -7045,8 +7241,33 @@ class WgdotHidden
         return InstallGpuVendorDriver(vendor);
     }
 
-    static string FindDduExe()
+    static bool IsPathWithinProtectedProgramRoot(string path, IEnumerable<string> roots)
     {
+        if (String.IsNullOrWhiteSpace(path) || !Path.IsPathRooted(path) || roots == null)
+            return false;
+
+        foreach (string root in roots)
+        {
+            if (!String.IsNullOrWhiteSpace(root) && IsPathWithinRoot(path, root))
+                return true;
+        }
+        return false;
+    }
+
+    static bool IsPathWithinProtectedProgramRoot(string path)
+    {
+        return IsPathWithinProtectedProgramRoot(
+            path,
+            new[]
+            {
+                Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
+                Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86)
+            });
+    }
+
+    static string FindTrustedDduExe()
+    {
+        var candidates = new List<string>();
         using (RegistryKey key = Registry.LocalMachine.OpenSubKey(
             @"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\Display Driver Uninstaller.exe",
             false))
@@ -7054,28 +7275,51 @@ class WgdotHidden
             if (key != null)
             {
                 string path = Convert.ToString(key.GetValue("", ""));
-                if (!String.IsNullOrWhiteSpace(path) && File.Exists(path))
-                    return path;
+                if (!String.IsNullOrWhiteSpace(path))
+                    candidates.Add(path);
             }
         }
 
-        string candidate = Path.Combine(
+        foreach (string programRoot in new[]
+        {
             Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
-            "Display Driver Uninstaller",
-            "Display Driver Uninstaller.exe");
-        if (File.Exists(candidate)) return candidate;
+            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86)
+        })
+        {
+            if (!String.IsNullOrWhiteSpace(programRoot))
+            {
+                candidates.Add(Path.Combine(
+                    programRoot,
+                    "Display Driver Uninstaller",
+                    "Display Driver Uninstaller.exe"));
+            }
+        }
+
+        foreach (string rawCandidate in candidates)
+        {
+            try
+            {
+                string candidate = Path.GetFullPath(
+                    Environment.ExpandEnvironmentVariables(rawCandidate.Trim().Trim('"')));
+                if (IsPathWithinProtectedProgramRoot(candidate) && File.Exists(candidate))
+                    return candidate;
+            }
+            catch
+            {
+            }
+        }
         return "";
     }
 
     static string EnsureDduInstalled()
     {
-        string exe = FindDduExe();
+        string exe = FindTrustedDduExe();
         if (!String.IsNullOrWhiteSpace(exe)) return exe;
 
-        EnsureWingetAvailable();
+        string winget = RequireWingetExe();
         Console.WriteLine("Installing Display Driver Uninstaller from its exact WinGet package...");
         ProcResult install = RunInteractive(
-            "winget.exe",
+            winget,
             "install --id Wagnardsoft.DisplayDriverUninstaller --exact --source winget --accept-source-agreements --accept-package-agreements");
 
         if (install.ExitCode != 0)
@@ -7083,7 +7327,7 @@ class WgdotHidden
                 "Display Driver Uninstaller installation failed with exit " +
                 install.ExitCode.ToString(CultureInfo.InvariantCulture) + ".");
 
-        exe = FindDduExe();
+        exe = FindTrustedDduExe();
         if (String.IsNullOrWhiteSpace(exe))
             throw new Exception("DDU installed, but Display Driver Uninstaller.exe could not be located.");
         return exe;
@@ -7147,6 +7391,29 @@ class WgdotHidden
         return 0;
     }
 
+    static string ExtractGpuStateSha256FromRunOnce(string command)
+    {
+        Match match = Regex.Match(
+            command ?? "",
+            @"(?:^|\s)--state-sha256\s+""?([0-9A-Fa-f]{64})""?(?:\s|$)");
+        if (!match.Success)
+            throw new Exception("WGDot GPU Safe Mode RunOnce handoff is missing its state digest.");
+        return NormalizeSha256(match.Groups[1].Value, "WGDot GPU Safe Mode state digest");
+    }
+
+    static string ReadPendingGpuStateSha256()
+    {
+        using (RegistryKey key = Registry.LocalMachine.OpenSubKey(
+            @"SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce",
+            false))
+        {
+            string command = key == null
+                ? ""
+                : Convert.ToString(key.GetValue("*WGDotGpuSafeModeResume", ""));
+            return ExtractGpuStateSha256FromRunOnce(command);
+        }
+    }
+
     static void StageGpuSafeMode(string vendor, string reason)
     {
         if (!IsKnownGpuVendor(vendor))
@@ -7164,6 +7431,9 @@ class WgdotHidden
         state["dduPath"] = ddu;
         state["stagedAt"] = DateTime.UtcNow.ToString("o");
         WriteJson(GpuStatePath, state);
+        string stateSha256 = NormalizeSha256(
+            Sha256OrNull(GpuStatePath),
+            "WGDot GPU Safe Mode state digest");
 
         string runOncePath = @"SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce";
         using (RegistryKey key = Registry.LocalMachine.CreateSubKey(runOncePath))
@@ -7173,7 +7443,7 @@ class WgdotHidden
 
             key.SetValue(
                 "*WGDotGpuSafeModeResume",
-                "\"" + installedExe + "\" gpu-safe-resume",
+                "\"" + installedExe + "\" gpu-safe-resume --state-sha256 " + Q(stateSha256),
                 RegistryValueKind.String);
         }
 
@@ -7211,17 +7481,23 @@ class WgdotHidden
             (fallbackCheck.StdOut ?? "").IndexOf("safeboot", StringComparison.OrdinalIgnoreCase) < 0;
     }
 
-    static int GpuSafeResume()
+    static int GpuSafeResumeFromArgs(string[] args)
+    {
+        string stateSha256 = NormalizeSha256(
+            GetOption(args, "--state-sha256"),
+            "WGDot GPU Safe Mode state digest");
+        return GpuSafeResume(stateSha256);
+    }
+
+    static int GpuSafeResume(string expectedStateSha256)
     {
         if (!IsAdministrator())
         {
-            RunElevatedSelf("gpu-safe-resume");
+            RunElevatedSelf("gpu-safe-resume --state-sha256 " + Q(expectedStateSha256));
             return 0;
         }
 
-        var state = ReadJson(GpuStatePath);
-        if (state == null)
-            throw new Exception("No staged WGDot GPU cleanup state exists.");
+        var state = ReadVerifiedJson(GpuStatePath, expectedStateSha256);
 
         string vendor = GetString(state, "targetVendor");
         if (!IsKnownGpuVendor(vendor))
@@ -7234,11 +7510,9 @@ class WgdotHidden
                 "WGDot could not remove the forced Safe Mode boot flag. DDU was not launched. " +
                 "Run 'bcdedit /deletevalue {current} safeboot' from an elevated terminal before rebooting.");
 
-        string ddu = GetString(state, "dduPath");
-        if (String.IsNullOrWhiteSpace(ddu) || !File.Exists(ddu))
-            ddu = FindDduExe();
+        string ddu = FindTrustedDduExe();
         if (String.IsNullOrWhiteSpace(ddu))
-            throw new Exception("Display Driver Uninstaller could not be located in Safe Mode.");
+            throw new Exception("Display Driver Uninstaller could not be located in a protected Program Files directory in Safe Mode.");
 
         state["phase"] = "driver-needed";
         state["safeModeResumedAt"] = DateTime.UtcNow.ToString("o");
@@ -14323,17 +14597,49 @@ class WgdotHidden
         return where.ExitCode == 0;
     }
 
-    static string FindWingetExe()
+    static bool IsPathWithinRoot(string path, string root)
     {
-        if (ExecutableExists("winget.exe"))
-            return "winget.exe";
+        if (String.IsNullOrWhiteSpace(path) || String.IsNullOrWhiteSpace(root))
+            return false;
 
-        string alias = Path.Combine(
+        try
+        {
+            string fullPath = Path.GetFullPath(path);
+            string fullRoot = Path.GetFullPath(root)
+                .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            string rootPrefix = fullRoot + Path.DirectorySeparatorChar;
+            return String.Equals(fullPath, fullRoot, StringComparison.OrdinalIgnoreCase) ||
+                fullPath.StartsWith(rootPrefix, StringComparison.OrdinalIgnoreCase);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    static string GetWindowsAppsRoot()
+    {
+        return Path.GetFullPath(Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "Microsoft",
-            "WindowsApps",
-            "winget.exe");
-        return File.Exists(alias) ? alias : "";
+            "WindowsApps"));
+    }
+
+    static string FindWingetExe()
+    {
+        string windowsApps = GetWindowsAppsRoot();
+        string alias = Path.GetFullPath(Path.Combine(windowsApps, "winget.exe"));
+        return IsPathWithinRoot(alias, windowsApps) && File.Exists(alias) ? alias : "";
+    }
+
+    static string RequireWingetExe()
+    {
+        EnsureWingetAvailable();
+        string winget = FindWingetExe();
+        if (String.IsNullOrWhiteSpace(winget))
+            throw new Exception(
+                "Microsoft App Installer is available, but its trusted winget.exe execution alias could not be resolved.");
+        return winget;
     }
 
     static void RegisterCurrentUserAppInstaller()
@@ -14394,10 +14700,7 @@ class WgdotHidden
             RegisterCurrentUserAppInstaller();
         }
 
-        string windowsApps = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "Microsoft",
-            "WindowsApps");
+        string windowsApps = GetWindowsAppsRoot();
         string currentPath = Environment.GetEnvironmentVariable("PATH") ?? "";
         if (currentPath.IndexOf(windowsApps, StringComparison.OrdinalIgnoreCase) < 0)
             Environment.SetEnvironmentVariable("PATH", currentPath + ";" + windowsApps);
@@ -14791,6 +15094,50 @@ class WgdotHidden
         if (!File.Exists(path)) return null;
         string raw = File.ReadAllText(path);
         if (String.IsNullOrWhiteSpace(raw)) return null;
+        return AsDictionary(Json.DeserializeObject(raw));
+    }
+
+    static string NormalizeSha256(string value, string fieldName)
+    {
+        string normalized = (value ?? "").Trim().ToLowerInvariant();
+        if (!Regex.IsMatch(normalized, "^[0-9a-f]{64}$"))
+            throw new Exception(fieldName + " must be a full SHA-256 digest.");
+        return normalized;
+    }
+
+    static string Sha256Bytes(byte[] value)
+    {
+        using (SHA256 sha = SHA256.Create())
+        {
+            byte[] hash = sha.ComputeHash(value ?? new byte[0]);
+            var result = new StringBuilder(hash.Length * 2);
+            foreach (byte b in hash) result.Append(b.ToString("x2"));
+            return result.ToString();
+        }
+    }
+
+    static bool FixedTimeHexEquals(string left, string right)
+    {
+        if (left == null || right == null || left.Length != right.Length)
+            return false;
+
+        int difference = 0;
+        for (int i = 0; i < left.Length; i++)
+            difference |= left[i] ^ right[i];
+        return difference == 0;
+    }
+
+    static Dictionary<string, object> ReadVerifiedJson(string path, string expectedSha256)
+    {
+        string expected = NormalizeSha256(expectedSha256, "Expected JSON digest");
+        byte[] bytes = File.ReadAllBytes(path);
+        string actual = Sha256Bytes(bytes);
+        if (!FixedTimeHexEquals(expected, actual))
+            throw new Exception("WGDot elevated handoff changed before elevation. Re-run the operation.");
+
+        string raw = new UTF8Encoding(false, true).GetString(bytes);
+        if (String.IsNullOrWhiteSpace(raw))
+            throw new Exception("WGDot elevated handoff JSON was empty.");
         return AsDictionary(Json.DeserializeObject(raw));
     }
 
