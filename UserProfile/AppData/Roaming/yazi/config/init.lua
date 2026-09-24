@@ -493,38 +493,112 @@ function WgdotYaziTogglePreviewMax()
     WgdotYaziApplyRatio({ 0, 0, 9999 })
 end
 
-local function WgdotYaziPreviewTextSelectable()
-    if not WgdotYaziPreviewMaximized then return false end
+local WgdotYaziTextExtensions = {
+    txt = true, md = true, markdown = true, log = true, csv = true, tsv = true,
+    json = true, jsonc = true, yaml = true, yml = true, toml = true,
+    ini = true, conf = true, cfg = true, xml = true, html = true, htm = true,
+    css = true, scss = true, less = true, js = true, jsx = true, ts = true,
+    tsx = true, lua = true, py = true, rb = true, rs = true, go = true,
+    c = true, cc = true, cpp = true, h = true, hpp = true, cs = true,
+    java = true, kt = true, kts = true, sh = true, bash = true, zsh = true,
+    fish = true, ps1 = true, bat = true, cmd = true, sql = true, env = true,
+}
+
+local WgdotYaziTextNames = {
+    dockerfile = true,
+    makefile = true,
+    readme = true,
+    [".gitignore"] = true,
+    [".gitattributes"] = true,
+    [".editorconfig"] = true,
+}
+
+local function WgdotYaziHoveredTextFile()
     local hovered = cx.active.current.hovered
-    if not hovered or hovered.cha.is_dir then return false end
+    if not hovered or hovered.cha.is_dir then return nil end
 
     local mime = hovered:mime() or ""
-    return mime:match("^text/") ~= nil
+    if mime:match("^text/")
         or mime == "application/json"
         or mime == "application/xml"
         or mime == "application/javascript"
         or mime == "application/x-javascript"
         or mime == "application/x-shellscript"
+    then
+        return hovered
+    end
+
+    local name = tostring(hovered.url.name or ""):lower()
+    if WgdotYaziTextNames[name] then return hovered end
+
+    local ext = name:match("%.([^%.]+)$")
+    if ext and WgdotYaziTextExtensions[ext] then return hovered end
+    return nil
+end
+
+local function WgdotYaziPreviewTextSelectable()
+    return WgdotYaziPreviewMaximized and WgdotYaziHoveredTextFile() ~= nil
 end
 
 local function WgdotYaziPowerShellQuote(value)
     return "'" .. tostring(value):gsub("'", "''") .. "'"
 end
 
-function WgdotYaziSelectPreviewText()
-    if not WgdotYaziPreviewTextSelectable() then return end
+local function WgdotYaziUtf16Le(value)
+    local out = {}
+    for _, code in utf8.codes(value) do
+        if code <= 0xFFFF then
+            out[#out + 1] = string.char(code % 256, math.floor(code / 256))
+        else
+            code = code - 0x10000
+            local high = 0xD800 + math.floor(code / 0x400)
+            local low = 0xDC00 + (code % 0x400)
+            out[#out + 1] = string.char(high % 256, math.floor(high / 256))
+            out[#out + 1] = string.char(low % 256, math.floor(low / 256))
+        end
+    end
+    return table.concat(out)
+end
 
-    local hovered = cx.active.current.hovered
-    local path = WgdotYaziPowerShellQuote(tostring(hovered.url))
-    local command = 'powershell.exe -NoLogo -NoProfile -Command "' ..
-        "$p=" .. path .. "; " ..
-        "[Console]::OutputEncoding=[System.Text.UTF8Encoding]::new($false); " ..
+local function WgdotYaziBase64(value)
+    local alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+    return ((value:gsub(".", function(char)
+        local bits = ""
+        local byte = char:byte()
+        for i = 8, 1, -1 do
+            bits = bits .. (byte % 2 ^ i - byte % 2 ^ (i - 1) > 0 and "1" or "0")
+        end
+        return bits
+    end) .. "0000"):gsub("%d%d%d?%d?%d?%d?", function(bits)
+        if #bits < 6 then return "" end
+        local value6 = 0
+        for i = 1, 6 do
+            if bits:sub(i, i) == "1" then value6 = value6 + 2 ^ (6 - i) end
+        end
+        return alphabet:sub(value6 + 1, value6 + 1)
+    end) .. ({ "", "==", "=" })[#value % 3 + 1])
+end
+
+function WgdotYaziSelectPreviewText()
+    local hovered = WgdotYaziHoveredTextFile()
+    if not hovered then
+        ya.notify {
+            title = "Select text",
+            content = "The highlighted item is not recognized as a text file.",
+            timeout = 3,
+            level = "warn",
+        }
+        return
+    end
+
+    local script = "$p=" .. WgdotYaziPowerShellQuote(tostring(hovered.url)) .. "; " ..
         "Clear-Host; " ..
         "Get-Content -LiteralPath $p; " ..
         "Write-Host ''; " ..
-        "[void](Read-Host 'Select text with the mouse; it copies automatically. Press Enter to return to Yazi')" ..
-        '"'
+        "$null = Read-Host 'Select text with the mouse; it copies automatically. Press Enter to return to Yazi'"
 
+    local encoded = WgdotYaziBase64(WgdotYaziUtf16Le(script))
+    local command = "powershell.exe -NoLogo -NoProfile -EncodedCommand " .. encoded
     ya.emit("shell", { run = command, block = true })
 end
 
