@@ -151,6 +151,10 @@ Assert-True ($yaziConfigText -match '(?m)^max_height = 2000\r?$') "Yazi maximize
 Assert-True ($yaziConfigText -match '(?m)^wrap = "yes"\r?$') "Yazi text previews reflow to the resized preview pane"
 Assert-True ($yaziRecentText -match 'paths\[#paths \+ 1\] = decode_arg\(job\.args\[i\]\)') "Yazi recents decode managed path arguments"
 Assert-True ($yaziBookmarksText -match 'job\.args\[3\].*decode_arg\(job\.args\[3\]\)') "Yazi bookmarks decode typed managed path arguments"
+Assert-True ($yaziBookmarksText -match 'value:match\("\^\(\[DFU\]\)\\t\(\.\*\)\$"\)') "Yazi bookmarks preserve legacy untyped entries without filesystem I/O"
+$bookmarkParseMatch = [regex]::Match($yaziBookmarksText, 'local function parse_entry\(value\)(?<body>[\s\S]*?)\r?\nend')
+Assert-True ($bookmarkParseMatch.Success) "Yazi bookmark parser exists"
+Assert-True ($bookmarkParseMatch.Groups['body'].Value -notmatch 'fs\.cha\(') "Yazi bookmark parser avoids yielding filesystem I/O inside synchronized state callbacks"
 Assert-True ($yaziInitText -match 'function WgdotYaziSearchMenu\(\)') "Yazi recursive search menu is defined"
 Assert-True ($yaziInitText -match 'tostring\(file\.url\)') "Yazi recents use the File.url API"
 Assert-True ($yaziInitText -match 'ya\.emit\("search", \{ via = "fd" \}\)') "Yazi name search uses native fd search"

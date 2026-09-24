@@ -27,13 +27,15 @@ end
 
 local function parse_entry(value)
     if type(value) ~= "string" or value == "" then return nil end
-    local kind, path = value:match("^([DF])\t(.*)$")
+    local kind, path = value:match("^([DFU])\t(.*)$")
     if kind and path and path ~= "" then return kind, path end
-    local cha = fs.cha(Url(value), true)
-    return cha and cha.is_dir and "D" or "F", value
+    return "U", value
 end
 
-local function encode_entry(kind, path) return (kind == "D" and "D" or "F") .. "\t" .. path end
+local function encode_entry(kind, path)
+    if kind ~= "D" and kind ~= "F" then kind = "U" end
+    return kind .. "\t" .. path
+end
 
 local function normalized(list)
     local out, seen = {}, {}
