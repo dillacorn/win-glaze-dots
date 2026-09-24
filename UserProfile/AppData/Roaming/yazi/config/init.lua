@@ -944,8 +944,8 @@ function WgdotYaziContextMenu:redraw()
             :title(ui.Line(self:title()):align(ui.Align.CENTER)),
         ui.List(rows):area(self._list_area),
         ui.Text({
-            ui.Line(" " .. footer[1]):style(ui.Style():dim()),
-            ui.Line(" " .. footer[2]):style(ui.Style():dim()),
+            ui.Line(" " .. footer[1]),
+            ui.Line(" " .. footer[2]),
         }):area(self._footer_area),
     }
 end
