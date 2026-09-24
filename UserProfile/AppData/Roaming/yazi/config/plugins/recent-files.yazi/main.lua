@@ -9,9 +9,22 @@ local KEYS = {
     "u", "v", "w", "x", "y", "z",
 }
 
-local function state_file()
+local function state_dir()
     local root = os.getenv("APPDATA") or os.getenv("LOCALAPPDATA") or "."
-    return root .. "\\yazi\\state\\wgdot-recent-files.txt"
+    return root .. "\\yazi\\state"
+end
+
+local function state_file()
+    return state_dir() .. "\\wgdot-recent-files.txt"
+end
+
+local function ensure_state_dir()
+    local dir = state_dir()
+    if dir:find('"', 1, true) then
+        return false
+    end
+    os.execute('if not exist "' .. dir .. '" mkdir "' .. dir .. '" >nul 2>nul')
+    return true
 end
 
 local function normalized(list)
@@ -39,6 +52,7 @@ local function read_state()
 end
 
 local function write_state(list)
+    ensure_state_dir()
     local file = io.open(state_file(), "w")
     if not file then return false end
     for _, path in ipairs(normalized(list)) do
@@ -49,7 +63,12 @@ local function write_state(list)
 end
 
 local snapshot = ya.sync(function(self)
-    self.recents = read_state()
+    local disk = read_state()
+    if #disk > 0 then
+        self.recents = disk
+    else
+        self.recents = normalized(self.recents or {})
+    end
     return normalized(self.recents)
 end)
 
@@ -72,7 +91,7 @@ local record = ya.sync(function(self, paths)
 end)
 
 local subscribe = ya.sync(function(self)
-    self.recents = read_state()
+    self.recents = normalized(read_state())
     pcall(ps.unsub, KIND)
     pcall(ps.unsub_remote, KIND)
 
