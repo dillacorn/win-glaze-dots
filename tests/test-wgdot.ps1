@@ -145,6 +145,8 @@ Assert-True ($yaziInitText -notmatch 'WgdotYaziQueuePreviewRefit') "Yazi preview
 Assert-True ($yaziInitText -match 'function WgdotYaziSelectPreviewText\(\)') "Yazi exposes selectable text mode for maximized text previews"
 Assert-True ($yaziInitText -match 'WgdotYaziTextSelectButton = \{') "Yazi maximized text preview exposes a clickable Select text control"
 Assert-True ($yaziInitText -match 'Select text with the mouse; it copies automatically') "Yazi selectable text mode documents Windows Terminal copy-on-select behavior"
+Assert-True ($yaziInitText -match '"Clear-Host; "') "Yazi selectable text mode clears the terminal before rendering file text"
+Assert-True ($yaziInitText -match 'Select text \[m c\]') "Yazi selectable text control teaches the m c shortcut"
 Assert-True ($yaziInitText -match 'block = true') "Yazi selectable text mode suspends Yazi so terminal selection can own the mouse"
 Assert-True ($yaziInitText -match 'ui\.render\(\)') "Yazi time toggle requests an immediate redraw"
 Assert-True ($yaziInitText -match 'ui\.Span\(flags\):style\(th\.mgr\.find_keyword\)') "Yazi header filter/search/find suffix uses a distinct command color"

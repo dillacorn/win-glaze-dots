@@ -519,6 +519,7 @@ function WgdotYaziSelectPreviewText()
     local command = 'powershell.exe -NoLogo -NoProfile -Command "' ..
         "$p=" .. path .. "; " ..
         "[Console]::OutputEncoding=[System.Text.UTF8Encoding]::new($false); " ..
+        "Clear-Host; " ..
         "Get-Content -LiteralPath $p; " ..
         "Write-Host ''; " ..
         "[void](Read-Host 'Select text with the mouse; it copies automatically. Press Enter to return to Yazi')" ..
@@ -590,7 +591,7 @@ end
 function WgdotYaziTextSelectButton:redraw()
     if not WgdotYaziPreviewTextSelectable() then return {} end
     return {
-        ui.Text(ui.Line(" Select text "):style(ui.Style():reverse()))
+        ui.Text(ui.Line(" Select text [m c] "):style(ui.Style():reverse()))
             :area(self._area)
             :align(ui.Align.LEFT),
     }
@@ -615,7 +616,7 @@ function Preview:new(area, tab)
         me._wgdot_text_select_button = WgdotYaziTextSelectButton:new(ui.Rect {
             x = area.x,
             y = area.y + area.h - 1,
-            w = math.min(13, math.max(0, area.w - 3)),
+            w = math.min(19, math.max(0, area.w - 3)),
             h = 1,
         })
         me._wgdot_preview_button = WgdotYaziPreviewButton:new(ui.Rect {
