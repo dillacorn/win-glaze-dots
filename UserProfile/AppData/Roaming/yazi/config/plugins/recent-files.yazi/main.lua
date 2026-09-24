@@ -9,6 +9,21 @@ local KEYS = {
     "u", "v", "w", "x", "y", "z",
 }
 
+local function decode_arg(value)
+    if type(value) ~= "string" then
+        return value
+    end
+
+    local hex = value:match("^hex:([0-9a-fA-F]+)$")
+    if not hex or #hex % 2 ~= 0 then
+        return value
+    end
+
+    return (hex:gsub("..", function(byte)
+        return string.char(tonumber(byte, 16))
+    end))
+end
+
 local function state_dir()
     local root = os.getenv("APPDATA") or os.getenv("LOCALAPPDATA") or "."
     return root .. "\\yazi\\state"
@@ -114,7 +129,7 @@ function M:entry(job)
         local paths = {}
         for i = 2, #job.args do
             if type(job.args[i]) == "string" and job.args[i] ~= "" then
-                paths[#paths + 1] = job.args[i]
+                paths[#paths + 1] = decode_arg(job.args[i])
             end
         end
         if #paths > 0 then record(paths) end

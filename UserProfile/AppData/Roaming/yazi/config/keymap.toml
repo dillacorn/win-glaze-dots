@@ -39,7 +39,7 @@ prepend_keymap = [
   { on = ["L"],       run = "forward",   desc = "Forward in history" },
   { on = ["g", "r"], run = "plugin recent-files", desc = "Go to recently opened file" },
   { on = ["g", "b"], run = "plugin bookmarks", desc = "Go to bookmarked folder" },
-  { on = ["g", "B"], run = 'lua "WgdotYaziToggleBookmark()"', desc = "Bookmark hovered/current folder" },
+  { on = ["g", "B"], run = 'lua "WgdotYaziToggleBookmark()"', desc = "Bookmark current directory" },
   { on = ["g", "m"], run = "plugin drives", desc = "Open Windows drive picker" },
   { on = ["<C-f>"],  run = 'lua "WgdotYaziSearchMenu()"', desc = "Search current directory tree" },
 

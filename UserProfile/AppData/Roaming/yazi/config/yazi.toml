@@ -9,6 +9,10 @@
 linemode = "size_and_mtime"
 mouse_events = ["click", "scroll", "drag", "move"]
 
+[preview]
+max_width = 2000
+max_height = 2000
+
 [opener]
 edit = [
     { run = 'wt.exe -w new new-tab --title "Micro" --suppressApplicationTitle --startingDirectory %d1 micro.exe %s', orphan = true, desc = "Micro", for = "windows" },

@@ -9,6 +9,21 @@ local KEYS = {
     "u", "v", "w", "x", "y", "z",
 }
 
+local function decode_arg(value)
+    if type(value) ~= "string" then
+        return value
+    end
+
+    local hex = value:match("^hex:([0-9a-fA-F]+)$")
+    if not hex or #hex % 2 ~= 0 then
+        return value
+    end
+
+    return (hex:gsub("..", function(byte)
+        return string.char(tonumber(byte, 16))
+    end))
+end
+
 local function state_dir()
     local root = os.getenv("APPDATA") or os.getenv("LOCALAPPDATA") or "."
     return root .. "\\yazi\\state"
@@ -128,7 +143,7 @@ end
 
 function M:entry(job)
     if job.args[1] == "toggle" then
-        local path = job.args[2]
+        local path = decode_arg(job.args[2])
         if not path or path == "" then return end
 
         local cha = fs.cha(Url(path), true)

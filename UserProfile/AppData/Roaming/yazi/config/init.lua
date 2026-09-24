@@ -5,6 +5,10 @@ require("recent-files"):setup()
 require("bookmarks"):setup()
 require("git"):setup { order = 1500 }
 
+Entity:children_add(function()
+    return " "
+end, 500)
+
 function Linemode:size_and_mtime()
     local size = self._file:size()
     local size_text
@@ -32,6 +36,27 @@ function Linemode:size_and_mtime()
     return string.format("%9s  %8s", size_text, date_text)
 end
 
+local function WgdotYaziPluginHex(value)
+    return (value:gsub(".", function(char)
+        return string.format("%02x", string.byte(char))
+    end))
+end
+
+local function WgdotYaziPluginArgs(command, values)
+    local args = { command }
+    for _, value in ipairs(values) do
+        args[#args + 1] = "hex:" .. WgdotYaziPluginHex(value)
+    end
+    return table.concat(args, " ")
+end
+
+local function WgdotYaziBookmarkTarget(target)
+    ya.emit("plugin", {
+        "bookmarks",
+        WgdotYaziPluginArgs("toggle", { target }),
+    })
+end
+
 local function WgdotYaziOpenFiles(interactive, hovered_only)
     local tab = cx.active
     local recent = {}
@@ -52,11 +77,10 @@ local function WgdotYaziOpenFiles(interactive, hovered_only)
     end
 
     if #recent > 0 then
-        local record = { "recent-files", "record" }
-        for _, path in ipairs(recent) do
-            record[#record + 1] = path
-        end
-        ya.emit("plugin", record)
+        ya.emit("plugin", {
+            "recent-files",
+            WgdotYaziPluginArgs("record", recent),
+        })
     end
 
     local args = {}
@@ -88,7 +112,7 @@ function WgdotYaziRight()
         return
     elseif hovered.cha.is_dir then
         ya.emit("enter", {})
-    elseif not WgdotYaziPreviewMaximized and WgdotYaziRatio()[3] > 0 then
+    elseif not WgdotYaziPreviewMaximized and rt.mgr.ratio[3] > 0 then
         WgdotYaziTogglePreviewMax()
     end
 end
@@ -165,10 +189,7 @@ function WgdotYaziSearchMenu()
 end
 
 function WgdotYaziToggleBookmark()
-    local hovered = cx.active.current.hovered
-    local target = hovered and tostring(hovered.url)
-        or tostring(cx.active.current.cwd)
-    ya.emit("plugin", { "bookmarks", "toggle", target })
+    WgdotYaziBookmarkTarget(tostring(cx.active.current.cwd))
 end
 
 function WgdotYaziOpenHoveredTab()
@@ -194,6 +215,7 @@ end
 local function WgdotYaziApplyRatio(ratio)
     rt.mgr.ratio = { ratio[1], ratio[2], ratio[3] }
     ya.emit("app:resize", {})
+    ya.emit("peek", { force = true })
 end
 
 function WgdotYaziTogglePreview()
@@ -352,7 +374,7 @@ function Current:new(area, tab)
     local me = WgdotYaziDefaultCurrentNew(self, current_area, tab)
     if reserve_control_row then
         me._wgdot_preview_toggle_button = WgdotYaziPreviewToggleButton:new(ui.Rect {
-            x = area.x + math.floor((area.w - 3) / 2),
+            x = area.x + area.w - 3,
             y = area.y + area.h - 1,
             w = 3,
             h = 1,
@@ -973,10 +995,10 @@ function WgdotYaziContextMenu:run(action)
     elseif action == "bookmark_hovered" then
         local hovered = cx.active.current.hovered
         if hovered then
-            ya.emit("plugin", { "bookmarks", "toggle", tostring(hovered.url) })
+            WgdotYaziBookmarkTarget(tostring(hovered.url))
         end
     elseif action == "bookmark_current" then
-        ya.emit("plugin", { "bookmarks", "toggle", tostring(cx.active.current.cwd) })
+        WgdotYaziBookmarkTarget(tostring(cx.active.current.cwd))
     elseif action == "copy" then
         ya.emit("yank", {})
         ya.notify { title = "Yazi", content = "Copied " .. tostring(count) .. " item(s)", timeout = 2 }
@@ -1376,6 +1398,7 @@ function WgdotYaziToggleTimeFormat()
     local next_format = WgdotYaziTimeFormat == "24h" and "12h" or "24h"
     WgdotYaziTimeFormat = next_format
     ps.pub("@wgdot-yazi-time-format", next_format)
+    ui.render()
 end
 
 function Status:selected_count()
