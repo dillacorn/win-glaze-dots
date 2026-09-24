@@ -2085,6 +2085,9 @@ class WgdotHidden
             return 0;
         }
 
+        if (!ConfirmYaziClosedForManagedApply(plan))
+            return 0;
+
         ApplyPlan(plan, source.Manifest, selection, source, true);
         RestoreRememberedThemeAfterManagedApply(plan);
         WriteInstallationSelection(selection);
@@ -8067,6 +8070,43 @@ class WgdotHidden
         }
     }
 
+    static bool ManagedPlanWritesYazi(List<PlanItem> plan)
+    {
+        if (plan == null) return false;
+
+        return plan.Any(item =>
+            item != null &&
+            !String.IsNullOrWhiteSpace(item.FileId) &&
+            item.FileId.StartsWith("yazi-", StringComparison.OrdinalIgnoreCase) &&
+            (String.Equals(item.Action, "APPLY", StringComparison.OrdinalIgnoreCase) ||
+             String.Equals(item.Action, "REPLACE", StringComparison.OrdinalIgnoreCase) ||
+             String.Equals(item.Action, "MERGE", StringComparison.OrdinalIgnoreCase)));
+    }
+
+    static bool ConfirmYaziClosedForManagedApply(List<PlanItem> plan)
+    {
+        if (!ManagedPlanWritesYazi(plan) || !ProcessIsRunning("yazi"))
+            return true;
+
+        Console.WriteLine();
+        Console.ForegroundColor = ConsoleColor.Yellow;
+        Console.WriteLine("Yazi is currently running and its managed configuration is about to be updated.");
+        Console.ResetColor();
+
+        if (!ReadYesNo("Close Yazi and continue? [Y/n]", true))
+        {
+            Console.WriteLine("Yazi was left running. No managed files were changed.");
+            return false;
+        }
+
+        StopProcessesByName("yazi");
+        if (!WaitForProcessState("yazi", false, 5000))
+            throw new Exception("Yazi could not be closed. No managed files were changed.");
+
+        Console.WriteLine("Closed Yazi.");
+        return true;
+    }
+
     static bool WaitForProcessState(string processName, bool running, int timeoutMs)
     {
         int waited = 0;
@@ -11859,6 +11899,9 @@ class WgdotHidden
             Console.WriteLine("No changes were applied.");
             return 0;
         }
+
+        if (!ConfirmYaziClosedForManagedApply(plan))
+            return 0;
 
         string pendingGitRuntime = PrepareGitRuntimeSync(source);
         ApplyPlan(plan, source.Manifest, selection, source);

@@ -1218,6 +1218,42 @@ function Commit-WgdotBaseline {
     }
 }
 
+function Test-WgdotPlanWritesYazi {
+    param([Parameter(Mandatory = $true)][object[]]$Plan)
+
+    return @($Plan | Where-Object {
+        -not [string]::IsNullOrWhiteSpace([string]$_.FileId) -and
+        ([string]$_.FileId).StartsWith("yazi-", [System.StringComparison]::OrdinalIgnoreCase) -and
+        ([string]$_.Action -in @("APPLY", "REPLACE", "MERGE"))
+    }).Count -gt 0
+}
+
+function Confirm-WgdotYaziClosedForPlan {
+    param([Parameter(Mandatory = $true)][object[]]$Plan)
+
+    if (-not (Test-WgdotPlanWritesYazi -Plan $Plan)) { return $true }
+
+    $running = @(Get-Process yazi -ErrorAction SilentlyContinue)
+    if ($running.Count -eq 0) { return $true }
+
+    Write-Host ""
+    Write-Host "Yazi is currently running and its managed configuration is about to be updated." -ForegroundColor Yellow
+    $answer = (Read-Host "Close Yazi and continue? [Y/n]").Trim()
+    if ($answer -ne "" -and $answer -notmatch '^[Yy]$') {
+        Write-Host "Yazi was left running. No managed files were changed." -ForegroundColor Yellow
+        return $false
+    }
+
+    $running | Stop-Process -Force -ErrorAction SilentlyContinue
+    Start-Sleep -Milliseconds 150
+    if (@(Get-Process yazi -ErrorAction SilentlyContinue).Count -gt 0) {
+        throw "Yazi could not be closed. No managed files were changed."
+    }
+
+    Write-Host "Closed Yazi."
+    return $true
+}
+
 function Invoke-WgdotPlan {
     param(
         [Parameter(Mandatory = $true)][object[]]$Plan,
@@ -1241,6 +1277,10 @@ function Invoke-WgdotPlan {
     $confirm = Read-Host "Apply exactly this plan? [y/N]"
     if ($confirm -notmatch '^[Yy]$') {
         Write-Host "No changes were applied." -ForegroundColor Yellow
+        return $false
+    }
+
+    if (-not (Confirm-WgdotYaziClosedForPlan -Plan $Plan)) {
         return $false
     }
 

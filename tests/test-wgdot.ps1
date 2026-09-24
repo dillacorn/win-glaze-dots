@@ -49,6 +49,15 @@ $manifest = $manifestText | ConvertFrom-Json
 Assert-Equal 1 ([int]$manifest.schemaVersion) "manifest schema"
 Assert-Equal "dillacorn/win-glaze-dots" ([string]$manifest.runtime.repository) "repository identity"
 
+$fakeYaziPlan = @(
+    [pscustomobject]@{ FileId = "yazi-init"; Action = "REPLACE" }
+)
+$fakeOtherPlan = @(
+    [pscustomobject]@{ FileId = "yasb-config"; Action = "REPLACE" }
+)
+Assert-True (Test-WgdotPlanWritesYazi -Plan $fakeYaziPlan) "PowerShell Yazi plan detector recognizes a Yazi write"
+Assert-True (-not (Test-WgdotPlanWritesYazi -Plan $fakeOtherPlan)) "PowerShell Yazi plan detector ignores unrelated managed writes"
+
 $componentIds = @($manifest.components | ForEach-Object { [string]$_.id })
 Assert-True ($componentIds -contains "glazewm") "GlazeWM component exists"
 Assert-True ($componentIds -contains "yasb") "YASB component exists"
@@ -668,8 +677,17 @@ Assert-True ($nativeSourceText -match 'PrepareGitRuntimeSync\(source\)') "Git-te
 Assert-True ($nativeSourceText -match 'ScheduleGitRuntimeSync\(source, pendingGitRuntime\)') "Git-testing schedules runtime alignment only after managed apply"
 Assert-True ($nativeSourceText -match '(?s)ApplyPlan\(plan, source\.Manifest, selection, source\);\s*RestoreRememberedThemeAfterManagedApply\(plan\);') "normal managed update/reset restores selected theme after applying files"
 Assert-True ($nativeSourceText -match 'Managed file verification failed after write') "managed file writes are hash-verified before baseline commit"
+$runtimeText = Get-Content -LiteralPath $runtimePath -Raw
+Assert-True ($runtimeText -match 'function Test-WgdotPlanWritesYazi') "PowerShell maintenance path detects actual Yazi config writes"
+Assert-True ($runtimeText -match 'function Confirm-WgdotYaziClosedForPlan') "PowerShell maintenance path guards Yazi before managed writes"
+Assert-True ($runtimeText -match 'Close Yazi and continue\? \[Y/n\]') "PowerShell Yazi guard asks permission before closing Yazi"
 Assert-True ($nativeSourceText -match 'RestartDesktopSessionAfterManagedApply\(plan\)') "managed update/reset refreshes the running desktop after file application"
 Assert-True ($nativeSourceText -match 'ManagedPlanNeedsDesktopRestart') "managed desktop restart is gated by actual non-theme writes"
+Assert-True ($nativeSourceText -match 'ManagedPlanWritesYazi') "native managed apply detects actual Yazi config writes"
+Assert-True ($nativeSourceText -match 'ConfirmYaziClosedForManagedApply') "native managed apply guards Yazi before writing its config"
+Assert-True ($nativeSourceText -match 'Close Yazi and continue\? \[Y/n\]') "native Yazi guard asks permission before closing Yazi"
+Assert-True ($nativeSourceText -match 'StopProcessesByName\("yazi"\)') "native Yazi guard closes all running Yazi processes after approval"
+Assert-True ($nativeSourceText -match 'Yazi was left running\. No managed files were changed\.') "native Yazi guard cancels cleanly when closure is declined"
 Assert-True ($nativeSourceText -match 'Restarted GlazeWM and YASB') "desktop refresh reports the paired GlazeWM/YASB restart"
 Assert-True ($nativeSourceText -match 'ReturnRuntimeSourceToMainAfterStableApply\(source\)') "stable managed apply returns runtime source tracking to main"
 Assert-True ($nativeSourceText -match 'if \(command == "update"\) return ManagedOperation\("update", ResolveStableSource\(\)\)') "direct managed update resolves the published stable source"
