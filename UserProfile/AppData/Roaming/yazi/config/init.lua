@@ -635,7 +635,7 @@ function WgdotYaziPreviewButton:reflow()
 end
 
 function WgdotYaziPreviewButton:redraw()
-    local label = WgdotYaziPreviewMaximized and " 󰘕 " or " 󰹶 "
+    local label = WgdotYaziPreviewMaximized and " 󰘕 [m x] " or " 󰹶 [m x] "
     return {
         ui.Text(ui.Line(label):style(ui.Style():reverse()))
             :area(self._area)
@@ -687,16 +687,17 @@ function Preview:new(area, tab)
 
     local me = WgdotYaziDefaultPreviewNew(self, preview_area, tab)
     if reserve_control_row then
+        local preview_button_width = math.min(10, area.w)
         me._wgdot_text_select_button = WgdotYaziTextSelectButton:new(ui.Rect {
             x = area.x,
             y = area.y + area.h - 1,
-            w = math.min(19, math.max(0, area.w - 3)),
+            w = math.min(19, math.max(0, area.w - preview_button_width)),
             h = 1,
         })
         me._wgdot_preview_button = WgdotYaziPreviewButton:new(ui.Rect {
-            x = area.x + area.w - 3,
+            x = area.x + area.w - preview_button_width,
             y = area.y + area.h - 1,
-            w = 3,
+            w = preview_button_width,
             h = 1,
         })
     end
@@ -737,7 +738,7 @@ end
 
 function WgdotYaziPreviewToggleButton:redraw()
     local visible = WgdotYaziRatio()[3] > 0
-    local label = visible and " 󰞔 " or " 󰞓 "
+    local label = visible and " 󰞔 [m v] " or " 󰞓 [m v] "
     return {
         ui.Text(ui.Line(label):style(ui.Style():reverse()))
             :area(self._area)
@@ -763,10 +764,11 @@ function Current:new(area, tab)
 
     local me = WgdotYaziDefaultCurrentNew(self, current_area, tab)
     if reserve_control_row then
+        local preview_toggle_width = math.min(10, area.w)
         me._wgdot_preview_toggle_button = WgdotYaziPreviewToggleButton:new(ui.Rect {
-            x = area.x + area.w - 3,
+            x = area.x + area.w - preview_toggle_width,
             y = area.y + area.h - 1,
-            w = 3,
+            w = preview_toggle_width,
             h = 1,
         })
     end
