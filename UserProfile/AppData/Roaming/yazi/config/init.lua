@@ -166,8 +166,7 @@ end
 
 function WgdotYaziToggleBookmark()
     local hovered = cx.active.current.hovered
-    local target = hovered and hovered.cha.is_dir
-        and tostring(hovered.url)
+    local target = hovered and tostring(hovered.url)
         or tostring(cx.active.current.cwd)
     ya.emit("plugin", { "bookmarks", "toggle", target })
 end
@@ -603,6 +602,7 @@ end
 local WgdotYaziFileActions = {
     { label = "Open", shortcut = "Enter", action = "smart_open" },
     { label = "Open with...", shortcut = "O", action = "open_with" },
+    { label = "Bookmark / unbookmark", shortcut = "g B", action = "bookmark_hovered" },
     { label = "Rename", shortcut = "r", action = "rename" },
     { label = "Copy", shortcut = "Ctrl+C / y", action = "copy" },
     { label = "Cut", shortcut = "Ctrl+X / Y", action = "cut" },
@@ -972,7 +972,7 @@ function WgdotYaziContextMenu:run(action)
         ya.emit("rename", {})
     elseif action == "bookmark_hovered" then
         local hovered = cx.active.current.hovered
-        if hovered and hovered.cha.is_dir then
+        if hovered then
             ya.emit("plugin", { "bookmarks", "toggle", tostring(hovered.url) })
         end
     elseif action == "bookmark_current" then
