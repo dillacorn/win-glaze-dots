@@ -37,7 +37,7 @@ prepend_keymap = [
   # History / navigation
   { on = ["H"],       run = "back",      desc = "Back in history" },
   { on = ["L"],       run = "forward",   desc = "Forward in history" },
-  { on = ["g", "r"], run = "plugin recent-files", desc = "Go to recently opened file" },
+  { on = ["g", "r"], run = "plugin recent-files", desc = "Go to recently opened folder" },
   { on = ["g", "b"], run = "plugin bookmarks", desc = "Go to bookmarked folder" },
   { on = ["g", "B"], run = 'lua "WgdotYaziToggleBookmark()"', desc = "Bookmark current directory" },
   { on = ["g", "m"], run = "plugin drives", desc = "Open Windows drive picker" },

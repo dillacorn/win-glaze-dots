@@ -1,7 +1,7 @@
 local M = {}
 
 local KIND = "@dillacorn-yazi-recent-files"
-local ROOT = "wgdot-recents://collection/"
+local ROOT = "wgdot-recents://collection/@/"
 local MAX_RECENTS = 1000
 
 local function decode_arg(value)
