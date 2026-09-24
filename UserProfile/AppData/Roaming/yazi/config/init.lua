@@ -415,18 +415,16 @@ local function WgdotYaziRatio()
     return { ratio[1], ratio[2], ratio[3] }
 end
 
-local function WgdotYaziApplyRatio(ratio, invalidate_cache)
+local function WgdotYaziApplyRatio(ratio)
     rt.mgr.ratio = { ratio[1], ratio[2], ratio[3] }
-    ya.emit("app:resize", {})
+    ya.emit("resize", {})
 
     local hovered = cx.active.current.hovered
-    if invalidate_cache and hovered and not hovered.cha.is_dir then
+    if ratio[3] > 0 and hovered and not hovered.cha.is_dir then
         ya.emit("plugin", {
             "preview-refit",
             WgdotYaziPluginArgs("refit", { tostring(hovered.url) }),
         })
-    else
-        ya.emit("peek", { force = true })
     end
 end
 
@@ -464,7 +462,7 @@ function WgdotYaziTogglePreviewMax()
 
     WgdotYaziPreviewMaxRestore = ratio
     WgdotYaziPreviewMaximized = true
-    WgdotYaziApplyRatio({ 0, 0, 9999 }, true)
+    WgdotYaziApplyRatio({ 0, 0, 9999 })
 end
 
 function WgdotYaziEscape()

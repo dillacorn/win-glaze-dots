@@ -138,6 +138,8 @@ Assert-True ($yaziInitText -match 'WgdotYaziPluginArgs\("record", recent\)') "Ya
 Assert-True ($yaziInitText -match 'WgdotYaziBookmarkTarget\(tostring\(cx\.active\.current\.cwd\), true\)') "Yazi g B bookmarks the current directory"
 Assert-True ($yaziInitText -match 'WgdotYaziBookmarkTarget\(tostring\(hovered\.url\), hovered\.cha\.is_dir\)') "Yazi context menu can bookmark a precise hovered file/folder"
 Assert-True ($yaziInitText -match 'elseif not WgdotYaziPreviewMaximized and rt\.mgr\.ratio\[3\] > 0 then') "Yazi Right Arrow uses the live preview ratio without the late-local scoping bug"
+Assert-True ($yaziInitText -match 'ya\.emit\("resize", \{\}\)') "Yazi preview ratio changes dispatch stable Yazi resize/reflow"
+Assert-True ($yaziInitText -notmatch 'ya\.emit\("app:resize", \{\}\)') "Yazi preview ratio changes do not use the internal app:resize actor name"
 Assert-True ($yaziInitText -match '"preview-refit"') "Yazi maximized preview invalidates stale preview cache"
 Assert-True ($yaziPreviewRefitText -match 'ya\.emit\("peek", \{ force = true \}\)') "Yazi preview-refit plugin forces a fresh peek"
 Assert-True ($yaziInitText -match 'ui\.render\(\)') "Yazi time toggle requests an immediate redraw"
