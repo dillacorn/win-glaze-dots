@@ -171,7 +171,10 @@ end
 
 function M:File(job)
     local item = find_item(job.url)
-    if item then return virtual_file(job.url, item) end
+    if item then
+        local file = virtual_file(job.url, item)
+        return file
+    end
     local cha = item_cha("D")
     return File { url = job.url, cha = cha }
 end
