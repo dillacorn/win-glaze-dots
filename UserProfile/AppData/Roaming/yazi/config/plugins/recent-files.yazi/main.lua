@@ -9,118 +9,80 @@ local KEYS = {
     "u", "v", "w", "x", "y", "z",
 }
 
+local function state_file()
+    local root = os.getenv("APPDATA") or os.getenv("LOCALAPPDATA") or "."
+    return root .. "\\yazi\\state\\wgdot-recent-files.txt"
+end
+
 local function normalized(list)
-    local out = {}
-    local seen = {}
-
-    if type(list) ~= "table" then
-        return out
-    end
-
+    local out, seen = {}, {}
+    if type(list) ~= "table" then return out end
     for _, path in ipairs(list) do
         if type(path) == "string" and path ~= "" and not seen[path] then
             seen[path] = true
             out[#out + 1] = path
-            if #out >= MAX_RECENTS then
-                break
-            end
+            if #out >= MAX_RECENTS then break end
         end
     end
-
     return out
 end
 
-local function contains_all(haystack, needles)
-    local seen = {}
-    for _, path in ipairs(haystack) do
-        seen[path] = true
+local function read_state()
+    local file = io.open(state_file(), "r")
+    if not file then return {} end
+    local out = {}
+    for line in file:lines() do
+        if line ~= "" then out[#out + 1] = line end
     end
-    for _, path in ipairs(needles) do
-        if not seen[path] then
-            return false
-        end
+    file:close()
+    return normalized(out)
+end
+
+local function write_state(list)
+    local file = io.open(state_file(), "w")
+    if not file then return false end
+    for _, path in ipairs(normalized(list)) do
+        file:write(path, "\n")
     end
+    file:close()
     return true
 end
 
 local snapshot = ya.sync(function(self)
-    return normalized(self.recents or {})
-end)
-
-local publish = ya.sync(function(self)
-    ps.pub(KIND, self.recents or {})
-    ps.pub_to(0, KIND, self.recents or {})
-end)
-
-local record = ya.sync(function(self, paths)
-    local next_recents = {}
-    local seen = {}
-
-    local function add(path)
-        if type(path) == "string" and path ~= "" and not seen[path] and #next_recents < MAX_RECENTS then
-            seen[path] = true
-            next_recents[#next_recents + 1] = path
-        end
-    end
-
-    for _, path in ipairs(paths or {}) do
-        add(path)
-    end
-    for _, path in ipairs(self.recents or {}) do
-        add(path)
-    end
-
-    if #next_recents == 0 then
-        return
-    end
-
-    self.recents = next_recents
-    ps.pub(KIND, self.recents)
-    ps.pub_to(0, KIND, self.recents)
+    self.recents = read_state()
+    return normalized(self.recents)
 end)
 
 local replace = ya.sync(function(self, paths)
     self.recents = normalized(paths)
+    write_state(self.recents)
+    ps.pub(KIND, self.recents)
+    ps.pub_to(0, KIND, self.recents)
+end)
+
+local record = ya.sync(function(self, paths)
+    local next_recents = {}
+    for _, path in ipairs(paths) do next_recents[#next_recents + 1] = path end
+    for _, path in ipairs(read_state()) do next_recents[#next_recents + 1] = path end
+
+    self.recents = normalized(next_recents)
+    write_state(self.recents)
     ps.pub(KIND, self.recents)
     ps.pub_to(0, KIND, self.recents)
 end)
 
 local subscribe = ya.sync(function(self)
-    self.recents = self.recents or {}
-
+    self.recents = read_state()
     pcall(ps.unsub, KIND)
     pcall(ps.unsub_remote, KIND)
 
     ps.sub(KIND, function(incoming)
         self.recents = normalized(incoming)
     end)
-
     ps.sub_remote(KIND, function(incoming)
-        local remote = normalized(incoming)
-        local local_before = normalized(self.recents)
-        local merged = {}
-        local seen = {}
-
-        local function add(path)
-            if not seen[path] and #merged < MAX_RECENTS then
-                seen[path] = true
-                merged[#merged + 1] = path
-            end
-        end
-
-        for _, path in ipairs(remote) do
-            add(path)
-        end
-        for _, path in ipairs(local_before) do
-            add(path)
-        end
-
-        self.recents = merged
+        self.recents = normalized(incoming)
+        write_state(self.recents)
         ps.pub(KIND, self.recents)
-
-        if not contains_all(remote, local_before) then
-            ps.pub_to(0, KIND, self.recents)
-        end
     end)
 end)
 
@@ -132,25 +94,22 @@ function M:entry(job)
     if job.args[1] == "record" then
         local paths = {}
         for i = 2, #job.args do
-            paths[#paths + 1] = job.args[i]
+            if type(job.args[i]) == "string" and job.args[i] ~= "" then
+                paths[#paths + 1] = job.args[i]
+            end
         end
-        return record(paths)
+        if #paths > 0 then record(paths) end
+        return
     end
 
-    local recent = snapshot()
+    local recents = snapshot()
     local files = {}
-
-    for _, path in ipairs(recent) do
-        local url = Url(path)
-        local cha = fs.cha(url, true)
-        if cha and not cha.is_dir then
-            files[#files + 1] = path
-        end
+    for _, path in ipairs(recents) do
+        local cha = fs.cha(Url(path), true)
+        if cha and not cha.is_dir then files[#files + 1] = path end
     end
 
-    if #files ~= #recent then
-        replace(files)
-    end
+    if #files ~= #recents then replace(files) end
 
     if #files == 0 then
         return ya.notify {
@@ -171,10 +130,7 @@ function M:entry(job)
         }
     end
 
-    local choice = ya.which {
-        cands = candidates,
-        silent = false,
-    }
+    local choice = ya.which { cands = candidates, silent = false }
     if choice then
         ya.emit("reveal", { Url(files[choice]), raw = true })
     end
