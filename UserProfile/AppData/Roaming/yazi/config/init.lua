@@ -58,7 +58,7 @@ function Entity:symlink()
     return WgdotYaziDefaultEntitySymlink(self)
 end
 
-function Linemode:size_and_mtime()function Linemode:size_and_mtime()
+function Linemode:size_and_mtime()
     if WgdotYaziIsCollectionItemUrl(self._file.url) then return "" end
     local size = self._file:size()
     local size_text
@@ -149,7 +149,7 @@ local function WgdotYaziDeleteCollectionSelection()
     return true
 end
 
-local function WgdotYaziOpenFiles(interactive, hovered_only)local function WgdotYaziOpenFiles(interactive, hovered_only)
+local function WgdotYaziOpenFiles(interactive, hovered_only)
     local tab = cx.active
     local recent = {}
 
