@@ -2183,9 +2183,6 @@ class WgdotHidden
             return 0;
         }
 
-        if (!ConfirmYaziClosedForManagedApply(plan))
-            return 0;
-
         ApplyPlan(plan, source.Manifest, selection, source, true);
         RestoreRememberedThemeAfterManagedApply(plan);
         WriteInstallationSelection(selection);
@@ -2206,6 +2203,8 @@ class WgdotHidden
                 "Install only the managed bar font with: wgdot bar-font-install");
             Console.ResetColor();
         }
+
+        WriteYaziRestartNoticeAfterManagedApply(plan);
 
         Console.ForegroundColor = ConsoleColor.Green;
         Console.WriteLine("WGDot managed dots applied. Software was not installed, upgraded, reconciled, or uninstalled.");
@@ -8357,28 +8356,15 @@ class WgdotHidden
              String.Equals(item.Action, "MERGE", StringComparison.OrdinalIgnoreCase)));
     }
 
-    static bool ConfirmYaziClosedForManagedApply(List<PlanItem> plan)
+    static void WriteYaziRestartNoticeAfterManagedApply(List<PlanItem> plan)
     {
-        if (!ManagedPlanWritesYazi(plan) || !ProcessIsRunning("yazi"))
-            return true;
+        if (!ManagedPlanWritesYazi(plan))
+            return;
 
         Console.WriteLine();
         Console.ForegroundColor = ConsoleColor.Yellow;
-        Console.WriteLine("Yazi is currently running and its managed configuration is about to be updated.");
+        Console.WriteLine("Yazi configuration was updated. Restart any open Yazi sessions to load the new configuration.");
         Console.ResetColor();
-
-        if (!ReadYesNo("Close Yazi and continue? [Y/n]", true))
-        {
-            Console.WriteLine("Yazi was left running. No managed files were changed.");
-            return false;
-        }
-
-        StopProcessesByName("yazi");
-        if (!WaitForProcessState("yazi", false, 5000))
-            throw new Exception("Yazi could not be closed. No managed files were changed.");
-
-        Console.WriteLine("Closed Yazi.");
-        return true;
     }
 
     static bool WaitForProcessState(string processName, bool running, int timeoutMs)
@@ -12174,9 +12160,6 @@ class WgdotHidden
             return 0;
         }
 
-        if (!ConfirmYaziClosedForManagedApply(plan))
-            return 0;
-
         string pendingGitRuntime = PrepareGitRuntimeSync(source);
         ApplyPlan(plan, source.Manifest, selection, source);
         RestoreRememberedThemeAfterManagedApply(plan);
@@ -12188,6 +12171,7 @@ class WgdotHidden
         ReturnRuntimeSourceToMainAfterStableApply(source);
         RestartDesktopSessionAfterManagedApply(plan);
         ScheduleGitRuntimeSync(source, pendingGitRuntime);
+        WriteYaziRestartNoticeAfterManagedApply(plan);
         Console.ForegroundColor = ConsoleColor.Green;
         Console.WriteLine("WGDot managed configuration applied.");
         Console.ResetColor();
