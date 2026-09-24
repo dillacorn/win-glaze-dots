@@ -1228,30 +1228,13 @@ function Test-WgdotPlanWritesYazi {
     }).Count -gt 0
 }
 
-function Confirm-WgdotYaziClosedForPlan {
+function Write-WgdotYaziRestartNoticeForPlan {
     param([Parameter(Mandatory = $true)][object[]]$Plan)
 
-    if (-not (Test-WgdotPlanWritesYazi -Plan $Plan)) { return $true }
-
-    $running = @(Get-Process yazi -ErrorAction SilentlyContinue)
-    if ($running.Count -eq 0) { return $true }
+    if (-not (Test-WgdotPlanWritesYazi -Plan $Plan)) { return }
 
     Write-Host ""
-    Write-Host "Yazi is currently running and its managed configuration is about to be updated." -ForegroundColor Yellow
-    $answer = (Read-Host "Close Yazi and continue? [Y/n]").Trim()
-    if ($answer -ne "" -and $answer -notmatch '^[Yy]$') {
-        Write-Host "Yazi was left running. No managed files were changed." -ForegroundColor Yellow
-        return $false
-    }
-
-    $running | Stop-Process -Force -ErrorAction SilentlyContinue
-    Start-Sleep -Milliseconds 150
-    if (@(Get-Process yazi -ErrorAction SilentlyContinue).Count -gt 0) {
-        throw "Yazi could not be closed. No managed files were changed."
-    }
-
-    Write-Host "Closed Yazi."
-    return $true
+    Write-Host "Yazi configuration was updated. Restart any open Yazi sessions to load the new configuration." -ForegroundColor Yellow
 }
 
 function Invoke-WgdotPlan {
@@ -1280,10 +1263,6 @@ function Invoke-WgdotPlan {
         return $false
     }
 
-    if (-not (Confirm-WgdotYaziClosedForPlan -Plan $Plan)) {
-        return $false
-    }
-
     foreach ($item in $Plan) {
         if ($item.Action -eq "NONE" -or $item.Action -eq "PRESERVE") { continue }
         if ($item.Action -eq "MERGE") {
@@ -1301,6 +1280,7 @@ function Invoke-WgdotPlan {
     Invoke-WgdotMigrations -Manifest $Manifest -Installation $Installation
     Invoke-WgdotPostActions -Manifest $Manifest -Installation $Installation
     Commit-WgdotBaseline -Plan $Plan -SourceMode $SourceMode -Tag $Tag -Revision $Revision -Installation $Installation
+    Write-WgdotYaziRestartNoticeForPlan -Plan $Plan
     Write-Host "WGDot managed configuration applied." -ForegroundColor Green
     return $true
 }
