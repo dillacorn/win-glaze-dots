@@ -85,10 +85,11 @@ local function WgdotYaziBookmarkTarget(target, is_dir)
 end
 
 local function WgdotYaziNavigateCollection(file, new_tab)
-    local target, is_dir = WgdotYaziCollectionTarget(file)
+    local target = WgdotYaziCollectionTarget(file)
     if not target then return false end
 
-    if not fs.cha(Url(target), true) then
+    local cha = fs.cha(Url(target), true)
+    if not cha then
         ya.notify {
             title = "Yazi",
             content = "Target no longer exists; removing stale collection entry.",
@@ -99,6 +100,7 @@ local function WgdotYaziNavigateCollection(file, new_tab)
         return true
     end
 
+    local is_dir = cha.is_dir
     local url = Url(target)
     if new_tab then
         if is_dir then
