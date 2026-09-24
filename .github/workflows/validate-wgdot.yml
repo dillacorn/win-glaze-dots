@@ -169,6 +169,7 @@ jobs:
   release-v4-6-0-yazi:
     if: >-
       github.event_name == 'pull_request' &&
+      github.event.pull_request.head.sha == 'c860aa63edeab7e414b2390921b0e41b374adf99' &&
       github.event.pull_request.title == 'Release bridge: WGDot v4.6.0 Yazi' &&
       github.event.pull_request.head.ref == 'release-bridge-v4-6-0-yazi' &&
       github.event.pull_request.base.ref == 'main'
@@ -244,3 +245,54 @@ jobs:
           set -euo pipefail
           gh api --method DELETE "repos/${GITHUB_REPOSITORY}/git/refs/heads/${BRIDGE_BRANCH}"
 
+
+
+  verify-v4-6-0-yazi-release:
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.title == 'Release bridge: WGDot v4.6.0 Yazi' &&
+      github.event.pull_request.head.ref == 'release-bridge-v4-6-0-yazi' &&
+      github.event.pull_request.base.ref == 'main'
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    env:
+      RELEASE_TAG: v4.6.0
+      RELEASE_TITLE: WGDot v4.6.0 Yazi
+      RELEASE_TARGET: 1b2a87f619e14a15fd29c52913372dd434691493
+      RELEASE_NOTES: .github/release-v4.6.0-yazi.md
+      BRIDGE_BRANCH: release-bridge-v4-6-0-yazi
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify published release body, metadata, and tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          current_main="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq .object.sha)"
+          test "$current_main" = "$RELEASE_TARGET"
+          gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY"             --json tagName,name,targetCommitish,isDraft,isPrerelease,body,url > /tmp/release.json
+          python3 - "$RELEASE_TAG" "$RELEASE_TITLE" "$RELEASE_TARGET" "$RELEASE_NOTES" /tmp/release.json <<'PY'
+          import json, sys
+          from pathlib import Path
+          tag, title, target, notes_path, release_path = sys.argv[1:]
+          data = json.load(open(release_path, encoding="utf-8"))
+          assert data["tagName"] == tag
+          assert data["name"] == title
+          assert data["targetCommitish"] == target
+          assert data["isDraft"] is False
+          assert data["isPrerelease"] is False
+          assert data["body"] == Path(notes_path).read_text(encoding="utf-8")
+          PY
+          git fetch --force origin "refs/tags/${RELEASE_TAG}:refs/tags/${RELEASE_TAG}"
+          test "$(git rev-list -n1 "$RELEASE_TAG")" = "$RELEASE_TARGET"
+          cat /tmp/release.json
+      - name: Delete one-use release bridge branch
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api --method DELETE "repos/${GITHUB_REPOSITORY}/git/refs/heads/${BRIDGE_BRANCH}"
