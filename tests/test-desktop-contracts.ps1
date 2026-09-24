@@ -128,6 +128,29 @@ try {
         Require $rejected 'Yazi drag accepted a manifest outside the temporary directory'
     }
 
+    Check 'windowless WGDot frontend preserves exact argument boundaries' {
+        Invoke-Native 'EnsureHiddenLauncher'
+        $wrapper = Join-Path $temp 'wgdot\bin\wgdotw.exe'
+        Require (Test-Path -LiteralPath $wrapper -PathType Leaf) 'Windowless WGDot frontend was not compiled'
+        Require ([Diagnostics.FileVersionInfo]::GetVersionInfo($wrapper).FileVersion -eq '2.0.0.0') 'Windowless WGDot frontend version is stale'
+
+        $wrapperType = [Reflection.Assembly]::LoadFile($wrapper).GetType('WgdotHidden')
+        $quote = $wrapperType.GetMethod('QuoteForwardedArgument', [Reflection.BindingFlags]'Static,NonPublic')
+        Require ($null -ne $quote) 'Windowless WGDot argument quoting helper is missing'
+
+        $cases = @(
+            [pscustomobject]@{ Input = 'plain'; Expected = 'plain' }
+            [pscustomobject]@{ Input = 'path with spaces'; Expected = '"path with spaces"' }
+            [pscustomobject]@{ Input = 'embedded"quote'; Expected = '"embedded\"quote"' }
+            [pscustomobject]@{ Input = 'ends with slash \'; Expected = '"ends with slash \\"' }
+            [pscustomobject]@{ Input = ''; Expected = '""' }
+        )
+        foreach ($case in $cases) {
+            $actual = [string]$quote.Invoke($null, [object[]]@([string]$case.Input))
+            Require ($actual -ceq [string]$case.Expected) ('Windowless WGDot argument quoting changed for: ' + [string]$case.Input)
+        }
+    }
+
     Check 'retired mouse mode stays removed while legacy cleanup remains' {
         Require ($null -eq (Get-NativeMethod 'MouseModeToggle')) 'Retired MouseModeToggle implementation returned'
         Require ($null -eq (Get-NativeMethod 'MouseModeHook')) 'Retired MouseModeHook implementation returned'
