@@ -168,6 +168,7 @@ jobs:
 
   release-v460-post-update:
     if: >-
+      false &&
       github.event_name == 'pull_request' &&
       github.event.pull_request.title == 'Release bridge: update v4.6.0 post-release notes' &&
       github.event.pull_request.head.ref == 'release-bridge/v4.6.0-post-update' &&
@@ -250,3 +251,21 @@ jobs:
 
           after_tag_sha="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$RELEASE_TAG" --jq '.object.sha')"
           test "$after_tag_sha" = "$RELEASE_TARGET"
+
+  release-v460-bridge-cleanup:
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.title == 'Release bridge: update v4.6.0 post-release notes' &&
+      github.event.pull_request.head.ref == 'release-bridge/v4.6.0-post-update' &&
+      github.event.pull_request.base.ref == 'main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Delete the temporary release bridge branch
+        shell: bash
+        run: |
+          gh api --method DELETE \
+            "repos/$GITHUB_REPOSITORY/git/refs/heads/release-bridge/v4.6.0-post-update"
