@@ -8249,10 +8249,19 @@ class WgdotHidden
     static string MicroConfigRoot()
     {
         if (!String.IsNullOrWhiteSpace(TestRootOverride))
-            return Path.Combine(TestRootOverride, "user-profile", "AppData", "Roaming", "micro");
+            return Path.Combine(TestRootOverride, "user-profile", ".config", "micro");
+
+        string microConfigHome = Environment.GetEnvironmentVariable("MICRO_CONFIG_HOME");
+        if (!String.IsNullOrWhiteSpace(microConfigHome))
+            return Environment.ExpandEnvironmentVariables(microConfigHome);
+
+        string xdgConfigHome = Environment.GetEnvironmentVariable("XDG_CONFIG_HOME");
+        if (!String.IsNullOrWhiteSpace(xdgConfigHome))
+            return Path.Combine(Environment.ExpandEnvironmentVariables(xdgConfigHome), "micro");
 
         return Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            ".config",
             "micro");
     }
 
