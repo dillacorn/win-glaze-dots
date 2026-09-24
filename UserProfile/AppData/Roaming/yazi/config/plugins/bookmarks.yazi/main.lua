@@ -1,4 +1,4 @@
-local M = { cache = {} }
+local M = {}
 
 local KIND = "@wgdot-yazi-bookmarks"
 local MAX_BOOKMARKS = 35
@@ -9,10 +9,14 @@ local KEYS = {
     "u", "v", "w", "x", "y", "z",
 }
 
+local function state_file()
+    local root = os.getenv("APPDATA") or os.getenv("LOCALAPPDATA") or "."
+    return root .. "\\yazi\\state\\wgdot-bookmarks.txt"
+end
+
 local function normalized(list)
     local out, seen = {}, {}
     if type(list) ~= "table" then return out end
-
     for _, path in ipairs(list) do
         if type(path) == "string" and path ~= "" and not seen[path] then
             seen[path] = true
@@ -23,63 +27,78 @@ local function normalized(list)
     return out
 end
 
-local function update_cache(list)
-    M.cache = normalized(list)
+local function read_state()
+    local file = io.open(state_file(), "r")
+    if not file then return {} end
+    local out = {}
+    for line in file:lines() do
+        if line ~= "" then out[#out + 1] = line end
+    end
+    file:close()
+    return normalized(out)
 end
 
-local function publish_state(self)
-    update_cache(self.bookmarks or {})
-    ps.pub(KIND, self.bookmarks or {})
-    ps.pub_to(0, KIND, self.bookmarks or {})
+local function write_state(list)
+    local file = io.open(state_file(), "w")
+    if not file then return false end
+    for _, path in ipairs(normalized(list)) do
+        file:write(path, "\n")
+    end
+    file:close()
+    return true
 end
 
 function M:is_bookmarked(path)
-    for _, bookmarked in ipairs(self.cache or {}) do
+    for _, bookmarked in ipairs(read_state()) do
         if bookmarked == path then return true end
     end
     return false
 end
 
 local snapshot = ya.sync(function(self)
-    return normalized(self.bookmarks or {})
+    self.bookmarks = read_state()
+    return normalized(self.bookmarks)
+end)
+
+local replace = ya.sync(function(self, paths)
+    self.bookmarks = normalized(paths)
+    write_state(self.bookmarks)
+    ps.pub(KIND, self.bookmarks)
+    ps.pub_to(0, KIND, self.bookmarks)
 end)
 
 local toggle = ya.sync(function(self, path)
-    local next_bookmarks, removed = {}, false
-    for _, bookmarked in ipairs(self.bookmarks or {}) do
+    local next_bookmarks = {}
+    local removed = false
+
+    for _, bookmarked in ipairs(read_state()) do
         if bookmarked == path then
             removed = true
         else
             next_bookmarks[#next_bookmarks + 1] = bookmarked
         end
     end
+
     if not removed then table.insert(next_bookmarks, 1, path) end
 
     self.bookmarks = normalized(next_bookmarks)
-    publish_state(self)
+    write_state(self.bookmarks)
+    ps.pub(KIND, self.bookmarks)
+    ps.pub_to(0, KIND, self.bookmarks)
     return not removed
 end)
 
-local replace = ya.sync(function(self, paths)
-    self.bookmarks = normalized(paths)
-    publish_state(self)
-end)
-
 local subscribe = ya.sync(function(self)
-    self.bookmarks = self.bookmarks or {}
-    update_cache(self.bookmarks)
-
+    self.bookmarks = read_state()
     pcall(ps.unsub, KIND)
     pcall(ps.unsub_remote, KIND)
 
     ps.sub(KIND, function(incoming)
         self.bookmarks = normalized(incoming)
-        update_cache(self.bookmarks)
     end)
-
     ps.sub_remote(KIND, function(incoming)
         self.bookmarks = normalized(incoming)
-        update_cache(self.bookmarks)
+        write_state(self.bookmarks)
         ps.pub(KIND, self.bookmarks)
     end)
 end)
@@ -119,6 +138,7 @@ function M:entry(job)
     end
 
     if #directories ~= #bookmarks then replace(directories) end
+
     if #directories == 0 then
         return ya.notify {
             title = "Bookmarks",
