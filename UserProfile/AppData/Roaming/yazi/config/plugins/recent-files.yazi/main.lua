@@ -1,7 +1,6 @@
 local M = {}
 
 local KIND = "@dillacorn-yazi-recent-files"
-local ROOT = "wgdot-recents://collection//"
 local MAX_RECENTS = 1000
 
 local function decode_arg(value)
@@ -17,6 +16,7 @@ local function state_dir()
 end
 
 local function state_file() return state_dir() .. "\\wgdot-recent-files.txt" end
+local function collection_dir() return state_dir() .. "\\collections\\Recently Opened" end
 
 local function ensure_state_dir()
     local dir = state_dir()
@@ -56,10 +56,54 @@ local function write_state(list)
     return true
 end
 
-local function publish(list)
-    local clean = normalized(list)
-    write_state(clean)
-    pcall(ps.pub_to, 0, KIND, clean)
+local function safe_name(path)
+    local p = path:gsub("\\", "/"):gsub("/+$", "")
+    local name = p:match("([^/]+)$") or p
+    if name == "" then name = "item" end
+    name = name:gsub('[<>:"/\\|%?%*%c]', "_"):gsub("[%. ]+$", "")
+    return name ~= "" and name or "item"
+end
+
+local function marker_name(index, path)
+    return string.format("%04d--%s", index, safe_name(path))
+end
+
+local function clear_collection(root)
+    local ok, err = fs.create("dir_all", Url(root))
+    if not ok then return false, err end
+    local files, read_err = fs.read_dir(Url(root), { resolve = true })
+    if not files then return false, read_err end
+    for _, file in ipairs(files) do
+        local removed, remove_err
+        if file.cha.is_dir then
+            removed, remove_err = fs.remove("dir_all", file.url)
+        else
+            removed, remove_err = fs.remove("file", file.url)
+        end
+        if not removed then return false, remove_err end
+    end
+    return true
+end
+
+local function materialize(list)
+    local root = collection_dir()
+    local ok, err = clear_collection(root)
+    if not ok then return false, err end
+
+    for index, path in ipairs(normalized(list)) do
+        local marker = root .. "\\" .. marker_name(index, path)
+        local wrote, write_err = fs.write(Url(marker), path)
+        if not wrote then return false, write_err end
+    end
+    return true
+end
+
+local function marker_target(marker)
+    local file = io.open(marker, "rb")
+    if not file then return nil end
+    local target = file:read("*a")
+    file:close()
+    return target ~= "" and target or nil
 end
 
 local snapshot = ya.sync(function(self)
@@ -78,6 +122,19 @@ local record = ya.sync(function(self, paths)
     ps.pub_to(0, KIND, self.recents)
 end)
 
+local forget = ya.sync(function(self, targets)
+    local forgotten = {}
+    for _, target in ipairs(targets) do forgotten[target] = true end
+    local next_recents = {}
+    for _, path in ipairs(read_state()) do
+        if not forgotten[path] then next_recents[#next_recents + 1] = path end
+    end
+    self.recents = normalized(next_recents)
+    write_state(self.recents)
+    ps.pub(KIND, self.recents)
+    ps.pub_to(0, KIND, self.recents)
+end)
+
 local subscribe = ya.sync(function(self)
     self.recents = normalized(read_state())
     pcall(ps.unsub, KIND)
@@ -87,105 +144,101 @@ local subscribe = ya.sync(function(self)
         self.recents = normalized(incoming)
         write_state(self.recents)
         ps.pub(KIND, self.recents)
-        if tostring(cx.active.current.cwd):match("^wgdot%-recents://") then ya.emit("refresh", {}) end
     end)
 end)
 
-local function basename(path)
-    local p = path:gsub("\\", "/"):gsub("/+$", "")
-    local name = p:match("([^/]+)$") or p
-    if name == "" then name = "item" end
-    return name:gsub("[:/\\]", "_")
+local function notify_error(action, err)
+    ya.notify {
+        title = "Recent files",
+        content = "Failed to " .. action .. ": " .. tostring(err or "unknown error"),
+        timeout = 5,
+        level = "error",
+    }
 end
 
-local function items()
-    local out = {}
-    for i, path in ipairs(read_state()) do
-        out[#out + 1] = { path = path, name = string.format("%04d--%s", i, basename(path)) }
-    end
-    return out
-end
-
-local function file_cha() return Cha { mode = tonumber("100644", 8) } end
-local function dir_cha() return Cha { mode = tonumber("40755", 8) } end
-
-local function virtual_file(url, item)
-    local cha = file_cha()
-    return File { url = url, cha = cha, link_to = Path.os(item.path) }, cha
-end
-
-local function find_item(url)
-    local name = tostring(url.name or "")
-    for _, item in ipairs(items()) do if item.name == name then return item end end
-end
-
-local function remove_url(url)
-    local name = tostring(url.name or "")
-    local current = read_state()
-    for i, item in ipairs(items()) do
-        if item.name == name then
-            table.remove(current, i)
-            publish(current)
-            return true
-        end
-    end
+local function remove_marker(marker)
+    local ok, err = fs.remove("file", Url(marker))
+    if not ok and fs.cha(Url(marker), false) then return false, err end
     return true
 end
 
-function M:Capabilities()
-    return { symlink = false, hard_link = false, trash = true, copy_progressive = false }
+local function activate(marker, new_tab)
+    local target = marker_target(marker)
+    if not target then
+        return ya.notify { title = "Recent files", content = "Recent-file marker is invalid.", timeout = 3, level = "warn" }
+    end
+
+    local cha = fs.cha(Url(target), true)
+    if not cha then
+        forget { target }
+        remove_marker(marker)
+        ya.emit("refresh", {})
+        return ya.notify {
+            title = "Recent files",
+            content = "Target no longer exists; removed stale recent entry.",
+            timeout = 3,
+            level = "warn",
+        }
+    end
+
+    local url = Url(target)
+    if new_tab then
+        if cha.is_dir then
+            ya.emit("tab_create", { target, raw = true })
+        elseif url.parent then
+            ya.emit("tab_create", { tostring(url.parent), raw = true })
+            ya.sleep(25)
+            ya.emit("reveal", { url, raw = true })
+        end
+    elseif cha.is_dir then
+        ya.emit("cd", { url, raw = true })
+    else
+        ya.emit("reveal", { url, raw = true })
+    end
 end
 
-function M:ReadDir(job)
-    local out = {}
-    for _, item in ipairs(items()) do
-        local file, cha = virtual_file(job.url:join(Path.os(item.name)), item)
-        out[#out + 1] = { file = file, cha = cha }
+local function delete_markers(markers)
+    local targets = {}
+    for _, marker in ipairs(markers) do
+        local target = marker_target(marker)
+        if target then targets[#targets + 1] = target end
     end
-    return out
-end
-
-function M:File(job)
-    local item = find_item(job.url)
-    if item then
-        local file = virtual_file(job.url, item)
-        return file
+    if #targets > 0 then forget(targets) end
+    for _, marker in ipairs(markers) do
+        local ok, err = remove_marker(marker)
+        if not ok then notify_error("remove recent entry", err) end
     end
-    local cha = dir_cha()
-    return File { url = job.url, cha = cha }
-end
-
-function M:Metadata(job) local file = self:File(job); return file and file.cha end
-function M:SymlinkMetadata(job) return self:Metadata(job) end
-function M:Revalidate() return nil end
-function M:Canonicalize(job) return job.url end
-function M:Absolute(job) return job.url end
-function M:Casefold(job) return job.url end
-function M:Trash(job) return remove_url(job.url) end
-function M:RemoveFile(job) return remove_url(job.url) end
-function M:RemoveDir(job) return remove_url(job.url) end
-
-function M:provide(job)
-    local handler = self[job.op]
-    if not handler then
-        return nil, Error.fs { kind = "Other", message = "Unsupported recent-files VFS operation: " .. tostring(job.op) }
-    end
-    return handler(self, job)
+    ya.emit("refresh", {})
 end
 
 function M:setup() subscribe() end
 
 function M:entry(job)
-    if job.args[1] == "record" then
+    local command = job.args[1]
+
+    if command == "record" then
         local paths = {}
         for i = 2, #job.args do
             if type(job.args[i]) == "string" and job.args[i] ~= "" then paths[#paths + 1] = decode_arg(job.args[i]) end
         end
         if #paths > 0 then record(paths) end
         return
+    elseif command == "activate" then
+        local marker = decode_arg(job.args[2])
+        local new_tab = decode_arg(job.args[3]) == "1"
+        if marker then activate(marker, new_tab) end
+        return
+    elseif command == "delete" then
+        local markers = {}
+        for i = 2, #job.args do markers[#markers + 1] = decode_arg(job.args[i]) end
+        if #markers > 0 then delete_markers(markers) end
+        return
     end
-    snapshot()
-    ya.emit("cd", { Url(ROOT) })
+
+    local list = snapshot()
+    local ok, err = materialize(list)
+    if not ok then return notify_error("build recent-files folder", err) end
+    ya.emit("cd", { Url(collection_dir()), raw = true })
 end
 
 return M

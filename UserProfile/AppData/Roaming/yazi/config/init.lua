@@ -5,38 +5,61 @@ require("recent-files"):setup()
 require("bookmarks"):setup()
 require("git"):setup { order = 1500 }
 
-local function WgdotYaziIsCollectionUrl(value)
-    local url = tostring(value or "")
-    return url:match("^wgdot%-bookmarks://") ~= nil
-        or url:match("^wgdot%-recents://") ~= nil
+local function WgdotYaziNormalizeFsPath(value)
+    local path = tostring(value or ""):gsub("\\", "/"):gsub("/+$", "")
+    return path:lower()
 end
 
-local function WgdotYaziCollectionTarget(file)
-    if not file or not WgdotYaziIsCollectionUrl(file.url) or not file.link_to then return nil end
-    return tostring(file.link_to), file.cha.is_dir
+local function WgdotYaziStateDir()
+    local root = os.getenv("APPDATA") or os.getenv("LOCALAPPDATA") or "."
+    return root .. "\\yazi\\state"
+end
+
+local WgdotYaziCollectionRoots = {
+    bookmarks = WgdotYaziNormalizeFsPath(WgdotYaziStateDir() .. "\\collections\\Bookmarks"),
+    recents = WgdotYaziNormalizeFsPath(WgdotYaziStateDir() .. "\\collections\\Recently Opened"),
+}
+
+local function WgdotYaziCollectionKind(value)
+    local path = WgdotYaziNormalizeFsPath(value)
+    if path == WgdotYaziCollectionRoots.bookmarks then return "bookmarks" end
+    if path == WgdotYaziCollectionRoots.recents then return "recents" end
+    return nil
+end
+
+local function WgdotYaziIsCollectionItemUrl(value)
+    local path = WgdotYaziNormalizeFsPath(value)
+    for _, root in pairs(WgdotYaziCollectionRoots) do
+        local prefix = root .. "/"
+        if path:sub(1, #prefix) == prefix then
+            local rest = path:sub(#prefix + 1)
+            return rest ~= "" and rest:find("/", 1, true) == nil
+        end
+    end
+    return false
 end
 
 local function WgdotYaziCollectionCwd()
-    return WgdotYaziIsCollectionUrl(cx.active.current.cwd)
+    return WgdotYaziCollectionKind(cx.active.current.cwd)
 end
 
 local WgdotYaziDefaultEntityHighlights = Entity.highlights
 local WgdotYaziDefaultEntitySymlink = Entity.symlink
 
 function Entity:highlights()
-    if WgdotYaziIsCollectionUrl(self._file.url) then
+    if WgdotYaziIsCollectionItemUrl(self._file.url) then
         return ui.printable(tostring(self._file.url.name or ""):gsub("^%d+%-%-", ""))
     end
     return WgdotYaziDefaultEntityHighlights(self)
 end
 
 function Entity:symlink()
-    if WgdotYaziIsCollectionUrl(self._file.url) then return "" end
+    if WgdotYaziIsCollectionItemUrl(self._file.url) then return "" end
     return WgdotYaziDefaultEntitySymlink(self)
 end
 
-function Linemode:size_and_mtime()
-    if WgdotYaziIsCollectionUrl(self._file.url) then return "" end
+function Linemode:size_and_mtime()function Linemode:size_and_mtime()
+    if WgdotYaziIsCollectionItemUrl(self._file.url) then return "" end
     local size = self._file:size()
     local size_text
 
@@ -85,39 +108,48 @@ local function WgdotYaziBookmarkTarget(target, is_dir)
 end
 
 local function WgdotYaziNavigateCollection(file, new_tab)
-    local target = WgdotYaziCollectionTarget(file)
-    if not target then return false end
+    local kind = WgdotYaziCollectionCwd()
+    if not kind or not file or not WgdotYaziIsCollectionItemUrl(file.url) then return false end
 
-    local cha = fs.cha(Url(target), true)
-    if not cha then
-        ya.notify {
-            title = "Yazi",
-            content = "Target no longer exists; removing stale collection entry.",
-            timeout = 3,
-            level = "warn",
-        }
-        ya.emit("remove", { hovered = true, force = true })
-        return true
-    end
-
-    local is_dir = cha.is_dir
-    local url = Url(target)
-    if new_tab then
-        if is_dir then
-            ya.emit("tab_create", { target, raw = true })
-        elseif url.parent then
-            ya.emit("tab_create", { tostring(url.parent), raw = true })
-            ya.emit("reveal", { url, raw = true })
-        end
-    elseif is_dir then
-        ya.emit("cd", { url, raw = true })
-    else
-        ya.emit("reveal", { url, raw = true })
-    end
+    local plugin = kind == "bookmarks" and "bookmarks" or "recent-files"
+    ya.emit("plugin", {
+        plugin,
+        WgdotYaziPluginArgs("activate", { tostring(file.url), new_tab and "1" or "0" }),
+    })
     return true
 end
 
-local function WgdotYaziOpenFiles(interactive, hovered_only)
+local function WgdotYaziCollectionSelection()
+    local kind = WgdotYaziCollectionCwd()
+    if not kind then return nil, {} end
+
+    local tab = cx.active
+    local markers = {}
+    if #tab.selected > 0 then
+        for _, file in pairs(tab.selected) do
+            if WgdotYaziIsCollectionItemUrl(file.url) then
+                markers[#markers + 1] = tostring(file.url)
+            end
+        end
+    elseif tab.current.hovered and WgdotYaziIsCollectionItemUrl(tab.current.hovered.url) then
+        markers[1] = tostring(tab.current.hovered.url)
+    end
+    return kind, markers
+end
+
+local function WgdotYaziDeleteCollectionSelection()
+    local kind, markers = WgdotYaziCollectionSelection()
+    if not kind or #markers == 0 then return false end
+
+    local plugin = kind == "bookmarks" and "bookmarks" or "recent-files"
+    ya.emit("plugin", {
+        plugin,
+        WgdotYaziPluginArgs("delete", markers),
+    })
+    return true
+end
+
+local function WgdotYaziOpenFiles(interactive, hovered_only)local function WgdotYaziOpenFiles(interactive, hovered_only)
     local tab = cx.active
     local recent = {}
 
@@ -278,7 +310,9 @@ function WgdotYaziDeleteMenu:submit(choice)
     self._visible = false
     ui.render()
 
-    if selected == 1 then
+    if WgdotYaziDeleteCollectionSelection() then
+        return
+    elseif selected == 1 then
         ya.emit("remove", { force = true })
     elseif selected == 2 then
         ya.emit("remove", { permanently = true })
@@ -366,6 +400,8 @@ end
 function WgdotYaziPermanentDelete()
     if WgdotYaziDeleteMenu._visible then
         WgdotYaziDeleteMenu:submit(2)
+    elseif WgdotYaziDeleteCollectionSelection() then
+        return
     else
         ya.emit("remove", { permanently = true })
     end
@@ -1239,7 +1275,7 @@ function WgdotYaziContextMenu:run(action)
     elseif action == "details" then
         ya.emit("spot", {})
     elseif action == "trash" then
-        ya.emit("remove", {})
+        WgdotYaziRemoveMenu()
     elseif action == "new_file" then
         ya.emit("create", { dir = false })
     elseif action == "new_folder" then

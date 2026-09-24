@@ -1,7 +1,2 @@
-[wgdot-bookmarks."*"]
-kind = "scope"
-run  = "bookmarks"
-
-[wgdot-recents."*"]
-kind = "scope"
-run  = "recent-files"
+# WGDot bookmarks and recents use real filesystem collection folders.
+# No custom Yazi VFS services are required.
