@@ -252,7 +252,7 @@ Assert-True ($yaziBookmarksText -match 'read_state\(\)') "Yazi bookmarks reload 
 Assert-True ($yaziBookmarksText -match 'local KIND = "@wgdot-yazi-bookmarks"') "Yazi bookmarks use retained WGDot DDS state"
 Assert-True ($yaziBookmarksText -match 'local MAX_BOOKMARKS = 35') "Yazi bookmarks are bounded"
 Assert-True ($yaziBookmarksText -match 'ps\.sub_remote\(KIND') "Yazi bookmarks synchronize across Yazi instances"
-Assert-True ($yaziBookmarksText -match 'content = "No bookmarked folders\."') "Yazi empty bookmarks message is concise"
+Assert-True ($yaziBookmarksText -match 'content = "No bookmarked items\."') "Yazi empty bookmarks message is concise"
 Assert-True ($yaziDrivesText -match 'fs\.partitions\(\)') "Yazi Windows drive picker uses native Yazi partition discovery"
 Assert-True ($yaziDrivesText -match 'ya\.emit\("cd", \{ Url\(tostring\(drive\.dist\)\), raw = true \}\)') "Yazi Windows drive picker navigates with native cd"
 Assert-True ($yaziDrivesText -notmatch 'udisksctl|sudo') "Yazi Windows drive picker has no Linux mount or sudo assumptions"
