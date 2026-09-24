@@ -1,7 +1,7 @@
 [wgdot-bookmarks."*"]
-kind = "hub"
+kind = "scope"
 run  = "bookmarks"
 
 [wgdot-recents."*"]
-kind = "hub"
+kind = "scope"
 run  = "recent-files"
