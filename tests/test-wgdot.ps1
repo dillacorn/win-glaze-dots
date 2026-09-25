@@ -68,9 +68,6 @@ $yaziKeymapPath = Join-Path $repoRoot "UserProfile\AppData\Roaming\yazi\config\k
 $yaziKeymapText = Get-Content -LiteralPath $yaziKeymapPath -Raw
 Assert-True ($yaziKeymapText -match 'on = \["<Up>"\].*WgdotYaziArrow\(-1\)') "Yazi Up commits a Shift range before native movement"
 Assert-True ($yaziKeymapText -match 'on = \["<Down>"\].*WgdotYaziArrow\(1\)') "Yazi Down commits a Shift range before native movement"
-$yaziArrowBlock = [regex]::Match($yaziInitText, '(?ms)function WgdotYaziArrow\(step\).*?^end').Value
-Assert-True ($yaziArrowBlock -match 'step < 0 and "prev" or "next"') "Yazi Up/Down wrapper converts numeric direction to native wraparound prev/next"
-Assert-True ($yaziArrowBlock -match 'ya\.emit\("arrow", \{ direction \}\)') "Yazi Up/Down wrapper dispatches native wraparound movement"
 Assert-True ($yaziKeymapText -match 'on = \["k"\].*run = "arrow prev"') "Yazi k keeps native wraparound previous navigation"
 Assert-True ($yaziKeymapText -match 'on = \["j"\].*run = "arrow next"') "Yazi j keeps native wraparound next navigation"
 Assert-True ($yaziKeymapText -match 'on = \["g", "g"\], run = "arrow top"') "Yazi gg still jumps to top"
@@ -131,6 +128,9 @@ Assert-True ($yaziConfigText -match '(?m)^linemode = "size_and_mtime"\r?$') "Yaz
 Assert-True ($yaziConfigText -match '(?m)^mouse_events = \["click", "scroll", "drag", "move"\]\r?$') "Yazi enables event-driven mouse move for menu hover"
 $yaziInitPath = Join-Path $repoRoot "UserProfile\AppData\Roaming\yazi\config\init.lua"
 $yaziInitText = Get-Content -LiteralPath $yaziInitPath -Raw
+$yaziArrowBlock = [regex]::Match($yaziInitText, '(?ms)function WgdotYaziArrow\(step\).*?^end').Value
+Assert-True ($yaziArrowBlock -match 'step < 0 and "prev" or "next"') "Yazi Up/Down wrapper converts numeric direction to native wraparound prev/next"
+Assert-True ($yaziArrowBlock -match 'ya\.emit\("arrow", \{ direction \}\)') "Yazi Up/Down wrapper dispatches native wraparound movement"
 Assert-True ($yaziInitText -match 'function WgdotYaziEscape\(\)') "Yazi manager Esc wrapper is defined"
 $yaziEscapeBlock = [regex]::Match($yaziInitText, '(?ms)function WgdotYaziEscape\(\).*?^end').Value
 Assert-True ($yaziEscapeBlock -match 'ya\.emit\("escape", \{\}\)') "Yazi manager Esc delegates normal cancel/selection ordering to native escape"
