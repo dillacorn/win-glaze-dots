@@ -102,6 +102,10 @@ try {
         $surfaceBlock = [regex]::Match($nativeSource, '(?ms)sealed class YaziDragSurface : System\.Windows\.Forms\.Form.*?^    }\r?\n\r?\n    static int YaziDragFromArgs').Value
         $dragBlock = [regex]::Match($nativeSource, '(?ms)static int YaziDragFromArgs\(string\[\] args\).*?^    }').Value
         Require ($surfaceBlock -match 'dragLabel\.MouseDown \+= BeginFileDrag') 'Yazi drag surface is not directly draggable with Mouse1'
+        Require ($surfaceBlock -match 'FindYasbTheme\(CurrentYasbThemeId\(\)\)') 'Yazi drag surface does not follow the current WGDot theme'
+        Require ($surfaceBlock -match 'theme\.Background' -and $surfaceBlock -match 'theme\.Foreground' -and $surfaceBlock -match 'theme\.Active' -and $surfaceBlock -match 'theme\.Hover' -and $surfaceBlock -match 'theme\.Focus') 'Yazi drag surface is missing current-theme palette roles'
+        Require ($surfaceBlock -match 'FormBorderStyle\.None') 'Yazi drag surface still exposes an unthemed native tool-window frame'
+        Require ($surfaceBlock -match 'Opacity = 0\.0' -and $surfaceBlock -match 'Opacity = 0\.98') 'Yazi drag surface can flash before themed paint'
         Require ($surfaceBlock -match 'data\.SetFileDropList\(dropList\)') 'Yazi drag surface does not expose native file-drop data'
         Require ($surfaceBlock -match 'DoDragDrop') 'Yazi drag is not using native OLE/WinForms drag-drop'
         Require ($dragBlock -match 'Application\.Run\(new YaziDragSurface\(files\)\)') 'Yazi drag command does not run the dedicated drag surface'
