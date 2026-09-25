@@ -15371,7 +15371,7 @@ class WgdotHidden
             titleLabel.Dock = System.Windows.Forms.DockStyle.Fill;
             titleLabel.Text = "Yazi Drag Out";
             titleLabel.TextAlign = ContentAlignment.MiddleLeft;
-            titleLabel.ForeColor = foreground;
+            titleLabel.ForeColor = muted;
             titleLabel.BackColor = System.Drawing.Color.Transparent;
             titleLabel.Font = new System.Drawing.Font(
                 "Segoe UI",
