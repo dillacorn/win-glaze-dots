@@ -22,7 +22,7 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-89";
+    const string Version = "native-preview-90";
     const string HiddenLauncherVersion = "2.0.0.0";
     const int WingetPreflightTimeoutMs = 30000;
     const int CurrentTweakDefaultsVersion = 1;
@@ -3675,6 +3675,7 @@ class WgdotHidden
         var unavailableIds = new List<string>();
         var failedIds = new List<string>();
         var upgradedIds = new List<string>();
+        var reinstalledIds = new List<string>();
         var upgradeFailedIds = new List<string>();
         var adminTweakFailedIds = new List<string>();
         var failureDetails = new List<string>();
@@ -3844,7 +3845,8 @@ class WgdotHidden
             foreach (string id in GetStringList(plan, "upgradeIds")
                 .Distinct(StringComparer.OrdinalIgnoreCase))
             {
-                if (FindPackageById(manifest, id) == null)
+                Dictionary<string, object> package = FindPackageById(manifest, id);
+                if (package == null)
                 {
                     upgradeFailedIds.Add(id);
                     failureDetails.Add("Upgrade package missing from active WGDot manifest: " + id);
@@ -3861,16 +3863,60 @@ class WgdotHidden
                 if (upgrade.ExitCode == 0)
                 {
                     upgradedIds.Add(id);
+                    continue;
                 }
-                else
+
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine(
+                    "Upgrade failed: " + id + " (exit " +
+                    upgrade.ExitCode.ToString(CultureInfo.InvariantCulture) + ").");
+                Console.WriteLine("WGDot will uninstall and reinstall the exact WinGet package.");
+                Console.ResetColor();
+
+                int recoveryTimeoutMs = GetWingetInstallTimeoutMs(package);
+                ProcResult uninstall = RunInteractiveWithTimeout(
+                    winget,
+                    "uninstall --id " + Q(id) + " --exact --disable-interactivity",
+                    recoveryTimeoutMs);
+
+                if (uninstall.TimedOut || uninstall.ExitCode != 0)
                 {
-                    Console.ForegroundColor = ConsoleColor.Yellow;
-                    Console.WriteLine("Upgrade failed: " + id + " (exit " + upgrade.ExitCode.ToString(CultureInfo.InvariantCulture) + ")");
-                    Console.ResetColor();
                     upgradeFailedIds.Add(id);
-                    failureDetails.Add("WinGet upgrade failed (" + upgrade.ExitCode.ToString(CultureInfo.InvariantCulture) + "): " + id);
+                    failureDetails.Add(
+                        uninstall.TimedOut
+                            ? "WinGet upgrade failed (" + upgrade.ExitCode.ToString(CultureInfo.InvariantCulture) +
+                              ") and recovery uninstall timed out: " + id
+                            : "WinGet upgrade failed (" + upgrade.ExitCode.ToString(CultureInfo.InvariantCulture) +
+                              ") and recovery uninstall failed (" +
+                              uninstall.ExitCode.ToString(CultureInfo.InvariantCulture) + "): " + id);
                     failures++;
+                    continue;
                 }
+
+                Console.WriteLine("Reinstalling " + id + "...");
+                ProcResult reinstall = RunInteractiveWithTimeout(
+                    winget,
+                    "install --id " + Q(id) + " --exact --source winget --accept-source-agreements --accept-package-agreements --disable-interactivity",
+                    recoveryTimeoutMs);
+
+                if (!reinstall.TimedOut && reinstall.ExitCode == 0)
+                {
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.WriteLine("Recovered failed upgrade by reinstalling: " + id);
+                    Console.ResetColor();
+                    reinstalledIds.Add(id);
+                    continue;
+                }
+
+                upgradeFailedIds.Add(id);
+                failureDetails.Add(
+                    reinstall.TimedOut
+                        ? "WinGet upgrade failed (" + upgrade.ExitCode.ToString(CultureInfo.InvariantCulture) +
+                          "); package was uninstalled, but recovery reinstall timed out: " + id
+                        : "WinGet upgrade failed (" + upgrade.ExitCode.ToString(CultureInfo.InvariantCulture) +
+                          "); package was uninstalled, but recovery reinstall failed (" +
+                          reinstall.ExitCode.ToString(CultureInfo.InvariantCulture) + "): " + id);
+                failures++;
             }
 
             if (GetBool(plan, "firefoxPolicyConfigured"))
@@ -3934,6 +3980,7 @@ class WgdotHidden
             result["unavailableIds"] = unavailableIds;
             result["failedIds"] = failedIds;
             result["upgradedIds"] = upgradedIds;
+            result["reinstalledIds"] = reinstalledIds;
             result["upgradeFailedIds"] = upgradeFailedIds;
             result["adminTweakFailedIds"] = adminTweakFailedIds;
             result["browserPolicyError"] = browserPolicyError;
@@ -5739,6 +5786,7 @@ class WgdotHidden
         int unavailable = 0;
         int failed = 0;
         int upgraded = 0;
+        int reinstalled = 0;
         var failureDetails = new List<string>();
 
         Console.WriteLine();
@@ -6020,6 +6068,7 @@ class WgdotHidden
             already += GetStringList(workerResult, "alreadyIds").Count;
             unavailable += GetStringList(workerResult, "unavailableIds").Count;
             upgraded += GetStringList(workerResult, "upgradedIds").Count;
+            reinstalled += GetStringList(workerResult, "reinstalledIds").Count;
 
             int workerFailures =
                 GetStringList(workerResult, "failedIds").Count +
@@ -6034,7 +6083,9 @@ class WgdotHidden
             failed += workerFailures;
             failureDetails.AddRange(GetStringList(workerResult, "failureDetails"));
 
-            foreach (string id in workerInstalled)
+            foreach (string id in workerInstalled
+                .Concat(GetStringList(workerResult, "reinstalledIds"))
+                .Distinct(StringComparer.OrdinalIgnoreCase))
             {
                 Dictionary<string, object> package = FindPackageById(manifest, id);
                 if (package != null)
@@ -6140,6 +6191,7 @@ class WgdotHidden
         Console.WriteLine("Installed: " + installed.ToString(CultureInfo.InvariantCulture));
         Console.WriteLine("Already installed: " + already.ToString(CultureInfo.InvariantCulture));
         Console.WriteLine("Upgraded: " + upgraded.ToString(CultureInfo.InvariantCulture));
+        Console.WriteLine("Reinstalled after failed upgrade: " + reinstalled.ToString(CultureInfo.InvariantCulture));
         Console.WriteLine("Unavailable exact IDs: " + unavailable.ToString(CultureInfo.InvariantCulture));
         Console.WriteLine("Install/setup failures: " + failed.ToString(CultureInfo.InvariantCulture));
         Console.WriteLine("Manual official installs pending: " + officialPagePending.Count.ToString(CultureInfo.InvariantCulture));

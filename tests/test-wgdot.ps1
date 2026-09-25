@@ -31,6 +31,8 @@ $shortInstallerText = Get-Content -LiteralPath $shortInstallerPath -Raw
 [scriptblock]::Create($shortInstallerText) | Out-Null
 Assert-True ($shortInstallerText -match 'raw\.githubusercontent\.com/dillacorn/win-glaze-dots/main/wgdot/bootstrap\.cmd') "short installer hands off to the native bootstrap on main"
 Assert-True ($shortInstallerText -match 'Invoke-WebRequest') "short installer downloads the native bootstrap without duplicating installer logic"
+Assert-True ($shortInstallerText -match 'LOCALAPPDATA.*wgdot') "short installer stages its live batch outside TEMP so first-run cleanup tools cannot delete it"
+Assert-True ($shortInstallerText -notmatch 'Join-Path \$env:TEMP "wgdot-bootstrap\.cmd"') "short installer does not keep its live batch in TEMP"
 Assert-True ($shortInstallerText -notmatch '(?i)Set-ExecutionPolicy|-ExecutionPolicy\s+(Bypass|Unrestricted)') "short installer does not change or bypass execution policy"
 Assert-True (Test-Path -LiteralPath $installGuidePath -PathType Leaf) "install guide exists"
 $installGuideText = Get-Content -LiteralPath $installGuidePath -Raw
@@ -818,6 +820,12 @@ Assert-True ($nativeSourceText -notmatch 'return "explorer\.exe shell:AppsFolder
 Assert-True ($nativeSourceText -match 'Q\(HiddenLauncherPath\(\)\) \+ " eartrumpet-startup"') "EarTrumpet startup uses the windowless Start Menu launcher helper"
 Assert-True ($nativeSourceText -match 'if \(command == "eartrumpet-startup"\) return EarTrumpetStartup\(\);') "EarTrumpet login startup has an explicit native command"
 Assert-True ($nativeSourceText -match 'uninstall --id ') "standard catalog applications use exact WinGet uninstall"
+$upgradeRecoveryBlock = [regex]::Match($nativeSourceText, '(?ms)foreach \(string id in GetStringList\(plan, "upgradeIds"\).*?^            }').Value
+Assert-True ($upgradeRecoveryBlock -match 'upgrade --id ') "approved software upgrades use exact WinGet IDs"
+Assert-True ($upgradeRecoveryBlock -match 'uninstall --id ') "failed WinGet upgrades automatically attempt exact-ID uninstall recovery"
+Assert-True ($upgradeRecoveryBlock -match 'install --id ') "failed WinGet upgrades reinstall the exact package after successful uninstall"
+Assert-True ($upgradeRecoveryBlock -match 'reinstalledIds\.Add\(id\)') "successful upgrade recovery is tracked separately"
+Assert-True ($nativeSourceText -match 'Reinstalled after failed upgrade: ') "software reconciliation reports recovered upgrade reinstalls"
 Assert-True ($nativeSourceText -match 'Uninstall exactly these applications\?') "software removal requires a dedicated confirmation"
 Assert-True ($nativeSourceText -match 'selection\.Packages\.RemoveAll') "successfully uninstalled software is removed from WGDot desired state"
 Assert-True ($nativeSourceText -match 'Install/reconcile this software selection\? \[y/N\]') "software mutation requires confirmation"
@@ -947,7 +955,7 @@ $rustDeskPackage = @($manifest.packages | Where-Object { $_.id -eq 'RustDesk.Rus
 Assert-True ($null -ne $rustDeskPackage) "RustDesk catalog entry exists"
 Assert-Equal ([string]$rustDeskPackage.installMode) 'official-github' "RustDesk uses its verified official GitHub source instead of a missing WinGet ID"
 Assert-Equal ([string]$rustDeskPackage.fallbackGitHubRepo) 'rustdesk/rustdesk' "RustDesk official GitHub source remains publisher-owned"
-Assert-True ($nativeSourceText -match 'const string Version = "native-preview-89"') "native runtime version tracks current WGDot maintenance changes"
+Assert-True ($nativeSourceText -match 'const string Version = "native-preview-90"') "native runtime version tracks current WGDot maintenance changes"
 Assert-True ($nativeSourceText -match 'InstallGitHubFontArchivePackage') "native runtime installs managed Nerd Font archives without inventing a WinGet ID"
 Assert-True ($nativeSourceText -match 'AddFontResourceEx') "managed Noto font is loaded into the current Windows session"
 Assert-True ($nativeSourceText -match 'Software\\Microsoft\\Windows NT\\CurrentVersion\\Fonts') "managed Noto font registers under the current-user Windows Fonts key"
