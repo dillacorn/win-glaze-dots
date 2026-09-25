@@ -619,6 +619,11 @@ function WgdotYaziEscape()
         return
     end
 
+    if #cx.active.selected > 0 then
+        ya.emit("escape", { select = true })
+        return
+    end
+
     ya.emit("escape", {})
 end
 

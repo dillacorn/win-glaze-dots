@@ -126,6 +126,14 @@ Assert-True ($yaziConfigText -match '(?m)^linemode = "size_and_mtime"\r?$') "Yaz
 Assert-True ($yaziConfigText -match '(?m)^mouse_events = \["click", "scroll", "drag", "move"\]\r?$') "Yazi enables event-driven mouse move for menu hover"
 $yaziInitPath = Join-Path $repoRoot "UserProfile\AppData\Roaming\yazi\config\init.lua"
 $yaziInitText = Get-Content -LiteralPath $yaziInitPath -Raw
+$yaziClipboardPath = Join-Path $repoRoot "UserProfile\AppData\Roaming\yazi\config\plugins\system-clipboard.yazi\main.lua"
+$yaziClipboardText = Get-Content -LiteralPath $yaziClipboardPath -Raw
+Assert-True ($yaziClipboardText -match 'wgdotw\.exe') "Yazi Windows clipboard export uses the windowless WGDot helper"
+Assert-True ($yaziClipboardText -match '"yazi-copy"') "Yazi Windows clipboard export calls the scoped native yazi-copy command"
+Assert-True ($yaziClipboardText -match 'wgdot-yazi-copy-') "Yazi Windows clipboard export uses a bounded WGDot temp manifest"
+Assert-True ($yaziClipboardText -notmatch '(?i)powershell\.exe|io\.popen') "Yazi Windows clipboard export never starts a console child that can compete for Ctrl+C"
+Assert-True ($yaziInitText -match '#cx\.active\.selected > 0') "Yazi manager Esc detects an existing explicit selection"
+Assert-True ($yaziInitText -match 'ya\.emit\("escape", \{ select = true \}\)') "Yazi manager Esc explicitly clears selection after modal/input layers are gone"
 $yaziRecentPath = Join-Path $repoRoot "UserProfile\AppData\Roaming\yazi\config\plugins\recent-files.yazi\main.lua"
 $yaziRecentText = Get-Content -LiteralPath $yaziRecentPath -Raw
 $yaziBookmarksPath = Join-Path $repoRoot "UserProfile\AppData\Roaming\yazi\config\plugins\bookmarks.yazi\main.lua"
@@ -910,7 +918,7 @@ $rustDeskPackage = @($manifest.packages | Where-Object { $_.id -eq 'RustDesk.Rus
 Assert-True ($null -ne $rustDeskPackage) "RustDesk catalog entry exists"
 Assert-Equal ([string]$rustDeskPackage.installMode) 'official-github' "RustDesk uses its verified official GitHub source instead of a missing WinGet ID"
 Assert-Equal ([string]$rustDeskPackage.fallbackGitHubRepo) 'rustdesk/rustdesk' "RustDesk official GitHub source remains publisher-owned"
-Assert-True ($nativeSourceText -match 'const string Version = "native-preview-88"') "native runtime version tracks current WGDot maintenance changes"
+Assert-True ($nativeSourceText -match 'const string Version = "native-preview-89"') "native runtime version tracks current WGDot maintenance changes"
 Assert-True ($nativeSourceText -match 'InstallGitHubFontArchivePackage') "native runtime installs managed Nerd Font archives without inventing a WinGet ID"
 Assert-True ($nativeSourceText -match 'AddFontResourceEx') "managed Noto font is loaded into the current Windows session"
 Assert-True ($nativeSourceText -match 'Software\\Microsoft\\Windows NT\\CurrentVersion\\Fonts') "managed Noto font registers under the current-user Windows Fonts key"
@@ -1652,6 +1660,9 @@ Assert-True ($nativeSourceText -match 'launch-open-shell') "native runtime start
 Assert-True ($nativeSourceText -notmatch 'ApplyFlowLauncherAltP') "retired WGDot Flow Launcher Alt+P integration stays removed"
 Assert-True ($nativeSourceText -notmatch 'command == "quick-launch"|command == "flow-open"') "retired launcher relay commands stay removed"
 Assert-True ($nativeSourceText -match 'if \(command == "launcher"\) return LauncherFromArgs') "native runtime exposes the approved compiled launcher"
+Assert-True ($nativeSourceText -match 'if \(command == "yazi-copy"\) return YaziCopyFromArgs') "native runtime exposes the scoped Yazi Windows clipboard bridge"
+Assert-True ($nativeSourceText -match 'System\.Windows\.Forms\.Clipboard\.SetFileDropList\(dropList\)') "Yazi Windows clipboard bridge sets a native FileDrop list"
+Assert-True ($nativeSourceText -match 'SetApartmentState\(System\.Threading\.ApartmentState\.STA\)') "Yazi Windows clipboard bridge uses the STA apartment required by WinForms clipboard APIs"
 Assert-True ($nativeSourceText -match 'LauncherLocation') "compiled launcher has context-aware placement logic"
 Assert-True ($nativeSourceText -match 'YasbAutoHideEnabled') "compiled launcher centers when YASB auto-hide is active"
 Assert-True ($nativeSourceText -match 'ForegroundWindowFillsScreen') "compiled launcher detects fullscreen/borderless foreground windows"

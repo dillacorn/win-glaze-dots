@@ -22,7 +22,7 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-88";
+    const string Version = "native-preview-89";
     const string HiddenLauncherVersion = "2.0.0.0";
     const int WingetPreflightTimeoutMs = 30000;
     const int CurrentTweakDefaultsVersion = 1;
@@ -1204,6 +1204,7 @@ internal static class WgdotNative
             if (command == "eartrumpet-mixer-toggle") return EarTrumpetMixerToggle();
             if (command == "eartrumpet-startup") return EarTrumpetStartup();
             if (command == "launcher") return LauncherFromArgs(args.Skip(1).ToArray());
+            if (command == "yazi-copy") return YaziCopyFromArgs(args.Skip(1).ToArray());
             if (command == "yazi-drag") return YaziDragFromArgs(args.Skip(1).ToArray());
             if (command == "power-menu") return PowerMenu();
             if (command == "btop-toggle") return BtopToggle();
@@ -15425,6 +15426,119 @@ class WgdotHidden
             throw new Exception("Yazi drag manifest contains no files.");
 
         return files;
+    }
+
+    static string NormalizeYaziCopyListPath(string path)
+    {
+        if (String.IsNullOrWhiteSpace(path))
+            throw new Exception("Yazi copy manifest path is required.");
+
+        string full = Path.GetFullPath(path);
+        string temp = Path.GetFullPath(Path.GetTempPath())
+            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) +
+            Path.DirectorySeparatorChar;
+        string fileName = Path.GetFileName(full);
+
+        if (!full.StartsWith(temp, StringComparison.OrdinalIgnoreCase) ||
+            !fileName.StartsWith("wgdot-yazi-copy-", StringComparison.OrdinalIgnoreCase) ||
+            !fileName.EndsWith(".txt", StringComparison.OrdinalIgnoreCase))
+            throw new Exception("Yazi copy manifest must be a WGDot Yazi temp file.");
+
+        return full;
+    }
+
+    static List<string> LoadYaziCopyPaths(string manifestPath)
+    {
+        string manifest = NormalizeYaziCopyListPath(manifestPath);
+        if (!File.Exists(manifest))
+            throw new Exception("Yazi copy manifest does not exist.");
+
+        var info = new FileInfo(manifest);
+        if (info.Length > 1024 * 1024)
+            throw new Exception("Yazi copy manifest is too large.");
+
+        var files = new List<string>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (string raw in File.ReadAllLines(manifest, Encoding.UTF8))
+        {
+            if (String.IsNullOrEmpty(raw))
+                continue;
+            if (raw.IndexOf('\0') >= 0 || !Path.IsPathRooted(raw))
+                throw new Exception("Yazi copy manifest contains an invalid path.");
+
+            string full = Path.GetFullPath(raw);
+            if (!File.Exists(full) && !Directory.Exists(full))
+                throw new Exception("Yazi copy item no longer exists: " + full);
+
+            if (seen.Add(full))
+                files.Add(full);
+
+            if (files.Count > 256)
+                throw new Exception("Yazi copy is limited to 256 items.");
+        }
+
+        if (files.Count == 0)
+            throw new Exception("Yazi copy manifest contains no files.");
+
+        return files;
+    }
+
+    static void SetYaziFileClipboard(List<string> files)
+    {
+        Exception failure = null;
+        var thread = new System.Threading.Thread(delegate
+        {
+            var dropList = new System.Collections.Specialized.StringCollection();
+            dropList.AddRange(files.ToArray());
+
+            for (int i = 0; i < 20; i++)
+            {
+                try
+                {
+                    System.Windows.Forms.Clipboard.SetFileDropList(dropList);
+                    return;
+                }
+                catch (ExternalException ex)
+                {
+                    failure = ex;
+                    System.Threading.Thread.Sleep(25);
+                }
+                catch (Exception ex)
+                {
+                    failure = ex;
+                    return;
+                }
+            }
+        });
+        thread.IsBackground = true;
+        thread.SetApartmentState(System.Threading.ApartmentState.STA);
+        thread.Start();
+
+        if (!thread.Join(5000))
+            throw new Exception("Timed out while setting the Windows file clipboard.");
+        if (failure != null)
+            throw new Exception("Could not set the Windows file clipboard: " + failure.Message, failure);
+    }
+
+    static int YaziCopyFromArgs(string[] args)
+    {
+        if (args == null || args.Length != 1)
+            throw new Exception("Usage: wgdotw.exe yazi-copy <WGDot Yazi copy manifest>");
+
+        string manifest = NormalizeYaziCopyListPath(args[0]);
+        List<string> files;
+        try
+        {
+            files = LoadYaziCopyPaths(manifest);
+        }
+        finally
+        {
+            SafeDeleteFile(manifest);
+        }
+
+        SetYaziFileClipboard(files);
+        return 0;
     }
 
     sealed class YaziDragSurface : System.Windows.Forms.Form
