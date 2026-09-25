@@ -967,11 +967,15 @@ Assert-True ($nativeSourceText -match 'DISABLE_VULKAN_OBS_CAPTURE') "OBS recover
 Assert-True ($nativeSourceText -match 'obs-vulkan64\.json') "OBS recovery temporarily disables the registered 64-bit Vulkan layer"
 Assert-True ($nativeSourceText -match 'obs-vulkan32\.json') "OBS recovery temporarily disables the registered 32-bit Vulkan layer"
 Assert-True ($nativeSourceText -match 'first\.ExitCode != -1978334959') "OBS recovery is limited to WinGet package-in-use-by-application failures"
+Assert-True ($nativeSourceText -match 'obs-studio-hook') "OBS recovery knows the upstream ProgramData global hook directory"
+Assert-True ($nativeSourceText -match 'CleanupOrphanedObsHookStateForInstall') "OBS reinstall cleans stale global hook state before trying the package again"
+Assert-True ($nativeSourceText -match 'MakeWingetInteractiveArguments') "OBS recovery can fall back to the official interactive installer for an unknown lock holder"
+Assert-True ($nativeSourceText -match 'Opening the official OBS installer interactively') "OBS fallback explains the interactive recovery step"
 $rustDeskPackage = @($manifest.packages | Where-Object { $_.id -eq 'RustDesk.RustDesk' })[0]
 Assert-True ($null -ne $rustDeskPackage) "RustDesk catalog entry exists"
 Assert-Equal ([string]$rustDeskPackage.installMode) 'official-github' "RustDesk uses its verified official GitHub source instead of a missing WinGet ID"
 Assert-Equal ([string]$rustDeskPackage.fallbackGitHubRepo) 'rustdesk/rustdesk' "RustDesk official GitHub source remains publisher-owned"
-Assert-True ($nativeSourceText -match 'const string Version = "native-preview-91"') "native runtime version tracks current WGDot maintenance changes"
+Assert-True ($nativeSourceText -match 'const string Version = "native-preview-92"') "native runtime version tracks current WGDot maintenance changes"
 Assert-True ($nativeSourceText -match 'InstallGitHubFontArchivePackage') "native runtime installs managed Nerd Font archives without inventing a WinGet ID"
 Assert-True ($nativeSourceText -match 'AddFontResourceEx') "managed Noto font is loaded into the current Windows session"
 Assert-True ($nativeSourceText -match 'Software\\Microsoft\\Windows NT\\CurrentVersion\\Fonts') "managed Noto font registers under the current-user Windows Fonts key"
@@ -1908,3 +1912,14 @@ try {
 }
 
 Write-Host "WGDot tests passed." -ForegroundColor Green
+
+Assert-True ($nativeSourceText -match 'Checking .* installed packages for available upgrades') "software reconcile reports long upgrade-scan progress"
+Assert-True ($nativeSourceText -match 'Starting software batch: ') "software reconcile reports elevated batch work before waiting"
+Assert-True ($nativeSourceText -match 'Administrator software batch finished\. Reading results') "software reconcile reports when elevated work returns"
+Assert-True ($nativeSourceText -match 'Downloading updated WGDot runtime source') "runtime refresh reports network work"
+Assert-True ($nativeSourceText -match 'Compiling updated WGDot runtime') "runtime refresh reports compilation work"
+Assert-True ($nativeSourceText -match 'Running updated WGDot self-test') "runtime refresh reports self-test work"
+Assert-True ($nativeBootstrapText -match 'Compiling WGDot native runtime') "bootstrap reports compile progress"
+Assert-True ($nativeBootstrapText -match 'Running WGDot self-test') "bootstrap reports self-test progress"
+Assert-True ($nativeBootstrapText -match 'Installing WGDot runtime') "bootstrap reports install progress"
+Assert-True ($nativeBootstrapText -match 'Checking WinGet prerequisite') "bootstrap reports WinGet prerequisite work"

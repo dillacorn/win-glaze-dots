@@ -22,7 +22,7 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-91";
+    const string Version = "native-preview-92";
     const string HiddenLauncherVersion = "2.0.0.0";
     const int WingetPreflightTimeoutMs = 30000;
     const int CurrentTweakDefaultsVersion = 1;
@@ -1653,13 +1653,16 @@ internal static class WgdotNative
         SafeDeleteFile(nextExe);
 
         string rawUrl = "https://raw.githubusercontent.com/" + RepoFullName + "/" + remoteRevision + "/wgdot/wgdot-native.cs";
+        Console.WriteLine("Downloading updated WGDot runtime source...");
         using (var client = new WebClient())
         {
             client.Headers[HttpRequestHeader.UserAgent] = "wgdot";
             client.DownloadFile(rawUrl, sourcePath);
         }
 
+        Console.WriteLine("Compiling updated WGDot runtime...");
         CompileNativeSource(sourcePath, nextExe);
+        Console.WriteLine("Running updated WGDot self-test...");
         ProcResult test = Run(nextExe, "self-test", null);
         if (test.ExitCode != 0)
             throw new Exception("Refreshed runtime self-test failed: " + LastUsefulLine(test.StdErr));
@@ -3989,12 +3992,162 @@ class WgdotHidden
         }
     }
 
+    static string ObsHookDirectory()
+    {
+        return Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
+            "obs-studio-hook");
+    }
+
+    static void RemoveObsVulkanImplicitLayerRegistrations()
+    {
+        RegistryHive[] hives = { RegistryHive.LocalMachine, RegistryHive.CurrentUser };
+        RegistryView[] views = { RegistryView.Registry64, RegistryView.Registry32 };
+        const string keyPath = @"SOFTWARE\Khronos\Vulkan\ImplicitLayers";
+
+        foreach (RegistryHive hive in hives)
+        {
+            foreach (RegistryView view in views)
+            {
+                try
+                {
+                    using (RegistryKey root = RegistryKey.OpenBaseKey(hive, view))
+                    using (RegistryKey key = root.OpenSubKey(keyPath, true))
+                    {
+                        if (key == null) continue;
+
+                        foreach (string valueName in key.GetValueNames())
+                        {
+                            string normalized = (valueName ?? "").Replace('/', '\\');
+                            if (normalized.IndexOf(
+                                    "\\obs-studio-hook\\",
+                                    StringComparison.OrdinalIgnoreCase) < 0)
+                                continue;
+
+                            string leaf = Path.GetFileName(normalized);
+                            if (!String.Equals(
+                                    leaf,
+                                    "obs-vulkan64.json",
+                                    StringComparison.OrdinalIgnoreCase) &&
+                                !String.Equals(
+                                    leaf,
+                                    "obs-vulkan32.json",
+                                    StringComparison.OrdinalIgnoreCase))
+                                continue;
+
+                            key.DeleteValue(valueName, false);
+                        }
+                    }
+                }
+                catch
+                {
+                }
+            }
+        }
+    }
+
+    static void CleanupOrphanedObsHookStateForInstall()
+    {
+        string hookRoot = ObsHookDirectory();
+        if (!Directory.Exists(hookRoot))
+            return;
+
+        Console.WriteLine(
+            "Found stale OBS global capture-hook state from the previous installation.");
+        Console.WriteLine(
+            "Cleaning " + hookRoot + " before reinstalling OBS...");
+
+        string previousDisable = Environment.GetEnvironmentVariable(
+            "DISABLE_VULKAN_OBS_CAPTURE");
+
+        try
+        {
+            Environment.SetEnvironmentVariable(
+                "DISABLE_VULKAN_OBS_CAPTURE",
+                "1");
+            RemoveObsVulkanImplicitLayerRegistrations();
+
+            try
+            {
+                StopObsGraphicsHookBlockers();
+            }
+            catch (Exception ex)
+            {
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine(
+                    "OBS hook cleanup found an active blocker: " + ex.Message);
+                Console.ResetColor();
+            }
+
+            Exception last = null;
+            for (int i = 0; i < 20; i++)
+            {
+                try
+                {
+                    if (Directory.Exists(hookRoot))
+                        Directory.Delete(hookRoot, true);
+
+                    if (!Directory.Exists(hookRoot))
+                    {
+                        Console.WriteLine("Removed stale OBS global capture-hook state.");
+                        return;
+                    }
+                }
+                catch (IOException ex)
+                {
+                    last = ex;
+                }
+                catch (UnauthorizedAccessException ex)
+                {
+                    last = ex;
+                }
+
+                System.Threading.Thread.Sleep(250);
+            }
+
+            if (Directory.Exists(hookRoot))
+            {
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine(
+                    "Stale OBS hook state is still locked; the official installer will identify the blocker if automatic recovery also fails.");
+                if (last != null)
+                    Console.WriteLine(last.Message);
+                Console.ResetColor();
+            }
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(
+                "DISABLE_VULKAN_OBS_CAPTURE",
+                previousDisable);
+        }
+    }
+
+    static string MakeWingetInteractiveArguments(string arguments)
+    {
+        string value = Regex.Replace(
+            arguments ?? "",
+            @"(?:^|\s)--disable-interactivity(?=\s|$)",
+            " ",
+            RegexOptions.IgnoreCase);
+        value = Regex.Replace(value, @"\s+", " ").Trim();
+
+        if (value.IndexOf("--interactive", StringComparison.OrdinalIgnoreCase) < 0)
+            value += " --interactive";
+
+        return value;
+    }
+
     static ProcResult RunWingetInstallWithObsHookRecovery(
         Dictionary<string, object> package,
         string winget,
         string arguments,
         int timeoutMs)
     {
+        if (GetBool(package, "wingetObsHookRecovery") &&
+            IsObsStudioPackage(package))
+            CleanupOrphanedObsHookStateForInstall();
+
         ProcResult first = RunInteractiveWithTimeout(
             winget,
             arguments,
@@ -4025,10 +4178,30 @@ class WgdotHidden
             snapshots = DisableObsVulkanImplicitLayers();
             StopObsGraphicsHookBlockers();
 
-            return RunInteractiveWithTimeout(
+            ProcResult retry = RunInteractiveWithTimeout(
                 winget,
                 arguments,
                 timeoutMs);
+
+            if (!retry.TimedOut && retry.ExitCode == -1978334959)
+            {
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine();
+                Console.WriteLine(
+                    "Automatic OBS lock recovery could not clear every blocker.");
+                Console.WriteLine(
+                    "Opening the official OBS installer interactively so it can identify the exact application holding its files.");
+                Console.WriteLine(
+                    "Close the application named by OBS, then continue the installer.");
+                Console.ResetColor();
+
+                return RunInteractiveWithTimeout(
+                    winget,
+                    MakeWingetInteractiveArguments(arguments),
+                    timeoutMs);
+            }
+
+            return retry;
         }
         finally
         {
@@ -6429,6 +6602,7 @@ class WgdotHidden
                 continue;
             }
 
+            Console.WriteLine("Validating exact WinGet package ID...");
             ProcResult show = RunWithTimeout(
                 "winget.exe",
                 "show --id " + Q(id) + " --exact --source winget --accept-source-agreements --disable-interactivity",
@@ -6468,8 +6642,23 @@ class WgdotHidden
 
         if (ReadYesNo("Check selected installed packages for upgrades now? [y/N]", false))
         {
+            Console.WriteLine();
+            Console.WriteLine(
+                "Checking " +
+                installedExistingIds.Count.ToString(CultureInfo.InvariantCulture) +
+                " installed packages for available upgrades...");
+            int upgradeCheckIndex = 0;
+
             foreach (string id in installedExistingIds)
             {
+                upgradeCheckIndex++;
+                Console.WriteLine(
+                    "[" +
+                    upgradeCheckIndex.ToString(CultureInfo.InvariantCulture) +
+                    "/" +
+                    installedExistingIds.Count.ToString(CultureInfo.InvariantCulture) +
+                    "] Checking " + id + "...");
+
                 ProcResult upgradeCheck = RunWithTimeout(
                     "winget.exe",
                     "list --id " + Q(id) + " --exact --upgrade-available --source winget --accept-source-agreements --disable-interactivity",
@@ -6547,10 +6736,22 @@ class WgdotHidden
                     Console.ResetColor();
                 }
 
+                Console.WriteLine(
+                    "Starting software batch: " +
+                    installIds.Count.ToString(CultureInfo.InvariantCulture) +
+                    " install(s), " +
+                    upgradeIds.Count.ToString(CultureInfo.InvariantCulture) +
+                    " upgrade(s), " +
+                    adminTweakIds.Count.ToString(CultureInfo.InvariantCulture) +
+                    " administrator tweak(s).");
+                Console.WriteLine(
+                    "Package downloads/installers can take several minutes; WGDot will print each stage as it starts.");
+
                 workerExitCode = IsAdministrator()
                     ? RunSoftwareElevatedPlan(planPath, planSha256)
                     : RunElevatedSelfWithExitCode("software-elevated --plan " + Q(planPath) + " --plan-sha256 " + Q(planSha256));
 
+                Console.WriteLine("Administrator software batch finished. Reading results...");
                 workerResult = ReadJson(resultPath);
                 if (workerResult == null)
                     throw new Exception("WGDot elevated software worker did not return a result.");

@@ -135,12 +135,14 @@ set "WGDOT_SOURCE_EXPLICIT=%SOURCE_EXPLICIT%"
 if "%DOWNLOADED_SOURCE%"=="0" set "WGDOT_SOURCE_ROOT=%~dp0.."
 if "%DOWNLOADED_SOURCE%"=="1" set "WGDOT_SOURCE_ROOT="
 
+echo Compiling WGDot native runtime...
 "%CSC%" /nologo /optimize+ /target:exe /out:"%OUT%" /r:System.Web.Extensions.dll /r:System.IO.Compression.dll /r:System.IO.Compression.FileSystem.dll /r:System.Xml.dll /r:System.Windows.Forms.dll /r:System.Drawing.dll "%SOURCE_FILE%"
 if errorlevel 1 (
   if "%DOWNLOADED_SOURCE%"=="1" del /q "%SOURCE_FILE%" >nul 2>&1
   exit /b %ERRORLEVEL%
 )
 
+echo Running WGDot self-test...
 "%OUT%" self-test
 if errorlevel 1 (
   del /q "%OUT%" >nul 2>&1
@@ -148,12 +150,14 @@ if errorlevel 1 (
   exit /b 4
 )
 
+echo Installing WGDot runtime...
 "%OUT%" install
 set "RC=%ERRORLEVEL%"
 if not "%RC%"=="0" goto cleanup
 
 if "%DOTS_ONLY%"=="1" goto apply_dots_only
 
+echo Checking WinGet prerequisite...
 "%OUT%" ensure-winget
 set "RC=%ERRORLEVEL%"
 if not "%RC%"=="0" goto cleanup
