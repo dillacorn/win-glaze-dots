@@ -15487,7 +15487,7 @@ class WgdotHidden
     static void SetYaziFileClipboard(List<string> files)
     {
         Exception failure = null;
-        var thread = new System.Threading.Thread(delegate
+        var thread = new System.Threading.Thread(new System.Threading.ThreadStart(delegate
         {
             var dropList = new System.Collections.Specialized.StringCollection();
             dropList.AddRange(files.ToArray());
@@ -15510,7 +15510,7 @@ class WgdotHidden
                     return;
                 }
             }
-        });
+        }));
         thread.IsBackground = true;
         thread.SetApartmentState(System.Threading.ApartmentState.STA);
         thread.Start();
