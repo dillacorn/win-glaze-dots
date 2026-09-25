@@ -19,10 +19,7 @@ local function state_file() return state_dir() .. "\\wgdot-recent-files.txt" end
 local function collection_dir() return state_dir() .. "\\collections\\Recently Opened" end
 
 local function ensure_state_dir()
-    local dir = state_dir()
-    if dir:find('"', 1, true) then return false end
-    os.execute('if not exist "' .. dir .. '" mkdir "' .. dir .. '" >nul 2>nul')
-    return true
+    return fs.create("dir_all", Url(state_dir()))
 end
 
 local function normalized(list)
@@ -48,7 +45,6 @@ local function read_state()
 end
 
 local function write_state(list)
-    ensure_state_dir()
     local file = io.open(state_file(), "w")
     if not file then return false end
     for _, path in ipairs(normalized(list)) do file:write(path, "\n") end
@@ -142,7 +138,6 @@ local subscribe = ya.sync(function(self)
     ps.sub(KIND, function(incoming) self.recents = normalized(incoming) end)
     ps.sub_remote(KIND, function(incoming)
         self.recents = normalized(incoming)
-        write_state(self.recents)
         ps.pub(KIND, self.recents)
     end)
 end)
@@ -170,6 +165,8 @@ local function activate(marker, new_tab)
 
     local cha = fs.cha(Url(target), true)
     if not cha then
+        local ok, err = ensure_state_dir()
+        if not ok then return notify_error("prepare recent-files state", err) end
         forget { target }
         remove_marker(marker)
         ya.emit("refresh", {})
@@ -217,6 +214,8 @@ function M:entry(job)
     local command = job.args[1]
 
     if command == "record" then
+        local ok, err = ensure_state_dir()
+        if not ok then return notify_error("prepare recent-files state", err) end
         local paths = {}
         for i = 2, #job.args do
             if type(job.args[i]) == "string" and job.args[i] ~= "" then paths[#paths + 1] = decode_arg(job.args[i]) end
@@ -229,6 +228,8 @@ function M:entry(job)
         if marker then activate(marker, new_tab) end
         return
     elseif command == "delete" then
+        local ok, err = ensure_state_dir()
+        if not ok then return notify_error("prepare recent-files state", err) end
         local markers = {}
         for i = 2, #job.args do markers[#markers + 1] = decode_arg(job.args[i]) end
         if #markers > 0 then delete_markers(markers) end

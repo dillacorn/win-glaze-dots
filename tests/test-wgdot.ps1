@@ -148,6 +148,10 @@ $yaziRecentPath = Join-Path $repoRoot "UserProfile\AppData\Roaming\yazi\config\p
 $yaziRecentText = Get-Content -LiteralPath $yaziRecentPath -Raw
 $yaziBookmarksPath = Join-Path $repoRoot "UserProfile\AppData\Roaming\yazi\config\plugins\bookmarks.yazi\main.lua"
 $yaziBookmarksText = Get-Content -LiteralPath $yaziBookmarksPath -Raw
+$yaziPluginTexts = @($yaziRecentText, $yaziBookmarksText, $yaziClipboardText)
+Assert-True (-not ($yaziPluginTexts -match 'io\.popen|os\.execute')) "Managed Windows Yazi plugins avoid Lua subprocess APIs that can corrupt Ctrl+C console handling"
+Assert-True ($yaziRecentText -match 'fs\.create\("dir_all", Url\(state_dir\(\)\)\)') "Yazi recent-files creates state directories through Yazi fs API"
+Assert-True ($yaziBookmarksText -match 'fs\.create\("dir_all", Url\(state_dir\(\)\)\)') "Yazi bookmarks creates state directories through Yazi fs API"
 $yaziPreviewRefitPath = Join-Path $repoRoot "UserProfile\AppData\Roaming\yazi\config\plugins\preview-refit.yazi\main.lua"
 $yaziPreviewRefitText = Get-Content -LiteralPath $yaziPreviewRefitPath -Raw
 $yaziVfsPath = Join-Path $repoRoot "UserProfile\AppData\Roaming\yazi\config\vfs.toml"
