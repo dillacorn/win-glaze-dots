@@ -22,7 +22,7 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-93";
+    const string Version = "native-preview-94";
     const string HiddenLauncherVersion = "2.0.0.0";
     const int WingetPreflightTimeoutMs = 30000;
     const int CurrentTweakDefaultsVersion = 1;
@@ -5492,18 +5492,97 @@ class WgdotHidden
         return "";
     }
 
+    static string FindGlazeWmInstallDir()
+    {
+        foreach (RegistryView view in new[] { RegistryView.Registry64, RegistryView.Registry32 })
+        {
+            try
+            {
+                using (RegistryKey root = RegistryKey.OpenBaseKey(
+                    RegistryHive.LocalMachine,
+                    view))
+                using (RegistryKey key = root.OpenSubKey(
+                    @"SOFTWARE\glzr.io\GlazeWM",
+                    false))
+                {
+                    if (key == null) continue;
+
+                    string installDir = Convert.ToString(
+                        key.GetValue("InstallDir", ""),
+                        CultureInfo.InvariantCulture);
+                    if (!String.IsNullOrWhiteSpace(installDir) &&
+                        Directory.Exists(installDir))
+                        return installDir;
+                }
+            }
+            catch
+            {
+            }
+        }
+
+        return "";
+    }
+
     static string FindGlazeWmExe()
     {
         string local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        string programFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
+        string programFilesX86 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
+        string registeredInstallDir = FindGlazeWmInstallDir();
+
+        var candidates = new List<string>();
+        if (!String.IsNullOrWhiteSpace(registeredInstallDir))
+            candidates.Add(Path.Combine(
+                registeredInstallDir,
+                "cli",
+                "glazewm.exe"));
+
+        if (!String.IsNullOrWhiteSpace(programFiles))
+            candidates.Add(Path.Combine(
+                programFiles,
+                "glzr.io",
+                "GlazeWM",
+                "cli",
+                "glazewm.exe"));
+
+        if (!String.IsNullOrWhiteSpace(programFilesX86))
+            candidates.Add(Path.Combine(
+                programFilesX86,
+                "glzr.io",
+                "GlazeWM",
+                "cli",
+                "glazewm.exe"));
+
+        candidates.Add(Path.Combine(
+            local,
+            "Programs",
+            "glzr.io",
+            "GlazeWM",
+            "cli",
+            "glazewm.exe"));
+
+        // Keep the old layouts as compatibility fallbacks for installations
+        // created by earlier GlazeWM packages.
+        candidates.Add(Path.Combine(
+            programFiles,
+            "glzr.io",
+            "cli",
+            "glazewm.exe"));
+        candidates.Add(Path.Combine(
+            programFilesX86,
+            "glzr.io",
+            "cli",
+            "glazewm.exe"));
+        candidates.Add(Path.Combine(
+            local,
+            "Programs",
+            "glzr.io",
+            "cli",
+            "glazewm.exe"));
+
         return FindExecutableWithCandidates(
             "glazewm.exe",
-            new[]
-            {
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "glzr.io", "cli", "glazewm.exe"),
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "glzr.io", "cli", "glazewm.exe"),
-                Path.Combine(local, "Programs", "glzr.io", "cli", "glazewm.exe"),
-                Path.Combine(local, "Microsoft", "WinGet", "Packages", "glzr-io.glazewm", "glazewm.exe")
-            });
+            candidates);
     }
 
     static string RequireGlazeWmExe()

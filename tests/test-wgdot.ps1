@@ -980,7 +980,7 @@ $rustDeskPackage = @($manifest.packages | Where-Object { $_.id -eq 'RustDesk.Rus
 Assert-True ($null -ne $rustDeskPackage) "RustDesk catalog entry exists"
 Assert-Equal ([string]$rustDeskPackage.installMode) 'official-github' "RustDesk uses its verified official GitHub source instead of a missing WinGet ID"
 Assert-Equal ([string]$rustDeskPackage.fallbackGitHubRepo) 'rustdesk/rustdesk' "RustDesk official GitHub source remains publisher-owned"
-Assert-True ($nativeSourceText -match 'const string Version = "native-preview-93"') "native runtime version tracks current WGDot maintenance changes"
+Assert-True ($nativeSourceText -match 'const string Version = "native-preview-94"') "native runtime version tracks current WGDot maintenance changes"
 Assert-True ($nativeSourceText -match 'InstallGitHubFontArchivePackage') "native runtime installs managed Nerd Font archives without inventing a WinGet ID"
 Assert-True ($nativeSourceText -match 'AddFontResourceEx') "managed Noto font is loaded into the current Windows session"
 Assert-True ($nativeSourceText -match 'Software\\Microsoft\\Windows NT\\CurrentVersion\\Fonts') "managed Noto font registers under the current-user Windows Fonts key"
@@ -1928,3 +1928,7 @@ Assert-True ($nativeBootstrapText -match 'Compiling WGDot native runtime') "boot
 Assert-True ($nativeBootstrapText -match 'Running WGDot self-test') "bootstrap reports self-test progress"
 Assert-True ($nativeBootstrapText -match 'Installing WGDot runtime') "bootstrap reports install progress"
 Assert-True ($nativeBootstrapText -match 'Checking WinGet prerequisite') "bootstrap reports WinGet prerequisite work"
+
+Assert-True ($nativeSourceText -match 'SOFTWARE\\glzr\.io\\GlazeWM') "GlazeWM startup detection reads the official installer registry key"
+Assert-True ($nativeSourceText -match 'GetValue\("InstallDir"') "GlazeWM startup detection reads the official installer InstallDir value"
+Assert-True ($nativeSourceText -match '"GlazeWM",[\s\S]*?"cli",[\s\S]*?"glazewm\.exe"') "GlazeWM startup detection covers the current official CLI install layout"
