@@ -22,7 +22,7 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-88";
+    const string Version = "native-preview-89";
     const string HiddenLauncherVersion = "2.0.0.0";
     const int WingetPreflightTimeoutMs = 30000;
     const int CurrentTweakDefaultsVersion = 1;
@@ -1430,11 +1430,11 @@ internal static class WgdotNative
         state["executionPolicyIndependent"] = true;
         WriteJson(BootstrapStatePath, state);
 
-        Console.WriteLine("WGDot native runtime installed to:");
+        Console.WriteLine("WGDot installed:");
         Console.WriteLine("  " + BinRoot);
         Console.WriteLine();
-        Console.WriteLine("It does not change or bypass PowerShell execution policy.");
-        Console.WriteLine("Run: wgdot");
+        Console.WriteLine("User PATH updated for future terminals.");
+        Console.WriteLine("PowerShell execution policy was not changed or bypassed.");
         return 0;
     }
 
