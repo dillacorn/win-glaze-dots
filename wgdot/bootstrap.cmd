@@ -7,6 +7,7 @@ set "REMOTE_REQUESTED=0"
 set "SOURCE_EXPLICIT=0"
 set "DOTS_ONLY=0"
 set "DOTS_PROFILE="
+set "NO_LAUNCH=0"
 
 :parse_args
 if "%~1"=="" goto args_done
@@ -36,6 +37,11 @@ if /I "%~1"=="--revision" (
 )
 if /I "%~1"=="--dots-only" (
   set "DOTS_ONLY=1"
+  shift
+  goto parse_args
+)
+if /I "%~1"=="--no-launch" (
+  set "NO_LAUNCH=1"
   shift
   goto parse_args
 )
@@ -91,7 +97,7 @@ if "%WGDOT_FORCE_POWERSHELL_DOWNLOAD%"=="1" goto powershell_download
 where curl.exe >nul 2>&1
 if errorlevel 1 goto powershell_download
 
-curl.exe -fL --retry 2 --connect-timeout 15 "%SOURCE_URL%" -o "%SOURCE_FILE%"
+curl.exe -fsSL --retry 2 --connect-timeout 15 "%SOURCE_URL%" -o "%SOURCE_FILE%"
 if not errorlevel 1 (
   set "DOWNLOAD_OK=1"
   goto source_downloaded
@@ -150,6 +156,23 @@ if "%DOTS_ONLY%"=="1" goto apply_dots_only
 
 "%OUT%" ensure-winget
 set "RC=%ERRORLEVEL%"
+if not "%RC%"=="0" goto cleanup
+if "%NO_LAUNCH%"=="1" goto cleanup
+
+set "INSTALLED_WGDOT=%LOCALAPPDATA%\wgdot\bin\wgdot.exe"
+if defined WGDOT_TEST_ROOT set "INSTALLED_WGDOT=%WGDOT_TEST_ROOT%\wgdot\bin\wgdot.exe"
+if not exist "%INSTALLED_WGDOT%" (
+  echo Installed WGDot runtime was not found after bootstrap.
+  set "RC=5"
+  goto cleanup
+)
+
+echo.
+echo Starting WGDot...
+set "WGDOT_SKIP_RUNTIME_REFRESH=1"
+"%INSTALLED_WGDOT%"
+set "RC=%ERRORLEVEL%"
+set "WGDOT_SKIP_RUNTIME_REFRESH="
 goto cleanup
 
 :apply_dots_only

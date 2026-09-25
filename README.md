@@ -20,7 +20,7 @@ Windows Terminal is the default terminal. Yazi is the terminal file manager; tex
 - **Stable managed-dot updates, review/reset, software reconciliation, state, and Git testing:** [UPDATE.md](UPDATE.md)
 - **Published release notes:** [Releases](https://github.com/dillacorn/win-glaze-dots/releases)
 
-Run `wgdot` with no arguments for the interactive maintenance menu after installation.
+The installer opens WGDot on first run. Later, run `wgdot` with no arguments for the interactive maintenance menu.
 
 WGDot's native runtime can refresh independently from `main`, while normal managed configuration operations use published stable releases.
 
