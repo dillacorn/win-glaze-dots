@@ -165,3 +165,89 @@ jobs:
         run: |
           set "WGDOT_TEST_ROOT=%TEMP%\wgdot-native-maintenance-state"
           "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" maintenance-self-test
+
+  release-v461-yazi:
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.title == 'Create WGDot v4.6.1 Yazi release' &&
+      github.event.pull_request.head.ref == 'chore/v461-yazi-release-bridge' &&
+      github.event.pull_request.base.ref == 'main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create and verify WGDot v4.6.1 Yazi
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          tag='v4.6.1'
+          title='WGDot v4.6.1 Yazi'
+          target='0a60dd464ba88f2a97eb4866c77f25be9a6de0eb'
+
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "Release $tag already exists." >&2
+            exit 1
+          fi
+          if git ls-remote --exit-code origin "refs/tags/$tag" >/dev/null 2>&1; then
+            echo "Tag $tag already exists." >&2
+            exit 1
+          fi
+
+          cat > release-notes.md <<'EOF'
+          # WGDot v4.6.1 Yazi
+
+          WGDot v4.6.1 is a Yazi-focused bug-fix and polish release following the larger v4.6.0 update.
+
+          ## Install and update
+
+          - **Install:** [INSTALL.md](https://github.com/dillacorn/win-glaze-dots/blob/main/INSTALL.md)
+          - **Update:** [UPDATE.md](https://github.com/dillacorn/win-glaze-dots/blob/main/UPDATE.md)
+
+          ## Yazi
+
+          - Fixes Windows `Ctrl+C` file copy reliability. Yazi and Windows Terminal now keep the copy chord routed correctly, and the managed bookmark/recent-file plugins no longer use Lua shell-spawn APIs that could interfere with Windows console signals.
+          - `Ctrl+C` and `c y` copy through the same tested Windows FileDrop path, with a concise Yazi success notification after the Windows clipboard operation completes.
+          - Up/Down now wrap around the file list: Up from the first item goes to the bottom and Down from the last item returns to the top.
+          - `F2` now renames the highlighted item.
+          - Enter remains context-aware: directories enter inside Yazi and files open normally.
+          - Esc keeps Yazi's native one-layer-at-a-time cancellation behavior, so active modes/commands cancel before selection is cleared.
+          - Includes the post-v4.6.0 outbound drag update: `d g` and **Drag out...** open the themed native FileDrop surface while normal internal drag remains Yazi Copy/Move.
+
+          ## Other fixes
+
+          - Managed Yazi updates no longer require terminating running Yazi sessions; updated sessions can be restarted when convenient.
+          - RawAccel login startup prefers its bundled headless writer path instead of leaving the GUI resident.
+          - Removes obsolete repository-root legacy scripts and their superseded copy guide.
+
+          ## Validation
+
+          - Exact release target: `0a60dd464ba88f2a97eb4866c77f25be9a6de0eb`.
+          - PR #69 passed all four WGDot exact-head validation jobs before merge.
+          - The maintainer runtime-tested the final Windows Yazi behavior, including `Ctrl+C`, `c y`, Enter on files/folders, F2 rename, and file-list wraparound.
+
+          ## Post-release updates
+
+          _Placeholder for possible tested post-release patches to v4.6.1._
+          EOF
+
+          gh release create "$tag" \
+            --target "$target" \
+            --title "$title" \
+            --notes-file release-notes.md
+
+          published="$(gh release view "$tag" --json name,tagName,isDraft,isPrerelease,targetCommitish,body)"
+          printf '%s\n' "$published"
+
+          test "$(printf '%s' "$published" | jq -r '.name')" = "$title"
+          test "$(printf '%s' "$published" | jq -r '.tagName')" = "$tag"
+          test "$(printf '%s' "$published" | jq -r '.isDraft')" = "false"
+          test "$(printf '%s' "$published" | jq -r '.isPrerelease')" = "false"
+          test "$(printf '%s' "$published" | jq -r '.targetCommitish')" = "$target"
+          printf '%s' "$published" | jq -r '.body' > published-release-notes.md
+          cmp -s release-notes.md published-release-notes.md
+
+          tag_sha="$(git ls-remote origin "refs/tags/$tag" | awk '{print $1}')"
+          test "$tag_sha" = "$target"
