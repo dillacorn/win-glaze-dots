@@ -106,9 +106,13 @@ try {
         Require ($surfaceBlock -match 'theme\.Background' -and $surfaceBlock -match 'theme\.Foreground' -and $surfaceBlock -match 'theme\.Active' -and $surfaceBlock -match 'theme\.Hover' -and $surfaceBlock -match 'theme\.Focus') 'Yazi drag surface is missing current-theme palette roles'
         Require ($surfaceBlock -match 'FormBorderStyle\.None') 'Yazi drag surface still exposes an unthemed native tool-window frame'
         Require ($surfaceBlock -match 'Opacity = 0\.0' -and $surfaceBlock -match 'Opacity = 0\.98') 'Yazi drag surface can flash before themed paint'
+        Require ($surfaceBlock -match 'CenterOnScreen\(\)') 'Yazi drag surface is not centered when shown'
+        Require ($surfaceBlock -match 'targetScreen \?\? System\.Windows\.Forms\.Screen\.PrimaryScreen') 'Yazi drag surface does not center on the captured interaction screen'
+        Require ($surfaceBlock -notmatch 'PlaceNearCursor|Cursor\.Position') 'Yazi drag surface still places itself adjacent to the pointer'
         Require ($surfaceBlock -match 'data\.SetFileDropList\(dropList\)') 'Yazi drag surface does not expose native file-drop data'
         Require ($surfaceBlock -match 'DoDragDrop') 'Yazi drag is not using native OLE/WinForms drag-drop'
-        Require ($dragBlock -match 'Application\.Run\(new YaziDragSurface\(files\)\)') 'Yazi drag command does not run the dedicated drag surface'
+        Require ($dragBlock -match 'CurrentInteractionScreen\(\)') 'Yazi drag command does not capture the active interaction screen before showing the surface'
+        Require ($dragBlock -match 'Application\.Run\(new YaziDragSurface\(files, targetScreen\)\)') 'Yazi drag command does not run the centered dedicated drag surface'
         Require ($surfaceBlock -notmatch 'GetAsyncKeyState|PointInsideRect|Clipboard|keybd_event|SendKeys|SetWindowsHookEx') 'Yazi drag surface must not track terminal pointer escape, mutate clipboard, inject keys, or install hooks'
 
         $refreshBlock = [regex]::Match($nativeSource, '(?ms)static bool ShouldAutoRefreshRuntime\(string command\).*?^    }').Value

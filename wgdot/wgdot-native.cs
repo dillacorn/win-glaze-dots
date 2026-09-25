@@ -22,7 +22,7 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-86";
+    const string Version = "native-preview-87";
     const string HiddenLauncherVersion = "2.0.0.0";
     const int WingetPreflightTimeoutMs = 30000;
     const int CurrentTweakDefaultsVersion = 1;
@@ -230,6 +230,7 @@ internal static class WgdotNative
     const int HtBottomRight = 17;
     const int DwmwaCloaked = 14;
     const int SwShowNormal = 1;
+    const int SwShowMinNoActive = 7;
     const uint SwpNoSize = 0x0001;
     const uint SwpNoZOrder = 0x0004;
     const uint SwpShowWindow = 0x0040;
@@ -320,6 +321,9 @@ internal static class WgdotNative
         int width,
         int height,
         uint flags);
+
+    [DllImport("user32.dll")]
+    static extern bool ShowWindowAsync(IntPtr hWnd, int nCmdShow);
 
     [StructLayout(LayoutKind.Sequential)]
     struct SP_DEVINFO_DATA
@@ -4887,6 +4891,11 @@ class WgdotHidden
 
     static Process StartRawAccelGuiProcess()
     {
+        return StartRawAccelGuiProcess(false);
+    }
+
+    static Process StartRawAccelGuiProcess(bool startMinimized)
+    {
         string exe = FindRawAccelExe();
         if (String.IsNullOrWhiteSpace(exe))
             throw new Exception("RawAccel GUI executable was not found.");
@@ -4900,6 +4909,9 @@ class WgdotHidden
         psi.WorkingDirectory = workingDirectory;
         psi.UseShellExecute = true;
         psi.ErrorDialog = false;
+        psi.WindowStyle = startMinimized
+            ? ProcessWindowStyle.Minimized
+            : ProcessWindowStyle.Normal;
         Process started = Process.Start(psi);
         if (started == null)
             throw new Exception("RawAccel GUI did not start.");
@@ -5000,6 +5012,58 @@ class WgdotHidden
         }
 
         SetForegroundWindow(window);
+    }
+
+    static void MinimizeRawAccelStartupWindow(Process process)
+    {
+        if (process == null)
+            return;
+
+        try
+        {
+            process.WaitForInputIdle(2000);
+        }
+        catch
+        {
+        }
+
+        IntPtr window = IntPtr.Zero;
+        for (int i = 0; i < 120; i++)
+        {
+            try
+            {
+                if (process.HasExited)
+                    return;
+
+                process.Refresh();
+                window = process.MainWindowHandle;
+                if (window != IntPtr.Zero && IsWindow(window))
+                    break;
+            }
+            catch
+            {
+                return;
+            }
+
+            System.Threading.Thread.Sleep(25);
+        }
+
+        if (window == IntPtr.Zero || !IsWindow(window))
+            return;
+
+        // RawAccel and GlazeWM can both adjust the first window state during
+        // login. Give them a moment to settle, then reinforce a minimized,
+        // non-activating state without applying the hotkey-only resize.
+        System.Threading.Thread.Sleep(300);
+
+        for (int i = 0; i < 8; i++)
+        {
+            if (!IsWindow(window))
+                return;
+
+            ShowWindowAsync(window, SwShowMinNoActive);
+            System.Threading.Thread.Sleep(75);
+        }
     }
 
     static bool IsLegacyYasbStartupCommand(string command)
@@ -10296,7 +10360,12 @@ class WgdotHidden
 
     static int RawAccelStartup()
     {
-        return StartRawAccelGui();
+        using (Process started = StartRawAccelGuiProcess(true))
+        {
+            MinimizeRawAccelStartupWindow(started);
+        }
+
+        return 0;
     }
 
     static int RawAccelToggle()
@@ -15318,11 +15387,15 @@ class WgdotHidden
         readonly System.Windows.Forms.Label closeLabel;
         readonly System.Drawing.Color dragBackground;
         readonly System.Drawing.Color dragHover;
+        readonly System.Windows.Forms.Screen targetScreen;
         bool dragActive;
 
-        internal YaziDragSurface(List<string> paths)
+        internal YaziDragSurface(
+            List<string> paths,
+            System.Windows.Forms.Screen screen)
         {
             files = new List<string>(paths);
+            targetScreen = screen;
 
             YasbTheme theme = FindYasbTheme(CurrentYasbThemeId()) ?? YasbThemes[0];
             System.Drawing.Color background = WgdotDrawingColor(
@@ -15445,7 +15518,7 @@ class WgdotHidden
 
             Shown += delegate
             {
-                PlaceNearCursor();
+                CenterOnScreen();
                 Refresh();
                 surface.Refresh();
                 header.Refresh();
@@ -15483,20 +15556,16 @@ class WgdotHidden
                    "Hold left mouse and drag this box";
         }
 
-        void PlaceNearCursor()
+        void CenterOnScreen()
         {
-            Point cursor = System.Windows.Forms.Cursor.Position;
-            Rectangle working = System.Windows.Forms.Screen.FromPoint(cursor).WorkingArea;
+            System.Windows.Forms.Screen screen =
+                targetScreen ?? System.Windows.Forms.Screen.PrimaryScreen;
+            if (screen == null)
+                return;
 
-            int x = cursor.X + 18;
-            int y = cursor.Y + 18;
-            if (x + Width > working.Right)
-                x = working.Right - Width;
-            if (y + Height > working.Bottom)
-                y = working.Bottom - Height;
-
-            x = Math.Max(working.Left, x);
-            y = Math.Max(working.Top, y);
+            Rectangle working = screen.WorkingArea;
+            int x = working.Left + Math.Max(0, (working.Width - Width) / 2);
+            int y = working.Top + Math.Max(0, (working.Height - Height) / 2);
             Location = new Point(x, y);
         }
 
@@ -15548,9 +15617,10 @@ class WgdotHidden
             SafeDeleteFile(manifest);
         }
 
+        System.Windows.Forms.Screen targetScreen = CurrentInteractionScreen();
         System.Windows.Forms.Application.EnableVisualStyles();
         System.Windows.Forms.Application.SetCompatibleTextRenderingDefault(false);
-        System.Windows.Forms.Application.Run(new YaziDragSurface(files));
+        System.Windows.Forms.Application.Run(new YaziDragSurface(files, targetScreen));
         return 0;
     }
 

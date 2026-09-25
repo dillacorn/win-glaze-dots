@@ -738,10 +738,14 @@ Assert-True ($nativeSourceText -match 'where\.exe", "rawaccel\.exe"') "RawAccel 
 Assert-True ($nativeSourceText -match 'FirstOrDefault\(IsRawAccelGuiExecutable\)') "RawAccel resolver rejects unverified candidates"
 Assert-True ($nativeSourceText -match 'Q\(HiddenLauncherPath\(\)\) \+ " rawaccel-startup"') "RawAccel HKCU Run command uses the quoted windowless startup helper"
 Assert-True ($nativeSourceText -match 'if \(command == "rawaccel-startup"\) return RawAccelStartup\(\);') "RawAccel startup helper has an explicit native command"
-$rawAccelProcessStartBlock = [regex]::Match($nativeSourceText, '(?ms)static Process StartRawAccelGuiProcess\(\).*?^    }').Value
+$rawAccelDefaultProcessStartBlock = [regex]::Match($nativeSourceText, '(?ms)static Process StartRawAccelGuiProcess\(\).*?^    }').Value
+Assert-True ($rawAccelDefaultProcessStartBlock -match 'return StartRawAccelGuiProcess\(false\);') "RawAccel normal/hotkey launch uses the visible process-start policy"
+$rawAccelProcessStartBlock = [regex]::Match($nativeSourceText, '(?ms)static Process StartRawAccelGuiProcess\(bool startMinimized\).*?^    }').Value
 Assert-True ($rawAccelProcessStartBlock -match 'psi\.FileName = exe;') "RawAccel startup launches the resolved GUI executable"
 Assert-True ($rawAccelProcessStartBlock -match 'psi\.WorkingDirectory = workingDirectory;') "RawAccel startup sets the GUI working directory"
 Assert-True ($rawAccelProcessStartBlock -match 'Path\.GetDirectoryName\(exe\)') "RawAccel startup derives working directory from the executable"
+Assert-True ($rawAccelProcessStartBlock -match 'psi\.WindowStyle = startMinimized') "RawAccel process launch explicitly controls minimized startup state"
+Assert-True ($rawAccelProcessStartBlock -match 'ProcessWindowStyle\.Minimized') "RawAccel login startup can request a minimized GUI before first paint"
 Assert-True ($rawAccelProcessStartBlock -notmatch 'settings\.json|\.config|File\.Write') "RawAccel process launch never changes the acceleration profile/configuration"
 $rawAccelStartBlock = [regex]::Match($nativeSourceText, '(?ms)static int StartRawAccelGui\(\).*?^    }').Value
 Assert-True ($rawAccelStartBlock -match 'StartRawAccelGuiProcess\(\)') "RawAccel startup delegates to the shared working-directory-safe process launcher"
@@ -760,7 +764,13 @@ $rawAccelToggleBlock = [regex]::Match($nativeSourceText, '(?ms)static int RawAcc
 Assert-True ($rawAccelToggleBlock -match 'CurrentInteractionScreen\(\)') "RawAccel hotkey sizing targets the active monitor"
 Assert-True ($rawAccelToggleBlock -match 'SizeRawAccelHotkeyWindow\(started, targetScreen\)') "RawAccel toggle applies compact hotkey sizing after launch"
 $rawAccelStartupBlock = [regex]::Match($nativeSourceText, '(?ms)static int RawAccelStartup\(\).*?^    }').Value
+Assert-True ($rawAccelStartupBlock -match 'StartRawAccelGuiProcess\(true\)') "RawAccel Windows-login startup requests minimized process state"
+Assert-True ($rawAccelStartupBlock -match 'MinimizeRawAccelStartupWindow\(started\)') "RawAccel Windows-login startup reinforces minimized state after the GUI window exists"
 Assert-True ($rawAccelStartupBlock -notmatch 'SizeRawAccelHotkeyWindow') "RawAccel Windows-login startup is not resized by the hotkey-only policy"
+$rawAccelStartupMinimizeBlock = [regex]::Match($nativeSourceText, '(?ms)static void MinimizeRawAccelStartupWindow\(.*?^    }').Value
+Assert-True ($rawAccelStartupMinimizeBlock -match 'ShowWindowAsync\(window, SwShowMinNoActive\)') "RawAccel login startup minimizes without activating the GUI"
+Assert-True ($rawAccelStartupMinimizeBlock -match 'System\.Threading\.Thread\.Sleep\(300\)') "RawAccel login minimize waits for the first GlazeWM/window-state race to settle"
+Assert-True ($rawAccelStartupMinimizeBlock -match 'for \(int i = 0; i < 8; i\+\+\)') "RawAccel login minimize is reinforced briefly after startup"
 Assert-True ($nativeSourceText -notmatch 'return "explorer\.exe shell:AppsFolder\\\\40459File-New-Project\.EarTrumpet') "EarTrumpet startup no longer uses the Explorer/Documents-prone AppsFolder command"
 Assert-True ($nativeSourceText -match 'Q\(HiddenLauncherPath\(\)\) \+ " eartrumpet-startup"') "EarTrumpet startup uses the windowless Start Menu launcher helper"
 Assert-True ($nativeSourceText -match 'if \(command == "eartrumpet-startup"\) return EarTrumpetStartup\(\);') "EarTrumpet login startup has an explicit native command"
@@ -894,7 +904,7 @@ $rustDeskPackage = @($manifest.packages | Where-Object { $_.id -eq 'RustDesk.Rus
 Assert-True ($null -ne $rustDeskPackage) "RustDesk catalog entry exists"
 Assert-Equal ([string]$rustDeskPackage.installMode) 'official-github' "RustDesk uses its verified official GitHub source instead of a missing WinGet ID"
 Assert-Equal ([string]$rustDeskPackage.fallbackGitHubRepo) 'rustdesk/rustdesk' "RustDesk official GitHub source remains publisher-owned"
-Assert-True ($nativeSourceText -match 'const string Version = "native-preview-86"') "native runtime version tracks current WGDot maintenance changes"
+Assert-True ($nativeSourceText -match 'const string Version = "native-preview-87"') "native runtime version tracks current WGDot maintenance changes"
 Assert-True ($nativeSourceText -match 'InstallGitHubFontArchivePackage') "native runtime installs managed Nerd Font archives without inventing a WinGet ID"
 Assert-True ($nativeSourceText -match 'AddFontResourceEx') "managed Noto font is loaded into the current Windows session"
 Assert-True ($nativeSourceText -match 'Software\\Microsoft\\Windows NT\\CurrentVersion\\Fonts') "managed Noto font registers under the current-user Windows Fonts key"
