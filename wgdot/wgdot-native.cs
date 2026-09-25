@@ -22,7 +22,7 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-92";
+    const string Version = "native-preview-93";
     const string HiddenLauncherVersion = "2.0.0.0";
     const int WingetPreflightTimeoutMs = 30000;
     const int CurrentTweakDefaultsVersion = 1;
@@ -4138,16 +4138,119 @@ class WgdotHidden
         return value;
     }
 
+    static bool StopAsusFrameworkForObsInstall()
+    {
+        if (!ProcessIsRunning("asus_framework"))
+            return false;
+
+        Console.ForegroundColor = ConsoleColor.Yellow;
+        Console.WriteLine(
+            "OBS reports that ASUS NodeJS Web Framework is using its hook files.");
+        Console.WriteLine(
+            "Stopping ASUS NodeJS Web Framework temporarily for the OBS install...");
+        Console.ResetColor();
+
+        ProcResult stop = Run(
+            "taskkill.exe",
+            "/IM asus_framework.exe /T /F",
+            null);
+
+        if (stop.ExitCode != 0 &&
+            ProcessIsRunning("asus_framework"))
+            throw new Exception(
+                "ASUS NodeJS Web Framework could not be stopped: " +
+                LastUsefulLine(stop.StdErr + "\n" + stop.StdOut));
+
+        if (!WaitForProcessState("asus_framework", false, 5000))
+            throw new Exception(
+                "ASUS NodeJS Web Framework is still running after WGDot tried to stop it.");
+
+        Console.WriteLine("ASUS NodeJS Web Framework stopped.");
+        return true;
+    }
+
+    static void RestartAsusFrameworkAfterObsInstall(bool restartNeeded)
+    {
+        if (!restartNeeded)
+            return;
+
+        const string taskName = @"\ASUS\Framework Service";
+        Console.WriteLine("Restarting ASUS NodeJS Web Framework...");
+
+        ProcResult query = Run(
+            "schtasks.exe",
+            "/Query /TN " + Q(taskName),
+            null);
+        if (query.ExitCode != 0)
+        {
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine(
+                "ASUS Framework Service startup task was not found; Windows/Armoury Crate can start it again normally.");
+            Console.ResetColor();
+            return;
+        }
+
+        ProcResult start = Run(
+            "schtasks.exe",
+            "/Run /TN " + Q(taskName),
+            null);
+        if (start.ExitCode != 0)
+        {
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine(
+                "OBS maintenance finished, but ASUS Framework Service could not be restarted automatically.");
+            Console.ResetColor();
+            return;
+        }
+
+        if (WaitForProcessState("asus_framework", true, 10000))
+            Console.WriteLine("ASUS NodeJS Web Framework restarted.");
+        else
+        {
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine(
+                "ASUS Framework Service task was started, but asus_framework.exe has not appeared yet.");
+            Console.ResetColor();
+        }
+    }
+
     static ProcResult RunWingetInstallWithObsHookRecovery(
         Dictionary<string, object> package,
         string winget,
         string arguments,
         int timeoutMs)
     {
-        if (GetBool(package, "wingetObsHookRecovery") &&
-            IsObsStudioPackage(package))
-            CleanupOrphanedObsHookStateForInstall();
+        bool obsRecovery =
+            GetBool(package, "wingetObsHookRecovery") &&
+            IsObsStudioPackage(package);
+        bool restartAsusFramework = false;
 
+        try
+        {
+            if (obsRecovery)
+            {
+                restartAsusFramework = StopAsusFrameworkForObsInstall();
+                CleanupOrphanedObsHookStateForInstall();
+            }
+
+            return RunWingetInstallWithObsHookRecoveryCore(
+                package,
+                winget,
+                arguments,
+                timeoutMs);
+        }
+        finally
+        {
+            RestartAsusFrameworkAfterObsInstall(restartAsusFramework);
+        }
+    }
+
+    static ProcResult RunWingetInstallWithObsHookRecoveryCore(
+        Dictionary<string, object> package,
+        string winget,
+        string arguments,
+        int timeoutMs)
+    {
         ProcResult first = RunInteractiveWithTimeout(
             winget,
             arguments,
