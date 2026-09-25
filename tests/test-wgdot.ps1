@@ -128,8 +128,10 @@ Assert-True ($yaziConfigText -match '(?m)^linemode = "size_and_mtime"\r?$') "Yaz
 Assert-True ($yaziConfigText -match '(?m)^mouse_events = \["click", "scroll", "drag", "move"\]\r?$') "Yazi enables event-driven mouse move for menu hover"
 $yaziInitPath = Join-Path $repoRoot "UserProfile\AppData\Roaming\yazi\config\init.lua"
 $yaziInitText = Get-Content -LiteralPath $yaziInitPath -Raw
-Assert-True ($yaziInitText -match '#cx\.active\.selected > 0') "Yazi manager Esc detects an existing explicit selection"
-Assert-True ($yaziInitText -match 'ya\.emit\("escape", \{ select = true \}\)') "Yazi manager Esc explicitly clears selection after modal/input layers are gone"
+Assert-True ($yaziInitText -match 'function WgdotYaziEscape\(\)') "Yazi manager Esc wrapper is defined"
+$yaziEscapeBlock = [regex]::Match($yaziInitText, '(?ms)function WgdotYaziEscape\(\).*?^end').Value
+Assert-True ($yaziEscapeBlock -match 'ya\.emit\("escape", \{\}\)') "Yazi manager Esc delegates normal cancel/selection ordering to native escape"
+Assert-True ($yaziEscapeBlock -notmatch 'select\s*=\s*true|cx\.active\.selected') "Yazi manager Esc does not bypass upstream one-layer-at-a-time escape precedence"
 $yaziRecentPath = Join-Path $repoRoot "UserProfile\AppData\Roaming\yazi\config\plugins\recent-files.yazi\main.lua"
 $yaziRecentText = Get-Content -LiteralPath $yaziRecentPath -Raw
 $yaziBookmarksPath = Join-Path $repoRoot "UserProfile\AppData\Roaming\yazi\config\plugins\bookmarks.yazi\main.lua"

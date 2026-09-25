@@ -16,7 +16,7 @@ prepend_keymap = [
   { on = ["<Right>"], run = 'lua "WgdotYaziRight()"', desc = "Enter directory or maximize file preview" },
   { on = ["l"],       run = "enter",     desc = "Enter directory" },
   { on = ["<Enter>"], run = 'lua "WgdotYaziSmartEnter()"', desc = "Enter directory or open file" },
-  { on = ["<Esc>"],   run = 'lua "WgdotYaziEscape()"', desc = "Exit maximized preview or cancel" },
+  { on = ["<Esc>"],   run = 'lua "WgdotYaziEscape()"', desc = "Cancel active state, then clear selection" },
   { on = ["q"],       run = 'lua "WgdotYaziConfirmQuit(false)"', desc = "Quit with confirmation" },
   { on = ["Q"],       run = 'lua "WgdotYaziConfirmQuit(true)"', desc = "Quit without cwd file (confirm)" },
   { on = ["<C-w>"],   run = 'lua "WgdotYaziCloseTab()"', desc = "Close tab (confirm if last)" },
