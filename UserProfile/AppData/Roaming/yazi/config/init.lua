@@ -248,7 +248,8 @@ function WgdotYaziArrow(step)
         ya.emit("escape", { visual = true })
     end
     WgdotYaziShiftRangeActive = false
-    ya.emit("arrow", { step })
+    local direction = step < 0 and "prev" or "next"
+    ya.emit("arrow", { direction })
 end
 
 function WgdotYaziConfirmQuit(no_cwd_file)

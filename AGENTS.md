@@ -438,7 +438,7 @@ The current Windows Yazi clipboard helper is:
 
 `UserProfile/AppData/Roaming/yazi/config/plugins/system-clipboard.yazi/main.lua`
 
-Keep normal Yazi copy and Windows file-clipboard export separate. `Ctrl+C` must be a pure native Yazi `yank` with no plugin, Lua async work, PowerShell, or WGDot helper attached. `c y` is the explicit Windows FileDrop action: run native `yank` first, then invoke the managed `system-clipboard` plugin.
+Keep normal Yazi copy and Windows file-clipboard export separate. `Ctrl+C` must be a pure native Yazi `yank` with no plugin, Lua async work, PowerShell, or WGDot helper attached. Windows Terminal must explicitly unbind its default `Ctrl+C` and `Ctrl+V` actions so those chords always reach terminal applications; retain `Ctrl+Shift+C` / `Ctrl+Shift+V` for terminal text copy/paste. `c y` is the explicit Windows FileDrop action: run native `yank` first, then invoke the managed `system-clipboard` plugin, and show a short Yazi success notification after the Windows clipboard is set.
 
 Use Yazi's native wraparound movement actions for list navigation: Up/`k` use `arrow prev` and Down/`j` use `arrow next`. This intentionally wraps from the first item to the last and from the last item to the first. Preserve native `g` Go To prefix behavior, `gg` top, and `G` bottom.
 
