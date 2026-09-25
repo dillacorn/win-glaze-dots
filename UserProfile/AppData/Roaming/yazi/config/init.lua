@@ -5,24 +5,6 @@ require("recent-files"):setup()
 require("bookmarks"):setup()
 require("git"):setup { order = 1500 }
 
-local WgdotYaziSystemClipboard = require("system-clipboard")
-
-function WgdotYaziMirrorYankToSystemClipboard()
-    local paths = {}
-    for _, item in pairs(cx.yanked) do
-        local url = item.url or item
-        local is_regular = url.spec and url.spec.is_regular or url.is_regular
-        if is_regular then
-            paths[#paths + 1] = tostring(url)
-        end
-    end
-    if #paths == 0 then return end
-
-    ya.async(function()
-        WgdotYaziSystemClipboard.copy(paths)
-    end)
-end
-
 local function WgdotYaziNormalizeFsPath(value)
     local path = tostring(value or ""):gsub("\\", "/"):gsub("/+$", "")
     return path:lower()
