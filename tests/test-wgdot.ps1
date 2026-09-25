@@ -26,6 +26,9 @@ Assert-True (Test-Path -LiteralPath $manifestPath -PathType Leaf) "manifest exis
 Assert-True (Test-Path -LiteralPath $launcherPath -PathType Leaf) "launcher exists"
 Assert-True (Test-Path -LiteralPath $nativeBootstrapPath -PathType Leaf) "native bootstrap exists"
 $nativeBootstrapText = Get-Content -LiteralPath $nativeBootstrapPath -Raw
+Assert-True ($nativeBootstrapText -match '--no-launch') "native bootstrap exposes a noninteractive no-launch mode for automation"
+Assert-True ($nativeBootstrapText -match 'curl\.exe -fsSL --retry 2 --connect-timeout 15') "native bootstrap keeps source download output quiet while preserving curl failures"
+Assert-True ($nativeBootstrapText -match 'Starting WGDot\.\.\.') "interactive native bootstrap launches WGDot immediately after installation"
 Assert-True ($nativeBootstrapText -match 'System\.Windows\.Forms\.dll') "native bootstrap references WinForms for the WGDot power overlay"
 Assert-True ($nativeBootstrapText -match 'System\.Drawing\.dll') "native bootstrap references System.Drawing for the WGDot power overlay"
 Assert-True (Test-Path -LiteralPath $nativeSourcePath -PathType Leaf) "native bootstrap source exists"
