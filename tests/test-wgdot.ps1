@@ -240,7 +240,7 @@ Assert-True ($yaziInitText -match 'label = "New folder".*shortcut = "a /"') "Yaz
 Assert-True ($yaziInitText -match 'label = "Terminal here".*shortcut = "t e"') "Yazi folder context menu exposes Terminal here with keyboard parity"
 Assert-True ($yaziInitText -match 'label = "Rename".*shortcut = "r"') "Yazi item context menu shows the rename keyboard shortcut"
 Assert-True ($yaziInitText -match 'label = "Trash".*shortcut = "dd"') "Yazi item context menu shows the trash keyboard shortcut"
-Assert-True ($yaziInitText -match 'Keys: Enter open \| r rename \| Ctrl\+C/X copy/cut \| c z ZIP') "Yazi item context footer teaches keyboard equivalents"
+Assert-True ($yaziInitText -match 'Keys: Enter open \| d g drag out \| r rename \| Ctrl\+C/X copy/cut') "Yazi item context footer teaches keyboard equivalents including outbound drag"
 Assert-True ($yaziInitText -match 'Keys: a create \| Ctrl\+V/p paste \| t e terminal') "Yazi blank-space context footer teaches keyboard equivalents"
 Assert-True ($yaziInitText -match 'ya\.emit\("create", \{ dir = true \}\)') "Yazi New folder uses the stable native create dir flag"
 Assert-True ($yaziInitText -notmatch 'ya\.sync\(') "Yazi init.lua does not use plugin-only ya.sync"
