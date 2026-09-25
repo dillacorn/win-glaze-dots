@@ -438,7 +438,7 @@ The current Windows Yazi clipboard helper is:
 
 `UserProfile/AppData/Roaming/yazi/config/plugins/system-clipboard.yazi/main.lua`
 
-The current keymap invokes `plugin system-clipboard`.
+The current keymap invokes `plugin system-clipboard` only through the explicit `c y` Windows file-clipboard action. Normal `Ctrl+C` must not invoke this plugin.
 
 Use Yazi's native wraparound movement actions for list navigation: Up/`k` use `arrow prev` and Down/`j` use `arrow next`. This intentionally wraps from the first item to the last and from the last item to the first. Preserve native `g` Go To prefix behavior, `gg` top, and `G` bottom.
 
