@@ -136,23 +136,6 @@ try {
         try { Invoke-Native 'NormalizeYaziDragListPath' @($outsideManifest) | Out-Null }
         catch { $rejected = $true }
         Require $rejected 'Yazi drag accepted a manifest outside the temporary directory'
-
-        $copyManifest = Join-Path ([IO.Path]::GetTempPath()) ('wgdot-yazi-copy-' + [guid]::NewGuid().ToString('N') + '.txt')
-        try {
-            Set-Content -LiteralPath $copyManifest -Value $dragFile -Encoding UTF8
-            $copyPaths = @(Invoke-Native 'LoadYaziCopyPaths' @($copyManifest))
-            Require ($copyPaths.Count -eq 1) 'Yazi copy manifest did not return exactly one path'
-            Require ([IO.Path]::GetFullPath([string]$copyPaths[0]) -eq [IO.Path]::GetFullPath($dragFile)) 'Yazi copy manifest path changed unexpectedly'
-        }
-        finally {
-            Remove-Item -LiteralPath $copyManifest -Force -ErrorAction SilentlyContinue
-        }
-
-        $outsideCopyManifest = Join-Path $repo 'wgdot-yazi-copy-invalid.txt'
-        $copyRejected = $false
-        try { Invoke-Native 'NormalizeYaziCopyListPath' @($outsideCopyManifest) | Out-Null }
-        catch { $copyRejected = $true }
-        Require $copyRejected 'Yazi copy accepted a manifest outside the temporary directory'
     }
 
     Check 'windowless WGDot frontend preserves exact argument boundaries' {

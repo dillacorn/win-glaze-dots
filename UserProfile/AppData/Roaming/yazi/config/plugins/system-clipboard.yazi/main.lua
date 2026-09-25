@@ -33,42 +33,45 @@ function M:entry()
     return
   end
 
-  local local_app_data = os.getenv("LOCALAPPDATA")
   local temp_dir = os.getenv("TEMP")
-  if not local_app_data or local_app_data == "" or not temp_dir or temp_dir == "" then
-    notify_error("WGDot clipboard helper environment is unavailable.")
+  if not temp_dir or temp_dir == "" then
+    notify_error("TEMP is unavailable.")
     return
   end
 
-  local helper = local_app_data .. "\\wgdot\\bin\\wgdotw.exe"
-  local probe = io.open(helper, "rb")
-  if not probe then
-    notify_error("WGDot clipboard helper is not installed or approved.")
-    return
-  end
-  probe:close()
-
-  local list_path = string.format(
-    "%s\\wgdot-yazi-copy-%d-%d.txt",
-    temp_dir,
-    os.time(),
-    math.floor(os.clock() * 1000000)
-  )
-  local file = io.open(list_path, "wb")
+  local list_path = temp_dir .. "\\yazi_system_clipboard_" .. os.time() .. ".txt"
+  local file = io.open(list_path, "w")
   if not file then
-    notify_error("Could not prepare the Windows clipboard selection.")
+    notify_error("Could not create temporary clipboard file.")
     return
   end
 
-  for _, path in ipairs(paths) do
-    file:write(path, "\n")
-  end
+  file:write(table.concat(paths, "\n"))
   file:close()
 
-  local status, err = Command(helper):arg({ "yazi-copy", list_path }):status()
-  if err or (status and not status.success) then
-    os.remove(list_path)
-    notify_error("Yazi copy succeeded, but the Windows clipboard mirror is unavailable.")
+  local escaped = list_path:gsub("'", "''")
+  local script = string.format([[
+Add-Type -AssemblyName System.Windows.Forms
+$files = [System.Collections.Specialized.StringCollection]::new()
+Get-Content -LiteralPath '%s' -Encoding UTF8 | ForEach-Object {
+  if ($_.Length -gt 0) {
+    $null = $files.Add($_)
+  }
+}
+Remove-Item -LiteralPath '%s' -ErrorAction SilentlyContinue
+[System.Windows.Forms.Clipboard]::SetFileDropList($files)
+]], escaped, escaped)
+
+  local output, err = Command("powershell.exe")
+    :arg({ "-NoProfile", "-NonInteractive", "-Sta", "-Command", script })
+    :output()
+
+  if err then
+    notify_error("PowerShell clipboard command failed: " .. tostring(err))
+    return
+  end
+  if not output.status.success then
+    notify_error("PowerShell clipboard command exited with code " .. tostring(output.status.code))
   end
 end
 
