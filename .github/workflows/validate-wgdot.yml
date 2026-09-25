@@ -187,12 +187,11 @@ jobs:
           title='WGDot v4.6.1 Yazi'
           target='0a60dd464ba88f2a97eb4866c77f25be9a6de0eb'
 
+          release_exists=0
           if gh release view "$tag" >/dev/null 2>&1; then
-            echo "Release $tag already exists." >&2
-            exit 1
-          fi
-          if git ls-remote --exit-code origin "refs/tags/$tag" >/dev/null 2>&1; then
-            echo "Tag $tag already exists." >&2
+            release_exists=1
+          elif git ls-remote --exit-code origin "refs/tags/$tag" >/dev/null 2>&1; then
+            echo "Tag $tag exists without a published release." >&2
             exit 1
           fi
 
@@ -233,10 +232,12 @@ jobs:
           _Placeholder for possible tested post-release patches to v4.6.1._
           EOF
 
-          gh release create "$tag" \
-            --target "$target" \
-            --title "$title" \
-            --notes-file release-notes.md
+          if [[ "$release_exists" == 0 ]]; then
+            gh release create "$tag" \
+              --target "$target" \
+              --title "$title" \
+              --notes-file release-notes.md
+          fi
 
           published="$(gh release view "$tag" --json name,tagName,isDraft,isPrerelease,targetCommitish,body)"
           printf '%s\n' "$published"
@@ -246,8 +247,40 @@ jobs:
           test "$(printf '%s' "$published" | jq -r '.isDraft')" = "false"
           test "$(printf '%s' "$published" | jq -r '.isPrerelease')" = "false"
           test "$(printf '%s' "$published" | jq -r '.targetCommitish')" = "$target"
-          printf '%s' "$published" | jq -r '.body' > published-release-notes.md
+          printf '%s' "$published" | jq -j '.body' > published-release-notes.md
           cmp -s release-notes.md published-release-notes.md
 
           tag_sha="$(git ls-remote origin "refs/tags/$tag" | awk '{print $1}')"
           test "$tag_sha" = "$target"
+
+  cleanup-v461-release-bridge:
+    needs:
+      - yasb-stable-schema
+      - windows-powershell-51
+      - powershell-7
+      - native-bootstrap
+      - release-v461-yazi
+    if: >-
+      always() &&
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.title == 'Create WGDot v4.6.1 Yazi release' &&
+      github.event.pull_request.head.ref == 'chore/v461-yazi-release-bridge' &&
+      github.event.pull_request.base.ref == 'main' &&
+      needs.yasb-stable-schema.result == 'success' &&
+      needs.windows-powershell-51.result == 'success' &&
+      needs.powershell-7.result == 'success' &&
+      needs.native-bootstrap.result == 'success' &&
+      needs.release-v461-yazi.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Close bridge PR and delete helper branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          gh pr close "${{ github.event.pull_request.number }}" --repo "$GITHUB_REPOSITORY"
+          gh api --method DELETE "repos/$GITHUB_REPOSITORY/git/refs/heads/chore/v461-yazi-release-bridge"
