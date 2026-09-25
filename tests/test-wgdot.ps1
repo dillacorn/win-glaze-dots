@@ -974,7 +974,7 @@ Assert-True ($nativeSourceText -match 'Opening the official OBS installer intera
 Assert-True ($nativeSourceText -match 'StopAsusFrameworkForObsInstall') "OBS recovery explicitly handles the ASUS NodeJS Web Framework blocker"
 Assert-True ($nativeSourceText -match 'taskkill\.exe') "OBS ASUS recovery stops the blocker process tree rather than only its parent process"
 Assert-True ($nativeSourceText -match 'asus_framework\.exe /T /F') "OBS ASUS recovery targets the confirmed ASUS framework executable and child processes"
-Assert-True ($nativeSourceText -match '\\\\ASUS\\\\Framework Service') "OBS ASUS recovery restarts the vendor framework through its scheduled task"
+Assert-True ($nativeSourceText -match 'ASUS\\Framework Service') "OBS ASUS recovery restarts the vendor framework through its scheduled task"
 Assert-True ($nativeSourceText -match 'RestartAsusFrameworkAfterObsInstall') "OBS ASUS recovery restores the vendor framework after package maintenance"
 $rustDeskPackage = @($manifest.packages | Where-Object { $_.id -eq 'RustDesk.RustDesk' })[0]
 Assert-True ($null -ne $rustDeskPackage) "RustDesk catalog entry exists"
