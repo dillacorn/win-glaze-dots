@@ -165,3 +165,158 @@ jobs:
         run: |
           set "WGDOT_TEST_ROOT=%TEMP%\wgdot-native-maintenance-state"
           "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" maintenance-self-test
+
+
+  v460-yazi-post-release-bridge:
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.title == 'Temporary v4.6.0 Yazi post-release bridge' &&
+      github.event.pull_request.head.ref == 'chore/v460-yazi-post-release-bridge' &&
+      github.event.pull_request.base.ref == 'main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Update and verify existing v4.6.0 release notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          repo='dillacorn/win-glaze-dots'
+          tag='v4.6.0'
+          title='WGDot v4.6.0 Yazi'
+          expected_release_target='1b2a87f619e14a15fd29c52913372dd434691493'
+          expected_main='5103f4284ccaa5b11975d36fe0a8b9719808c4a9'
+          branch='chore/v460-yazi-post-release-bridge'
+          before="$RUNNER_TEMP/v460-before.json"
+          after="$RUNNER_TEMP/v460-after.json"
+          proposed="$RUNNER_TEMP/v460-proposed.md"
+
+          gh api "repos/$repo/releases/tags/$tag" >"$before"
+
+          python3 - "$before" "$proposed" <<'PY'
+          import json
+          from pathlib import Path
+          import sys
+
+          before = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+          proposed_path = Path(sys.argv[2])
+
+          expected = {
+              "name": "WGDot v4.6.0 Yazi",
+              "tag_name": "v4.6.0",
+              "target_commitish": "1b2a87f619e14a15fd29c52913372dd434691493",
+              "draft": False,
+              "prerelease": False,
+          }
+          actual = {key: before.get(key) for key in expected}
+          if actual != expected:
+              raise SystemExit(f"unexpected v4.6.0 release metadata: {actual!r}")
+
+          body = before.get("body") or ""
+          heading = "## Post-release update - Yazi outbound drag and startup polish"
+          if heading in body:
+              raise SystemExit("v4.6.0 Yazi/startup post-release section already exists")
+
+          install = "[INSTALL.md](https://github.com/dillacorn/win-glaze-dots/blob/main/INSTALL.md)"
+          update = "[UPDATE.md](https://github.com/dillacorn/win-glaze-dots/blob/main/UPDATE.md)"
+          if "## Install and update" not in body or install not in body or update not in body:
+              raise SystemExit("existing v4.6.0 body is missing the required install/update contract")
+          if body.index(install) > body.index(update):
+              raise SystemExit("existing v4.6.0 body has Update before Install")
+
+          section = """## Post-release update - Yazi outbound drag and startup polish
+
+          - On 2026-09-24, Yazi outbound drag from PR #67 was merged to `main` at `5103f4284ccaa5b11975d36fe0a8b9719808c4a9`. `d g` and right-click **Drag out...** now open a compact native Windows FileDrop surface for the hovered item or current selection.
+          - The drag surface is borderless, follows the active WGDot/YASB theme, opens centered on the active interaction screen, supports multi-selection, and keeps Yazi's internal mouse drag as its existing Copy/Move workflow. It does not mutate the clipboard, inject keys, install hooks, or track pointer escape from the terminal.
+          - Managed Yazi configuration updates no longer require Yazi to be closed. WGDot applies the managed files normally and prints a restart notice so existing sessions can reload the new configuration when convenient.
+          - RawAccel login startup now prefers RawAccel's bundled `writer.exe settings.json` path so the saved driver configuration is applied without leaving a GUI or taskbar window resident. `Super+Shift+M` remains the explicit path for opening the visible, centered RawAccel GUI.
+          - The maintainer runtime-approved the Yazi drag/drop, theme-following, and centered-window behavior before merge. `Validate WGDot` passed on the exact PR head and again on the post-merge `main` commit. The final headless RawAccel writer path is CI-validated and was not separately runtime-tested after that last refinement.
+          - The v4.6.0 tag and original managed release target remain unchanged at `1b2a87f619e14a15fd29c52913372dd434691493`."""
+
+          if body.endswith("\n\n"):
+              separator = ""
+          elif body.endswith("\n"):
+              separator = "\n"
+          else:
+              separator = "\n\n"
+
+          intended = body + separator + section
+          proposed_path.write_text(intended, encoding="utf-8")
+          PY
+
+          tag_sha_before="$(git ls-remote --tags origin "refs/tags/$tag" | awk 'NR == 1 { print $1 }')"
+          if [[ "$tag_sha_before" != "$expected_release_target" ]]; then
+            printf 'Unexpected %s tag SHA before edit: %s\n' "$tag" "$tag_sha_before" >&2
+            exit 1
+          fi
+
+          main_sha_before="$(git ls-remote origin refs/heads/main | awk 'NR == 1 { print $1 }')"
+          if [[ "$main_sha_before" != "$expected_main" ]]; then
+            printf 'Unexpected main SHA before release edit: %s\n' "$main_sha_before" >&2
+            exit 1
+          fi
+
+          gh release edit "$tag" --repo "$repo" --notes-file "$proposed"
+          gh api "repos/$repo/releases/tags/$tag" >"$after"
+
+          python3 - "$before" "$after" "$proposed" <<'PY'
+          import json
+          from pathlib import Path
+          import sys
+
+          before = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+          after = json.loads(Path(sys.argv[2]).read_text(encoding="utf-8"))
+          intended = Path(sys.argv[3]).read_text(encoding="utf-8")
+
+          keys = ("name", "tag_name", "target_commitish", "draft", "prerelease")
+          before_meta = {key: before.get(key) for key in keys}
+          after_meta = {key: after.get(key) for key in keys}
+          if after_meta != before_meta:
+              raise SystemExit(
+                  f"release metadata changed unexpectedly: {before_meta!r} -> {after_meta!r}"
+              )
+
+          published = after.get("body") or ""
+          if published != intended:
+              raise SystemExit("published v4.6.0 body does not exactly match the intended body")
+
+          old_body = before.get("body") or ""
+          if not published.startswith(old_body):
+              raise SystemExit("existing v4.6.0 release notes were not preserved verbatim")
+
+          if published.count("## Post-release update - Yazi outbound drag and startup polish") != 1:
+              raise SystemExit("expected exactly one Yazi/startup post-release section")
+
+          install = "[INSTALL.md](https://github.com/dillacorn/win-glaze-dots/blob/main/INSTALL.md)"
+          update = "[UPDATE.md](https://github.com/dillacorn/win-glaze-dots/blob/main/UPDATE.md)"
+          if not published.startswith("# WGDot v4.6.0 Yazi"):
+              raise SystemExit("published body lost the v4.6.0 release heading")
+          if "## Install and update" not in published or install not in published or update not in published:
+              raise SystemExit("published body lost the required install/update contract")
+          if published.index(install) > published.index(update):
+              raise SystemExit("published body has Update before Install")
+          PY
+
+          tag_sha_after="$(git ls-remote --tags origin "refs/tags/$tag" | awk 'NR == 1 { print $1 }')"
+          if [[ "$tag_sha_after" != "$tag_sha_before" ]]; then
+            printf 'Release tag moved unexpectedly: %s -> %s\n' "$tag_sha_before" "$tag_sha_after" >&2
+            exit 1
+          fi
+
+          main_sha_after="$(git ls-remote origin refs/heads/main | awk 'NR == 1 { print $1 }')"
+          if [[ "$main_sha_after" != "$expected_main" ]]; then
+            printf 'main moved during release edit: %s -> %s\n' "$expected_main" "$main_sha_after" >&2
+            exit 1
+          fi
+
+          printf 'Verified %s post-release notes; tag remains %s.\n' "$tag" "$tag_sha_after"
+
+          gh pr close "${{ github.event.pull_request.number }}" --repo "$repo" --comment 'v4.6.0 Yazi post-release notes updated and verified. Closing this temporary release bridge without merge.'
+          git push origin --delete "$branch"
