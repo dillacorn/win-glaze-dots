@@ -22,7 +22,7 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-87";
+    const string Version = "native-preview-88";
     const string HiddenLauncherVersion = "2.0.0.0";
     const int WingetPreflightTimeoutMs = 30000;
     const int CurrentTweakDefaultsVersion = 1;
@@ -230,7 +230,6 @@ internal static class WgdotNative
     const int HtBottomRight = 17;
     const int DwmwaCloaked = 14;
     const int SwShowNormal = 1;
-    const int SwShowMinNoActive = 7;
     const uint SwpNoSize = 0x0001;
     const uint SwpNoZOrder = 0x0004;
     const uint SwpShowWindow = 0x0040;
@@ -321,9 +320,6 @@ internal static class WgdotNative
         int width,
         int height,
         uint flags);
-
-    [DllImport("user32.dll")]
-    static extern bool ShowWindowAsync(IntPtr hWnd, int nCmdShow);
 
     [StructLayout(LayoutKind.Sequential)]
     struct SP_DEVINFO_DATA
@@ -5014,7 +5010,39 @@ class WgdotHidden
         SetForegroundWindow(window);
     }
 
-    static void MinimizeRawAccelStartupWindow(Process process)
+    static bool TryRunRawAccelStartupWriter()
+    {
+        string gui = FindRawAccelExe();
+        if (String.IsNullOrWhiteSpace(gui))
+            throw new Exception("RawAccel GUI executable was not found.");
+
+        string directory = Path.GetDirectoryName(gui);
+        if (String.IsNullOrWhiteSpace(directory) || !Directory.Exists(directory))
+            throw new Exception("RawAccel installation directory was not found.");
+
+        string writer = Path.Combine(directory, "writer.exe");
+        string settings = Path.Combine(directory, "settings.json");
+        if (!IsWindowsExecutableFile(writer) || !File.Exists(settings))
+            return false;
+
+        ProcResult result = RunWithTimeout(
+            writer,
+            Q(settings),
+            directory,
+            15000);
+        if (result.TimedOut)
+            throw new Exception("RawAccel writer timed out while applying startup settings.");
+        if (result.ExitCode != 0)
+            throw new Exception(
+                "RawAccel writer failed with exit code " +
+                result.ExitCode.ToString(CultureInfo.InvariantCulture) +
+                ": " +
+                LastUsefulLine(result.StdErr + "\n" + result.StdOut));
+
+        return true;
+    }
+
+    static void CompleteRawAccelGuiStartupAndClose(Process process)
     {
         if (process == null)
             return;
@@ -5048,21 +5076,34 @@ class WgdotHidden
             System.Threading.Thread.Sleep(25);
         }
 
-        if (window == IntPtr.Zero || !IsWindow(window))
-            return;
-
-        // RawAccel and GlazeWM can both adjust the first window state during
-        // login. Give them a moment to settle, then reinforce a minimized,
-        // non-activating state without applying the hotkey-only resize.
-        System.Threading.Thread.Sleep(300);
-
-        for (int i = 0; i < 8; i++)
+        if (window != IntPtr.Zero && IsWindow(window))
         {
-            if (!IsWindow(window))
-                return;
+            // The GUI fallback exists only for an incomplete/first-run
+            // installation without writer.exe + settings.json. Give RawAccel
+            // enough time to finish its startup initialization, then close the
+            // GUI normally so login never leaves a taskbar/minimized window.
+            System.Threading.Thread.Sleep(2000);
+            PostMessage(window, WmClose, IntPtr.Zero, IntPtr.Zero);
+        }
 
-            ShowWindowAsync(window, SwShowMinNoActive);
-            System.Threading.Thread.Sleep(75);
+        try
+        {
+            if (!process.WaitForExit(5000) && !process.HasExited)
+            {
+                process.Kill();
+                process.WaitForExit(2000);
+            }
+        }
+        catch
+        {
+            try
+            {
+                if (!process.HasExited)
+                    process.Kill();
+            }
+            catch
+            {
+            }
         }
     }
 
@@ -10360,9 +10401,17 @@ class WgdotHidden
 
     static int RawAccelStartup()
     {
+        // RawAccel ships writer.exe specifically to apply settings.json
+        // without keeping the GUI resident. Prefer that headless startup path
+        // so the login action cannot strand an inaccessible taskbar window.
+        if (TryRunRawAccelStartupWriter())
+            return 0;
+
+        // First-run/incomplete installations may not have both writer.exe and
+        // settings.json yet. Let the GUI initialize once, then close it fully.
         using (Process started = StartRawAccelGuiProcess(true))
         {
-            MinimizeRawAccelStartupWindow(started);
+            CompleteRawAccelGuiStartupAndClose(started);
         }
 
         return 0;
