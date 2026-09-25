@@ -97,13 +97,15 @@ try {
         }
     }
 
-    Check 'Yazi native drag helper is gesture-scoped and path-only' {
+    Check 'Yazi native drag helper uses an explicit short-lived drag surface' {
         Require ($nativeSource -match 'if \(command == "yazi-drag"\) return YaziDragFromArgs') 'Yazi native drag command dispatch is missing'
-        $dragBlock = [regex]::Match($nativeSource, '(?ms)static int YaziDragFromArgs\(string\[\] args\).*?^    }').Value
-        Require ($dragBlock -match 'GetAsyncKeyState\(0x01\)') 'Yazi drag does not require held Mouse1'
-        Require ($dragBlock -match 'PointInsideRect\(point, sourceRect\)') 'Yazi drag does not wait for the pointer to leave the terminal window'
-        Require ($dragBlock -match 'DoDragDrop') 'Yazi drag is not using native OLE/WinForms drag-drop'
-        Require ($dragBlock -notmatch 'Clipboard|keybd_event|SendKeys|SetWindowsHookEx') 'Yazi drag must not mutate clipboard, inject keys, or install hooks'
+        Require ($nativeSource -match 'sealed class YaziDragSurface : System\.Windows\.Forms\.Form') 'Yazi drag surface window is missing'
+        Require ($nativeSource -match 'Application\.Run\(new YaziDragSurface\(files\)\)') 'Yazi drag command does not run the dedicated drag surface'
+        Require ($nativeSource -match 'dragLabel\.MouseDown \+= BeginFileDrag') 'Yazi drag surface is not directly draggable with Mouse1'
+        Require ($nativeSource -match 'data\.SetFileDropList\(dropList\)') 'Yazi drag surface does not expose native file-drop data'
+        Require ($nativeSource -match 'DoDragDrop') 'Yazi drag is not using native OLE/WinForms drag-drop'
+        Require ($nativeSource -notmatch 'GetAsyncKeyState\(0x01\).*PointInsideRect') 'Yazi outbound drag still depends on leaving the terminal while Mouse1 is held'
+        Require ($nativeSource -notmatch 'Clipboard|keybd_event|SendKeys|SetWindowsHookEx') 'Yazi drag must not mutate clipboard, inject keys, or install hooks'
 
         $refreshBlock = [regex]::Match($nativeSource, '(?ms)static bool ShouldAutoRefreshRuntime\(string command\).*?^    }').Value
         Require ($refreshBlock -notmatch 'yazi-drag') 'Yazi drag must not trigger runtime/network refresh'
