@@ -1287,38 +1287,6 @@ function WgdotYaziContextMenu:actions()
     return actions
 end
 
-function WgdotYaziContextMenu:footer()
-    if self._kind == "background" then
-        return {
-            "Keys: a create | Ctrl+V/p paste | t e terminal | g B bookmark",
-            "Navigate: g b bookmarks | g m drives | Ctrl+F recursive search",
-        }
-    elseif self._kind == "drop" then
-        return {
-            "Release chose this folder as the destination",
-            "Choose Copy or Move; click elsewhere to cancel",
-        }
-    elseif self._selection_count > 1 then
-        return {
-            "Keys: r bulk rename | d g drag out | Ctrl+C/X copy/cut",
-            "More: c z ZIP | dd trash | Shift+D permanent delete",
-        }
-    end
-
-    local hovered = cx.active.current.hovered
-    if hovered and hovered.cha.is_dir then
-        return {
-            "Keys: Enter open | t n new tab | d g drag out | r rename",
-            "More: g B bookmark | Ctrl+C/X copy/cut | cc path | Tab info | c z ZIP | dd trash",
-        }
-    end
-
-    return {
-        "Keys: Enter open | d g drag out | r rename | Ctrl+C/X copy/cut",
-        "More: c z ZIP | cc path | Tab info | dd trash | e h/e f extract ZIP",
-    }
-end
-
 function WgdotYaziContextMenu:new(area)
     self._screen = area
     if not self._visible then
@@ -1328,19 +1296,35 @@ function WgdotYaziContextMenu:new(area)
     end
 
     local actions = self:actions()
-    local width = math.min(56, area.w)
-    local height = math.min(#actions + 4, area.h)
+    local width = 28
+    for _, action in ipairs(actions) do
+        local label_width = ui.Line(action.label or ""):width()
+        local shortcut_width = ui.Line(action.shortcut or ""):width()
+        width = math.max(width, label_width + shortcut_width + 5)
+    end
+    width = math.min(width, 48, area.w)
 
-    if width < 28 or height < #actions + 4 then
+    local height = #actions + 2
+    if width < 24 or height <= 2 or height > area.h then
         self._area = ui.Rect {}
         self._list_area = ui.Rect {}
         return self
     end
 
-    local max_x = area.x + area.w - width
-    local max_y = area.y + area.h - height
-    local x = math.max(area.x, math.min(self._x, max_x))
-    local y = math.max(area.y, math.min(self._y, max_y))
+    local right = area.x + area.w
+    local bottom = area.y + area.h
+
+    local x = self._x + 2
+    if x + width > right then
+        x = self._x - width - 1
+    end
+    x = math.max(area.x, math.min(x, right - width))
+
+    local y = self._y
+    if y + height > bottom then
+        y = self._y - height + 1
+    end
+    y = math.max(area.y, math.min(y, bottom - height))
 
     self._area = ui.Rect { x = x, y = y, w = width, h = height }
     self._list_area = ui.Rect {
@@ -1348,12 +1332,6 @@ function WgdotYaziContextMenu:new(area)
         y = y + 1,
         w = width - 2,
         h = #actions,
-    }
-    self._footer_area = ui.Rect {
-        x = x + 1,
-        y = y + 1 + #actions,
-        w = width - 2,
-        h = 2,
     }
 
     return self
@@ -1371,12 +1349,17 @@ function WgdotYaziContextMenu:redraw()
     local rows = {}
     local content_width = self._list_area.w
     for i, action in ipairs(self:actions()) do
-        local gap = math.max(1, content_width - #action.label - #action.shortcut - 2)
+        local left = " " .. tostring(action.label or "")
+        local right = tostring(action.shortcut or "") .. " "
+        local gap = math.max(
+            1,
+            content_width - ui.Line(left):width() - ui.Line(right):width()
+        )
+
         local row = ui.Line {
-            ui.Span(" " .. action.label):style(th.help.action),
+            ui.Span(left):style(th.help.action),
             ui.Span(string.rep(" ", gap)),
-            ui.Span(action.shortcut):style(th.help.chord),
-            ui.Span(" "),
+            ui.Span(right):style(th.help.chord),
         }
         if i == self._hovered_row then
             row:style(th.help.hovered)
@@ -1384,19 +1367,14 @@ function WgdotYaziContextMenu:redraw()
         rows[#rows + 1] = row
     end
 
-    local footer = self:footer()
     return {
         ui.Clear(self._area),
         ui.Border(ui.Edge.ALL)
             :area(self._area)
             :type(ui.Border.PLAIN)
             :style(th.help.border)
-            :title(ui.Line(self:title()):align(ui.Align.CENTER)),
+            :title(ui.Line(self:title())),
         ui.List(rows):area(self._list_area),
-        ui.Text({
-            ui.Line(" " .. footer[1]),
-            ui.Line(" " .. footer[2]),
-        }):area(self._footer_area),
     }
 end
 
@@ -1467,19 +1445,21 @@ function WgdotYaziContextMenu:run(action)
     end
 end
 
-function WgdotYaziContextMenu:move(event)
-    local row = nil
-    if event.x >= self._list_area.x
-        and event.x < self._list_area.x + self._list_area.w
-        and event.y >= self._list_area.y
-        and event.y < self._list_area.y + self._list_area.h
+function WgdotYaziContextMenu:row_at(event)
+    if event.x < self._list_area.x
+        or event.x >= self._list_area.x + self._list_area.w
+        or event.y < self._list_area.y
+        or event.y >= self._list_area.y + self._list_area.h
     then
-        local candidate = event.y - self._list_area.y + 1
-        if self:actions()[candidate] then
-            row = candidate
-        end
+        return nil
     end
 
+    local row = event.y - self._list_area.y + 1
+    return self:actions()[row] and row or nil
+end
+
+function WgdotYaziContextMenu:move(event)
+    local row = self:row_at(event)
     if row ~= self._hovered_row then
         self._hovered_row = row
         ui.render()
@@ -1487,12 +1467,15 @@ function WgdotYaziContextMenu:move(event)
 end
 
 function WgdotYaziContextMenu:click(event, up)
-    if up or not event.is_left then
+    if up then return end
+
+    if not event.is_left then
+        self:hide()
         return
     end
 
-    local row = event.y - self._list_area.y + 1
-    local action = self:actions()[row]
+    local row = self:row_at(event)
+    local action = row and self:actions()[row] or nil
     if action then
         self:run(action.action)
     else
