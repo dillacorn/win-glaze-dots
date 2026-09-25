@@ -115,6 +115,7 @@ Assert-True ($yaziKeymapText -match 'on = \["<C-w>"\].*WgdotYaziCloseTab') "Yazi
 Assert-True ($yaziKeymapText -match '(?s)\[confirm\].*on = \["<Space>"\].*close --submit') "Yazi confirmation accepts Space as Yes"
 Assert-True ($yaziKeymapText -match 'on = \["<C-x>"\].*run = "yank --cut"') "Yazi Ctrl+X cuts selected files"
 Assert-True ($yaziKeymapText -match 'on = \["<C-v>"\].*run = "paste"') "Yazi Ctrl+V pastes copied/cut files"
+Assert-True ($yaziKeymapText -match 'on = \["<F2>"\].*run = "rename"') "Yazi F2 provides Windows-style rename"
 Assert-True ($yaziKeymapText -notmatch 'on = \["<C-x>"\].*toggle_all') "Yazi Ctrl+X is no longer overloaded as clear selection"
 Assert-True ($yaziKeymapText -match 'on = \["c", "z"\].*WgdotYaziCompressSelection') "Yazi c z compresses selection to ZIP"
 Assert-True ($yaziKeymapText -match 'on = \["e", "h"\].*WgdotYaziExtractZipHere') "Yazi e h extracts ZIP into current directory"
