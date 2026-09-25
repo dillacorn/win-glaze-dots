@@ -85,6 +85,8 @@ Validation
 
 WGDot is primarily a management/configuration tool. Narrow, compiled desktop-session helpers are allowed only where the desired behavior cannot be reproduced cleanly by GlazeWM, YASB, Windows, or the target application.
 
+**Runtime-helper last-resort rule:** do not introduce, extend, or route ordinary desktop behavior through `wgdot.exe` or `wgdotw.exe` merely because WGDot can implement it. First exhaust the target application's own configuration, keybindings, commands, plugins, and APIs; then existing Windows, GlazeWM, YASB, Yazi, terminal, or other already-installed native mechanisms. Reuse an existing approved WGDot runtime helper only when it already owns the required primitive cleanly. Add or extend compiled WGDot runtime behavior only when those native/configuration paths cannot provide the required behavior reliably and the exception is narrow, documented, and covered by tests. If a task can be solved cleanly without WGDot runtime code, solving it through WGDot is an architectural regression.
+
 - Managed GlazeWM and YASB configuration should remain broadly usable when copied manually without WGDot, but approved custom surfaces may degrade when the compiled helper is absent.
 - Runtime ownership is hybrid and capability-driven. Ordinary actions already supported cleanly by GlazeWM, YASB, Windows, or the target application must stay native; WGDot runtime helpers are allowed only for custom behavior that genuinely requires code, cross-component state coordination, or low-level Windows APIs.
 - GlazeWM owns GlazeWM keybindings and binding modes. YASB owns its native widgets and callbacks where those widgets satisfy the intended behavior. Installed applications should be launched directly when practical.
