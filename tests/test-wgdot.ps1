@@ -132,6 +132,8 @@ Assert-True ($yaziClipboardText -match 'wgdotw\.exe') "Yazi Windows clipboard ex
 Assert-True ($yaziClipboardText -match '"yazi-copy"') "Yazi Windows clipboard export calls the scoped native yazi-copy command"
 Assert-True ($yaziClipboardText -match 'wgdot-yazi-copy-') "Yazi Windows clipboard export uses a bounded WGDot temp manifest"
 Assert-True ($yaziClipboardText -notmatch '(?i)powershell\.exe|io\.popen') "Yazi Windows clipboard export never starts a console child that can compete for Ctrl+C"
+Assert-True ($yaziClipboardText -notmatch 'ya\.async') "Yazi Windows clipboard export does not create a background task for the short-lived clipboard handoff"
+Assert-True ($yaziClipboardText -match 'Command\(helper\):arg\(\{ "yazi-copy", list_path \}\):status\(\)') "Yazi Windows clipboard export waits directly for the short-lived helper without polluting the task counter"
 Assert-True ($yaziInitText -match '#cx\.active\.selected > 0') "Yazi manager Esc detects an existing explicit selection"
 Assert-True ($yaziInitText -match 'ya\.emit\("escape", \{ select = true \}\)') "Yazi manager Esc explicitly clears selection after modal/input layers are gone"
 $yaziRecentPath = Join-Path $repoRoot "UserProfile\AppData\Roaming\yazi\config\plugins\recent-files.yazi\main.lua"

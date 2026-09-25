@@ -65,13 +65,11 @@ function M:entry()
   end
   file:close()
 
-  ya.async(function()
-    local status, err = Command(helper):arg({ "yazi-copy", list_path }):status()
-    if err or (status and not status.success) then
-      os.remove(list_path)
-      notify_error("WGDot could not mirror the copied files to the Windows clipboard.")
-    end
-  end)
+  local status, err = Command(helper):arg({ "yazi-copy", list_path }):status()
+  if err or (status and not status.success) then
+    os.remove(list_path)
+    notify_error("Yazi copy succeeded, but the Windows clipboard mirror is unavailable.")
+  end
 end
 
 return M
