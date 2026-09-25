@@ -5,6 +5,34 @@ require("recent-files"):setup()
 require("bookmarks"):setup()
 require("git"):setup { order = 1500 }
 
+local WgdotYaziSystemClipboard = require("system-clipboard")
+local WgdotYaziSystemClipboardArmed = false
+
+ps.sub("@yank", function(state)
+    if not WgdotYaziSystemClipboardArmed then return end
+    WgdotYaziSystemClipboardArmed = false
+    if state.cut then return end
+
+    local paths = {}
+    for _, file in pairs(state) do
+        local url = file.url or file
+        local is_regular = url.spec and url.spec.is_regular or url.is_regular
+        if is_regular then
+            paths[#paths + 1] = tostring(url)
+        end
+    end
+    if #paths == 0 then return end
+
+    ya.async(function()
+        WgdotYaziSystemClipboard.copy(paths)
+    end)
+end)
+
+function WgdotYaziSystemYank()
+    WgdotYaziSystemClipboardArmed = true
+    ya.emit("yank", {})
+end
+
 local function WgdotYaziNormalizeFsPath(value)
     local path = tostring(value or ""):gsub("\\", "/"):gsub("/+$", "")
     return path:lower()
