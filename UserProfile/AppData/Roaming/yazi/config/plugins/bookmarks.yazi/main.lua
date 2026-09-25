@@ -19,10 +19,7 @@ local function state_file() return state_dir() .. "\\wgdot-bookmarks.txt" end
 local function collection_dir() return state_dir() .. "\\collections\\Bookmarks" end
 
 local function ensure_state_dir()
-    local dir = state_dir()
-    if dir:find('"', 1, true) then return false end
-    os.execute('if not exist "' .. dir .. '" mkdir "' .. dir .. '" >nul 2>nul')
-    return true
+    return fs.create("dir_all", Url(state_dir()))
 end
 
 local function parse_entry(value)
@@ -61,7 +58,6 @@ local function read_state()
 end
 
 local function write_state(list)
-    ensure_state_dir()
     local file = io.open(state_file(), "w")
     if not file then return false end
     for _, value in ipairs(normalized(list)) do file:write(value, "\n") end
@@ -193,7 +189,6 @@ local subscribe = ya.sync(function(self)
     ps.sub(KIND, function(incoming) self.bookmarks = normalized(incoming) end)
     ps.sub_remote(KIND, function(incoming)
         self.bookmarks = normalized(incoming)
-        write_state(self.bookmarks)
         ps.pub(KIND, self.bookmarks)
     end)
 end)
@@ -215,6 +210,8 @@ local function activate(marker, new_tab)
 
     local cha = fs.cha(Url(target), true)
     if not cha then
+        local ok, err = ensure_state_dir()
+        if not ok then return notify_error("prepare bookmark state", err) end
         forget { target }
         remove_marker(marker)
         ya.emit("refresh", {})
@@ -262,6 +259,8 @@ function M:entry(job)
     local command = job.args[1]
 
     if command == "toggle" then
+        local ok, err = ensure_state_dir()
+        if not ok then return notify_error("prepare bookmark state", err) end
         local path = job.args[3] and decode_arg(job.args[3]) or decode_arg(job.args[2])
         if not path or path == "" then return end
         local cha = fs.cha(Url(path), true)
@@ -280,6 +279,8 @@ function M:entry(job)
         if marker then activate(marker, new_tab) end
         return
     elseif command == "delete" then
+        local ok, err = ensure_state_dir()
+        if not ok then return notify_error("prepare bookmark state", err) end
         local markers = {}
         for i = 2, #job.args do markers[#markers + 1] = decode_arg(job.args[i]) end
         if #markers > 0 then delete_markers(markers) end

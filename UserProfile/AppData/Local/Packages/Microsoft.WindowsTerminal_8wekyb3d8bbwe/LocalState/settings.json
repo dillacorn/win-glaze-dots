@@ -88,6 +88,14 @@
     "initialRows": 30,
     "keybindings": [
         {
+            "id": null,
+            "keys": "ctrl+c"
+        },
+        {
+            "id": null,
+            "keys": "ctrl+v"
+        },
+        {
             "id": "Terminal.CopyToClipboard",
             "keys": "ctrl+shift+c"
         },

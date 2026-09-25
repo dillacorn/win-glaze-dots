@@ -72,7 +72,16 @@ Remove-Item -LiteralPath '%s' -ErrorAction SilentlyContinue
   end
   if not output.status.success then
     notify_error("PowerShell clipboard command exited with code " .. tostring(output.status.code))
+    return
   end
+
+  ya.notify({
+    title = "System Clipboard",
+    content = #paths == 1
+        and "Copied 1 file to Windows clipboard."
+        or string.format("Copied %d files to Windows clipboard.", #paths),
+    timeout = 2.0,
+  })
 end
 
 return M

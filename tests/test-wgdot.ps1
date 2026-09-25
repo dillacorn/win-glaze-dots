@@ -99,7 +99,8 @@ Assert-True ($yaziKeymapText -match 'on = \["<Esc>"\].*WgdotYaziEscape') "Yazi m
 Assert-True ($yaziKeymapText -match 'on = \["t", "e"\].*wt\.exe -w new new-tab -d \.' ) "Yazi t e opens Windows Terminal in the current directory"
 Assert-True ($yaziKeymapText -match 'desc = "Open terminal here"') "Yazi terminal-here shortcut is documented in Help"
 Assert-True ($yaziKeymapText -match 'on = \["t", "n"\].*WgdotYaziOpenHoveredTab') "Yazi t n opens the hovered directory in a new tab"
-Assert-True ($yaziKeymapText -match 'on = \["<C-c>"\].*"yank".*"plugin system-clipboard"') "Yazi Ctrl+C copies selected files into Yazi and the Windows file clipboard"
+Assert-True ($yaziKeymapText -match 'on = \["<C-c>"\].*\["yank".*"plugin system-clipboard"') "Yazi Ctrl+C yanks then exports to the Windows file clipboard"
+Assert-True ($yaziKeymapText -match 'on = \["c", "y"\].*\["yank".*"plugin system-clipboard"') "Yazi c y uses the same proven Windows file-clipboard path"
 Assert-True ($yaziKeymapText -match 'on = \["<Space>"\].*run = "toggle"') "Yazi Space toggles individual selection"
 Assert-True ($yaziKeymapText -match 'on = \["<C-Space>"\].*run = "toggle"') "Yazi Ctrl+Space toggles individual selection"
 Assert-True ($yaziKeymapText -match 'on = \["<S-Up>"\].*WgdotYaziShiftArrow\(-1\)') "Yazi Shift+Up extends range selection"
@@ -114,6 +115,7 @@ Assert-True ($yaziKeymapText -match 'on = \["<C-w>"\].*WgdotYaziCloseTab') "Yazi
 Assert-True ($yaziKeymapText -match '(?s)\[confirm\].*on = \["<Space>"\].*close --submit') "Yazi confirmation accepts Space as Yes"
 Assert-True ($yaziKeymapText -match 'on = \["<C-x>"\].*run = "yank --cut"') "Yazi Ctrl+X cuts selected files"
 Assert-True ($yaziKeymapText -match 'on = \["<C-v>"\].*run = "paste"') "Yazi Ctrl+V pastes copied/cut files"
+Assert-True ($yaziKeymapText -match 'on = \["<F2>"\].*run = "rename"') "Yazi F2 provides Windows-style rename"
 Assert-True ($yaziKeymapText -notmatch 'on = \["<C-x>"\].*toggle_all') "Yazi Ctrl+X is no longer overloaded as clear selection"
 Assert-True ($yaziKeymapText -match 'on = \["c", "z"\].*WgdotYaziCompressSelection') "Yazi c z compresses selection to ZIP"
 Assert-True ($yaziKeymapText -match 'on = \["e", "h"\].*WgdotYaziExtractZipHere') "Yazi e h extracts ZIP into current directory"
@@ -126,10 +128,30 @@ Assert-True ($yaziConfigText -match '(?m)^linemode = "size_and_mtime"\r?$') "Yaz
 Assert-True ($yaziConfigText -match '(?m)^mouse_events = \["click", "scroll", "drag", "move"\]\r?$') "Yazi enables event-driven mouse move for menu hover"
 $yaziInitPath = Join-Path $repoRoot "UserProfile\AppData\Roaming\yazi\config\init.lua"
 $yaziInitText = Get-Content -LiteralPath $yaziInitPath -Raw
+$yaziArrowBlock = [regex]::Match($yaziInitText, '(?ms)function WgdotYaziArrow\(step\).*?^end').Value
+Assert-True ($yaziArrowBlock -match 'step < 0 and "prev" or "next"') "Yazi Up/Down wrapper converts numeric direction to native wraparound prev/next"
+Assert-True ($yaziArrowBlock -match 'ya\.emit\("arrow", \{ direction \}\)') "Yazi Up/Down wrapper dispatches native wraparound movement"
+Assert-True ($yaziInitText -match 'function WgdotYaziEscape\(\)') "Yazi manager Esc wrapper is defined"
+$yaziEscapeBlock = [regex]::Match($yaziInitText, '(?ms)function WgdotYaziEscape\(\).*?^end').Value
+Assert-True ($yaziEscapeBlock -match 'ya\.emit\("escape", \{\}\)') "Yazi manager Esc delegates normal cancel/selection ordering to native escape"
+Assert-True ($yaziEscapeBlock -notmatch 'select\s*=\s*true|cx\.active\.selected') "Yazi manager Esc does not bypass upstream one-layer-at-a-time escape precedence"
+$yaziClipboardPath = Join-Path $repoRoot "UserProfile\AppData\Roaming\yazi\config\plugins\system-clipboard.yazi\main.lua"
+$yaziClipboardText = Get-Content -LiteralPath $yaziClipboardPath -Raw
+Assert-True ($yaziClipboardText -match 'function M:entry') "Yazi Windows file clipboard remains an explicit plugin action"
+Assert-True ($yaziClipboardText -match 'ya\.sync\(function\(\)') "Yazi clipboard plugin reads completed yank state through a sync bridge"
+Assert-True ($yaziClipboardText -notmatch 'ya\.async') "Yazi clipboard plugin does not nest ya.async inside its async entry"
+Assert-True ($yaziClipboardText -match 'Command\("powershell\.exe"\)') "Yazi clipboard plugin uses the in-box PowerShell clipboard API"
+Assert-True ($yaziClipboardText -match 'SetFileDropList') "Yazi clipboard plugin exports native Windows FileDrop data"
+Assert-True ($yaziClipboardText -match 'Copied 1 file to Windows clipboard') "Yazi c y reports successful single-file Windows clipboard export"
+Assert-True ($yaziClipboardText -match 'Copied %d files to Windows clipboard') "Yazi c y reports successful multi-file Windows clipboard export"
 $yaziRecentPath = Join-Path $repoRoot "UserProfile\AppData\Roaming\yazi\config\plugins\recent-files.yazi\main.lua"
 $yaziRecentText = Get-Content -LiteralPath $yaziRecentPath -Raw
 $yaziBookmarksPath = Join-Path $repoRoot "UserProfile\AppData\Roaming\yazi\config\plugins\bookmarks.yazi\main.lua"
 $yaziBookmarksText = Get-Content -LiteralPath $yaziBookmarksPath -Raw
+$yaziPluginTexts = @($yaziRecentText, $yaziBookmarksText, $yaziClipboardText)
+Assert-True (-not ($yaziPluginTexts -match 'io\.popen|os\.execute')) "Managed Windows Yazi plugins avoid Lua subprocess APIs that can corrupt Ctrl+C console handling"
+Assert-True ($yaziRecentText -match 'fs\.create\("dir_all", Url\(state_dir\(\)\)\)') "Yazi recent-files creates state directories through Yazi fs API"
+Assert-True ($yaziBookmarksText -match 'fs\.create\("dir_all", Url\(state_dir\(\)\)\)') "Yazi bookmarks creates state directories through Yazi fs API"
 $yaziPreviewRefitPath = Join-Path $repoRoot "UserProfile\AppData\Roaming\yazi\config\plugins\preview-refit.yazi\main.lua"
 $yaziPreviewRefitText = Get-Content -LiteralPath $yaziPreviewRefitPath -Raw
 $yaziVfsPath = Join-Path $repoRoot "UserProfile\AppData\Roaming\yazi\config\vfs.toml"
@@ -144,6 +166,7 @@ Assert-True ($yaziInitText -match 'require\("recent-files"\)') "Yazi init loads 
 Assert-True ($yaziInitText -match 'require\("recent-files"\):setup\(\)') "Yazi recent-files DDS subscription is initialized at startup"
 Assert-True ($yaziInitText -match 'require\("bookmarks"\):setup\(\)') "Yazi bookmarks DDS subscription is initialized at startup"
 Assert-True ($yaziInitText -match 'require\("git"\):setup \{ order = 1500 \}') "Yazi Git signs augment the current linemode"
+Assert-True ($yaziInitText -notmatch 'WgdotYaziMirrorYankToSystemClipboard|require\("system-clipboard"\)') "Yazi init keeps Windows file-clipboard integration out of the normal manager runtime path"
 Assert-True ($yaziInitText -match 'local function WgdotYaziPluginHex\(value\)') "Yazi plugin argument encoder is defined"
 Assert-True ($yaziInitText -match 'WgdotYaziPluginArgs\("record", recent\)') "Yazi recent recording carries full file paths in plugin arguments"
 Assert-True ($yaziInitText -match 'WgdotYaziBookmarkTarget\(tostring\(cx\.active\.current\.cwd\), true\)') "Yazi g B bookmarks the current directory"
@@ -1382,7 +1405,10 @@ Assert-True ($nativeSourceText -match 'IsWindowVisible') "window audit filters t
 $terminalSettingsPath = Join-Path $repoRoot "UserProfile\AppData\Local\Packages\Microsoft.WindowsTerminal_8wekyb3d8bbwe\LocalState\settings.json"
 $terminalSettings = Get-Content -LiteralPath $terminalSettingsPath -Raw | ConvertFrom-Json
 Assert-Equal $true ([bool]$terminalSettings.copyOnSelect) "Windows Terminal copies selected text automatically"
+Assert-True (@($terminalSettings.keybindings | Where-Object { $null -eq $_.id -and $_.keys -eq "ctrl+c" }).Count -eq 1) "Windows Terminal unbinds Ctrl+C so terminal applications receive it"
+Assert-True (@($terminalSettings.keybindings | Where-Object { $null -eq $_.id -and $_.keys -eq "ctrl+v" }).Count -eq 1) "Windows Terminal unbinds Ctrl+V so terminal applications receive it"
 Assert-True (@($terminalSettings.keybindings | Where-Object { $_.id -eq "Terminal.CopyToClipboard" -and $_.keys -eq "ctrl+shift+c" }).Count -eq 1) "Windows Terminal keeps Ctrl+Shift+C copy"
+Assert-True (@($terminalSettings.keybindings | Where-Object { $_.id -eq "Terminal.PasteFromClipboard" -and $_.keys -eq "ctrl+shift+v" }).Count -eq 1) "Windows Terminal keeps Ctrl+Shift+V paste"
 
 $glazeNormalText = Get-Content -LiteralPath (Join-Path $repoRoot "UserProfile\.glzr\glazewm\config.yaml") -Raw
 $glazeWorkText = Get-Content -LiteralPath (Join-Path $repoRoot "UserProfile\.glzr\glazewm\custom_work_config.yaml") -Raw
