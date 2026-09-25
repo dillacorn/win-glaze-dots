@@ -22,7 +22,7 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-89";
+    const string Version = "native-preview-93";
     const string HiddenLauncherVersion = "2.0.0.0";
     const int WingetPreflightTimeoutMs = 30000;
     const int CurrentTweakDefaultsVersion = 1;
@@ -413,6 +413,14 @@ internal static class WgdotNative
         public string StdOut;
         public string StdErr;
         public bool TimedOut;
+    }
+
+    sealed class ObsVulkanLayerSnapshot
+    {
+        public RegistryHive Hive;
+        public RegistryView View;
+        public string ValueName;
+        public int Value;
     }
 
     sealed class SourceContext
@@ -1645,13 +1653,16 @@ internal static class WgdotNative
         SafeDeleteFile(nextExe);
 
         string rawUrl = "https://raw.githubusercontent.com/" + RepoFullName + "/" + remoteRevision + "/wgdot/wgdot-native.cs";
+        Console.WriteLine("Downloading updated WGDot runtime source...");
         using (var client = new WebClient())
         {
             client.Headers[HttpRequestHeader.UserAgent] = "wgdot";
             client.DownloadFile(rawUrl, sourcePath);
         }
 
+        Console.WriteLine("Compiling updated WGDot runtime...");
         CompileNativeSource(sourcePath, nextExe);
+        Console.WriteLine("Running updated WGDot self-test...");
         ProcResult test = Run(nextExe, "self-test", null);
         if (test.ExitCode != 0)
             throw new Exception("Refreshed runtime self-test failed: " + LastUsefulLine(test.StdErr));
@@ -3650,6 +3661,660 @@ class WgdotHidden
         return RunSoftwareElevatedPlan(planPath, planSha256);
     }
 
+    static bool CloseProcessByNameGracefully(string processName, int timeoutMs)
+    {
+        bool found = false;
+        foreach (Process process in Process.GetProcessesByName(processName))
+        {
+            found = true;
+            try
+            {
+                process.CloseMainWindow();
+            }
+            catch
+            {
+            }
+            finally
+            {
+                process.Dispose();
+            }
+        }
+
+        if (!found) return true;
+        return WaitForProcessState(processName, false, timeoutMs);
+    }
+
+    static bool PrepareWingetPackageMutation(
+        Dictionary<string, object> package,
+        out bool restartAfterMutation,
+        out string error)
+    {
+        restartAfterMutation = false;
+        error = "";
+
+        var graceful = GetStringList(package, "wingetCloseProcesses")
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        var force = GetStringList(package, "wingetForceStopProcesses")
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        foreach (string processName in graceful.Concat(force))
+        {
+            if (!Regex.IsMatch(processName ?? "", "^[A-Za-z0-9_.-]+$"))
+            {
+                error = "Invalid WinGet blocking process name in manifest: " + processName;
+                return false;
+            }
+        }
+
+        bool wasRunning = graceful.Concat(force)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Any(ProcessIsRunning);
+
+        foreach (string processName in graceful)
+        {
+            if (!ProcessIsRunning(processName)) continue;
+
+            Console.WriteLine("Closing " + processName + " before WinGet package maintenance...");
+            if (!CloseProcessByNameGracefully(processName, 10000))
+            {
+                error =
+                    processName +
+                    " is still running. Close it and retry the software operation.";
+                return false;
+            }
+        }
+
+        foreach (string processName in force)
+        {
+            if (!ProcessIsRunning(processName)) continue;
+
+            Console.WriteLine("Stopping " + processName + " before WinGet package maintenance...");
+            StopProcessesByName(processName);
+            if (!WaitForProcessState(processName, false, 5000))
+            {
+                error =
+                    processName +
+                    " could not be stopped before WinGet package maintenance.";
+                return false;
+            }
+        }
+
+        restartAfterMutation =
+            wasRunning &&
+            GetBool(package, "wingetRestartAfterMutation");
+        return true;
+    }
+
+    static bool IsObsStudioPackage(Dictionary<string, object> package)
+    {
+        return String.Equals(
+            GetString(package, "id"),
+            "OBSProject.OBSStudio",
+            StringComparison.OrdinalIgnoreCase);
+    }
+
+    static bool IsProtectedObsHookProcess(string processName)
+    {
+        string[] protectedNames =
+        {
+            "System",
+            "Idle",
+            "Registry",
+            "smss",
+            "csrss",
+            "wininit",
+            "winlogon",
+            "services",
+            "lsass",
+            "svchost",
+            "dwm",
+            "explorer",
+            "fontdrvhost",
+            "sihost",
+            "taskhostw",
+            "SearchHost",
+            "StartMenuExperienceHost",
+            "ShellExperienceHost"
+        };
+
+        return protectedNames.Contains(
+            processName ?? "",
+            StringComparer.OrdinalIgnoreCase);
+    }
+
+    static bool ProcessUsesObsGraphicsHook(Process process)
+    {
+        try
+        {
+            foreach (ProcessModule module in process.Modules)
+            {
+                string moduleName = module.ModuleName ?? "";
+                if (String.Equals(
+                        moduleName,
+                        "graphics-hook64.dll",
+                        StringComparison.OrdinalIgnoreCase) ||
+                    String.Equals(
+                        moduleName,
+                        "graphics-hook32.dll",
+                        StringComparison.OrdinalIgnoreCase))
+                    return true;
+
+                string fileName = module.FileName ?? "";
+                if (fileName.IndexOf(
+                        "obs-studio-hook",
+                        StringComparison.OrdinalIgnoreCase) >= 0 &&
+                    (fileName.EndsWith(
+                         "graphics-hook64.dll",
+                         StringComparison.OrdinalIgnoreCase) ||
+                     fileName.EndsWith(
+                         "graphics-hook32.dll",
+                         StringComparison.OrdinalIgnoreCase)))
+                    return true;
+            }
+        }
+        catch
+        {
+        }
+
+        return false;
+    }
+
+    static List<string> StopObsGraphicsHookBlockers()
+    {
+        var stopped = new List<string>();
+        var protectedBlockers = new List<string>();
+        int currentPid = Process.GetCurrentProcess().Id;
+
+        foreach (Process process in Process.GetProcesses())
+        {
+            try
+            {
+                if (process.Id == currentPid || !ProcessUsesObsGraphicsHook(process))
+                    continue;
+
+                string processName = process.ProcessName ?? "";
+                string label =
+                    processName + " (PID " +
+                    process.Id.ToString(CultureInfo.InvariantCulture) + ")";
+
+                if (IsProtectedObsHookProcess(processName))
+                {
+                    protectedBlockers.Add(label);
+                    continue;
+                }
+
+                Console.WriteLine(
+                    "Closing OBS graphics-hook blocker: " + label + "...");
+
+                bool exited = false;
+                try
+                {
+                    if (process.CloseMainWindow())
+                        exited = process.WaitForExit(5000);
+                }
+                catch
+                {
+                }
+
+                if (!exited)
+                {
+                    try
+                    {
+                        process.Kill();
+                        exited = process.WaitForExit(5000);
+                    }
+                    catch
+                    {
+                    }
+                }
+
+                if (exited)
+                    stopped.Add(label);
+                else
+                    protectedBlockers.Add(label);
+            }
+            finally
+            {
+                process.Dispose();
+            }
+        }
+
+        if (protectedBlockers.Count > 0)
+            throw new Exception(
+                "OBS graphics-hook files are still in use by protected/unclosable processes: " +
+                String.Join(", ", protectedBlockers.ToArray()) + ".");
+
+        return stopped;
+    }
+
+    static List<ObsVulkanLayerSnapshot> DisableObsVulkanImplicitLayers()
+    {
+        var snapshots = new List<ObsVulkanLayerSnapshot>();
+        RegistryHive[] hives = { RegistryHive.LocalMachine, RegistryHive.CurrentUser };
+        RegistryView[] views = { RegistryView.Registry64, RegistryView.Registry32 };
+        const string keyPath = @"SOFTWARE\Khronos\Vulkan\ImplicitLayers";
+
+        foreach (RegistryHive hive in hives)
+        {
+            foreach (RegistryView view in views)
+            {
+                try
+                {
+                    using (RegistryKey root = RegistryKey.OpenBaseKey(hive, view))
+                    using (RegistryKey key = root.OpenSubKey(keyPath, true))
+                    {
+                        if (key == null) continue;
+
+                        foreach (string valueName in key.GetValueNames())
+                        {
+                            string leaf = Path.GetFileName(valueName ?? "");
+                            if (!String.Equals(
+                                    leaf,
+                                    "obs-vulkan64.json",
+                                    StringComparison.OrdinalIgnoreCase) &&
+                                !String.Equals(
+                                    leaf,
+                                    "obs-vulkan32.json",
+                                    StringComparison.OrdinalIgnoreCase))
+                                continue;
+
+                            object raw = key.GetValue(
+                                valueName,
+                                null,
+                                RegistryValueOptions.DoNotExpandEnvironmentNames);
+                            if (raw == null) continue;
+
+                            int oldValue;
+                            try
+                            {
+                                oldValue = Convert.ToInt32(
+                                    raw,
+                                    CultureInfo.InvariantCulture);
+                            }
+                            catch
+                            {
+                                continue;
+                            }
+
+                            snapshots.Add(new ObsVulkanLayerSnapshot
+                            {
+                                Hive = hive,
+                                View = view,
+                                ValueName = valueName,
+                                Value = oldValue
+                            });
+
+                            key.SetValue(
+                                valueName,
+                                1,
+                                RegistryValueKind.DWord);
+                        }
+                    }
+                }
+                catch (UnauthorizedAccessException)
+                {
+                    throw new Exception(
+                        "WGDot could not temporarily disable the OBS Vulkan capture layer.");
+                }
+            }
+        }
+
+        return snapshots;
+    }
+
+    static void RestoreObsVulkanImplicitLayers(
+        IEnumerable<ObsVulkanLayerSnapshot> snapshots)
+    {
+        if (snapshots == null) return;
+        const string keyPath = @"SOFTWARE\Khronos\Vulkan\ImplicitLayers";
+
+        foreach (ObsVulkanLayerSnapshot snapshot in snapshots)
+        {
+            try
+            {
+                using (RegistryKey root = RegistryKey.OpenBaseKey(
+                    snapshot.Hive,
+                    snapshot.View))
+                using (RegistryKey key = root.OpenSubKey(keyPath, true))
+                {
+                    if (key == null) continue;
+                    key.SetValue(
+                        snapshot.ValueName,
+                        snapshot.Value,
+                        RegistryValueKind.DWord);
+                }
+            }
+            catch
+            {
+            }
+        }
+    }
+
+    static string ObsHookDirectory()
+    {
+        return Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
+            "obs-studio-hook");
+    }
+
+    static void RemoveObsVulkanImplicitLayerRegistrations()
+    {
+        RegistryHive[] hives = { RegistryHive.LocalMachine, RegistryHive.CurrentUser };
+        RegistryView[] views = { RegistryView.Registry64, RegistryView.Registry32 };
+        const string keyPath = @"SOFTWARE\Khronos\Vulkan\ImplicitLayers";
+
+        foreach (RegistryHive hive in hives)
+        {
+            foreach (RegistryView view in views)
+            {
+                try
+                {
+                    using (RegistryKey root = RegistryKey.OpenBaseKey(hive, view))
+                    using (RegistryKey key = root.OpenSubKey(keyPath, true))
+                    {
+                        if (key == null) continue;
+
+                        foreach (string valueName in key.GetValueNames())
+                        {
+                            string normalized = (valueName ?? "").Replace('/', '\\');
+                            if (normalized.IndexOf(
+                                    "\\obs-studio-hook\\",
+                                    StringComparison.OrdinalIgnoreCase) < 0)
+                                continue;
+
+                            string leaf = Path.GetFileName(normalized);
+                            if (!String.Equals(
+                                    leaf,
+                                    "obs-vulkan64.json",
+                                    StringComparison.OrdinalIgnoreCase) &&
+                                !String.Equals(
+                                    leaf,
+                                    "obs-vulkan32.json",
+                                    StringComparison.OrdinalIgnoreCase))
+                                continue;
+
+                            key.DeleteValue(valueName, false);
+                        }
+                    }
+                }
+                catch
+                {
+                }
+            }
+        }
+    }
+
+    static void CleanupOrphanedObsHookStateForInstall()
+    {
+        string hookRoot = ObsHookDirectory();
+        if (!Directory.Exists(hookRoot))
+            return;
+
+        Console.WriteLine(
+            "Found stale OBS global capture-hook state from the previous installation.");
+        Console.WriteLine(
+            "Cleaning " + hookRoot + " before reinstalling OBS...");
+
+        string previousDisable = Environment.GetEnvironmentVariable(
+            "DISABLE_VULKAN_OBS_CAPTURE");
+
+        try
+        {
+            Environment.SetEnvironmentVariable(
+                "DISABLE_VULKAN_OBS_CAPTURE",
+                "1");
+            RemoveObsVulkanImplicitLayerRegistrations();
+
+            try
+            {
+                StopObsGraphicsHookBlockers();
+            }
+            catch (Exception ex)
+            {
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine(
+                    "OBS hook cleanup found an active blocker: " + ex.Message);
+                Console.ResetColor();
+            }
+
+            Exception last = null;
+            for (int i = 0; i < 20; i++)
+            {
+                try
+                {
+                    if (Directory.Exists(hookRoot))
+                        Directory.Delete(hookRoot, true);
+
+                    if (!Directory.Exists(hookRoot))
+                    {
+                        Console.WriteLine("Removed stale OBS global capture-hook state.");
+                        return;
+                    }
+                }
+                catch (IOException ex)
+                {
+                    last = ex;
+                }
+                catch (UnauthorizedAccessException ex)
+                {
+                    last = ex;
+                }
+
+                System.Threading.Thread.Sleep(250);
+            }
+
+            if (Directory.Exists(hookRoot))
+            {
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine(
+                    "Stale OBS hook state is still locked; the official installer will identify the blocker if automatic recovery also fails.");
+                if (last != null)
+                    Console.WriteLine(last.Message);
+                Console.ResetColor();
+            }
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(
+                "DISABLE_VULKAN_OBS_CAPTURE",
+                previousDisable);
+        }
+    }
+
+    static string MakeWingetInteractiveArguments(string arguments)
+    {
+        string value = Regex.Replace(
+            arguments ?? "",
+            @"(?:^|\s)--disable-interactivity(?=\s|$)",
+            " ",
+            RegexOptions.IgnoreCase);
+        value = Regex.Replace(value, @"\s+", " ").Trim();
+
+        if (value.IndexOf("--interactive", StringComparison.OrdinalIgnoreCase) < 0)
+            value += " --interactive";
+
+        return value;
+    }
+
+    static bool StopAsusFrameworkForObsInstall()
+    {
+        if (!ProcessIsRunning("asus_framework"))
+            return false;
+
+        Console.ForegroundColor = ConsoleColor.Yellow;
+        Console.WriteLine(
+            "OBS reports that ASUS NodeJS Web Framework is using its hook files.");
+        Console.WriteLine(
+            "Stopping ASUS NodeJS Web Framework temporarily for the OBS install...");
+        Console.ResetColor();
+
+        ProcResult stop = Run(
+            "taskkill.exe",
+            "/IM asus_framework.exe /T /F",
+            null);
+
+        if (stop.ExitCode != 0 &&
+            ProcessIsRunning("asus_framework"))
+            throw new Exception(
+                "ASUS NodeJS Web Framework could not be stopped: " +
+                LastUsefulLine(stop.StdErr + "\n" + stop.StdOut));
+
+        if (!WaitForProcessState("asus_framework", false, 5000))
+            throw new Exception(
+                "ASUS NodeJS Web Framework is still running after WGDot tried to stop it.");
+
+        Console.WriteLine("ASUS NodeJS Web Framework stopped.");
+        return true;
+    }
+
+    static void RestartAsusFrameworkAfterObsInstall(bool restartNeeded)
+    {
+        if (!restartNeeded)
+            return;
+
+        const string taskName = @"\ASUS\Framework Service";
+        Console.WriteLine("Restarting ASUS NodeJS Web Framework...");
+
+        ProcResult query = Run(
+            "schtasks.exe",
+            "/Query /TN " + Q(taskName),
+            null);
+        if (query.ExitCode != 0)
+        {
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine(
+                "ASUS Framework Service startup task was not found; Windows/Armoury Crate can start it again normally.");
+            Console.ResetColor();
+            return;
+        }
+
+        ProcResult start = Run(
+            "schtasks.exe",
+            "/Run /TN " + Q(taskName),
+            null);
+        if (start.ExitCode != 0)
+        {
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine(
+                "OBS maintenance finished, but ASUS Framework Service could not be restarted automatically.");
+            Console.ResetColor();
+            return;
+        }
+
+        if (WaitForProcessState("asus_framework", true, 10000))
+            Console.WriteLine("ASUS NodeJS Web Framework restarted.");
+        else
+        {
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine(
+                "ASUS Framework Service task was started, but asus_framework.exe has not appeared yet.");
+            Console.ResetColor();
+        }
+    }
+
+    static ProcResult RunWingetInstallWithObsHookRecovery(
+        Dictionary<string, object> package,
+        string winget,
+        string arguments,
+        int timeoutMs)
+    {
+        bool obsRecovery =
+            GetBool(package, "wingetObsHookRecovery") &&
+            IsObsStudioPackage(package);
+        bool restartAsusFramework = false;
+
+        try
+        {
+            if (obsRecovery)
+            {
+                restartAsusFramework = StopAsusFrameworkForObsInstall();
+                CleanupOrphanedObsHookStateForInstall();
+            }
+
+            return RunWingetInstallWithObsHookRecoveryCore(
+                package,
+                winget,
+                arguments,
+                timeoutMs);
+        }
+        finally
+        {
+            RestartAsusFrameworkAfterObsInstall(restartAsusFramework);
+        }
+    }
+
+    static ProcResult RunWingetInstallWithObsHookRecoveryCore(
+        Dictionary<string, object> package,
+        string winget,
+        string arguments,
+        int timeoutMs)
+    {
+        ProcResult first = RunInteractiveWithTimeout(
+            winget,
+            arguments,
+            timeoutMs);
+
+        if (first.TimedOut ||
+            first.ExitCode != -1978334959 ||
+            !GetBool(package, "wingetObsHookRecovery") ||
+            !IsObsStudioPackage(package))
+            return first;
+
+        Console.ForegroundColor = ConsoleColor.Yellow;
+        Console.WriteLine(
+            "OBS install is blocked by another application using OBS graphics-hook files.");
+        Console.WriteLine(
+            "WGDot will temporarily disable the OBS Vulkan layer, close the exact hook users, and retry.");
+        Console.ResetColor();
+
+        List<ObsVulkanLayerSnapshot> snapshots = null;
+        string previousDisable = Environment.GetEnvironmentVariable(
+            "DISABLE_VULKAN_OBS_CAPTURE");
+
+        try
+        {
+            Environment.SetEnvironmentVariable(
+                "DISABLE_VULKAN_OBS_CAPTURE",
+                "1");
+            snapshots = DisableObsVulkanImplicitLayers();
+            StopObsGraphicsHookBlockers();
+
+            ProcResult retry = RunInteractiveWithTimeout(
+                winget,
+                arguments,
+                timeoutMs);
+
+            if (!retry.TimedOut && retry.ExitCode == -1978334959)
+            {
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine();
+                Console.WriteLine(
+                    "Automatic OBS lock recovery could not clear every blocker.");
+                Console.WriteLine(
+                    "Opening the official OBS installer interactively so it can identify the exact application holding its files.");
+                Console.WriteLine(
+                    "Close the application named by OBS, then continue the installer.");
+                Console.ResetColor();
+
+                return RunInteractiveWithTimeout(
+                    winget,
+                    MakeWingetInteractiveArguments(arguments),
+                    timeoutMs);
+            }
+
+            return retry;
+        }
+        finally
+        {
+            RestoreObsVulkanImplicitLayers(snapshots);
+            Environment.SetEnvironmentVariable(
+                "DISABLE_VULKAN_OBS_CAPTURE",
+                previousDisable);
+        }
+    }
+
     static int GetWingetInstallTimeoutMs(Dictionary<string, object> package)
     {
         int seconds = GetInt(package, "wingetInstallTimeoutSeconds");
@@ -3675,6 +4340,8 @@ class WgdotHidden
         var unavailableIds = new List<string>();
         var failedIds = new List<string>();
         var upgradedIds = new List<string>();
+        var reinstalledIds = new List<string>();
+        var restartAfterMutationIds = new List<string>();
         var upgradeFailedIds = new List<string>();
         var adminTweakFailedIds = new List<string>();
         var failureDetails = new List<string>();
@@ -3797,7 +4464,24 @@ class WgdotHidden
                 }
 
                 int installTimeoutMs = GetWingetInstallTimeoutMs(package);
-                ProcResult install = RunInteractiveWithTimeout(
+                bool restartAfterInstall;
+                string mutationError;
+                if (!PrepareWingetPackageMutation(
+                        package,
+                        out restartAfterInstall,
+                        out mutationError))
+                {
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.WriteLine("Install blocked for " + id + ": " + mutationError);
+                    Console.ResetColor();
+                    failedIds.Add(id);
+                    failureDetails.Add("WinGet install blocked: " + id + ": " + mutationError);
+                    failures++;
+                    continue;
+                }
+
+                ProcResult install = RunWingetInstallWithObsHookRecovery(
+                    package,
                     winget,
                     "install --id " + Q(id) + " --exact --source winget --accept-source-agreements --accept-package-agreements --disable-interactivity",
                     installTimeoutMs);
@@ -3805,6 +4489,8 @@ class WgdotHidden
                 if (install.ExitCode == 0)
                 {
                     installedIds.Add(id);
+                    if (restartAfterInstall)
+                        restartAfterMutationIds.Add(id);
                 }
                 else if (HasOfficialGitHubFallback(package))
                 {
@@ -3844,7 +4530,8 @@ class WgdotHidden
             foreach (string id in GetStringList(plan, "upgradeIds")
                 .Distinct(StringComparer.OrdinalIgnoreCase))
             {
-                if (FindPackageById(manifest, id) == null)
+                Dictionary<string, object> package = FindPackageById(manifest, id);
+                if (package == null)
                 {
                     upgradeFailedIds.Add(id);
                     failureDetails.Add("Upgrade package missing from active WGDot manifest: " + id);
@@ -3854,6 +4541,23 @@ class WgdotHidden
 
                 Console.WriteLine();
                 Console.WriteLine("Upgrading " + id + "...");
+
+                bool restartAfterUpgrade;
+                string mutationError;
+                if (!PrepareWingetPackageMutation(
+                        package,
+                        out restartAfterUpgrade,
+                        out mutationError))
+                {
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.WriteLine("Upgrade blocked for " + id + ": " + mutationError);
+                    Console.ResetColor();
+                    upgradeFailedIds.Add(id);
+                    failureDetails.Add("WinGet upgrade blocked: " + id + ": " + mutationError);
+                    failures++;
+                    continue;
+                }
+
                 ProcResult upgrade = RunInteractive(
                     winget,
                     "upgrade --id " + Q(id) + " --exact --source winget --accept-source-agreements --accept-package-agreements --disable-interactivity");
@@ -3861,16 +4565,94 @@ class WgdotHidden
                 if (upgrade.ExitCode == 0)
                 {
                     upgradedIds.Add(id);
+                    if (restartAfterUpgrade)
+                        restartAfterMutationIds.Add(id);
+                    continue;
                 }
-                else
+
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine(
+                    "Upgrade failed: " + id + " (exit " +
+                    upgrade.ExitCode.ToString(CultureInfo.InvariantCulture) + ").");
+                Console.WriteLine("WGDot will uninstall and reinstall the exact WinGet package.");
+                Console.ResetColor();
+
+                int recoveryTimeoutMs = GetWingetInstallTimeoutMs(package);
+                ProcResult uninstall = RunInteractiveWithTimeout(
+                    winget,
+                    "uninstall --id " + Q(id) + " --exact --disable-interactivity",
+                    recoveryTimeoutMs);
+
+                if (!uninstall.TimedOut && uninstall.ExitCode == -1978335210)
                 {
                     Console.ForegroundColor = ConsoleColor.Yellow;
-                    Console.WriteLine("Upgrade failed: " + id + " (exit " + upgrade.ExitCode.ToString(CultureInfo.InvariantCulture) + ")");
+                    Console.WriteLine(
+                        "WinGet found multiple installed versions of " + id +
+                        "; removing all versions before reinstall.");
                     Console.ResetColor();
-                    upgradeFailedIds.Add(id);
-                    failureDetails.Add("WinGet upgrade failed (" + upgrade.ExitCode.ToString(CultureInfo.InvariantCulture) + "): " + id);
-                    failures++;
+                    uninstall = RunInteractiveWithTimeout(
+                        winget,
+                        "uninstall --id " + Q(id) + " --exact --all-versions --disable-interactivity",
+                        recoveryTimeoutMs);
                 }
+
+                if (uninstall.TimedOut || uninstall.ExitCode != 0)
+                {
+                    upgradeFailedIds.Add(id);
+                    failureDetails.Add(
+                        uninstall.TimedOut
+                            ? "WinGet upgrade failed (" + upgrade.ExitCode.ToString(CultureInfo.InvariantCulture) +
+                              ") and recovery uninstall timed out: " + id
+                            : "WinGet upgrade failed (" + upgrade.ExitCode.ToString(CultureInfo.InvariantCulture) +
+                              ") and recovery uninstall failed (" +
+                              uninstall.ExitCode.ToString(CultureInfo.InvariantCulture) + "): " + id);
+                    failures++;
+                    continue;
+                }
+
+                bool restartAfterReinstall;
+                if (!PrepareWingetPackageMutation(
+                        package,
+                        out restartAfterReinstall,
+                        out mutationError))
+                {
+                    upgradeFailedIds.Add(id);
+                    failureDetails.Add(
+                        "WinGet upgrade failed (" +
+                        upgrade.ExitCode.ToString(CultureInfo.InvariantCulture) +
+                        "); package was uninstalled, but reinstall was blocked: " +
+                        id + ": " + mutationError);
+                    failures++;
+                    continue;
+                }
+
+                Console.WriteLine("Reinstalling " + id + "...");
+                ProcResult reinstall = RunWingetInstallWithObsHookRecovery(
+                    package,
+                    winget,
+                    "install --id " + Q(id) + " --exact --source winget --accept-source-agreements --accept-package-agreements --disable-interactivity",
+                    recoveryTimeoutMs);
+
+                if (!reinstall.TimedOut && reinstall.ExitCode == 0)
+                {
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.WriteLine("Recovered failed upgrade by reinstalling: " + id);
+                    Console.ResetColor();
+                    reinstalledIds.Add(id);
+                    if (restartAfterUpgrade || restartAfterReinstall)
+                        restartAfterMutationIds.Add(id);
+                    continue;
+                }
+
+                upgradeFailedIds.Add(id);
+                failureDetails.Add(
+                    reinstall.TimedOut
+                        ? "WinGet upgrade failed (" + upgrade.ExitCode.ToString(CultureInfo.InvariantCulture) +
+                          "); package was uninstalled, but recovery reinstall timed out: " + id
+                        : "WinGet upgrade failed (" + upgrade.ExitCode.ToString(CultureInfo.InvariantCulture) +
+                          "); package was uninstalled, but recovery reinstall failed (" +
+                          reinstall.ExitCode.ToString(CultureInfo.InvariantCulture) + "): " + id);
+                failures++;
             }
 
             if (GetBool(plan, "firefoxPolicyConfigured"))
@@ -3934,6 +4716,8 @@ class WgdotHidden
             result["unavailableIds"] = unavailableIds;
             result["failedIds"] = failedIds;
             result["upgradedIds"] = upgradedIds;
+            result["reinstalledIds"] = reinstalledIds;
+            result["restartAfterMutationIds"] = restartAfterMutationIds;
             result["upgradeFailedIds"] = upgradeFailedIds;
             result["adminTweakFailedIds"] = adminTweakFailedIds;
             result["browserPolicyError"] = browserPolicyError;
@@ -5675,6 +6459,43 @@ class WgdotHidden
         }
     }
 
+    static void RestartPackageAfterWingetMutation(
+        Dictionary<string, object> package)
+    {
+        if (package == null) return;
+
+        string handler = GetString(package, "startupHandler");
+        if (!String.Equals(handler, "glazewm", StringComparison.OrdinalIgnoreCase))
+            return;
+
+        if (ProcessIsRunning("glazewm"))
+            return;
+
+        string exe = FindGlazeWmExe();
+        if (String.IsNullOrWhiteSpace(exe))
+        {
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine("GlazeWM was updated, but its executable could not be found for restart.");
+            Console.ResetColor();
+            return;
+        }
+
+        string config = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            ".glzr",
+            "glazewm",
+            "config.yaml");
+        StartDetachedProcess(exe, "start --config=" + Q(config));
+        if (WaitForProcessState("glazewm", true, 5000))
+            Console.WriteLine("Restarted GlazeWM after WinGet package maintenance.");
+        else
+        {
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine("GlazeWM package maintenance succeeded, but GlazeWM did not restart.");
+            Console.ResetColor();
+        }
+    }
+
     static int SoftwareReconcile()
     {
         SourceContext source = ResolveDefaultSource();
@@ -5739,6 +6560,7 @@ class WgdotHidden
         int unavailable = 0;
         int failed = 0;
         int upgraded = 0;
+        int reinstalled = 0;
         var failureDetails = new List<string>();
 
         Console.WriteLine();
@@ -5883,6 +6705,7 @@ class WgdotHidden
                 continue;
             }
 
+            Console.WriteLine("Validating exact WinGet package ID...");
             ProcResult show = RunWithTimeout(
                 "winget.exe",
                 "show --id " + Q(id) + " --exact --source winget --accept-source-agreements --disable-interactivity",
@@ -5922,8 +6745,23 @@ class WgdotHidden
 
         if (ReadYesNo("Check selected installed packages for upgrades now? [y/N]", false))
         {
+            Console.WriteLine();
+            Console.WriteLine(
+                "Checking " +
+                installedExistingIds.Count.ToString(CultureInfo.InvariantCulture) +
+                " installed packages for available upgrades...");
+            int upgradeCheckIndex = 0;
+
             foreach (string id in installedExistingIds)
             {
+                upgradeCheckIndex++;
+                Console.WriteLine(
+                    "[" +
+                    upgradeCheckIndex.ToString(CultureInfo.InvariantCulture) +
+                    "/" +
+                    installedExistingIds.Count.ToString(CultureInfo.InvariantCulture) +
+                    "] Checking " + id + "...");
+
                 ProcResult upgradeCheck = RunWithTimeout(
                     "winget.exe",
                     "list --id " + Q(id) + " --exact --upgrade-available --source winget --accept-source-agreements --disable-interactivity",
@@ -6001,10 +6839,22 @@ class WgdotHidden
                     Console.ResetColor();
                 }
 
+                Console.WriteLine(
+                    "Starting software batch: " +
+                    installIds.Count.ToString(CultureInfo.InvariantCulture) +
+                    " install(s), " +
+                    upgradeIds.Count.ToString(CultureInfo.InvariantCulture) +
+                    " upgrade(s), " +
+                    adminTweakIds.Count.ToString(CultureInfo.InvariantCulture) +
+                    " administrator tweak(s).");
+                Console.WriteLine(
+                    "Package downloads/installers can take several minutes; WGDot will print each stage as it starts.");
+
                 workerExitCode = IsAdministrator()
                     ? RunSoftwareElevatedPlan(planPath, planSha256)
                     : RunElevatedSelfWithExitCode("software-elevated --plan " + Q(planPath) + " --plan-sha256 " + Q(planSha256));
 
+                Console.WriteLine("Administrator software batch finished. Reading results...");
                 workerResult = ReadJson(resultPath);
                 if (workerResult == null)
                     throw new Exception("WGDot elevated software worker did not return a result.");
@@ -6020,6 +6870,7 @@ class WgdotHidden
             already += GetStringList(workerResult, "alreadyIds").Count;
             unavailable += GetStringList(workerResult, "unavailableIds").Count;
             upgraded += GetStringList(workerResult, "upgradedIds").Count;
+            reinstalled += GetStringList(workerResult, "reinstalledIds").Count;
 
             int workerFailures =
                 GetStringList(workerResult, "failedIds").Count +
@@ -6034,11 +6885,20 @@ class WgdotHidden
             failed += workerFailures;
             failureDetails.AddRange(GetStringList(workerResult, "failureDetails"));
 
-            foreach (string id in workerInstalled)
+            foreach (string id in workerInstalled
+                .Concat(GetStringList(workerResult, "reinstalledIds"))
+                .Distinct(StringComparer.OrdinalIgnoreCase))
             {
                 Dictionary<string, object> package = FindPackageById(manifest, id);
                 if (package != null)
                     RunPackagePostInstall(package);
+            }
+
+            foreach (string id in GetStringList(workerResult, "restartAfterMutationIds")
+                .Distinct(StringComparer.OrdinalIgnoreCase))
+            {
+                Dictionary<string, object> package = FindPackageById(manifest, id);
+                RestartPackageAfterWingetMutation(package);
             }
         }
 
@@ -6140,6 +7000,7 @@ class WgdotHidden
         Console.WriteLine("Installed: " + installed.ToString(CultureInfo.InvariantCulture));
         Console.WriteLine("Already installed: " + already.ToString(CultureInfo.InvariantCulture));
         Console.WriteLine("Upgraded: " + upgraded.ToString(CultureInfo.InvariantCulture));
+        Console.WriteLine("Reinstalled after failed upgrade: " + reinstalled.ToString(CultureInfo.InvariantCulture));
         Console.WriteLine("Unavailable exact IDs: " + unavailable.ToString(CultureInfo.InvariantCulture));
         Console.WriteLine("Install/setup failures: " + failed.ToString(CultureInfo.InvariantCulture));
         Console.WriteLine("Manual official installs pending: " + officialPagePending.Count.ToString(CultureInfo.InvariantCulture));

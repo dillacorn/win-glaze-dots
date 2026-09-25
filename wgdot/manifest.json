@@ -543,7 +543,11 @@
       "defaultNormal": true,
       "defaultWork": true,
       "startupHandler": "glazewm",
-      "startupDefault": true
+      "startupDefault": true,
+      "wingetForceStopProcesses": [
+        "glazewm"
+      ],
+      "wingetRestartAfterMutation": true
     },
     {
       "name": "Cava",
@@ -675,7 +679,12 @@
       "id": "OBSProject.OBSStudio",
       "category": "media",
       "defaultNormal": false,
-      "defaultWork": false
+      "defaultWork": false,
+      "wingetCloseProcesses": [
+        "obs64",
+        "obs32"
+      ],
+      "wingetObsHookRecovery": true
     },
     {
       "name": "Mullvad Browser",
