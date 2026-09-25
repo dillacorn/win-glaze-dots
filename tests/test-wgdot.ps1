@@ -275,12 +275,6 @@ Assert-True ($yaziInitText -match 'function WgdotYaziDragOut\(\)') "Yazi exposes
 Assert-True ($yaziKeymapText -match 'on = \["d", "g"\].*WgdotYaziDragOut') "Yazi d g opens the outbound drag surface"
 Assert-True ($yaziInitText -match 'label = "Drag out\.\.\.", shortcut = "d g", action = "drag_out"') "Yazi context menu exposes Drag out"
 Assert-True ($yaziInitText -match 'Command\(helper\):arg\(\{ "yazi-drag", list_path \}\)') "Yazi explicit outbound drag invokes the native helper"
-Assert-True ($nativeSourceText -match 'YasbTheme theme = FindYasbTheme\(CurrentYasbThemeId\(\)\) \?\? YasbThemes\[0\]') "Yazi drag surface resolves the current WGDot theme"
-Assert-True ($nativeSourceText -match 'theme\.Background') "Yazi drag surface uses the active theme background"
-Assert-True ($nativeSourceText -match 'theme\.Foreground') "Yazi drag surface uses the active theme foreground"
-Assert-True ($nativeSourceText -match 'theme\.Active') "Yazi drag surface uses the active theme field color"
-Assert-True ($nativeSourceText -match 'theme\.Hover') "Yazi drag surface uses the active theme hover color"
-Assert-True ($nativeSourceText -match 'theme\.Focus') "Yazi drag surface uses the active theme border/focus color"
 $currentDragBlock = [regex]::Match($yaziInitText, '(?ms)function Current:drag\(event\).*?^end').Value
 Assert-True ($currentDragBlock -notmatch 'WgdotYaziStartOutboundDrag') "Yazi internal mouse drag does not auto-launch the outbound drag surface"
 Assert-True ($yaziInitText -match 'ya\.readable_size\(size\)') "Yazi combined linemode uses native readable file sizes"
@@ -630,6 +624,12 @@ $launcherText = Get-Content -LiteralPath $launcherPath -Raw
 $manualText = Get-Content -LiteralPath $manualPath -Raw
 $nativeBootstrapText = Get-Content -LiteralPath $nativeBootstrapPath -Raw
 $nativeSourceText = Get-Content -LiteralPath $nativeSourcePath -Raw
+Assert-True ($nativeSourceText -match 'YasbTheme theme = FindYasbTheme\(CurrentYasbThemeId\(\)\) \?\? YasbThemes\[0\]') "Yazi drag surface resolves the current WGDot theme"
+Assert-True ($nativeSourceText -match 'theme\.Background') "Yazi drag surface uses the active theme background"
+Assert-True ($nativeSourceText -match 'theme\.Foreground') "Yazi drag surface uses the active theme foreground"
+Assert-True ($nativeSourceText -match 'theme\.Active') "Yazi drag surface uses the active theme field color"
+Assert-True ($nativeSourceText -match 'theme\.Hover') "Yazi drag surface uses the active theme hover color"
+Assert-True ($nativeSourceText -match 'theme\.Focus') "Yazi drag surface uses the active theme border/focus color"
 Assert-True ($nativeSourceText -match 'scope == "work" \? GetBool\(package, "defaultWork"\) : GetBool\(package, "defaultNormal"\)') "fresh package selection honors profile default flags"
 Assert-True ($nativeSourceText -match 'if \(command == "bar-font-install"\) return BarFontInstall\(\);') "native runtime exposes targeted YASB font install"
 Assert-True ($nativeSourceText -match 'FindPackageById\(source\.Manifest, "NerdFonts\.Noto"\)') "targeted YASB font install resolves only the managed Noto package"
