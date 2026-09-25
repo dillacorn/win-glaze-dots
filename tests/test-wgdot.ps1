@@ -137,8 +137,10 @@ $yaziClipboardPath = Join-Path $repoRoot "UserProfile\AppData\Roaming\yazi\confi
 $yaziClipboardText = Get-Content -LiteralPath $yaziClipboardPath -Raw
 Assert-True ($yaziClipboardText -notmatch 'function M:entry') "Yazi system clipboard is no longer a directly invoked plugin action"
 Assert-True ($yaziClipboardText -notmatch 'ya\.async') "Yazi clipboard module itself does not create nested async contexts"
-Assert-True ($yaziClipboardText -match 'start "" /min powershell\.exe') "Yazi clipboard worker launches PowerShell outside Yazi's console group"
-Assert-True ($yaziClipboardText -match '-WindowStyle Hidden') "Yazi clipboard worker stays hidden"
+Assert-True ($yaziClipboardText -match 'Command\("powershell\.exe"\)') "Yazi clipboard worker launches PowerShell directly through Yazi Command"
+Assert-True ($yaziClipboardText -notmatch 'Command\("cmd\.exe"\)|start ""') "Yazi clipboard worker avoids cmd/start quoting layers"
+Assert-True ($yaziClipboardText -match '"-WindowStyle", "Hidden"') "Yazi clipboard worker stays hidden"
+Assert-True ($yaziClipboardText -match '"-EncodedCommand", encoded') "Yazi clipboard worker uses encoded PowerShell to preserve arbitrary paths"
 Assert-True ($yaziClipboardText -match 'SetFileDropList') "Yazi clipboard worker exports native Windows FileDrop data"
 Assert-True ($yaziClipboardText -match 'ya\.sleep\(0\.05\)') "Yazi clipboard mirror polls its detached result without entering the task scheduler"
 $yaziRecentPath = Join-Path $repoRoot "UserProfile\AppData\Roaming\yazi\config\plugins\recent-files.yazi\main.lua"

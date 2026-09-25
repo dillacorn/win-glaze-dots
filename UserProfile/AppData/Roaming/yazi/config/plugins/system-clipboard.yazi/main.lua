@@ -108,19 +108,15 @@ finally {
 ]], escaped_list, escaped_result)
 
   local encoded = base64(utf16le(script))
-  local launch = table.concat({
-    'start "" /min powershell.exe',
-    "-NoLogo",
-    "-NoProfile",
-    "-NonInteractive",
-    "-Sta",
-    "-WindowStyle Hidden",
-    "-EncodedCommand",
-    encoded,
-  }, " ")
-
-  local status, err = Command("cmd.exe")
-    :arg({ "/D", "/S", "/C", launch })
+  local status, err = Command("powershell.exe")
+    :arg({
+      "-NoLogo",
+      "-NoProfile",
+      "-NonInteractive",
+      "-Sta",
+      "-WindowStyle", "Hidden",
+      "-EncodedCommand", encoded,
+    })
     :status()
 
   if err or not status or not status.success then
