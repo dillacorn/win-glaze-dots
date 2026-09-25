@@ -22,7 +22,7 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-84";
+    const string Version = "native-preview-85";
     const string HiddenLauncherVersion = "2.0.0.0";
     const int WingetPreflightTimeoutMs = 30000;
     const int CurrentTweakDefaultsVersion = 1;
@@ -15309,12 +15309,115 @@ class WgdotHidden
         return files;
     }
 
-    static bool PointInsideRect(POINT point, RECT rect)
+    sealed class YaziDragSurface : System.Windows.Forms.Form
     {
-        return point.X >= rect.Left &&
-               point.X < rect.Right &&
-               point.Y >= rect.Top &&
-               point.Y < rect.Bottom;
+        readonly List<string> files;
+        readonly System.Windows.Forms.Label dragLabel;
+        bool dragActive;
+
+        internal YaziDragSurface(List<string> paths)
+        {
+            files = new List<string>(paths);
+
+            Text = "Yazi Drag Out";
+            FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedToolWindow;
+            StartPosition = System.Windows.Forms.FormStartPosition.Manual;
+            ShowInTaskbar = false;
+            TopMost = true;
+            MaximizeBox = false;
+            MinimizeBox = false;
+            KeyPreview = true;
+            ClientSize = new Size(360, 104);
+
+            dragLabel = new System.Windows.Forms.Label();
+            dragLabel.Dock = System.Windows.Forms.DockStyle.Fill;
+            dragLabel.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
+            dragLabel.TextAlign = ContentAlignment.MiddleCenter;
+            dragLabel.AutoEllipsis = true;
+            dragLabel.Cursor = System.Windows.Forms.Cursors.SizeAll;
+            dragLabel.Padding = new System.Windows.Forms.Padding(12);
+            dragLabel.Text = BuildDragSurfaceText(files);
+            dragLabel.MouseDown += BeginFileDrag;
+            Controls.Add(dragLabel);
+
+            MouseDown += BeginFileDrag;
+            Shown += delegate
+            {
+                PlaceNearCursor();
+                Activate();
+            };
+            KeyDown += delegate(object sender, System.Windows.Forms.KeyEventArgs e)
+            {
+                if (e.KeyCode == System.Windows.Forms.Keys.Escape)
+                    Close();
+            };
+        }
+
+        static string BuildDragSurfaceText(List<string> paths)
+        {
+            if (paths.Count == 1)
+            {
+                string name = Path.GetFileName(paths[0].TrimEnd(
+                    Path.DirectorySeparatorChar,
+                    Path.AltDirectorySeparatorChar));
+                if (String.IsNullOrWhiteSpace(name))
+                    name = paths[0];
+
+                return "Drag this item into another app\r\n" +
+                       name +
+                       "\r\n\r\nHold left mouse and drag this box";
+            }
+
+            return "Drag " +
+                   paths.Count.ToString(CultureInfo.InvariantCulture) +
+                   " selected items into another app\r\n\r\n" +
+                   "Hold left mouse and drag this box";
+        }
+
+        void PlaceNearCursor()
+        {
+            Point cursor = System.Windows.Forms.Cursor.Position;
+            Rectangle working = System.Windows.Forms.Screen.FromPoint(cursor).WorkingArea;
+
+            int x = cursor.X + 18;
+            int y = cursor.Y + 18;
+            if (x + Width > working.Right)
+                x = working.Right - Width;
+            if (y + Height > working.Bottom)
+                y = working.Bottom - Height;
+
+            x = Math.Max(working.Left, x);
+            y = Math.Max(working.Top, y);
+            Location = new Point(x, y);
+        }
+
+        void BeginFileDrag(object sender, System.Windows.Forms.MouseEventArgs e)
+        {
+            if (e.Button != System.Windows.Forms.MouseButtons.Left || dragActive)
+                return;
+
+            dragActive = true;
+            try
+            {
+                var dropList = new System.Collections.Specialized.StringCollection();
+                dropList.AddRange(files.ToArray());
+
+                var data = new System.Windows.Forms.DataObject();
+                data.SetFileDropList(dropList);
+
+                System.Windows.Forms.DragDropEffects effect = DoDragDrop(
+                    data,
+                    System.Windows.Forms.DragDropEffects.Copy |
+                    System.Windows.Forms.DragDropEffects.Move);
+
+                if (effect != System.Windows.Forms.DragDropEffects.None)
+                    Close();
+            }
+            finally
+            {
+                dragActive = false;
+            }
+        }
     }
 
     static int YaziDragFromArgs(string[] args)
@@ -15333,37 +15436,9 @@ class WgdotHidden
             SafeDeleteFile(manifest);
         }
 
-        IntPtr sourceWindow = GetForegroundWindow();
-        RECT sourceRect;
-        if (sourceWindow == IntPtr.Zero || !GetWindowRect(sourceWindow, out sourceRect))
-            return 0;
-
-        var watch = Stopwatch.StartNew();
-        while ((GetAsyncKeyState(0x01) & 0x8000) != 0 && watch.ElapsedMilliseconds < 30000)
-        {
-            POINT point;
-            if (GetCursorPos(out point) && !PointInsideRect(point, sourceRect))
-            {
-                var dropList = new System.Collections.Specialized.StringCollection();
-                dropList.AddRange(files.ToArray());
-
-                var data = new System.Windows.Forms.DataObject();
-                data.SetFileDropList(dropList);
-
-                using (var dragSource = new System.Windows.Forms.Control())
-                {
-                    IntPtr unused = dragSource.Handle;
-                    dragSource.DoDragDrop(
-                        data,
-                        System.Windows.Forms.DragDropEffects.Copy |
-                        System.Windows.Forms.DragDropEffects.Move);
-                }
-                return 0;
-            }
-
-            System.Threading.Thread.Sleep(10);
-        }
-
+        System.Windows.Forms.Application.EnableVisualStyles();
+        System.Windows.Forms.Application.SetCompatibleTextRenderingDefault(false);
+        System.Windows.Forms.Application.Run(new YaziDragSurface(files));
         return 0;
     }
 
