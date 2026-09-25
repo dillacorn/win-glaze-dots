@@ -823,6 +823,8 @@ Assert-True ($nativeSourceText -match 'uninstall --id ') "standard catalog appli
 $upgradeRecoveryBlock = [regex]::Match($nativeSourceText, '(?ms)foreach \(string id in GetStringList\(plan, "upgradeIds"\).*?^            }').Value
 Assert-True ($upgradeRecoveryBlock -match 'upgrade --id ') "approved software upgrades use exact WinGet IDs"
 Assert-True ($upgradeRecoveryBlock -match 'uninstall --id ') "failed WinGet upgrades automatically attempt exact-ID uninstall recovery"
+Assert-True ($upgradeRecoveryBlock -match '--all-versions') "multi-version WinGet uninstall ambiguity retries by removing all versions of the exact package ID"
+Assert-True ($upgradeRecoveryBlock -match 'PrepareWingetPackageMutation') "upgrade recovery closes declared package-blocking processes"
 Assert-True ($upgradeRecoveryBlock -match 'install --id ') "failed WinGet upgrades reinstall the exact package after successful uninstall"
 Assert-True ($upgradeRecoveryBlock -match 'reinstalledIds\.Add\(id\)') "successful upgrade recovery is tracked separately"
 Assert-True ($nativeSourceText -match 'Reinstalled after failed upgrade: ') "software reconciliation reports recovered upgrade reinstalls"
@@ -951,6 +953,12 @@ Assert-True ($nativeSourceText -match 'IsOfficialGitHubPortablePackage\(package\
 Assert-True ($nativeSourceText -match 'Refusing to install a user-level package inside the elevated worker') "user-level packages are kept out of the elevated worker"
 Assert-True ($nativeSourceText -match 'official GitHub OK') "audit reports official GitHub packages without a false WinGet-missing warning"
 Assert-True ($nativeSourceText -match 'Official GitHub source selected') "reconcile skips dead WinGet lookup for official GitHub packages"
+$glazePackage = @($manifest.packages | Where-Object { $_.id -eq 'glzr-io.glazewm' })[0]
+Assert-True (@($glazePackage.wingetForceStopProcesses) -contains 'glazewm') "GlazeWM WinGet maintenance can stop its running WM process"
+Assert-True ([bool]$glazePackage.wingetRestartAfterMutation) "GlazeWM is restarted after package maintenance when it was previously running"
+$obsPackage = @($manifest.packages | Where-Object { $_.id -eq 'OBSProject.OBSStudio' })[0]
+Assert-True (@($obsPackage.wingetCloseProcesses) -contains 'obs64') "OBS WinGet maintenance closes 64-bit OBS before package mutation"
+Assert-True (@($obsPackage.wingetCloseProcesses) -contains 'obs32') "OBS WinGet maintenance covers legacy 32-bit OBS process naming"
 $rustDeskPackage = @($manifest.packages | Where-Object { $_.id -eq 'RustDesk.RustDesk' })[0]
 Assert-True ($null -ne $rustDeskPackage) "RustDesk catalog entry exists"
 Assert-Equal ([string]$rustDeskPackage.installMode) 'official-github' "RustDesk uses its verified official GitHub source instead of a missing WinGet ID"

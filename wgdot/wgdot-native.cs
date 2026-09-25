@@ -3650,6 +3650,92 @@ class WgdotHidden
         return RunSoftwareElevatedPlan(planPath, planSha256);
     }
 
+    static bool CloseProcessByNameGracefully(string processName, int timeoutMs)
+    {
+        bool found = false;
+        foreach (Process process in Process.GetProcessesByName(processName))
+        {
+            found = true;
+            try
+            {
+                process.CloseMainWindow();
+            }
+            catch
+            {
+            }
+            finally
+            {
+                process.Dispose();
+            }
+        }
+
+        if (!found) return true;
+        return WaitForProcessState(processName, false, timeoutMs);
+    }
+
+    static bool PrepareWingetPackageMutation(
+        Dictionary<string, object> package,
+        out bool restartAfterMutation,
+        out string error)
+    {
+        restartAfterMutation = false;
+        error = "";
+
+        var graceful = GetStringList(package, "wingetCloseProcesses")
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        var force = GetStringList(package, "wingetForceStopProcesses")
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        foreach (string processName in graceful.Concat(force))
+        {
+            if (!Regex.IsMatch(processName ?? "", "^[A-Za-z0-9_.-]+$"))
+            {
+                error = "Invalid WinGet blocking process name in manifest: " + processName;
+                return false;
+            }
+        }
+
+        bool wasRunning = graceful.Concat(force)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Any(ProcessIsRunning);
+
+        foreach (string processName in graceful)
+        {
+            if (!ProcessIsRunning(processName)) continue;
+
+            Console.WriteLine("Closing " + processName + " before WinGet package maintenance...");
+            if (!CloseProcessByNameGracefully(processName, 10000))
+            {
+                error =
+                    processName +
+                    " is still running. Close it and retry the software operation.";
+                return false;
+            }
+        }
+
+        foreach (string processName in force)
+        {
+            if (!ProcessIsRunning(processName)) continue;
+
+            Console.WriteLine("Stopping " + processName + " before WinGet package maintenance...");
+            StopProcessesByName(processName);
+            if (!WaitForProcessState(processName, false, 5000))
+            {
+                error =
+                    processName +
+                    " could not be stopped before WinGet package maintenance.";
+                return false;
+            }
+        }
+
+        restartAfterMutation =
+            wasRunning &&
+            GetBool(package, "wingetRestartAfterMutation");
+        return true;
+    }
+
     static int GetWingetInstallTimeoutMs(Dictionary<string, object> package)
     {
         int seconds = GetInt(package, "wingetInstallTimeoutSeconds");
@@ -3676,6 +3762,7 @@ class WgdotHidden
         var failedIds = new List<string>();
         var upgradedIds = new List<string>();
         var reinstalledIds = new List<string>();
+        var restartAfterMutationIds = new List<string>();
         var upgradeFailedIds = new List<string>();
         var adminTweakFailedIds = new List<string>();
         var failureDetails = new List<string>();
@@ -3798,6 +3885,22 @@ class WgdotHidden
                 }
 
                 int installTimeoutMs = GetWingetInstallTimeoutMs(package);
+                bool restartAfterInstall;
+                string mutationError;
+                if (!PrepareWingetPackageMutation(
+                        package,
+                        out restartAfterInstall,
+                        out mutationError))
+                {
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.WriteLine("Install blocked for " + id + ": " + mutationError);
+                    Console.ResetColor();
+                    failedIds.Add(id);
+                    failureDetails.Add("WinGet install blocked: " + id + ": " + mutationError);
+                    failures++;
+                    continue;
+                }
+
                 ProcResult install = RunInteractiveWithTimeout(
                     winget,
                     "install --id " + Q(id) + " --exact --source winget --accept-source-agreements --accept-package-agreements --disable-interactivity",
@@ -3806,6 +3909,8 @@ class WgdotHidden
                 if (install.ExitCode == 0)
                 {
                     installedIds.Add(id);
+                    if (restartAfterInstall)
+                        restartAfterMutationIds.Add(id);
                 }
                 else if (HasOfficialGitHubFallback(package))
                 {
@@ -3856,6 +3961,23 @@ class WgdotHidden
 
                 Console.WriteLine();
                 Console.WriteLine("Upgrading " + id + "...");
+
+                bool restartAfterUpgrade;
+                string mutationError;
+                if (!PrepareWingetPackageMutation(
+                        package,
+                        out restartAfterUpgrade,
+                        out mutationError))
+                {
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.WriteLine("Upgrade blocked for " + id + ": " + mutationError);
+                    Console.ResetColor();
+                    upgradeFailedIds.Add(id);
+                    failureDetails.Add("WinGet upgrade blocked: " + id + ": " + mutationError);
+                    failures++;
+                    continue;
+                }
+
                 ProcResult upgrade = RunInteractive(
                     winget,
                     "upgrade --id " + Q(id) + " --exact --source winget --accept-source-agreements --accept-package-agreements --disable-interactivity");
@@ -3863,6 +3985,8 @@ class WgdotHidden
                 if (upgrade.ExitCode == 0)
                 {
                     upgradedIds.Add(id);
+                    if (restartAfterUpgrade)
+                        restartAfterMutationIds.Add(id);
                     continue;
                 }
 
@@ -3879,6 +4003,19 @@ class WgdotHidden
                     "uninstall --id " + Q(id) + " --exact --disable-interactivity",
                     recoveryTimeoutMs);
 
+                if (!uninstall.TimedOut && uninstall.ExitCode == -1978335210)
+                {
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.WriteLine(
+                        "WinGet found multiple installed versions of " + id +
+                        "; removing all versions before reinstall.");
+                    Console.ResetColor();
+                    uninstall = RunInteractiveWithTimeout(
+                        winget,
+                        "uninstall --id " + Q(id) + " --exact --all-versions --disable-interactivity",
+                        recoveryTimeoutMs);
+                }
+
                 if (uninstall.TimedOut || uninstall.ExitCode != 0)
                 {
                     upgradeFailedIds.Add(id);
@@ -3889,6 +4026,22 @@ class WgdotHidden
                             : "WinGet upgrade failed (" + upgrade.ExitCode.ToString(CultureInfo.InvariantCulture) +
                               ") and recovery uninstall failed (" +
                               uninstall.ExitCode.ToString(CultureInfo.InvariantCulture) + "): " + id);
+                    failures++;
+                    continue;
+                }
+
+                bool restartAfterReinstall;
+                if (!PrepareWingetPackageMutation(
+                        package,
+                        out restartAfterReinstall,
+                        out mutationError))
+                {
+                    upgradeFailedIds.Add(id);
+                    failureDetails.Add(
+                        "WinGet upgrade failed (" +
+                        upgrade.ExitCode.ToString(CultureInfo.InvariantCulture) +
+                        "); package was uninstalled, but reinstall was blocked: " +
+                        id + ": " + mutationError);
                     failures++;
                     continue;
                 }
@@ -3905,6 +4058,8 @@ class WgdotHidden
                     Console.WriteLine("Recovered failed upgrade by reinstalling: " + id);
                     Console.ResetColor();
                     reinstalledIds.Add(id);
+                    if (restartAfterUpgrade || restartAfterReinstall)
+                        restartAfterMutationIds.Add(id);
                     continue;
                 }
 
@@ -3981,6 +4136,7 @@ class WgdotHidden
             result["failedIds"] = failedIds;
             result["upgradedIds"] = upgradedIds;
             result["reinstalledIds"] = reinstalledIds;
+            result["restartAfterMutationIds"] = restartAfterMutationIds;
             result["upgradeFailedIds"] = upgradeFailedIds;
             result["adminTweakFailedIds"] = adminTweakFailedIds;
             result["browserPolicyError"] = browserPolicyError;
@@ -5722,6 +5878,43 @@ class WgdotHidden
         }
     }
 
+    static void RestartPackageAfterWingetMutation(
+        Dictionary<string, object> package)
+    {
+        if (package == null) return;
+
+        string handler = GetString(package, "startupHandler");
+        if (!String.Equals(handler, "glazewm", StringComparison.OrdinalIgnoreCase))
+            return;
+
+        if (ProcessIsRunning("glazewm"))
+            return;
+
+        string exe = FindGlazeWmExe();
+        if (String.IsNullOrWhiteSpace(exe))
+        {
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine("GlazeWM was updated, but its executable could not be found for restart.");
+            Console.ResetColor();
+            return;
+        }
+
+        string config = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            ".glzr",
+            "glazewm",
+            "config.yaml");
+        StartDetachedProcess(exe, "start --config=" + Q(config));
+        if (WaitForProcessState("glazewm", true, 5000))
+            Console.WriteLine("Restarted GlazeWM after WinGet package maintenance.");
+        else
+        {
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine("GlazeWM package maintenance succeeded, but GlazeWM did not restart.");
+            Console.ResetColor();
+        }
+    }
+
     static int SoftwareReconcile()
     {
         SourceContext source = ResolveDefaultSource();
@@ -6090,6 +6283,13 @@ class WgdotHidden
                 Dictionary<string, object> package = FindPackageById(manifest, id);
                 if (package != null)
                     RunPackagePostInstall(package);
+            }
+
+            foreach (string id in GetStringList(workerResult, "restartAfterMutationIds")
+                .Distinct(StringComparer.OrdinalIgnoreCase))
+            {
+                Dictionary<string, object> package = FindPackageById(manifest, id);
+                RestartPackageAfterWingetMutation(package);
             }
         }
 
