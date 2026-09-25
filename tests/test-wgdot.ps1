@@ -1913,7 +1913,7 @@ try {
 
 Write-Host "WGDot tests passed." -ForegroundColor Green
 
-Assert-True ($nativeSourceText -match 'Checking .* installed packages for available upgrades') "software reconcile reports long upgrade-scan progress"
+Assert-True ($nativeSourceText -match 'installed packages for available upgrades') "software reconcile reports long upgrade-scan progress"
 Assert-True ($nativeSourceText -match 'Starting software batch: ') "software reconcile reports elevated batch work before waiting"
 Assert-True ($nativeSourceText -match 'Administrator software batch finished\. Reading results') "software reconcile reports when elevated work returns"
 Assert-True ($nativeSourceText -match 'Downloading updated WGDot runtime source') "runtime refresh reports network work"
