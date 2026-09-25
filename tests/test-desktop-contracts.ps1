@@ -97,13 +97,23 @@ try {
         }
     }
 
-    Check 'Yazi native drag helper is gesture-scoped and path-only' {
+    Check 'Yazi native drag helper uses an explicit short-lived drag surface' {
         Require ($nativeSource -match 'if \(command == "yazi-drag"\) return YaziDragFromArgs') 'Yazi native drag command dispatch is missing'
+        $surfaceBlock = [regex]::Match($nativeSource, '(?ms)sealed class YaziDragSurface : System\.Windows\.Forms\.Form.*?^    }\r?\n\r?\n    static int YaziDragFromArgs').Value
         $dragBlock = [regex]::Match($nativeSource, '(?ms)static int YaziDragFromArgs\(string\[\] args\).*?^    }').Value
-        Require ($dragBlock -match 'GetAsyncKeyState\(0x01\)') 'Yazi drag does not require held Mouse1'
-        Require ($dragBlock -match 'PointInsideRect\(point, sourceRect\)') 'Yazi drag does not wait for the pointer to leave the terminal window'
-        Require ($dragBlock -match 'DoDragDrop') 'Yazi drag is not using native OLE/WinForms drag-drop'
-        Require ($dragBlock -notmatch 'Clipboard|keybd_event|SendKeys|SetWindowsHookEx') 'Yazi drag must not mutate clipboard, inject keys, or install hooks'
+        Require ($surfaceBlock -match 'dragLabel\.MouseDown \+= BeginFileDrag') 'Yazi drag surface is not directly draggable with Mouse1'
+        Require ($surfaceBlock -match 'FindYasbTheme\(CurrentYasbThemeId\(\)\)') 'Yazi drag surface does not follow the current WGDot theme'
+        Require ($surfaceBlock -match 'theme\.Background' -and $surfaceBlock -match 'theme\.Foreground' -and $surfaceBlock -match 'theme\.Active' -and $surfaceBlock -match 'theme\.Hover' -and $surfaceBlock -match 'theme\.Focus') 'Yazi drag surface is missing current-theme palette roles'
+        Require ($surfaceBlock -match 'FormBorderStyle\.None') 'Yazi drag surface still exposes an unthemed native tool-window frame'
+        Require ($surfaceBlock -match 'Opacity = 0\.0' -and $surfaceBlock -match 'Opacity = 0\.98') 'Yazi drag surface can flash before themed paint'
+        Require ($surfaceBlock -match 'CenterOnScreen\(\)') 'Yazi drag surface is not centered when shown'
+        Require ($surfaceBlock -match 'targetScreen \?\? System\.Windows\.Forms\.Screen\.PrimaryScreen') 'Yazi drag surface does not center on the captured interaction screen'
+        Require ($surfaceBlock -notmatch 'PlaceNearCursor|Cursor\.Position') 'Yazi drag surface still places itself adjacent to the pointer'
+        Require ($surfaceBlock -match 'data\.SetFileDropList\(dropList\)') 'Yazi drag surface does not expose native file-drop data'
+        Require ($surfaceBlock -match 'DoDragDrop') 'Yazi drag is not using native OLE/WinForms drag-drop'
+        Require ($dragBlock -match 'CurrentInteractionScreen\(\)') 'Yazi drag command does not capture the active interaction screen before showing the surface'
+        Require ($dragBlock -match 'Application\.Run\(new YaziDragSurface\(files, targetScreen\)\)') 'Yazi drag command does not run the centered dedicated drag surface'
+        Require ($surfaceBlock -notmatch 'GetAsyncKeyState|PointInsideRect|Clipboard|keybd_event|SendKeys|SetWindowsHookEx') 'Yazi drag surface must not track terminal pointer escape, mutate clipboard, inject keys, or install hooks'
 
         $refreshBlock = [regex]::Match($nativeSource, '(?ms)static bool ShouldAutoRefreshRuntime\(string command\).*?^    }').Value
         Require ($refreshBlock -notmatch 'yazi-drag') 'Yazi drag must not trigger runtime/network refresh'

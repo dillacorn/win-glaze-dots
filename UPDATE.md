@@ -20,7 +20,7 @@ wgdot update
 
 Normal managed-dot updates use the latest published stable WGDot-compatible release, even if the runtime was previously used for feature-branch testing.
 
-WGDot creates adjacent backups when required, preserves unrelated files, verifies every managed file after writing it, and tracks a trusted baseline so local edits can be distinguished from upstream changes. After a successful non-theme update, a running GlazeWM/YASB desktop session is restarted so the newly written configuration is loaded immediately. If Yazi is running and the update needs to replace managed Yazi configuration, WGDot asks permission to close Yazi before writing those files; declining leaves the managed update unapplied.
+WGDot creates adjacent backups when required, preserves unrelated files, verifies every managed file after writing it, and tracks a trusted baseline so local edits can be distinguished from upstream changes. After a successful non-theme update, a running GlazeWM/YASB desktop session is restarted so the newly written configuration is loaded immediately. Managed Yazi configuration may be updated while Yazi is open; existing sessions keep their current in-memory configuration until restarted, and WGDot prints a restart notice after applying Yazi changes.
 
 ## Review before applying
 

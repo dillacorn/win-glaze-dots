@@ -22,7 +22,7 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-84";
+    const string Version = "native-preview-88";
     const string HiddenLauncherVersion = "2.0.0.0";
     const int WingetPreflightTimeoutMs = 30000;
     const int CurrentTweakDefaultsVersion = 1;
@@ -2183,9 +2183,6 @@ class WgdotHidden
             return 0;
         }
 
-        if (!ConfirmYaziClosedForManagedApply(plan))
-            return 0;
-
         ApplyPlan(plan, source.Manifest, selection, source, true);
         RestoreRememberedThemeAfterManagedApply(plan);
         WriteInstallationSelection(selection);
@@ -2206,6 +2203,8 @@ class WgdotHidden
                 "Install only the managed bar font with: wgdot bar-font-install");
             Console.ResetColor();
         }
+
+        WriteYaziRestartNoticeAfterManagedApply(plan);
 
         Console.ForegroundColor = ConsoleColor.Green;
         Console.WriteLine("WGDot managed dots applied. Software was not installed, upgraded, reconciled, or uninstalled.");
@@ -4888,6 +4887,11 @@ class WgdotHidden
 
     static Process StartRawAccelGuiProcess()
     {
+        return StartRawAccelGuiProcess(false);
+    }
+
+    static Process StartRawAccelGuiProcess(bool startMinimized)
+    {
         string exe = FindRawAccelExe();
         if (String.IsNullOrWhiteSpace(exe))
             throw new Exception("RawAccel GUI executable was not found.");
@@ -4901,6 +4905,9 @@ class WgdotHidden
         psi.WorkingDirectory = workingDirectory;
         psi.UseShellExecute = true;
         psi.ErrorDialog = false;
+        psi.WindowStyle = startMinimized
+            ? ProcessWindowStyle.Minimized
+            : ProcessWindowStyle.Normal;
         Process started = Process.Start(psi);
         if (started == null)
             throw new Exception("RawAccel GUI did not start.");
@@ -5001,6 +5008,103 @@ class WgdotHidden
         }
 
         SetForegroundWindow(window);
+    }
+
+    static bool TryRunRawAccelStartupWriter()
+    {
+        string gui = FindRawAccelExe();
+        if (String.IsNullOrWhiteSpace(gui))
+            throw new Exception("RawAccel GUI executable was not found.");
+
+        string directory = Path.GetDirectoryName(gui);
+        if (String.IsNullOrWhiteSpace(directory) || !Directory.Exists(directory))
+            throw new Exception("RawAccel installation directory was not found.");
+
+        string writer = Path.Combine(directory, "writer.exe");
+        string settings = Path.Combine(directory, "settings.json");
+        if (!IsWindowsExecutableFile(writer) || !File.Exists(settings))
+            return false;
+
+        ProcResult result = RunWithTimeout(
+            writer,
+            Q(settings),
+            directory,
+            15000);
+        if (result.TimedOut)
+            throw new Exception("RawAccel writer timed out while applying startup settings.");
+        if (result.ExitCode != 0)
+            throw new Exception(
+                "RawAccel writer failed with exit code " +
+                result.ExitCode.ToString(CultureInfo.InvariantCulture) +
+                ": " +
+                LastUsefulLine(result.StdErr + "\n" + result.StdOut));
+
+        return true;
+    }
+
+    static void CompleteRawAccelGuiStartupAndClose(Process process)
+    {
+        if (process == null)
+            return;
+
+        try
+        {
+            process.WaitForInputIdle(2000);
+        }
+        catch
+        {
+        }
+
+        IntPtr window = IntPtr.Zero;
+        for (int i = 0; i < 120; i++)
+        {
+            try
+            {
+                if (process.HasExited)
+                    return;
+
+                process.Refresh();
+                window = process.MainWindowHandle;
+                if (window != IntPtr.Zero && IsWindow(window))
+                    break;
+            }
+            catch
+            {
+                return;
+            }
+
+            System.Threading.Thread.Sleep(25);
+        }
+
+        if (window != IntPtr.Zero && IsWindow(window))
+        {
+            // The GUI fallback exists only for an incomplete/first-run
+            // installation without writer.exe + settings.json. Give RawAccel
+            // enough time to finish its startup initialization, then close the
+            // GUI normally so login never leaves a taskbar/minimized window.
+            System.Threading.Thread.Sleep(2000);
+            PostMessage(window, WmClose, IntPtr.Zero, IntPtr.Zero);
+        }
+
+        try
+        {
+            if (!process.WaitForExit(5000) && !process.HasExited)
+            {
+                process.Kill();
+                process.WaitForExit(2000);
+            }
+        }
+        catch
+        {
+            try
+            {
+                if (!process.HasExited)
+                    process.Kill();
+            }
+            catch
+            {
+            }
+        }
     }
 
     static bool IsLegacyYasbStartupCommand(string command)
@@ -8357,28 +8461,15 @@ class WgdotHidden
              String.Equals(item.Action, "MERGE", StringComparison.OrdinalIgnoreCase)));
     }
 
-    static bool ConfirmYaziClosedForManagedApply(List<PlanItem> plan)
+    static void WriteYaziRestartNoticeAfterManagedApply(List<PlanItem> plan)
     {
-        if (!ManagedPlanWritesYazi(plan) || !ProcessIsRunning("yazi"))
-            return true;
+        if (!ManagedPlanWritesYazi(plan))
+            return;
 
         Console.WriteLine();
         Console.ForegroundColor = ConsoleColor.Yellow;
-        Console.WriteLine("Yazi is currently running and its managed configuration is about to be updated.");
+        Console.WriteLine("Yazi configuration was updated. Restart any open Yazi sessions to load the new configuration.");
         Console.ResetColor();
-
-        if (!ReadYesNo("Close Yazi and continue? [Y/n]", true))
-        {
-            Console.WriteLine("Yazi was left running. No managed files were changed.");
-            return false;
-        }
-
-        StopProcessesByName("yazi");
-        if (!WaitForProcessState("yazi", false, 5000))
-            throw new Exception("Yazi could not be closed. No managed files were changed.");
-
-        Console.WriteLine("Closed Yazi.");
-        return true;
     }
 
     static bool WaitForProcessState(string processName, bool running, int timeoutMs)
@@ -10310,7 +10401,20 @@ class WgdotHidden
 
     static int RawAccelStartup()
     {
-        return StartRawAccelGui();
+        // RawAccel ships writer.exe specifically to apply settings.json
+        // without keeping the GUI resident. Prefer that headless startup path
+        // so the login action cannot strand an inaccessible taskbar window.
+        if (TryRunRawAccelStartupWriter())
+            return 0;
+
+        // First-run/incomplete installations may not have both writer.exe and
+        // settings.json yet. Let the GUI initialize once, then close it fully.
+        using (Process started = StartRawAccelGuiProcess(true))
+        {
+            CompleteRawAccelGuiStartupAndClose(started);
+        }
+
+        return 0;
     }
 
     static int RawAccelToggle()
@@ -12174,9 +12278,6 @@ class WgdotHidden
             return 0;
         }
 
-        if (!ConfirmYaziClosedForManagedApply(plan))
-            return 0;
-
         string pendingGitRuntime = PrepareGitRuntimeSync(source);
         ApplyPlan(plan, source.Manifest, selection, source);
         RestoreRememberedThemeAfterManagedApply(plan);
@@ -12188,6 +12289,7 @@ class WgdotHidden
         ReturnRuntimeSourceToMainAfterStableApply(source);
         RestartDesktopSessionAfterManagedApply(plan);
         ScheduleGitRuntimeSync(source, pendingGitRuntime);
+        WriteYaziRestartNoticeAfterManagedApply(plan);
         Console.ForegroundColor = ConsoleColor.Green;
         Console.WriteLine("WGDot managed configuration applied.");
         Console.ResetColor();
@@ -15325,12 +15427,227 @@ class WgdotHidden
         return files;
     }
 
-    static bool PointInsideRect(POINT point, RECT rect)
+    sealed class YaziDragSurface : System.Windows.Forms.Form
     {
-        return point.X >= rect.Left &&
-               point.X < rect.Right &&
-               point.Y >= rect.Top &&
-               point.Y < rect.Bottom;
+        readonly List<string> files;
+        readonly System.Windows.Forms.Panel surface;
+        readonly System.Windows.Forms.Panel dragPanel;
+        readonly System.Windows.Forms.Label dragLabel;
+        readonly System.Windows.Forms.Label closeLabel;
+        readonly System.Drawing.Color dragBackground;
+        readonly System.Drawing.Color dragHover;
+        readonly System.Windows.Forms.Screen targetScreen;
+        bool dragActive;
+
+        internal YaziDragSurface(
+            List<string> paths,
+            System.Windows.Forms.Screen screen)
+        {
+            files = new List<string>(paths);
+            targetScreen = screen;
+
+            YasbTheme theme = FindYasbTheme(CurrentYasbThemeId()) ?? YasbThemes[0];
+            System.Drawing.Color background = WgdotDrawingColor(
+                theme.Background,
+                System.Drawing.Color.FromArgb(53, 53, 53));
+            System.Drawing.Color foreground = WgdotDrawingColor(
+                theme.Foreground,
+                System.Drawing.Color.Gainsboro);
+            System.Drawing.Color border = WgdotDrawingColor(
+                theme.Focus,
+                System.Drawing.Color.FromArgb(74, 74, 74));
+            System.Drawing.Color muted = WgdotDrawingColor(
+                theme.Muted,
+                System.Drawing.Color.FromArgb(92, 92, 92));
+            dragBackground = WgdotDrawingColor(
+                theme.Active,
+                System.Drawing.Color.FromArgb(43, 43, 43));
+            dragHover = WgdotDrawingColor(
+                theme.Hover,
+                System.Drawing.Color.FromArgb(64, 64, 64));
+
+            Text = "Yazi Drag Out";
+            FormBorderStyle = System.Windows.Forms.FormBorderStyle.None;
+            StartPosition = System.Windows.Forms.FormStartPosition.Manual;
+            ShowInTaskbar = false;
+            TopMost = true;
+            MaximizeBox = false;
+            MinimizeBox = false;
+            KeyPreview = true;
+            ClientSize = new Size(380, 132);
+            BackColor = border;
+            Padding = new System.Windows.Forms.Padding(1);
+            Opacity = 0.0;
+
+            surface = new System.Windows.Forms.Panel();
+            surface.Dock = System.Windows.Forms.DockStyle.Fill;
+            surface.BackColor = background;
+            surface.Padding = new System.Windows.Forms.Padding(10, 7, 10, 10);
+
+            var header = new System.Windows.Forms.Panel();
+            header.Dock = System.Windows.Forms.DockStyle.Top;
+            header.Height = 26;
+            header.BackColor = background;
+
+            var titleLabel = new System.Windows.Forms.Label();
+            titleLabel.Dock = System.Windows.Forms.DockStyle.Fill;
+            titleLabel.Text = "Yazi Drag Out";
+            titleLabel.TextAlign = ContentAlignment.MiddleLeft;
+            titleLabel.ForeColor = muted;
+            titleLabel.BackColor = System.Drawing.Color.Transparent;
+            titleLabel.Font = new System.Drawing.Font(
+                "Segoe UI",
+                13f,
+                System.Drawing.FontStyle.Bold,
+                System.Drawing.GraphicsUnit.Pixel);
+
+            closeLabel = new System.Windows.Forms.Label();
+            closeLabel.Dock = System.Windows.Forms.DockStyle.Right;
+            closeLabel.Width = 28;
+            closeLabel.Text = "×";
+            closeLabel.TextAlign = ContentAlignment.MiddleCenter;
+            closeLabel.ForeColor = foreground;
+            closeLabel.BackColor = background;
+            closeLabel.Cursor = System.Windows.Forms.Cursors.Hand;
+            closeLabel.Font = new System.Drawing.Font(
+                "Segoe UI",
+                16f,
+                System.Drawing.FontStyle.Regular,
+                System.Drawing.GraphicsUnit.Pixel);
+            closeLabel.Click += delegate { Close(); };
+            closeLabel.MouseEnter += delegate { closeLabel.BackColor = dragHover; };
+            closeLabel.MouseLeave += delegate { closeLabel.BackColor = background; };
+
+            header.Controls.Add(titleLabel);
+            header.Controls.Add(closeLabel);
+
+            dragPanel = new System.Windows.Forms.Panel();
+            dragPanel.Dock = System.Windows.Forms.DockStyle.Fill;
+            dragPanel.BackColor = dragBackground;
+            dragPanel.Cursor = System.Windows.Forms.Cursors.SizeAll;
+            dragPanel.Padding = new System.Windows.Forms.Padding(10);
+
+            dragLabel = new System.Windows.Forms.Label();
+            dragLabel.Dock = System.Windows.Forms.DockStyle.Fill;
+            dragLabel.BorderStyle = System.Windows.Forms.BorderStyle.None;
+            dragLabel.TextAlign = ContentAlignment.MiddleCenter;
+            dragLabel.AutoEllipsis = true;
+            dragLabel.Cursor = System.Windows.Forms.Cursors.SizeAll;
+            dragLabel.ForeColor = foreground;
+            dragLabel.BackColor = System.Drawing.Color.Transparent;
+            dragLabel.Font = new System.Drawing.Font(
+                "Segoe UI",
+                13f,
+                System.Drawing.FontStyle.Regular,
+                System.Drawing.GraphicsUnit.Pixel);
+            dragLabel.Text = BuildDragSurfaceText(files);
+
+            EventHandler enter = delegate
+            {
+                if (!dragActive)
+                    dragPanel.BackColor = dragHover;
+            };
+            EventHandler leave = delegate
+            {
+                if (!dragActive)
+                    dragPanel.BackColor = dragBackground;
+            };
+
+            dragPanel.MouseEnter += enter;
+            dragPanel.MouseLeave += leave;
+            dragLabel.MouseEnter += enter;
+            dragLabel.MouseLeave += leave;
+            dragPanel.MouseDown += BeginFileDrag;
+            dragLabel.MouseDown += BeginFileDrag;
+
+            dragPanel.Controls.Add(dragLabel);
+            surface.Controls.Add(dragPanel);
+            surface.Controls.Add(header);
+            Controls.Add(surface);
+
+            Shown += delegate
+            {
+                CenterOnScreen();
+                Refresh();
+                surface.Refresh();
+                header.Refresh();
+                dragPanel.Refresh();
+                dragLabel.Refresh();
+                closeLabel.Refresh();
+                Opacity = 0.98;
+                Activate();
+            };
+            KeyDown += delegate(object sender, System.Windows.Forms.KeyEventArgs e)
+            {
+                if (e.KeyCode == System.Windows.Forms.Keys.Escape)
+                    Close();
+            };
+        }
+
+        static string BuildDragSurfaceText(List<string> paths)
+        {
+            if (paths.Count == 1)
+            {
+                string name = Path.GetFileName(paths[0].TrimEnd(
+                    Path.DirectorySeparatorChar,
+                    Path.AltDirectorySeparatorChar));
+                if (String.IsNullOrWhiteSpace(name))
+                    name = paths[0];
+
+                return "Drag this item into another app\r\n" +
+                       name +
+                       "\r\n\r\nHold left mouse and drag this box";
+            }
+
+            return "Drag " +
+                   paths.Count.ToString(CultureInfo.InvariantCulture) +
+                   " selected items into another app\r\n\r\n" +
+                   "Hold left mouse and drag this box";
+        }
+
+        void CenterOnScreen()
+        {
+            System.Windows.Forms.Screen screen =
+                targetScreen ?? System.Windows.Forms.Screen.PrimaryScreen;
+            if (screen == null)
+                return;
+
+            Rectangle working = screen.WorkingArea;
+            int x = working.Left + Math.Max(0, (working.Width - Width) / 2);
+            int y = working.Top + Math.Max(0, (working.Height - Height) / 2);
+            Location = new Point(x, y);
+        }
+
+        void BeginFileDrag(object sender, System.Windows.Forms.MouseEventArgs e)
+        {
+            if (e.Button != System.Windows.Forms.MouseButtons.Left || dragActive)
+                return;
+
+            dragActive = true;
+            dragPanel.BackColor = dragHover;
+            try
+            {
+                var dropList = new System.Collections.Specialized.StringCollection();
+                dropList.AddRange(files.ToArray());
+
+                var data = new System.Windows.Forms.DataObject();
+                data.SetFileDropList(dropList);
+
+                System.Windows.Forms.DragDropEffects effect = DoDragDrop(
+                    data,
+                    System.Windows.Forms.DragDropEffects.Copy |
+                    System.Windows.Forms.DragDropEffects.Move);
+
+                if (effect != System.Windows.Forms.DragDropEffects.None)
+                    Close();
+            }
+            finally
+            {
+                dragActive = false;
+                if (!IsDisposed)
+                    dragPanel.BackColor = dragBackground;
+            }
+        }
     }
 
     static int YaziDragFromArgs(string[] args)
@@ -15349,37 +15666,10 @@ class WgdotHidden
             SafeDeleteFile(manifest);
         }
 
-        IntPtr sourceWindow = GetForegroundWindow();
-        RECT sourceRect;
-        if (sourceWindow == IntPtr.Zero || !GetWindowRect(sourceWindow, out sourceRect))
-            return 0;
-
-        var watch = Stopwatch.StartNew();
-        while ((GetAsyncKeyState(0x01) & 0x8000) != 0 && watch.ElapsedMilliseconds < 30000)
-        {
-            POINT point;
-            if (GetCursorPos(out point) && !PointInsideRect(point, sourceRect))
-            {
-                var dropList = new System.Collections.Specialized.StringCollection();
-                dropList.AddRange(files.ToArray());
-
-                var data = new System.Windows.Forms.DataObject();
-                data.SetFileDropList(dropList);
-
-                using (var dragSource = new System.Windows.Forms.Control())
-                {
-                    IntPtr unused = dragSource.Handle;
-                    dragSource.DoDragDrop(
-                        data,
-                        System.Windows.Forms.DragDropEffects.Copy |
-                        System.Windows.Forms.DragDropEffects.Move);
-                }
-                return 0;
-            }
-
-            System.Threading.Thread.Sleep(10);
-        }
-
+        System.Windows.Forms.Screen targetScreen = CurrentInteractionScreen();
+        System.Windows.Forms.Application.EnableVisualStyles();
+        System.Windows.Forms.Application.SetCompatibleTextRenderingDefault(false);
+        System.Windows.Forms.Application.Run(new YaziDragSurface(files, targetScreen));
         return 0;
     }
 

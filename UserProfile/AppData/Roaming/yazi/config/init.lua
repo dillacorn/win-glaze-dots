@@ -1018,6 +1018,7 @@ local WgdotYaziFileActions = {
     { label = "Open with...", shortcut = "O", action = "open_with" },
     { label = "Bookmark / unbookmark", shortcut = "g B", action = "bookmark_hovered" },
     { label = "Rename", shortcut = "r", action = "rename" },
+    { label = "Drag out...", shortcut = "d g", action = "drag_out" },
     { label = "Copy", shortcut = "Ctrl+C / y", action = "copy" },
     { label = "Cut", shortcut = "Ctrl+X / Y", action = "cut" },
     { label = "Copy path", shortcut = "cc", action = "copy_path" },
@@ -1091,15 +1092,31 @@ local function WgdotYaziDropInto(op, target, sources)
 end
 
 local function WgdotYaziStartOutboundDrag(sources)
+    if not sources or #sources == 0 then
+        return
+    end
+
     local local_app_data = os.getenv("LOCALAPPDATA")
     local temp_dir = os.getenv("TEMP")
     if not local_app_data or local_app_data == "" or not temp_dir or temp_dir == "" then
+        ya.notify {
+            title = "Yazi drag",
+            content = "Windows drag helper environment is unavailable.",
+            timeout = 4,
+            level = "warn",
+        }
         return
     end
 
     local helper = local_app_data .. "\\wgdot\\bin\\wgdotw.exe"
     local probe = io.open(helper, "rb")
     if not probe then
+        ya.notify {
+            title = "Yazi drag",
+            content = "WGDot drag helper is not installed.",
+            timeout = 4,
+            level = "warn",
+        }
         return
     end
     probe:close()
@@ -1112,8 +1129,15 @@ local function WgdotYaziStartOutboundDrag(sources)
     )
     local list = io.open(list_path, "wb")
     if not list then
+        ya.notify {
+            title = "Yazi drag",
+            content = "Could not prepare the Windows drag selection.",
+            timeout = 4,
+            level = "warn",
+        }
         return
     end
+
     for _, source in ipairs(sources) do
         list:write(source.path, "\n")
     end
@@ -1125,12 +1149,21 @@ local function WgdotYaziStartOutboundDrag(sources)
             os.remove(list_path)
             ya.notify {
                 title = "Yazi drag",
-                content = "Native Windows drag is unavailable; Yazi itself remains usable.",
+                content = "WGDot drag window could not be opened.",
                 timeout = 4,
                 level = "warn",
             }
         end
     end)
+end
+
+function WgdotYaziDragOut()
+    local hovered = cx.active.current.hovered
+    if not hovered then
+        return
+    end
+
+    WgdotYaziStartOutboundDrag(WgdotYaziDragSources(hovered))
 end
 
 local WgdotYaziFolderActions = {
@@ -1211,6 +1244,7 @@ function WgdotYaziContextMenu:actions()
                 shortcut = "r",
                 action = "bulk_rename",
             },
+            { label = "Drag out...", shortcut = "d g", action = "drag_out" },
             { label = "Copy", shortcut = "Ctrl+C / y", action = "copy" },
             { label = "Cut", shortcut = "Ctrl+X / Y", action = "cut" },
             { label = "Compress to ZIP...", shortcut = "c z", action = "compress_zip" },
@@ -1229,6 +1263,7 @@ function WgdotYaziContextMenu:actions()
                 action = "bookmark_hovered",
             },
             { label = "Rename", shortcut = "r", action = "rename" },
+            { label = "Drag out...", shortcut = "d g", action = "drag_out" },
             { label = "Copy", shortcut = "Ctrl+C / y", action = "copy" },
             { label = "Cut", shortcut = "Ctrl+X / Y", action = "cut" },
             { label = "Copy path", shortcut = "cc", action = "copy_path" },
@@ -1264,22 +1299,22 @@ function WgdotYaziContextMenu:footer()
         }
     elseif self._selection_count > 1 then
         return {
-            "Keys: r bulk rename | Ctrl+C/X copy/cut | c z ZIP",
-            "Delete: dd trash | Shift+D permanent delete",
+            "Keys: r bulk rename | d g drag out | Ctrl+C/X copy/cut",
+            "More: c z ZIP | dd trash | Shift+D permanent delete",
         }
     end
 
     local hovered = cx.active.current.hovered
     if hovered and hovered.cha.is_dir then
         return {
-            "Keys: Enter open | t n new tab | g B bookmark | r rename",
-            "More: Ctrl+C/X copy/cut | cc path | Tab info | c z ZIP | dd trash",
+            "Keys: Enter open | t n new tab | d g drag out | r rename",
+            "More: g B bookmark | Ctrl+C/X copy/cut | cc path | Tab info | c z ZIP | dd trash",
         }
     end
 
     return {
-        "Keys: Enter open | r rename | Ctrl+C/X copy/cut | c z ZIP",
-        "More: cc path | Tab info | dd trash | e h/e f extract ZIP",
+        "Keys: Enter open | d g drag out | r rename | Ctrl+C/X copy/cut",
+        "More: c z ZIP | cc path | Tab info | dd trash | e h/e f extract ZIP",
     }
 end
 
@@ -1384,6 +1419,8 @@ function WgdotYaziContextMenu:run(action)
         ya.emit("rename", { hovered = true })
     elseif action == "bulk_rename" then
         ya.emit("rename", {})
+    elseif action == "drag_out" then
+        WgdotYaziDragOut()
     elseif action == "bookmark_hovered" then
         local hovered = cx.active.current.hovered
         if hovered then
@@ -1724,7 +1761,6 @@ function Current:drag(event)
 
                 WgdotYaziContextMenu:hide()
                 WgdotYaziDragState = { sources = sources }
-                WgdotYaziStartOutboundDrag(sources)
             end
         end
     end
