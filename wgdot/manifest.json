@@ -683,7 +683,8 @@
       "wingetCloseProcesses": [
         "obs64",
         "obs32"
-      ]
+      ],
+      "wingetObsHookRecovery": true
     },
     {
       "name": "Mullvad Browser",

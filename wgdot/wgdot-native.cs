@@ -22,7 +22,7 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-90";
+    const string Version = "native-preview-91";
     const string HiddenLauncherVersion = "2.0.0.0";
     const int WingetPreflightTimeoutMs = 30000;
     const int CurrentTweakDefaultsVersion = 1;
@@ -413,6 +413,14 @@ internal static class WgdotNative
         public string StdOut;
         public string StdErr;
         public bool TimedOut;
+    }
+
+    sealed class ObsVulkanLayerSnapshot
+    {
+        public RegistryHive Hive;
+        public RegistryView View;
+        public string ValueName;
+        public int Value;
     }
 
     sealed class SourceContext
@@ -3736,6 +3744,301 @@ class WgdotHidden
         return true;
     }
 
+    static bool IsObsStudioPackage(Dictionary<string, object> package)
+    {
+        return String.Equals(
+            GetString(package, "id"),
+            "OBSProject.OBSStudio",
+            StringComparison.OrdinalIgnoreCase);
+    }
+
+    static bool IsProtectedObsHookProcess(string processName)
+    {
+        string[] protectedNames =
+        {
+            "System",
+            "Idle",
+            "Registry",
+            "smss",
+            "csrss",
+            "wininit",
+            "winlogon",
+            "services",
+            "lsass",
+            "svchost",
+            "dwm",
+            "explorer",
+            "fontdrvhost",
+            "sihost",
+            "taskhostw",
+            "SearchHost",
+            "StartMenuExperienceHost",
+            "ShellExperienceHost"
+        };
+
+        return protectedNames.Contains(
+            processName ?? "",
+            StringComparer.OrdinalIgnoreCase);
+    }
+
+    static bool ProcessUsesObsGraphicsHook(Process process)
+    {
+        try
+        {
+            foreach (ProcessModule module in process.Modules)
+            {
+                string moduleName = module.ModuleName ?? "";
+                if (String.Equals(
+                        moduleName,
+                        "graphics-hook64.dll",
+                        StringComparison.OrdinalIgnoreCase) ||
+                    String.Equals(
+                        moduleName,
+                        "graphics-hook32.dll",
+                        StringComparison.OrdinalIgnoreCase))
+                    return true;
+
+                string fileName = module.FileName ?? "";
+                if (fileName.IndexOf(
+                        "obs-studio-hook",
+                        StringComparison.OrdinalIgnoreCase) >= 0 &&
+                    (fileName.EndsWith(
+                         "graphics-hook64.dll",
+                         StringComparison.OrdinalIgnoreCase) ||
+                     fileName.EndsWith(
+                         "graphics-hook32.dll",
+                         StringComparison.OrdinalIgnoreCase)))
+                    return true;
+            }
+        }
+        catch
+        {
+        }
+
+        return false;
+    }
+
+    static List<string> StopObsGraphicsHookBlockers()
+    {
+        var stopped = new List<string>();
+        var protectedBlockers = new List<string>();
+        int currentPid = Process.GetCurrentProcess().Id;
+
+        foreach (Process process in Process.GetProcesses())
+        {
+            try
+            {
+                if (process.Id == currentPid || !ProcessUsesObsGraphicsHook(process))
+                    continue;
+
+                string processName = process.ProcessName ?? "";
+                string label =
+                    processName + " (PID " +
+                    process.Id.ToString(CultureInfo.InvariantCulture) + ")";
+
+                if (IsProtectedObsHookProcess(processName))
+                {
+                    protectedBlockers.Add(label);
+                    continue;
+                }
+
+                Console.WriteLine(
+                    "Closing OBS graphics-hook blocker: " + label + "...");
+
+                bool exited = false;
+                try
+                {
+                    if (process.CloseMainWindow())
+                        exited = process.WaitForExit(5000);
+                }
+                catch
+                {
+                }
+
+                if (!exited)
+                {
+                    try
+                    {
+                        process.Kill();
+                        exited = process.WaitForExit(5000);
+                    }
+                    catch
+                    {
+                    }
+                }
+
+                if (exited)
+                    stopped.Add(label);
+                else
+                    protectedBlockers.Add(label);
+            }
+            finally
+            {
+                process.Dispose();
+            }
+        }
+
+        if (protectedBlockers.Count > 0)
+            throw new Exception(
+                "OBS graphics-hook files are still in use by protected/unclosable processes: " +
+                String.Join(", ", protectedBlockers.ToArray()) + ".");
+
+        return stopped;
+    }
+
+    static List<ObsVulkanLayerSnapshot> DisableObsVulkanImplicitLayers()
+    {
+        var snapshots = new List<ObsVulkanLayerSnapshot>();
+        RegistryHive[] hives = { RegistryHive.LocalMachine, RegistryHive.CurrentUser };
+        RegistryView[] views = { RegistryView.Registry64, RegistryView.Registry32 };
+        const string keyPath = @"SOFTWARE\Khronos\Vulkan\ImplicitLayers";
+
+        foreach (RegistryHive hive in hives)
+        {
+            foreach (RegistryView view in views)
+            {
+                try
+                {
+                    using (RegistryKey root = RegistryKey.OpenBaseKey(hive, view))
+                    using (RegistryKey key = root.OpenSubKey(keyPath, true))
+                    {
+                        if (key == null) continue;
+
+                        foreach (string valueName in key.GetValueNames())
+                        {
+                            string leaf = Path.GetFileName(valueName ?? "");
+                            if (!String.Equals(
+                                    leaf,
+                                    "obs-vulkan64.json",
+                                    StringComparison.OrdinalIgnoreCase) &&
+                                !String.Equals(
+                                    leaf,
+                                    "obs-vulkan32.json",
+                                    StringComparison.OrdinalIgnoreCase))
+                                continue;
+
+                            object raw = key.GetValue(
+                                valueName,
+                                null,
+                                RegistryValueOptions.DoNotExpandEnvironmentNames);
+                            if (raw == null) continue;
+
+                            int oldValue;
+                            try
+                            {
+                                oldValue = Convert.ToInt32(
+                                    raw,
+                                    CultureInfo.InvariantCulture);
+                            }
+                            catch
+                            {
+                                continue;
+                            }
+
+                            snapshots.Add(new ObsVulkanLayerSnapshot
+                            {
+                                Hive = hive,
+                                View = view,
+                                ValueName = valueName,
+                                Value = oldValue
+                            });
+
+                            key.SetValue(
+                                valueName,
+                                1,
+                                RegistryValueKind.DWord);
+                        }
+                    }
+                }
+                catch (UnauthorizedAccessException)
+                {
+                    throw new Exception(
+                        "WGDot could not temporarily disable the OBS Vulkan capture layer.");
+                }
+            }
+        }
+
+        return snapshots;
+    }
+
+    static void RestoreObsVulkanImplicitLayers(
+        IEnumerable<ObsVulkanLayerSnapshot> snapshots)
+    {
+        if (snapshots == null) return;
+        const string keyPath = @"SOFTWARE\Khronos\Vulkan\ImplicitLayers";
+
+        foreach (ObsVulkanLayerSnapshot snapshot in snapshots)
+        {
+            try
+            {
+                using (RegistryKey root = RegistryKey.OpenBaseKey(
+                    snapshot.Hive,
+                    snapshot.View))
+                using (RegistryKey key = root.OpenSubKey(keyPath, true))
+                {
+                    if (key == null) continue;
+                    key.SetValue(
+                        snapshot.ValueName,
+                        snapshot.Value,
+                        RegistryValueKind.DWord);
+                }
+            }
+            catch
+            {
+            }
+        }
+    }
+
+    static ProcResult RunWingetInstallWithObsHookRecovery(
+        Dictionary<string, object> package,
+        string winget,
+        string arguments,
+        int timeoutMs)
+    {
+        ProcResult first = RunInteractiveWithTimeout(
+            winget,
+            arguments,
+            timeoutMs);
+
+        if (first.TimedOut ||
+            first.ExitCode != -1978334959 ||
+            !GetBool(package, "wingetObsHookRecovery") ||
+            !IsObsStudioPackage(package))
+            return first;
+
+        Console.ForegroundColor = ConsoleColor.Yellow;
+        Console.WriteLine(
+            "OBS install is blocked by another application using OBS graphics-hook files.");
+        Console.WriteLine(
+            "WGDot will temporarily disable the OBS Vulkan layer, close the exact hook users, and retry.");
+        Console.ResetColor();
+
+        List<ObsVulkanLayerSnapshot> snapshots = null;
+        string previousDisable = Environment.GetEnvironmentVariable(
+            "DISABLE_VULKAN_OBS_CAPTURE");
+
+        try
+        {
+            Environment.SetEnvironmentVariable(
+                "DISABLE_VULKAN_OBS_CAPTURE",
+                "1");
+            snapshots = DisableObsVulkanImplicitLayers();
+            StopObsGraphicsHookBlockers();
+
+            return RunInteractiveWithTimeout(
+                winget,
+                arguments,
+                timeoutMs);
+        }
+        finally
+        {
+            RestoreObsVulkanImplicitLayers(snapshots);
+            Environment.SetEnvironmentVariable(
+                "DISABLE_VULKAN_OBS_CAPTURE",
+                previousDisable);
+        }
+    }
+
     static int GetWingetInstallTimeoutMs(Dictionary<string, object> package)
     {
         int seconds = GetInt(package, "wingetInstallTimeoutSeconds");
@@ -3901,7 +4204,8 @@ class WgdotHidden
                     continue;
                 }
 
-                ProcResult install = RunInteractiveWithTimeout(
+                ProcResult install = RunWingetInstallWithObsHookRecovery(
+                    package,
                     winget,
                     "install --id " + Q(id) + " --exact --source winget --accept-source-agreements --accept-package-agreements --disable-interactivity",
                     installTimeoutMs);
@@ -4047,7 +4351,8 @@ class WgdotHidden
                 }
 
                 Console.WriteLine("Reinstalling " + id + "...");
-                ProcResult reinstall = RunInteractiveWithTimeout(
+                ProcResult reinstall = RunWingetInstallWithObsHookRecovery(
+                    package,
                     winget,
                     "install --id " + Q(id) + " --exact --source winget --accept-source-agreements --accept-package-agreements --disable-interactivity",
                     recoveryTimeoutMs);
