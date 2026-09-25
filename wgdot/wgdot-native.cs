@@ -22,7 +22,7 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-85";
+    const string Version = "native-preview-86";
     const string HiddenLauncherVersion = "2.0.0.0";
     const int WingetPreflightTimeoutMs = 30000;
     const int CurrentTweakDefaultsVersion = 1;
@@ -15312,38 +15312,147 @@ class WgdotHidden
     sealed class YaziDragSurface : System.Windows.Forms.Form
     {
         readonly List<string> files;
+        readonly System.Windows.Forms.Panel surface;
+        readonly System.Windows.Forms.Panel dragPanel;
         readonly System.Windows.Forms.Label dragLabel;
+        readonly System.Windows.Forms.Label closeLabel;
+        readonly System.Drawing.Color dragBackground;
+        readonly System.Drawing.Color dragHover;
         bool dragActive;
 
         internal YaziDragSurface(List<string> paths)
         {
             files = new List<string>(paths);
 
+            YasbTheme theme = FindYasbTheme(CurrentYasbThemeId()) ?? YasbThemes[0];
+            System.Drawing.Color background = WgdotDrawingColor(
+                theme.Background,
+                System.Drawing.Color.FromArgb(53, 53, 53));
+            System.Drawing.Color foreground = WgdotDrawingColor(
+                theme.Foreground,
+                System.Drawing.Color.Gainsboro);
+            System.Drawing.Color border = WgdotDrawingColor(
+                theme.Focus,
+                System.Drawing.Color.FromArgb(74, 74, 74));
+            System.Drawing.Color muted = WgdotDrawingColor(
+                theme.Muted,
+                System.Drawing.Color.FromArgb(92, 92, 92));
+            dragBackground = WgdotDrawingColor(
+                theme.Active,
+                System.Drawing.Color.FromArgb(43, 43, 43));
+            dragHover = WgdotDrawingColor(
+                theme.Hover,
+                System.Drawing.Color.FromArgb(64, 64, 64));
+
             Text = "Yazi Drag Out";
-            FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedToolWindow;
+            FormBorderStyle = System.Windows.Forms.FormBorderStyle.None;
             StartPosition = System.Windows.Forms.FormStartPosition.Manual;
             ShowInTaskbar = false;
             TopMost = true;
             MaximizeBox = false;
             MinimizeBox = false;
             KeyPreview = true;
-            ClientSize = new Size(360, 104);
+            ClientSize = new Size(380, 132);
+            BackColor = border;
+            Padding = new System.Windows.Forms.Padding(1);
+            Opacity = 0.0;
+
+            surface = new System.Windows.Forms.Panel();
+            surface.Dock = System.Windows.Forms.DockStyle.Fill;
+            surface.BackColor = background;
+            surface.Padding = new System.Windows.Forms.Padding(10, 7, 10, 10);
+
+            var header = new System.Windows.Forms.Panel();
+            header.Dock = System.Windows.Forms.DockStyle.Top;
+            header.Height = 26;
+            header.BackColor = background;
+
+            var titleLabel = new System.Windows.Forms.Label();
+            titleLabel.Dock = System.Windows.Forms.DockStyle.Fill;
+            titleLabel.Text = "Yazi Drag Out";
+            titleLabel.TextAlign = ContentAlignment.MiddleLeft;
+            titleLabel.ForeColor = foreground;
+            titleLabel.BackColor = System.Drawing.Color.Transparent;
+            titleLabel.Font = new System.Drawing.Font(
+                "Segoe UI",
+                13f,
+                System.Drawing.FontStyle.Bold,
+                System.Drawing.GraphicsUnit.Pixel);
+
+            closeLabel = new System.Windows.Forms.Label();
+            closeLabel.Dock = System.Windows.Forms.DockStyle.Right;
+            closeLabel.Width = 28;
+            closeLabel.Text = "×";
+            closeLabel.TextAlign = ContentAlignment.MiddleCenter;
+            closeLabel.ForeColor = foreground;
+            closeLabel.BackColor = background;
+            closeLabel.Cursor = System.Windows.Forms.Cursors.Hand;
+            closeLabel.Font = new System.Drawing.Font(
+                "Segoe UI",
+                16f,
+                System.Drawing.FontStyle.Regular,
+                System.Drawing.GraphicsUnit.Pixel);
+            closeLabel.Click += delegate { Close(); };
+            closeLabel.MouseEnter += delegate { closeLabel.BackColor = dragHover; };
+            closeLabel.MouseLeave += delegate { closeLabel.BackColor = background; };
+
+            header.Controls.Add(titleLabel);
+            header.Controls.Add(closeLabel);
+
+            dragPanel = new System.Windows.Forms.Panel();
+            dragPanel.Dock = System.Windows.Forms.DockStyle.Fill;
+            dragPanel.BackColor = dragBackground;
+            dragPanel.Cursor = System.Windows.Forms.Cursors.SizeAll;
+            dragPanel.Padding = new System.Windows.Forms.Padding(10);
 
             dragLabel = new System.Windows.Forms.Label();
             dragLabel.Dock = System.Windows.Forms.DockStyle.Fill;
-            dragLabel.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
+            dragLabel.BorderStyle = System.Windows.Forms.BorderStyle.None;
             dragLabel.TextAlign = ContentAlignment.MiddleCenter;
             dragLabel.AutoEllipsis = true;
             dragLabel.Cursor = System.Windows.Forms.Cursors.SizeAll;
-            dragLabel.Padding = new System.Windows.Forms.Padding(12);
+            dragLabel.ForeColor = foreground;
+            dragLabel.BackColor = System.Drawing.Color.Transparent;
+            dragLabel.Font = new System.Drawing.Font(
+                "Segoe UI",
+                13f,
+                System.Drawing.FontStyle.Regular,
+                System.Drawing.GraphicsUnit.Pixel);
             dragLabel.Text = BuildDragSurfaceText(files);
-            dragLabel.MouseDown += BeginFileDrag;
-            Controls.Add(dragLabel);
 
-            MouseDown += BeginFileDrag;
+            EventHandler enter = delegate
+            {
+                if (!dragActive)
+                    dragPanel.BackColor = dragHover;
+            };
+            EventHandler leave = delegate
+            {
+                if (!dragActive)
+                    dragPanel.BackColor = dragBackground;
+            };
+
+            dragPanel.MouseEnter += enter;
+            dragPanel.MouseLeave += leave;
+            dragLabel.MouseEnter += enter;
+            dragLabel.MouseLeave += leave;
+            dragPanel.MouseDown += BeginFileDrag;
+            dragLabel.MouseDown += BeginFileDrag;
+
+            dragPanel.Controls.Add(dragLabel);
+            surface.Controls.Add(dragPanel);
+            surface.Controls.Add(header);
+            Controls.Add(surface);
+
             Shown += delegate
             {
                 PlaceNearCursor();
+                Refresh();
+                surface.Refresh();
+                header.Refresh();
+                dragPanel.Refresh();
+                dragLabel.Refresh();
+                closeLabel.Refresh();
+                Opacity = 0.98;
                 Activate();
             };
             KeyDown += delegate(object sender, System.Windows.Forms.KeyEventArgs e)
@@ -15397,6 +15506,7 @@ class WgdotHidden
                 return;
 
             dragActive = true;
+            dragPanel.BackColor = dragHover;
             try
             {
                 var dropList = new System.Collections.Specialized.StringCollection();
@@ -15416,6 +15526,8 @@ class WgdotHidden
             finally
             {
                 dragActive = false;
+                if (!IsDisposed)
+                    dragPanel.BackColor = dragBackground;
             }
         }
     }
