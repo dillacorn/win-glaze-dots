@@ -16,6 +16,10 @@ Windows Terminal is the default terminal. Yazi is the terminal file manager; tex
 
 ## Install and maintenance
 
+```powershell
+irm https://github.com/dillacorn/win-glaze-dots/raw/main/i.ps1 | iex
+```
+
 - **Fresh installation:** [INSTALL.md](INSTALL.md)
 - **Stable managed-dot updates, review/reset, software reconciliation, state, and Git testing:** [UPDATE.md](UPDATE.md)
 - **Published release notes:** [Releases](https://github.com/dillacorn/win-glaze-dots/releases)

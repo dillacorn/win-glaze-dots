@@ -106,6 +106,7 @@ WGDot is primarily a management/configuration tool. Narrow, compiled desktop-ses
 WGDot runtime and managed configuration intentionally have different lifecycles.
 
 - The installed WGDot runtime may refresh from `main`.
+- Root-level `i.ps1` is the deliberately tiny public convenience entrypoint for `irm https://github.com/dillacorn/win-glaze-dots/raw/main/i.ps1 | iex`. It may only download and run `wgdot/bootstrap.cmd`; keep real installation logic in the native batch bootstrap so the short wrapper cannot drift into a second installer.
 - A normal interactive `wgdot/bootstrap.cmd` install launches the newly installed WGDot menu directly after WinGet verification, so first use does not depend on the launching shell noticing the persistent user `PATH` update. `--no-launch` is the automation/CI escape hatch. Do not terminate, restart, or attempt to mutate the already-running parent shell; its process environment cannot be rewritten by the child installer, while future terminals inherit the persisted user `PATH` normally.
 - Normal user-facing WGDot invocations compare the recorded runtime revision with the configured runtime branch head before dispatch and run the refreshed runtime immediately when they differ.
 - Every newly added direct user-facing maintenance command must be added to the runtime auto-refresh policy before dispatch. Direct subcommands must not require the user to run plain `wgdot` first to receive current runtime behavior.

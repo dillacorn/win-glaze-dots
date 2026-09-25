@@ -6,6 +6,8 @@ $runtimePath = Join-Path $repoRoot "wgdot\wgdot.ps1"
 $manifestPath = Join-Path $repoRoot "wgdot\manifest.json"
 $launcherPath = Join-Path $repoRoot "wgdot\wgdot.cmd"
 $manualPath = Join-Path $repoRoot "MANUAL_POWERSHELL.md"
+$installGuidePath = Join-Path $repoRoot "INSTALL.md"
+$shortInstallerPath = Join-Path $repoRoot "i.ps1"
 $nativeBootstrapPath = Join-Path $repoRoot "wgdot\\bootstrap.cmd"
 $nativeSourcePath = Join-Path $repoRoot "wgdot\\wgdot-native.cs"
 $installSoftwarePath = Join-Path $repoRoot "install_software.md"
@@ -24,6 +26,15 @@ function Assert-Equal {
 Assert-True (Test-Path -LiteralPath $runtimePath -PathType Leaf) "runtime exists"
 Assert-True (Test-Path -LiteralPath $manifestPath -PathType Leaf) "manifest exists"
 Assert-True (Test-Path -LiteralPath $launcherPath -PathType Leaf) "launcher exists"
+Assert-True (Test-Path -LiteralPath $shortInstallerPath -PathType Leaf) "short installer exists"
+$shortInstallerText = Get-Content -LiteralPath $shortInstallerPath -Raw
+[scriptblock]::Create($shortInstallerText) | Out-Null
+Assert-True ($shortInstallerText -match 'raw\.githubusercontent\.com/dillacorn/win-glaze-dots/main/wgdot/bootstrap\.cmd') "short installer hands off to the native bootstrap on main"
+Assert-True ($shortInstallerText -match 'Invoke-WebRequest') "short installer downloads the native bootstrap without duplicating installer logic"
+Assert-True ($shortInstallerText -notmatch '(?i)Set-ExecutionPolicy|-ExecutionPolicy\s+(Bypass|Unrestricted)') "short installer does not change or bypass execution policy"
+Assert-True (Test-Path -LiteralPath $installGuidePath -PathType Leaf) "install guide exists"
+$installGuideText = Get-Content -LiteralPath $installGuidePath -Raw
+Assert-True ($installGuideText -match 'irm https://github\.com/dillacorn/win-glaze-dots/raw/main/i\.ps1 \| iex') "install guide advertises the short public install command"
 Assert-True (Test-Path -LiteralPath $nativeBootstrapPath -PathType Leaf) "native bootstrap exists"
 $nativeBootstrapText = Get-Content -LiteralPath $nativeBootstrapPath -Raw
 Assert-True ($nativeBootstrapText -match '--no-launch') "native bootstrap exposes a noninteractive no-launch mode for automation"

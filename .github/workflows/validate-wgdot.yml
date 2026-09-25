@@ -5,6 +5,7 @@ on:
   push:
     paths:
       - "wgdot/**"
+      - "i.ps1"
       - "tests/test-wgdot.ps1"
       - "tests/test-yasb-config.py"
       - "tests/test-yazi-config.py"
@@ -21,6 +22,7 @@ on:
   pull_request:
     paths:
       - "wgdot/**"
+      - "i.ps1"
       - "tests/test-wgdot.ps1"
       - "tests/test-yasb-config.py"
       - "tests/test-yazi-config.py"
