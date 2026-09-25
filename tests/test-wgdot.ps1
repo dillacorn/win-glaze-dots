@@ -287,7 +287,7 @@ Assert-True ($yaziInitText -match 'local x = self\._x \+ 2') "Yazi compact conte
 Assert-True ($yaziInitText -match 'x = self\._x - width - 1') "Yazi compact context popup flips left near the right edge"
 Assert-True ($yaziInitText -match 'y = self\._y - height \+ 1') "Yazi compact context popup flips upward near the bottom edge"
 Assert-True ($yaziInitText -match ':title\(ui\.Line\(self:title\(\)\)\)') "Yazi compact context popup keeps its title inline with the border"
-Assert-True ($yaziInitText -notmatch '_footer_area') "Yazi compact context popup does not reserve a bulky footer area"
+Assert-True ($yaziInitText -notmatch 'function WgdotYaziContextMenu:footer\(\)') "Yazi compact context popup does not render a separate footer"
 Assert-True ($yaziInitText -match 'ya\.emit\("create", \{ dir = true \}\)') "Yazi New folder uses the stable native create dir flag"
 Assert-True ($yaziInitText -notmatch 'ya\.sync\(') "Yazi init.lua does not use plugin-only ya.sync"
 Assert-True ($yaziInitText -match 'local function WgdotYaziArchiveSnapshot\(\)') "Yazi archive snapshot helper is synchronous init.lua code"
