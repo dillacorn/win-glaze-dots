@@ -6,16 +6,11 @@ require("bookmarks"):setup()
 require("git"):setup { order = 1500 }
 
 local WgdotYaziSystemClipboard = require("system-clipboard")
-local WgdotYaziSystemClipboardArmed = false
 
-ps.sub("@yank", function(state)
-    if not WgdotYaziSystemClipboardArmed then return end
-    WgdotYaziSystemClipboardArmed = false
-    if state.cut then return end
-
+function WgdotYaziMirrorYankToSystemClipboard()
     local paths = {}
-    for _, file in pairs(state) do
-        local url = file.url or file
+    for _, item in pairs(cx.yanked) do
+        local url = item.url or item
         local is_regular = url.spec and url.spec.is_regular or url.is_regular
         if is_regular then
             paths[#paths + 1] = tostring(url)
@@ -26,11 +21,6 @@ ps.sub("@yank", function(state)
     ya.async(function()
         WgdotYaziSystemClipboard.copy(paths)
     end)
-end)
-
-function WgdotYaziSystemYank()
-    WgdotYaziSystemClipboardArmed = true
-    ya.emit("yank", {})
 end
 
 local function WgdotYaziNormalizeFsPath(value)
