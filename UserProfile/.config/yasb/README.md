@@ -75,7 +75,7 @@ Real GlazeWM pause remains `Win+Alt+P` and uses `wm-toggle-pause`. Normal mode n
 
 The experimental mouse binding mode and low-level WGDot pointer hook were removed after real-Windows testing showed pointer lag and unreliable tiled-window dragging. Its old bar slot is gone completely. The four native GlazeWM workspace arrows remain directly visible and usable without a placeholder hub.
 
-`Super+Alt+F` mirrors Awtarchy's floating-windows control by invoking the existing WGDot default-window-behavior toggle in normal and `noalt`; VM keeps `Super+Alt+F` scoped to toggling the active window floating.
+Windows deliberately does not mirror Awtarchy's global `Super+Alt+F` floating-spawn toggle. The persistent default new-window `tiling` / `floating` state is changed only through the visible Control Center `Floating Windows` action so it is not confused with active-window floating. VM keeps `Super+Alt+F` scoped to toggling the active window floating.
 
 ## Themes
 
