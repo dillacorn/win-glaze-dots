@@ -191,23 +191,10 @@ jobs:
       HELPER_BRANCH: release/v4.6.6-bridge
     steps:
       - uses: actions/checkout@v4
-      - name: Publish and verify WGDot v4.6.6
+      - name: Verify published release and remove helper branch
         shell: bash
         run: |
           set -euo pipefail
-
-          current_main="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq '.object.sha')"
-          test "$current_main" = "$RELEASE_SHA"
-
-          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            echo "Release $RELEASE_TAG already exists; refusing to replace it." >&2
-            exit 1
-          fi
-
-          if git ls-remote --exit-code --tags origin "refs/tags/$RELEASE_TAG" >/dev/null 2>&1; then
-            echo "Tag $RELEASE_TAG already exists; refusing to replace it." >&2
-            exit 1
-          fi
 
           notes="$RUNNER_TEMP/wgdot-v4.6.6.md"
           cat > "$notes" <<'EOF'
@@ -235,19 +222,13 @@ jobs:
           - The automatic update/Clipboard compatibility path compiled and passed repository validation; it was not separately live-triggered on the maintainer system before release.
           EOF
 
-          gh release create "$RELEASE_TAG" \
-            --repo "$GITHUB_REPOSITORY" \
-            --target "$RELEASE_SHA" \
-            --title "WGDot v4.6.6" \
-            --notes-file "$notes"
-
           published="$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json tagName,name,isDraft,isPrerelease,targetCommitish,body)"
           test "$(jq -r '.tagName' <<<"$published")" = "$RELEASE_TAG"
           test "$(jq -r '.name' <<<"$published")" = "WGDot v4.6.6"
           test "$(jq -r '.isDraft' <<<"$published")" = "false"
           test "$(jq -r '.isPrerelease' <<<"$published")" = "false"
           test "$(jq -r '.targetCommitish' <<<"$published")" = "$RELEASE_SHA"
-          diff -u "$notes" <(jq -r '.body' <<<"$published")
+          test "$(jq -r '.body' <<<"$published")" = "$(cat "$notes")"
 
           tag_sha="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$RELEASE_TAG" --jq '.object.sha')"
           test "$tag_sha" = "$RELEASE_SHA"
