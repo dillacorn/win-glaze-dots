@@ -79,11 +79,6 @@ Assert-True ($componentIds -contains "glazewm") "GlazeWM component exists"
 Assert-True ($componentIds -contains "yasb") "YASB component exists"
 Assert-True ($componentIds -contains "cursor") "cursor component exists"
 Assert-True ($componentIds -contains "yazi") "Yazi component exists"
-$yaziComponent = @($manifest.components | Where-Object { [string]$_.id -eq "yazi" })[0]
-$yaziFileIds = @($yaziComponent.files | ForEach-Object { [string]$_.id })
-Assert-True ($yaziFileIds -contains "yazi-context-menu") "Yazi async context chooser is a managed file"
-Assert-True ($yaziFileIds -contains "yazi-context-run") "Yazi context action runner is a managed file"
-
 $yaziKeymapPath = Join-Path $repoRoot "UserProfile\AppData\Roaming\yazi\config\keymap.toml"
 $yaziKeymapText = Get-Content -LiteralPath $yaziKeymapPath -Raw
 Assert-True ($yaziKeymapText -match 'on = \["<Up>"\].*WgdotYaziArrow\(-1\)') "Yazi Up commits a Shift range before native movement"
@@ -171,11 +166,7 @@ $yaziRecentPath = Join-Path $repoRoot "UserProfile\AppData\Roaming\yazi\config\p
 $yaziRecentText = Get-Content -LiteralPath $yaziRecentPath -Raw
 $yaziBookmarksPath = Join-Path $repoRoot "UserProfile\AppData\Roaming\yazi\config\plugins\bookmarks.yazi\main.lua"
 $yaziBookmarksText = Get-Content -LiteralPath $yaziBookmarksPath -Raw
-$yaziContextChooserPath = Join-Path $repoRoot "UserProfile\AppData\Roaming\yazi\config\plugins\wgdot-context-menu.yazi\main.lua"
-$yaziContextChooserText = Get-Content -LiteralPath $yaziContextChooserPath -Raw
-$yaziContextRunPath = Join-Path $repoRoot "UserProfile\AppData\Roaming\yazi\config\plugins\wgdot-context-run.yazi\main.lua"
-$yaziContextRunText = Get-Content -LiteralPath $yaziContextRunPath -Raw
-$yaziPluginTexts = @($yaziRecentText, $yaziBookmarksText, $yaziClipboardText, $yaziContextChooserText, $yaziContextRunText)
+$yaziPluginTexts = @($yaziRecentText, $yaziBookmarksText, $yaziClipboardText)
 Assert-True (-not ($yaziPluginTexts -match 'io\.popen|os\.execute')) "Managed Windows Yazi plugins avoid Lua subprocess APIs that can corrupt Ctrl+C console handling"
 Assert-True ($yaziRecentText -match 'fs\.create\("dir_all", Url\(state_dir\(\)\)\)') "Yazi recent-files creates state directories through Yazi fs API"
 Assert-True ($yaziBookmarksText -match 'fs\.create\("dir_all", Url\(state_dir\(\)\)\)') "Yazi bookmarks creates state directories through Yazi fs API"
@@ -298,14 +289,10 @@ Assert-True ($yaziInitText -match 'label = "Terminal here".*shortcut = "t e"') "
 Assert-True ($yaziInitText -cmatch 'label = "Rename".*shortcut = "R"') "Yazi item context menu shows the Shift+R rename shortcut"
 Assert-True ($yaziInitText -match 'label = "Trash".*shortcut = "d d"') "Yazi item context menu shows the spaced trash chord"
 Assert-True ($yaziInitText -match 'function WgdotYaziContextMenu:row_at\(event\)') "Yazi compact context popup has exact mouse-row hit testing"
-Assert-True ($yaziInitText -match 'WgdotYaziPluginArgs\("show", values\)') "Yazi right-click candidates leave the blocking mouse callback through the async chooser"
-Assert-True ($yaziInitText -match '"wgdot-context-menu"') "Yazi compact popup dispatches the managed async chooser plugin"
-Assert-True ($yaziContextChooserText -match 'ya\.which \{ cands = cands, silent = true \}') "Yazi compact popup uses native Which only as a silent keyboard chord engine"
-Assert-True ($yaziContextChooserText -match 'wgdot-context-run') "Yazi silent chooser returns the chosen index through the sync action runner"
-Assert-True ($yaziContextRunText -match 'WgdotYaziContextMenu:choose') "Yazi sync action runner dispatches into the frozen context menu action list"
-Assert-True ($yaziInitText -match 'local cand = cx\.which\.cands\[index\]') "Yazi mouse rows map to the matching silent Which candidate"
-Assert-True ($yaziInitText -match 'local tx = cx\.which\.tx') "Yazi compact popup reads the silent Which submission channel"
-Assert-True ($yaziInitText -match 'tx:send\(cand\)') "Yazi compact popup submits mouse choices through the native Which channel"
+Assert-True ($yaziInitText -notmatch '"wgdot-context-menu"|WgdotYaziPluginArgs\("show", values\)') "Yazi right-click popup does not depend on the async Which helper"
+Assert-True ($yaziInitText -match 'menu\._visible = true') "Yazi direct context popup becomes visible without changing layers"
+Assert-True ($yaziInitText -match 'local action = index and self\._choice_actions and self\._choice_actions\[index\] or nil') "Yazi mouse rows resolve directly to frozen context actions"
+Assert-True ($yaziInitText -match 'self:run\(action\)') "Yazi context mouse click directly runs the chosen action"
 Assert-True ($yaziInitText -match 'local function WgdotYaziContextShortcutSpans\(shortcut\)') "Yazi compact popup splits displayed chord keys for styling"
 Assert-True ($yaziInitText -match 'ui\.Span\(keys\[1\]\):style\(th\.which\.cand\)') "Yazi compact popup highlights the primary chord key"
 Assert-True ($yaziInitText -match 'ui\.Span\(keys\[i\]\):style\(th\.which\.rest\)') "Yazi compact popup gives secondary chord keys distinct highlighting"
