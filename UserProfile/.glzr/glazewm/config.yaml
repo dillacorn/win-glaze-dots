@@ -99,7 +99,7 @@ window_rules:
 
   - commands: ["move --workspace 3"]
     match:
-      - window_process: { regex: "Discord|Vesktop|Dorion" }
+      - window_process: { regex: "^(Discord|discord|Vesktop|vesktop|Dorion|dorion)(\\.exe)?$" }
 
   - commands: ["move --workspace 4"]
     match:
