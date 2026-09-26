@@ -5422,11 +5422,22 @@ class WgdotHidden
         if (String.Equals(handler, "altsnap", StringComparison.OrdinalIgnoreCase))
             return !String.IsNullOrWhiteSpace(FindAltSnapExe());
 
+        if (String.Equals(handler, "flameshot", StringComparison.OrdinalIgnoreCase))
+            return !String.IsNullOrWhiteSpace(FindFlameshotExe());
+
         if (String.Equals(handler, "rawaccel", StringComparison.OrdinalIgnoreCase))
             return !String.IsNullOrWhiteSpace(FindRawAccelExe());
 
         if (String.Equals(handler, "miclocktray", StringComparison.OrdinalIgnoreCase))
             return File.Exists(GetPackageProgramFilePath(package, "installedFile"));
+
+        if (String.Equals(handler, "flameshot", StringComparison.OrdinalIgnoreCase))
+        {
+            string exe = FindFlameshotExe();
+            if (String.IsNullOrWhiteSpace(exe))
+                throw new Exception("Flameshot is selected for startup, but flameshot.exe could not be found.");
+            return Q(exe);
+        }
 
         if (String.Equals(handler, "eartrumpet", StringComparison.OrdinalIgnoreCase))
         {
@@ -5613,6 +5624,20 @@ class WgdotHidden
                 Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "AltSnap", "AltSnap.exe"),
                 Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "AltSnap", "AltSnap.exe"),
                 Path.Combine(local, "Programs", "AltSnap", "AltSnap.exe")
+            });
+    }
+
+    static string FindFlameshotExe()
+    {
+        string local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        return FindExecutableWithCandidates(
+            "flameshot.exe",
+            new[]
+            {
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Flameshot", "bin", "flameshot.exe"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "Flameshot", "bin", "flameshot.exe"),
+                Path.Combine(local, "Programs", "Flameshot", "bin", "flameshot.exe"),
+                Path.Combine(local, "Programs", "flameshot", "bin", "flameshot.exe")
             });
     }
 
