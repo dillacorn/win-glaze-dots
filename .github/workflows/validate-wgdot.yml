@@ -169,3 +169,103 @@ jobs:
         run: |
           set "WGDOT_TEST_ROOT=%TEMP%\wgdot-native-maintenance-state"
           "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" maintenance-self-test
+
+
+  release-v4-6-4:
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.title == 'release: v4.6.4' &&
+      github.event.pull_request.head.ref == 'release/v4.6.4-one-use' &&
+      github.event.pull_request.base.ref == 'main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TARGET_SHA: 143f12df24bd3d048952c7daa2d86f9e5f03116c
+      RELEASE_TAG: v4.6.4
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Inspect current stable release
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release view v4.6.3 --json tagName,name,isDraft,isPrerelease,targetCommitish,body
+
+      - name: Verify release target and tag availability
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          current_main="$(gh api "repos/$GITHUB_REPOSITORY/commits/main" --jq .sha)"
+          if [[ "$current_main" != "$TARGET_SHA" ]]; then
+            echo "main moved: expected $TARGET_SHA, got $current_main" >&2
+            exit 1
+          fi
+
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            echo "Release $RELEASE_TAG already exists." >&2
+            exit 1
+          fi
+
+          if git ls-remote --exit-code --tags origin "refs/tags/$RELEASE_TAG" >/dev/null 2>&1; then
+            echo "Tag $RELEASE_TAG already exists." >&2
+            exit 1
+          fi
+
+      - name: Create v4.6.4 release
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          python - <<'PY'
+          from pathlib import Path
+          Path("/tmp/release-notes.md").write_text("""# WGDot v4.6.4
+
+          Fixes a GlazeWM startup failure on Windows keyboard layouts that cannot resolve literal bracket keybindings.
+
+          ## Install and update
+
+          - [Install](https://github.com/dillacorn/win-glaze-dots/blob/main/INSTALL.md)
+          - [Update](https://github.com/dillacorn/win-glaze-dots/blob/main/UPDATE.md)
+
+          ## Changes
+
+          - Replaced literal `Alt+[` / `Alt+]` workspace-navigation bindings with GlazeWM's layout-independent `oem_open_brackets` / `oem_close_brackets` key names.
+          - Applied the fix to both Normal and Work GlazeWM profiles.
+          - Added regression coverage so the invalid literal bracket bindings cannot return.
+
+          ## Validation
+
+          - WGDot CI passed PowerShell 7, Windows PowerShell 5.1, YASB/desktop schema validation, and native-bootstrap validation for the release target.
+          """, encoding="utf-8")
+          PY
+
+          gh release create "$RELEASE_TAG"             --title "WGDot v4.6.4"             --target "$TARGET_SHA"             --notes-file /tmp/release-notes.md
+
+      - name: Verify published release
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          gh release view "$RELEASE_TAG" --json tagName,name,isDraft,isPrerelease,targetCommitish,body
+
+          release_tag="$(gh release view "$RELEASE_TAG" --json tagName --jq .tagName)"
+          release_name="$(gh release view "$RELEASE_TAG" --json name --jq .name)"
+          is_draft="$(gh release view "$RELEASE_TAG" --json isDraft --jq .isDraft)"
+          is_prerelease="$(gh release view "$RELEASE_TAG" --json isPrerelease --jq .isPrerelease)"
+          tag_sha="$(gh api "repos/$GITHUB_REPOSITORY/commits/$RELEASE_TAG" --jq .sha)"
+
+          test "$release_tag" = "$RELEASE_TAG"
+          test "$release_name" = "WGDot v4.6.4"
+          test "$is_draft" = "false"
+          test "$is_prerelease" = "false"
+          test "$tag_sha" = "$TARGET_SHA"
+
+      - name: Delete one-use release branch
+        if: success()
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api -X DELETE "repos/$GITHUB_REPOSITORY/git/refs/heads/release/v4.6.4-one-use"
