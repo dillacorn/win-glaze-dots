@@ -224,8 +224,6 @@ binding_modes:
 
       - commands: ['shell-exec %LOCALAPPDATA%\wgdot\bin\wgdotw.exe theme-window-toggle']
         bindings: ["lwin+alt+t", "rwin+alt+t"]
-      - commands: ['shell-exec %LOCALAPPDATA%\wgdot\bin\wgdotw.exe glazewm-window-behavior-toggle']
-        bindings: ["lwin+alt+f", "rwin+alt+f"]
       - commands: ["toggle-tiling"]
         bindings: ["lwin+t", "rwin+t"]
       - commands: ["toggle-tiling-direction"]
@@ -431,9 +429,6 @@ keybindings:
 
   - commands: ['shell-exec %LOCALAPPDATA%\wgdot\bin\wgdotw.exe theme-window-toggle']
     bindings: ["lwin+alt+t", "rwin+alt+t"]
-
-  - commands: ['shell-exec %LOCALAPPDATA%\wgdot\bin\wgdotw.exe glazewm-window-behavior-toggle']
-    bindings: ["lwin+alt+f", "rwin+alt+f"]
 
   - commands: ['shell-exec %LOCALAPPDATA%\wgdot\bin\wgdotw.exe power-menu']
     bindings: ["lwin+p", "rwin+p"]
