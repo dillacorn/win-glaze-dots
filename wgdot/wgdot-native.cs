@@ -22,7 +22,7 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-96";
+    const string Version = "native-preview-97";
     const string HiddenLauncherVersion = "2.0.0.0";
     const int WingetPreflightTimeoutMs = 30000;
     const int CurrentTweakDefaultsVersion = 1;
@@ -1188,6 +1188,7 @@ internal static class WgdotNative
             if (command == "restore-clipboard-history") return RestorePrivacySexyClipboardHistory();
             if (command == "restore-screenshot-border-control") return RestorePrivacySexyScreenshotBorderControl();
             if (command == "restore-screenshot-border-control-elevated") return RestorePrivacySexyScreenshotBorderControl();
+            if (command == "privacy-compat-repair-elevated") return RestoreDetectedPrivacySexyCompatibility();
             if (command == "migrate-legacy-hotkeys") return MigrateLegacyWindowsShellHotkeys(true);
             if (command == "mark-runtime") return MarkRuntimeFromArgs(args.Skip(1).ToArray());
             if (command == "runtime-swap-stop") return RuntimeSwapStopFromArgs(args.Skip(1).ToArray());
@@ -9117,6 +9118,179 @@ class WgdotHidden
         }
     }
 
+    static bool HasPrivacySexyClipboardHistoryPolicy()
+    {
+        const string path = @"SOFTWARE\Policies\Microsoft\Windows\System";
+        const string name = "AllowClipboardHistory";
+
+        object current = null;
+        using (RegistryKey key = Registry.LocalMachine.OpenSubKey(path, false))
+        {
+            if (key != null)
+                current = key.GetValue(name, null, RegistryValueOptions.DoNotExpandEnvironmentNames);
+        }
+
+        if (current == null) return false;
+
+        try
+        {
+            return Convert.ToInt32(current, CultureInfo.InvariantCulture) == 0;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    static bool HasDisabledPrivacySexyClipboardService()
+    {
+        const string servicesPath = @"SYSTEM\CurrentControlSet\Services";
+
+        using (RegistryKey services = Registry.LocalMachine.OpenSubKey(servicesPath, false))
+        {
+            if (services == null) return false;
+
+            foreach (string name in services.GetSubKeyNames())
+            {
+                if (!(String.Equals(name, "cbdhsvc", StringComparison.OrdinalIgnoreCase) ||
+                      name.StartsWith("cbdhsvc_", StringComparison.OrdinalIgnoreCase)))
+                    continue;
+
+                using (RegistryKey key = Registry.LocalMachine.OpenSubKey(
+                    servicesPath + "\\" + name,
+                    false))
+                {
+                    if (key == null) continue;
+
+                    object raw = key.GetValue(
+                        "Start",
+                        null,
+                        RegistryValueOptions.DoNotExpandEnvironmentNames);
+                    try
+                    {
+                        if (raw != null &&
+                            Convert.ToInt32(raw, CultureInfo.InvariantCulture) == 4)
+                            return true;
+                    }
+                    catch
+                    {
+                    }
+                }
+            }
+        }
+
+        return false;
+    }
+
+    static bool HasKnownPrivacySexyClipboardHistoryFootprint()
+    {
+        return
+            HasPrivacySexyClipboardHistoryPolicy() ||
+            HasDisabledPrivacySexyClipboardService();
+    }
+
+    static bool WasPrivacySexyRunByWgdot()
+    {
+        var state = ReadJson(TweakStatePath);
+        return state != null &&
+            !String.IsNullOrWhiteSpace(GetString(state, "privacySexyLastClosedAt"));
+    }
+
+    static int RestoreDetectedPrivacySexyCompatibility()
+    {
+        bool restoreClipboard = HasKnownPrivacySexyClipboardHistoryFootprint();
+        bool restoreScreenshotBorder = IsKnownPrivacySexyScreenshotBorderPolicy();
+
+        if (!restoreClipboard && !restoreScreenshotBorder)
+            return 0;
+
+        if (!IsAdministrator())
+        {
+            Console.WriteLine();
+            Console.WriteLine(
+                "WGDot found privacy.sexy compatibility settings to repair and needs administrator approval once.");
+            int exitCode = RunElevatedSelfWithExitCode("privacy-compat-repair-elevated");
+            if (exitCode != 0)
+                throw new Exception(
+                    "Elevated privacy.sexy compatibility repair failed with exit code " +
+                    exitCode.ToString(CultureInfo.InvariantCulture) + ".");
+            return 0;
+        }
+
+        if (restoreClipboard)
+            RestorePrivacySexyClipboardHistory();
+
+        if (restoreScreenshotBorder)
+            RestorePrivacySexyScreenshotBorderControl();
+
+        return 0;
+    }
+
+    static void TryRestorePrivacySexyCompatibilityAfterManagedUpdate()
+    {
+        if (!WasPrivacySexyRunByWgdot())
+            return;
+
+        bool restoreClipboard = HasKnownPrivacySexyClipboardHistoryFootprint();
+        bool restoreScreenshotBorder = IsKnownPrivacySexyScreenshotBorderPolicy();
+        if (!restoreClipboard && !restoreScreenshotBorder)
+            return;
+
+        Console.WriteLine();
+        Console.WriteLine(
+            "WGDot update found known privacy.sexy compatibility changes; restoring Windows behavior automatically.");
+
+        try
+        {
+            RestoreDetectedPrivacySexyCompatibility();
+        }
+        catch (Exception ex)
+        {
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine(
+                "Automatic privacy.sexy compatibility recovery did not complete: " + ex.Message);
+            Console.WriteLine(
+                "The action-only Clipboard History and screenshot-border recovery items remain available under Windows tweaks / integrations.");
+            Console.ResetColor();
+        }
+    }
+
+    static void TryRestoreClipboardHistoryAfterPrivacySexy(
+        bool hadKnownFootprintBefore)
+    {
+        if (hadKnownFootprintBefore)
+        {
+            if (HasKnownPrivacySexyClipboardHistoryFootprint())
+            {
+                Console.WriteLine();
+                Console.WriteLine(
+                    "Clipboard History policy/service state existed before privacy.sexy; WGDot preserved it.");
+            }
+            return;
+        }
+
+        if (!HasKnownPrivacySexyClipboardHistoryFootprint())
+            return;
+
+        Console.WriteLine();
+        Console.WriteLine(
+            "privacy.sexy newly disabled Clipboard History; WGDot is restoring Clipboard History automatically.");
+
+        try
+        {
+            RestorePrivacySexyClipboardHistory();
+        }
+        catch (Exception ex)
+        {
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine(
+                "Automatic Clipboard History recovery did not complete: " + ex.Message);
+            Console.WriteLine(
+                "Retry later from Windows tweaks / integrations: Restore Windows Clipboard History.");
+            Console.ResetColor();
+        }
+    }
+
     static int RestorePrivacySexyClipboardHistory()
     {
         if (!IsAdministrator())
@@ -13504,6 +13678,8 @@ class WgdotHidden
 
         bool screenshotBorderPolicyBefore = HasAnyScreenshotBorderPolicyValue();
         string screenshotBorderConsentBefore = ReadScreenshotBorderConsentValue();
+        bool clipboardHistoryFootprintBefore =
+            HasKnownPrivacySexyClipboardHistoryFootprint();
 
         var release = GetJsonUrl("https://api.github.com/repos/undergroundwires/privacy.sexy/releases/latest");
         string installerUrl = "";
@@ -13572,6 +13748,8 @@ class WgdotHidden
         TryRestoreScreenshotBorderAfterPrivacySexy(
             screenshotBorderPolicyBefore,
             screenshotBorderConsentBefore);
+        TryRestoreClipboardHistoryAfterPrivacySexy(
+            clipboardHistoryFootprintBefore);
 
         var state = ReadJson(TweakStatePath) ?? new Dictionary<string, object>();
         state["privacySexyPreset"] = presetName;
@@ -13733,6 +13911,8 @@ class WgdotHidden
 
         ApplyStartupDefaultsForSelection(source.Manifest, selection);
         UpdateSourceStateAfterApply(source);
+        if (String.Equals(mode, "update", StringComparison.OrdinalIgnoreCase))
+            TryRestorePrivacySexyCompatibilityAfterManagedUpdate();
         ReturnRuntimeSourceToMainAfterStableApply(source);
         RestartDesktopSessionAfterManagedApply(plan);
         ScheduleGitRuntimeSync(source, pendingGitRuntime);
