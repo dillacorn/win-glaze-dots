@@ -15,7 +15,7 @@ APPROVED_WGDOT_RUNTIME = (
     "wgdotw.exe eartrumpet-mixer-toggle",
     "wgdotw.exe power-menu",
     "wgdotw.exe btop-toggle",
-    "wgdotw.exe launcher",
+    "wgdot.exe launcher",
 )
 
 FORBIDDEN_WGDOT_RUNTIME = (
@@ -173,6 +173,20 @@ for name in ("config.yaml", "custom_work_config.yaml"):
         config["general"]["focus_follows_cursor"],
     )
 
+    workspace3_rules = [
+        rule
+        for rule in config["window_rules"]
+        if "move --workspace 3" in rule["commands"]
+    ]
+    assert any(
+        any(
+            "window_process" in matcher
+            and "vesktop" in matcher["window_process"].get("regex", "").lower()
+            for matcher in rule["match"]
+        )
+        for rule in workspace3_rules
+    ), (name, "Vesktop must launch on workspace 3")
+
     for mode, bindings in [("normal", config["keybindings"]), ("noalt", modes["noalt"])]:
         bridge_commands = [
             command
@@ -212,31 +226,73 @@ for name in ("config.yaml", "custom_work_config.yaml"):
             power_keys,
         )
 
-        launcher_keys = {
+        monitor_move_keys = {
+            command: set(binding["bindings"])
+            for binding in bindings
+            for command in binding["commands"]
+            if command.startswith("move-workspace --direction ")
+        }
+        for direction in ("left", "right", "up", "down"):
+            command = f"move-workspace --direction {direction}"
+            expected = {
+                f"lwin+ctrl+shift+{direction}",
+                f"rwin+ctrl+shift+{direction}",
+            }
+            if mode == "normal":
+                expected.add(f"alt+ctrl+shift+{direction}")
+            assert expected <= monitor_move_keys.get(command, set()), (
+                name,
+                mode,
+                f"workspace-to-monitor shortcut parity is incomplete for {direction}",
+                monitor_move_keys,
+            )
+
+        alt_launcher_keys = {
             key
             for binding in bindings
-            if any("wgdotw.exe launcher hotkey" in command for command in binding["commands"])
+            if any("wgdot.exe launcher hotkey" in command for command in binding["commands"])
             for key in binding["bindings"]
         }
-        assert {"lwin+d", "rwin+d"} <= launcher_keys, (
+        super_d_launcher_keys = {
+            key
+            for binding in bindings
+            if any("wgdot.exe launcher super-d" in command for command in binding["commands"])
+            for key in binding["bindings"]
+        }
+        assert {"lwin+d", "rwin+d"} <= super_d_launcher_keys, (
             name,
             mode,
-            "Super+D must open the compiled application launcher",
-            launcher_keys,
+            "Super+D must use the compiled launcher's scoped Start recovery",
+            super_d_launcher_keys,
+        )
+        launcher_commands = [
+            command
+            for binding in bindings
+            for command in binding["commands"]
+            if "wgdot.exe launcher " in command
+        ]
+        assert launcher_commands and all(
+            command.startswith("shell-exec --hide-window ") for command in launcher_commands
+        ), (name, mode, "launcher hotkeys must use GlazeWM's direct hidden one-process path", launcher_commands)
+        assert all("wgdotw.exe launcher hotkey" not in command for command in launcher_commands), (
+            name,
+            mode,
+            "launcher hotkeys must not cold-start through wgdotw",
+            launcher_commands,
         )
         if mode == "normal":
-            assert "alt+p" in launcher_keys, (
+            assert "alt+p" in alt_launcher_keys, (
                 name,
                 mode,
                 "normal mode must bind Alt+P to the compiled launcher",
-                launcher_keys,
+                alt_launcher_keys,
             )
         else:
-            assert "alt+p" not in launcher_keys, (
+            assert "alt+p" not in alt_launcher_keys, (
                 name,
                 mode,
                 "noalt must leave plain Alt+P uncaptured",
-                launcher_keys,
+                alt_launcher_keys,
             )
 
         theme_keys = {
@@ -308,10 +364,22 @@ for name in ("config.yaml", "custom_work_config.yaml"):
             "GlazeWM bracket workspace navigation must use layout-independent OEM key names",
             all_keys,
         )
+        super_workspace_brackets = {
+            "lwin+oem_close_brackets",
+            "rwin+oem_close_brackets",
+            "lwin+oem_open_brackets",
+            "rwin+oem_open_brackets",
+        }
+        assert super_workspace_brackets <= all_keys, (
+            name,
+            mode,
+            "Super+[ / ] workspace navigation must survive normal and noalt modes",
+            all_keys,
+        )
         if mode == "normal":
             assert "alt+oem_close_brackets" in all_keys and "alt+oem_open_brackets" in all_keys, (
                 name,
-                "workspace bracket navigation bindings are missing",
+                "Alt+[ / ] workspace navigation bindings are missing",
                 all_keys,
             )
         assert {"lwin+shift+x", "rwin+shift+x", "lwin+alt+s", "rwin+alt+s"}.isdisjoint(all_keys), (
@@ -339,12 +407,115 @@ for name in ("config.yaml", "custom_work_config.yaml"):
             "Super+Shift+M must use the scoped compiled RawAccel toggle",
             rawaccel_keys,
         )
-        assert "alt+shift+m" not in rawaccel_keys, (name, mode, "RawAccel must not capture Alt+Shift+M")
+        if mode == "normal":
+            assert "alt+shift+m" in rawaccel_keys, (
+                name,
+                mode,
+                "normal mode must keep Awtarchy Alt+Shift+M RawAccel parity",
+                rawaccel_keys,
+            )
+        else:
+            assert "alt+shift+m" not in rawaccel_keys, (
+                name,
+                mode,
+                "noalt must leave plain Alt+Shift+M uncaptured",
+                rawaccel_keys,
+            )
+
+        tiling_direction_keys = {
+            key
+            for binding in bindings
+            if "toggle-tiling-direction" in binding["commands"]
+            for key in binding["bindings"]
+        }
+        assert {"lwin+shift+r", "rwin+shift+r"} <= tiling_direction_keys, (
+            name,
+            mode,
+            "Super+Shift+R must toggle tiling direction",
+            tiling_direction_keys,
+        )
+        if mode == "normal":
+            assert "alt+shift+r" in tiling_direction_keys, (
+                name,
+                mode,
+                "normal mode must keep Alt+Shift+R tiling-direction toggle",
+                tiling_direction_keys,
+            )
+
+        terminal_keys = {
+            key
+            for binding in bindings
+            if binding["commands"] == ["shell-exec wt.exe -w new"]
+            for key in binding["bindings"]
+        }
+        assert {"lwin+shift+enter", "rwin+shift+enter"} <= terminal_keys, (
+            name,
+            mode,
+            "Super+Shift+Enter must launch Windows Terminal",
+            terminal_keys,
+        )
+
+        window_behavior_keys = {
+            key
+            for binding in bindings
+            if any("wgdotw.exe glazewm-window-behavior-toggle" in command for command in binding["commands"])
+            for key in binding["bindings"]
+        }
+        assert not window_behavior_keys, (
+            name,
+            mode,
+            "default floating-window behavior is bar-only outside VM mode",
+            window_behavior_keys,
+        )
+
+        resize_keys = {
+            command: set(binding["bindings"])
+            for binding in bindings
+            for command in binding["commands"]
+            if command.startswith("resize --")
+        }
+        expected_resize = {
+            "resize --width -2%": {"lwin+ctrl+h", "rwin+ctrl+h"},
+            "resize --width +2%": {"lwin+ctrl+l", "rwin+ctrl+l"},
+            "resize --height -2%": {"lwin+ctrl+k", "rwin+ctrl+k"},
+            "resize --height +2%": {"lwin+ctrl+j", "rwin+ctrl+j"},
+        }
+        for command, expected in expected_resize.items():
+            assert expected <= resize_keys.get(command, set()), (
+                name,
+                mode,
+                "Awtarchy-style Super+Ctrl+H/J/K/L resize parity is incomplete",
+                command,
+                resize_keys,
+            )
+
+        assert {
+            "lwin+ctrl+left", "rwin+ctrl+left",
+            "lwin+ctrl+right", "rwin+ctrl+right",
+            "lwin+ctrl+up", "rwin+ctrl+up",
+            "lwin+ctrl+down", "rwin+ctrl+down",
+        }.isdisjoint(all_keys), (
+            name,
+            mode,
+            "Super+Ctrl+Arrow must remain free for native Windows behavior",
+            all_keys,
+        )
 
     guest_keys = {key for binding in modes["vm"] for key in binding["bindings"]}
     assert not ({"alt+p", "lwin+d", "rwin+d", "lwin", "rwin"} & guest_keys), (
         name,
         "VM guest shortcuts intercepted",
+    )
+    vm_float_keys = {
+        key
+        for binding in modes["vm"]
+        if "toggle-floating --centered" in binding["commands"]
+        for key in binding["bindings"]
+    }
+    assert {"lwin+alt+f", "rwin+alt+f"} <= vm_float_keys, (
+        name,
+        "VM must retain Super+Alt+F active-window floating",
+        vm_float_keys,
     )
 
 for runtime_path in (

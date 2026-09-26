@@ -11,7 +11,7 @@ WGDot manages installation, updates, backups, and deployment. Runtime ownership 
 - **Installed applications** own their native hotkeys where practical. EarTrumpet owns `Alt+V` itself; YASB volume right-click uses a narrow windowless WGDot bridge only to trigger that application-owned hotkey. WGDot does not rewrite the hotkey.
 - **Neither Normal nor Work has any `.ps1` runtime dependencies.** Desktop-session behavior uses native GlazeWM/YASB/Windows/application interfaces first.
 - **Compiled WGDot is used at runtime only for approved custom primitives:** the application launcher, power surface, coordinated auto-hide, theme application/window toggle, invisible GlazeWM mode dispatch where a console would otherwise flash, the GlazeWM default window-behavior toggle, the narrow RawAccel GUI toggle, the bar-only one-shot Clipboard History opener, and the bar-only EarTrumpet mixer-hotkey trigger.
-- Runtime actions that must stay invisible use the windowless `wgdotw.exe` frontend; the interactive theme selector uses `wgdot.exe theme` inside Windows Terminal.
+- Runtime actions that must stay invisible normally use the windowless `wgdotw.exe` frontend. The launcher hotkeys are the deliberate exception: GlazeWM uses its own `shell-exec --hide-window` support to invoke `wgdot.exe launcher ...` directly and avoid an extra cold process. The interactive theme selector uses `wgdot.exe theme` inside Windows Terminal.
 
 ## Bar layout
 
@@ -49,7 +49,7 @@ The system tray definition remains available but is not rendered in the bar. `us
 
 ## Launcher ownership
 
-The application button is a lightweight YASB `CustomWidget` that opens `wgdotw.exe launcher bar`. GlazeWM opens the same single-purpose compiled surface with `wgdotw.exe launcher hotkey`.
+The application button is a lightweight YASB `CustomWidget` that opens `wgdotw.exe launcher bar`. GlazeWM opens the same compiled surface directly and hidden: `Alt+P` uses `wgdot.exe launcher hotkey`, while `Super+D` uses `wgdot.exe launcher super-d`.
 
 - Global `Alt+P` and `Super+D` open the launcher.
 - `noalt` retains `Super+D` but intentionally leaves plain `Alt+P` uncaptured.
@@ -58,8 +58,9 @@ The application button is a lightweight YASB `CustomWidget` that opens `wgdotw.e
 - For keyboard activation only, if YASB auto-hide is enabled or the foreground window fills the active monitor, the launcher opens centered on that monitor.
 - The launcher stays compact at roughly half the old search-window width while retaining normal application-name room.
 - Its results viewport uses pixel-smooth wheel scrolling with a wider WGDot-drawn scrollbar: a 16 px hit area and 12 px thumb colored from the active YASB theme instead of the bright native Windows scrollbar.
-- It loads a persistent WGDot-owned Start Menu index before the window is shown, refreshes that index asynchronously, and prewarms it during real WGDot runtime installation/refresh so repeat opens do not rescan and resolve every shortcut before results are usable.
+- It loads a persistent WGDot-owned Start Menu index before the window is shown, refreshes that index asynchronously, and prewarms it during real WGDot runtime installation/refresh so repeat opens do not rescan and resolve every shortcut before results are usable. Result icons are resolved off the UI thread so cold Windows shell icon extraction cannot block the first visible frame.
 - It indexes Start Menu shortcuts, activates them through Windows shell semantics, and resolves ordinary `.lnk` target/icon metadata so results prefer the underlying application icon instead of shortcut-style presentation where Windows exposes that metadata.
+- `Super+D` uses a short, one-shot post-key-release focus recovery only if Windows surfaces Start; this dismisses the transient Start surface without a resident keyboard hook or shell-process restart.
 - VM mode has no ordinary launcher binding that steals guest shortcuts.
 
 ## Binding modes
@@ -70,9 +71,11 @@ GlazeWM owns `noalt` and `vm` modes directly with `wm-enable-binding-mode` and `
 
 YASB's native `GlazewmBindingModeWidget` displays those modes. Clicking the visible active mode disables that mode; it does not cycle to another mode. GlazeWM remains the source of truth for mode state.
 
-Real GlazeWM pause remains `Win+Alt+P` and uses `wm-toggle-pause`.
+Real GlazeWM pause remains `Win+Alt+P` and uses `wm-toggle-pause`. Normal mode now mirrors the safe Awtarchy navigation/control aliases: `Alt/Super+Ctrl+Shift+Arrow` moves the active workspace between monitors, `Alt/Super+[ / ]` changes workspace, `Alt/Super+Shift+R` toggles tiling direction, and `Alt/Super+Shift+Enter` opens Windows Terminal. `Super+Ctrl+H/J/K/L` provides Awtarchy-style resize aliases while `Super+Ctrl+Arrow` remains untouched for native Windows virtual-desktop switching. Because GlazeWM binding modes do not inherit global bindings, `noalt` explicitly repeats the Super forms.
 
 The experimental mouse binding mode and low-level WGDot pointer hook were removed after real-Windows testing showed pointer lag and unreliable tiled-window dragging. Its old bar slot is gone completely. The four native GlazeWM workspace arrows remain directly visible and usable without a placeholder hub.
+
+Windows deliberately does not mirror Awtarchy's global `Super+Alt+F` floating-spawn toggle. The persistent default new-window `tiling` / `floating` state is changed only through the visible Control Center `Floating Windows` action so it is not confused with active-window floating. VM keeps `Super+Alt+F` scoped to toggling the active window floating.
 
 ## Themes
 
@@ -112,7 +115,7 @@ The custom idle-inhibitor eye is retired. Real-Windows testing showed the cross-
 
 ## RawAccel
 
-`Super+Shift+M` uses `wgdotw.exe rawaccel-toggle` in both profiles. The helper is deliberately narrow: if the RawAccel GUI is open it closes that GUI process; otherwise it locates and launches `rawaccel.exe`. Windows does not add Awtarchy's `Alt+Shift+M` alias.
+`Alt+Shift+M` and `Super+Shift+M` use `wgdotw.exe rawaccel-toggle` in normal mode, matching Awtarchy; `noalt` keeps only the Super form. The helper is deliberately narrow: if the RawAccel GUI is open it closes that GUI process; otherwise it locates and launches `rawaccel.exe`.
 
 ## Power controls
 

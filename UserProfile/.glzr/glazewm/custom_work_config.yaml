@@ -103,6 +103,7 @@ window_rules:
   - commands: ["move --workspace 3"]
     match:
       - window_process: { regex: "OUTLOOK|olk" }
+      - window_process: { regex: "^(Vesktop|vesktop)(\\.exe)?$" }
 
   - commands: ["move --workspace 4"]
     match:
@@ -219,12 +220,14 @@ binding_modes:
         bindings: ["lwin+p", "rwin+p"]
       - commands: ['shell-exec %LOCALAPPDATA%\wgdot\bin\wgdotw.exe bar-autohide-toggle']
         bindings: ["alt+ctrl+b"]
-      - commands: ['shell-exec %LOCALAPPDATA%\wgdot\bin\wgdotw.exe launcher hotkey']
+      - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe launcher super-d']
         bindings: ["lwin+d", "rwin+d"]
       - commands: ['shell-exec %LOCALAPPDATA%\wgdot\bin\wgdotw.exe theme-window-toggle']
         bindings: ["lwin+alt+t", "rwin+alt+t"]
       - commands: ["toggle-tiling"]
         bindings: ["lwin+t", "rwin+t"]
+      - commands: ["toggle-tiling-direction"]
+        bindings: ["lwin+shift+r", "rwin+shift+r"]
       - commands: ["shell-exec explorer.exe ms-settings:display"]
         bindings: ["lwin+ctrl+m", "rwin+ctrl+m"]
       - commands: ['shell-exec %LOCALAPPDATA%\wgdot\bin\wgdotw.exe rawaccel-toggle']
@@ -262,6 +265,33 @@ binding_modes:
         bindings: ["lwin+shift+k", "rwin+shift+k", "lwin+shift+up", "rwin+shift+up"]
       - commands: ["move --direction down"]
         bindings: ["lwin+shift+j", "rwin+shift+j", "lwin+shift+down", "rwin+shift+down"]
+
+      # Preserve Awtarchy's keyboard resize parity without taking Windows'
+      # native Super+Ctrl+Arrow virtual-desktop shortcuts.
+      - commands: ["resize --width -2%"]
+        bindings: ["lwin+ctrl+h", "rwin+ctrl+h"]
+      - commands: ["resize --width +2%"]
+        bindings: ["lwin+ctrl+l", "rwin+ctrl+l"]
+      - commands: ["resize --height -2%"]
+        bindings: ["lwin+ctrl+k", "rwin+ctrl+k"]
+      - commands: ["resize --height +2%"]
+        bindings: ["lwin+ctrl+j", "rwin+ctrl+j"]
+
+      # Binding modes replace global bindings, so noalt must carry the
+      # Super equivalent of global Alt+Ctrl+Shift+Arrow workspace monitor moves.
+      - commands: ["move-workspace --direction left"]
+        bindings: ["lwin+ctrl+shift+left", "rwin+ctrl+shift+left"]
+      - commands: ["move-workspace --direction right"]
+        bindings: ["lwin+ctrl+shift+right", "rwin+ctrl+shift+right"]
+      - commands: ["move-workspace --direction up"]
+        bindings: ["lwin+ctrl+shift+up", "rwin+ctrl+shift+up"]
+      - commands: ["move-workspace --direction down"]
+        bindings: ["lwin+ctrl+shift+down", "rwin+ctrl+shift+down"]
+
+      - commands: ["focus --next-workspace"]
+        bindings: ["lwin+oem_close_brackets", "rwin+oem_close_brackets"]
+      - commands: ["focus --prev-workspace"]
+        bindings: ["lwin+oem_open_brackets", "rwin+oem_open_brackets"]
 
       - commands: ["focus --workspace 1"]
         bindings: ["lwin+1", "rwin+1"]
@@ -379,14 +409,18 @@ binding_modes:
 
 keybindings:
 
-  - commands: ['shell-exec %LOCALAPPDATA%\wgdot\bin\wgdotw.exe launcher hotkey']
-    bindings: ["alt+p", "lwin+d", "rwin+d"]
+  # Launch WGDot directly here so cold launcher activation pays for one
+  # .NET process instead of wgdotw.exe spawning and waiting on wgdot.exe.
+  - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe launcher hotkey']
+    bindings: ["alt+p"]
+  - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe launcher super-d']
+    bindings: ["lwin+d", "rwin+d"]
 
 
 
 
   - commands: ['shell-exec %LOCALAPPDATA%\wgdot\bin\wgdotw.exe rawaccel-toggle']
-    bindings: ["lwin+shift+m", "rwin+shift+m"]
+    bindings: ["alt+shift+m", "lwin+shift+m", "rwin+shift+m"]
 
   - commands: ["shell-exec explorer.exe ms-settings:display"]
     bindings: ["lwin+ctrl+m", "rwin+ctrl+m"]
@@ -439,6 +473,17 @@ keybindings:
   - commands: ["resize --height -2%"]
     bindings: ["alt+u", "alt+ctrl+down"]
 
+  # Awtarchy-style H/J/K/L resize aliases. Keep Super+Ctrl+Arrow unbound so
+  # Windows virtual-desktop switching remains native.
+  - commands: ["resize --width -2%"]
+    bindings: ["lwin+ctrl+h", "rwin+ctrl+h"]
+  - commands: ["resize --width +2%"]
+    bindings: ["lwin+ctrl+l", "rwin+ctrl+l"]
+  - commands: ["resize --height -2%"]
+    bindings: ["lwin+ctrl+k", "rwin+ctrl+k"]
+  - commands: ["resize --height +2%"]
+    bindings: ["lwin+ctrl+j", "rwin+ctrl+j"]
+
   - commands: ["wm-enable-binding-mode --name noalt"]
     bindings: ["lwin+alt+n", "rwin+alt+n"]
 
@@ -451,7 +496,7 @@ keybindings:
     bindings: ["lwin+alt+p", "rwin+alt+p"]
 
   - commands: ["toggle-tiling-direction"]
-    bindings: ["alt+shift+r"]
+    bindings: ["alt+shift+r", "lwin+shift+r", "rwin+shift+r"]
 
   - commands: ["toggle-floating --centered"]
     bindings: ["alt+f", "lwin+f", "rwin+f"]
@@ -481,7 +526,7 @@ keybindings:
 
   # Launch a normal Windows Terminal window.
   - commands: ["shell-exec wt.exe -w new"]
-    bindings: ["alt+shift+enter"]
+    bindings: ["alt+shift+enter", "lwin+shift+enter", "rwin+shift+enter"]
 
   # Launch Yazi in a dedicated Windows Terminal window.
   # The persistent title allows GlazeWM to route it to workspace 4.
@@ -489,9 +534,9 @@ keybindings:
     bindings: ["lwin+shift+e", "rwin+shift+e"]
 
   - commands: ["focus --next-workspace"]
-    bindings: ["alt+oem_close_brackets"]
+    bindings: ["alt+oem_close_brackets", "lwin+oem_close_brackets", "rwin+oem_close_brackets"]
   - commands: ["focus --prev-workspace"]
-    bindings: ["alt+oem_open_brackets"]
+    bindings: ["alt+oem_open_brackets", "lwin+oem_open_brackets", "rwin+oem_open_brackets"]
 
   - commands: ["focus --recent-workspace"]
     bindings: ["alt+ctrl+c"]
@@ -518,13 +563,13 @@ keybindings:
     bindings: ["alt+0", "lwin+0", "rwin+0"]
 
   - commands: ["move-workspace --direction left"]
-    bindings: ["alt+ctrl+shift+left"]
+    bindings: ["alt+ctrl+shift+left", "lwin+ctrl+shift+left", "rwin+ctrl+shift+left"]
   - commands: ["move-workspace --direction right"]
-    bindings: ["alt+ctrl+shift+right"]
+    bindings: ["alt+ctrl+shift+right", "lwin+ctrl+shift+right", "rwin+ctrl+shift+right"]
   - commands: ["move-workspace --direction up"]
-    bindings: ["alt+ctrl+shift+up"]
+    bindings: ["alt+ctrl+shift+up", "lwin+ctrl+shift+up", "rwin+ctrl+shift+up"]
   - commands: ["move-workspace --direction down"]
-    bindings: ["alt+ctrl+shift+down"]
+    bindings: ["alt+ctrl+shift+down", "lwin+ctrl+shift+down", "rwin+ctrl+shift+down"]
 
   - commands: ["move --workspace 1"]
     bindings: ["alt+shift+1", "lwin+shift+1", "rwin+shift+1"]

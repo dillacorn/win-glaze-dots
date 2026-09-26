@@ -226,13 +226,52 @@ try {
             Require ($text -match 'wgdotw\.exe rawaccel-toggle') ('Scoped RawAccel toggle missing: ' + $relative)
             Require ($text -match 'wgdotw\.exe power-menu') ('Compiled Awtarchy-style power surface missing: ' + $relative)
             Require ($text -match 'bindings:\s*\["lwin\+p",\s*"rwin\+p"\]') ('Super+P compiled power binding missing: ' + $relative)
-            Require ($text -match 'wgdotw\.exe launcher hotkey') ('Compiled Awtarchy-style launcher missing: ' + $relative)
-            Require ($text -match '%LOCALAPPDATA%\\wgdot\\bin\\wgdotw\.exe.*launcher hotkey') ('Launcher helper path is not deterministic: ' + $relative)
-            Require ($text -match 'bindings:\s*\["alt\+p",\s*"lwin\+d",\s*"rwin\+d"\]') ('Global Alt+P/Super+D launcher binding missing: ' + $relative)
-            Require ($text -match 'bindings:\s*\["lwin\+shift\+m",\s*"rwin\+shift\+m"\]') ('Super+Shift+M RawAccel binding missing: ' + $relative)
-            Require ($text -notmatch 'bindings:\s*\["alt\+shift\+m"') ('RawAccel must not capture Alt+Shift+M: ' + $relative)
+            Require ($text -match 'bindings:\s*\["alt\+shift\+r",\s*"lwin\+shift\+r",\s*"rwin\+shift\+r"\]') ('Global Alt/Super+Shift+R tiling-direction parity missing: ' + $relative)
+            Require ($text -match 'bindings:\s*\["alt\+shift\+enter",\s*"lwin\+shift\+enter",\s*"rwin\+shift\+enter"\]') ('Global Alt/Super+Shift+Enter terminal parity missing: ' + $relative)
+            Require ($text -match 'bindings:\s*\["alt\+oem_close_brackets",\s*"lwin\+oem_close_brackets",\s*"rwin\+oem_close_brackets"\]') ('Global Alt/Super+] workspace navigation missing: ' + $relative)
+            Require ($text -match 'bindings:\s*\["alt\+oem_open_brackets",\s*"lwin\+oem_open_brackets",\s*"rwin\+oem_open_brackets"\]') ('Global Alt/Super+[ workspace navigation missing: ' + $relative)
+            $globalBindings = [regex]::Match($text, '(?ms)^keybindings:\r?\n.*?(?=^window_rules:)').Value
+            Require ($globalBindings -notmatch 'glazewm-window-behavior-toggle') ('Default floating-window behavior must remain bar-only outside binding modes: ' + $relative)
+            Require ($text -match 'bindings:\s*\["lwin\+ctrl\+h",\s*"rwin\+ctrl\+h"\]') ('Super+Ctrl+H resize parity missing: ' + $relative)
+            Require ($text -match 'bindings:\s*\["lwin\+ctrl\+j",\s*"rwin\+ctrl\+j"\]') ('Super+Ctrl+J resize parity missing: ' + $relative)
+            Require ($text -match 'bindings:\s*\["lwin\+ctrl\+k",\s*"rwin\+ctrl\+k"\]') ('Super+Ctrl+K resize parity missing: ' + $relative)
+            Require ($text -match 'bindings:\s*\["lwin\+ctrl\+l",\s*"rwin\+ctrl\+l"\]') ('Super+Ctrl+L resize parity missing: ' + $relative)
+            Require ($text -notmatch 'bindings:\s*\["lwin\+ctrl\+(?:left|right|up|down)"') ('Super+Ctrl+Arrow must remain native Windows behavior: ' + $relative)
+            Require ($text -match 'shell-exec --hide-window %LOCALAPPDATA%\\wgdot\\bin\\wgdot\.exe launcher hotkey') ('Direct hidden Alt+P launcher path missing: ' + $relative)
+            Require ($text -match 'shell-exec --hide-window %LOCALAPPDATA%\\wgdot\\bin\\wgdot\.exe launcher super-d') ('Direct hidden Super+D launcher path missing: ' + $relative)
+            Require ($text -notmatch 'wgdotw\.exe launcher hotkey') ('GlazeWM launcher still pays the wgdotw cold-start hop: ' + $relative)
+            Require ($text -match 'bindings:\s*\["alt\+p"\]') ('Global Alt+P launcher binding missing: ' + $relative)
+            Require ($text -match 'bindings:\s*\["lwin\+d",\s*"rwin\+d"\]') ('Global Super+D launcher binding missing: ' + $relative)
+            Require ($text -match 'bindings:\s*\["alt\+ctrl\+shift\+left",\s*"lwin\+ctrl\+shift\+left",\s*"rwin\+ctrl\+shift\+left"\]') ('Global Alt/Super+Ctrl+Shift+Left workspace monitor move missing: ' + $relative)
+            Require ($text -match 'bindings:\s*\["alt\+ctrl\+shift\+right",\s*"lwin\+ctrl\+shift\+right",\s*"rwin\+ctrl\+shift\+right"\]') ('Global Alt/Super+Ctrl+Shift+Right workspace monitor move missing: ' + $relative)
+            Require ($text -match 'bindings:\s*\["alt\+ctrl\+shift\+up",\s*"lwin\+ctrl\+shift\+up",\s*"rwin\+ctrl\+shift\+up"\]') ('Global Alt/Super+Ctrl+Shift+Up workspace monitor move missing: ' + $relative)
+            Require ($text -match 'bindings:\s*\["alt\+ctrl\+shift\+down",\s*"lwin\+ctrl\+shift\+down",\s*"rwin\+ctrl\+shift\+down"\]') ('Global Alt/Super+Ctrl+Shift+Down workspace monitor move missing: ' + $relative)
+            $noalt = [regex]::Match($text, '(?ms)^  - name: "noalt"\r?\n.*?(?=^  # VM mode|^  - name: "vm")').Value
+            Require ($noalt -match 'bindings:\s*\["lwin\+ctrl\+shift\+left",\s*"rwin\+ctrl\+shift\+left"\]') ('NoAlt Super+Ctrl+Shift+Left workspace monitor move missing: ' + $relative)
+            Require ($noalt -match 'bindings:\s*\["lwin\+ctrl\+shift\+right",\s*"rwin\+ctrl\+shift\+right"\]') ('NoAlt Super+Ctrl+Shift+Right workspace monitor move missing: ' + $relative)
+            Require ($noalt -match 'bindings:\s*\["lwin\+ctrl\+shift\+up",\s*"rwin\+ctrl\+shift\+up"\]') ('NoAlt Super+Ctrl+Shift+Up workspace monitor move missing: ' + $relative)
+            Require ($noalt -match 'bindings:\s*\["lwin\+ctrl\+shift\+down",\s*"rwin\+ctrl\+shift\+down"\]') ('NoAlt Super+Ctrl+Shift+Down workspace monitor move missing: ' + $relative)
+            Require ($noalt -match 'bindings:\s*\["lwin\+shift\+r",\s*"rwin\+shift\+r"\]') ('NoAlt Super+Shift+R tiling-direction toggle missing: ' + $relative)
+            Require ($noalt -match 'bindings:\s*\[[^\]]*"lwin\+shift\+enter"[^\]]*"rwin\+shift\+enter"[^\]]*\]') ('NoAlt Super+Shift+Enter terminal binding missing: ' + $relative)
+            Require ($noalt -match 'bindings:\s*\["lwin\+oem_close_brackets",\s*"rwin\+oem_close_brackets"\]') ('NoAlt Super+] workspace navigation missing: ' + $relative)
+            Require ($noalt -match 'bindings:\s*\["lwin\+oem_open_brackets",\s*"rwin\+oem_open_brackets"\]') ('NoAlt Super+[ workspace navigation missing: ' + $relative)
+            Require ($noalt -notmatch 'glazewm-window-behavior-toggle') ('NoAlt default floating-window behavior must remain bar-only: ' + $relative)
+            $vm = [regex]::Match($text, '(?ms)^  - name: "vm"\r?\n.*?(?=^keybindings:)').Value
+            Require ($vm -match 'commands:\s*\["toggle-floating --centered"\]\s*\r?\n\s*bindings:\s*\["lwin\+alt\+f",\s*"rwin\+alt\+f"\]') ('VM Super+Alt+F active-window floating binding missing: ' + $relative)
+            Require ($noalt -match 'bindings:\s*\["lwin\+ctrl\+h",\s*"rwin\+ctrl\+h"\]') ('NoAlt Super+Ctrl+H resize missing: ' + $relative)
+            Require ($noalt -match 'bindings:\s*\["lwin\+ctrl\+j",\s*"rwin\+ctrl\+j"\]') ('NoAlt Super+Ctrl+J resize missing: ' + $relative)
+            Require ($noalt -match 'bindings:\s*\["lwin\+ctrl\+k",\s*"rwin\+ctrl\+k"\]') ('NoAlt Super+Ctrl+K resize missing: ' + $relative)
+            Require ($noalt -match 'bindings:\s*\["lwin\+ctrl\+l",\s*"rwin\+ctrl\+l"\]') ('NoAlt Super+Ctrl+L resize missing: ' + $relative)
+            Require ($text -match 'bindings:\s*\["alt\+shift\+m",\s*"lwin\+shift\+m",\s*"rwin\+shift\+m"\]') ('Alt/Super+Shift+M RawAccel parity missing: ' + $relative)
             Require ($text -notmatch 'wgdotw?\.exe\s+(?:quick-launch|flow-open|eartrumpet-mixer(?:\s|$)|clipboard-anchor(?:\s|$)|clipboard-history(?:\s|$)|flameshot-gui|display-settings)') ('Native-capable action routed through WGDot: ' + $relative)
         }
+    }
+
+    Check 'Vesktop launches on workspace 3 in both profiles' {
+        $normal = Get-Content -LiteralPath (Join-Path $repo 'UserProfile\.glzr\glazewm\config.yaml') -Raw -Encoding UTF8
+        $work = Get-Content -LiteralPath (Join-Path $repo 'UserProfile\.glzr\glazewm\custom_work_config.yaml') -Raw -Encoding UTF8
+        Require ($normal -match 'window_process:\s*\{ regex: "\^\(Discord\|discord\|Vesktop\|vesktop\|Dorion\|dorion\)') 'Normal profile does not match lowercase Vesktop for workspace 3'
+        Require ($work -match 'window_process:\s*\{ regex: "\^\(Vesktop\|vesktop\)') 'Work profile does not match lowercase Vesktop for workspace 3'
     }
 
     Check 'GlazeWM focus follows cursor differs by profile intentionally' {
@@ -294,14 +333,20 @@ try {
         $work = Get-Content -LiteralPath (Join-Path $repo 'UserProfile\.glzr\glazewm\custom_work_config.yaml') -Raw -Encoding UTF8
         foreach ($text in @($normal, $work)) {
             Require ($text -notmatch 'flow-launcher\.ps1|yasb-quick-launch\.ps1') 'Launcher relay script returned to GlazeWM'
-            Require ($text -match 'wgdotw\.exe launcher hotkey') 'Compiled launcher hotkey surface is missing'
-            Require ($text -match 'bindings:\s*\["alt\+p",\s*"lwin\+d",\s*"rwin\+d"\]') 'Alt+P/Super+D compiled launcher binding is missing'
+            Require ($text -match 'shell-exec --hide-window %LOCALAPPDATA%\\wgdot\\bin\\wgdot\.exe launcher hotkey') 'Direct hidden Alt+P launcher surface is missing'
+            Require ($text -match 'shell-exec --hide-window %LOCALAPPDATA%\\wgdot\\bin\\wgdot\.exe launcher super-d') 'Direct hidden Super+D launcher surface is missing'
+            Require ($text -notmatch 'wgdotw\.exe launcher hotkey') 'GlazeWM launcher still routes through the extra wgdotw process'
+            Require ($text -match 'bindings:\s*\["alt\+p"\]') 'Alt+P compiled launcher binding is missing'
+            Require ($text -match 'bindings:\s*\["lwin\+d",\s*"rwin\+d"\]') 'Super+D compiled launcher binding is missing'
         }
         Require ($work -notmatch 'shell-exec %LOCALAPPDATA%/FlowLauncher/Flow\.Launcher\.exe') 'Work launcher still defaults to Flow Launcher'
         Require ($nativeSource -match 'if \(command == "launcher"\) return LauncherFromArgs') 'Native compiled launcher command is missing'
         Require ($nativeSource -match 'LauncherLocation') 'Launcher placement logic is missing'
         Require ($nativeSource -match 'YasbAutoHideEnabled') 'Launcher auto-hide placement override is missing'
         Require ($nativeSource -match 'ForegroundWindowFillsScreen') 'Launcher fullscreen placement override is missing'
+        Require ($nativeSource -match 'QueueLauncherIconLoads') 'Launcher icon extraction is not deferred off first paint'
+        Require ($nativeSource -match 'QueueLauncherSuperDFocusRecovery') 'Super+D Start-surface recovery is missing'
+        Require ($nativeSource -match 'DateTime\.UtcNow\.AddMilliseconds\(250\)') 'Super+D recovery is not bounded'
     }
 
     Check 'EarTrumpet and Clipboard keyboard ownership stays native' {

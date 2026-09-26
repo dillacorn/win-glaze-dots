@@ -6,7 +6,7 @@ Notes From Repo: https://github.com/dillacorn/win-glaze-dots
 
 For games requiring borderless windowed mode for stretched fullscreen resolutions, I use nircmd scripts to quickly switch resolutions before launching specific games. I find 1600x1024 (16:10) strikes a good balance—offering stretch without overdoing it, while still feeling natural when switching back to 16:9. While 1728x1080 (16:10) is sharper, the difference is minimal, and 1600x1024 provides better frame rate consistency. For a stronger stretch, 1440x1080 (4:3) and 1400x1050 (4:3) are excellent options, with the latter offering a slightly less intense stretch.
 
-### To use nircmd launch it with GlazeWM shortcut `ALT+shift+m` ~ [See GlazeWM Config](https://github.com/dillacorn/win-glaze-dots/blob/d8667c1f86257113a0b3ad13b69d28e74fd226f0/UserProfile/.glzr/glazewm/config.yaml#L415)
+### To use the tracked NirCmd resolution scripts, open the scripts menu with `Alt+Ctrl+Shift+M` and choose the desired resolution script. `Alt+Shift+M` is reserved for RawAccel parity with Awtarchy.
 ---
 ### Apex Legends ~ stretched 1600x1024 and/or 1400x1050
 ### patch apex ["videoconfig.txt"](https://github.com/dillacorn/win-glaze-dots/blob/main/Game_Config_Files/Apex%20Legends/UserProfile/Saved%20Games/Respawn/Apex/Local/videoconfig.txt) then make read-only
