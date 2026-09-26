@@ -786,6 +786,12 @@ Assert-True ($nativeSourceText -match 'Disable all WGDot-managed startup') "soft
 Assert-True ($nativeSourceText -match 'Software\\Microsoft\\Windows\\CurrentVersion\\Run') "startup manager uses per-user Windows startup registration"
 Assert-True ($nativeSourceText -match '"WGDot\." \+ handler') "startup entries are namespaced to WGDot ownership"
 Assert-True ($nativeSourceText -match 'ApplyStartupDefaultsForSelection') "software reconciliation applies remembered/default WGDot startup policy"
+$managedOperationBlock = [regex]::Match($nativeSourceText, '(?ms)static int ManagedOperation\(.*?^    }').Value
+Assert-True (-not [string]::IsNullOrWhiteSpace($managedOperationBlock)) "managed update/reset operation block is present"
+Assert-True ($managedOperationBlock -match 'ApplyStartupDefaultsForSelection\(source\.Manifest, selection\);') "managed update/reset reapplies remembered/default WGDot startup policy"
+$dotsOnlyBlock = [regex]::Match($nativeSourceText, '(?ms)static int DotsOnlyFromArgs\(.*?^    }').Value
+Assert-True (-not [string]::IsNullOrWhiteSpace($dotsOnlyBlock)) "dots-only operation block is present"
+Assert-True ($dotsOnlyBlock -notmatch 'ApplyStartupDefaultsForSelection') "dots-only remains free of startup registration side effects"
 Assert-True ($nativeSourceText -match 'static string FindFlameshotExe\(\)') "Flameshot startup has a dedicated executable resolver"
 Assert-True ($nativeSourceText -match 'String\.Equals\(handler, "flameshot", StringComparison\.OrdinalIgnoreCase\)') "startup manager recognizes the Flameshot handler"
 Assert-True ($nativeSourceText -match 'static bool StartupPackageIsInstalled\(') "startup manager can positively detect supported installed applications"
