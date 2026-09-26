@@ -252,7 +252,7 @@ try {
             Require ($noalt -match 'bindings:\s*\["lwin\+ctrl\+shift\+up",\s*"rwin\+ctrl\+shift\+up"\]') ('NoAlt Super+Ctrl+Shift+Up workspace monitor move missing: ' + $relative)
             Require ($noalt -match 'bindings:\s*\["lwin\+ctrl\+shift\+down",\s*"rwin\+ctrl\+shift\+down"\]') ('NoAlt Super+Ctrl+Shift+Down workspace monitor move missing: ' + $relative)
             Require ($noalt -match 'bindings:\s*\["lwin\+shift\+r",\s*"rwin\+shift\+r"\]') ('NoAlt Super+Shift+R tiling-direction toggle missing: ' + $relative)
-            Require ($noalt -match 'bindings:\s*\["lwin\+shift\+enter",\s*"rwin\+shift\+enter"\]') ('NoAlt Super+Shift+Enter terminal binding missing: ' + $relative)
+            Require ($noalt -match 'bindings:\s*\[[^\]]*"lwin\+shift\+enter"[^\]]*"rwin\+shift\+enter"[^\]]*\]') ('NoAlt Super+Shift+Enter terminal binding missing: ' + $relative)
             Require ($noalt -match 'bindings:\s*\["lwin\+oem_close_brackets",\s*"rwin\+oem_close_brackets"\]') ('NoAlt Super+] workspace navigation missing: ' + $relative)
             Require ($noalt -match 'bindings:\s*\["lwin\+oem_open_brackets",\s*"rwin\+oem_open_brackets"\]') ('NoAlt Super+[ workspace navigation missing: ' + $relative)
             Require ($noalt -match 'wgdotw\.exe glazewm-window-behavior-toggle') ('NoAlt default floating-window behavior helper binding missing: ' + $relative)
