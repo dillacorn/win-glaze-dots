@@ -71,7 +71,7 @@ GlazeWM owns `noalt` and `vm` modes directly with `wm-enable-binding-mode` and `
 
 YASB's native `GlazewmBindingModeWidget` displays those modes. Clicking the visible active mode disables that mode; it does not cycle to another mode. GlazeWM remains the source of truth for mode state.
 
-Real GlazeWM pause remains `Win+Alt+P` and uses `wm-toggle-pause`.
+Real GlazeWM pause remains `Win+Alt+P` and uses `wm-toggle-pause`. Because GlazeWM binding modes do not inherit global bindings, `noalt` explicitly keeps `Super+Ctrl+Shift+Arrow` for moving the active workspace between monitors.
 
 The experimental mouse binding mode and low-level WGDot pointer hook were removed after real-Windows testing showed pointer lag and unreliable tiled-window dragging. Its old bar slot is gone completely. The four native GlazeWM workspace arrows remain directly visible and usable without a placeholder hub.
 
