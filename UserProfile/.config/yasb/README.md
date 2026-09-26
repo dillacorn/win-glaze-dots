@@ -11,7 +11,7 @@ WGDot manages installation, updates, backups, and deployment. Runtime ownership 
 - **Installed applications** own their native hotkeys where practical. EarTrumpet owns `Alt+V` itself; YASB volume right-click uses a narrow windowless WGDot bridge only to trigger that application-owned hotkey. WGDot does not rewrite the hotkey.
 - **Neither Normal nor Work has any `.ps1` runtime dependencies.** Desktop-session behavior uses native GlazeWM/YASB/Windows/application interfaces first.
 - **Compiled WGDot is used at runtime only for approved custom primitives:** the application launcher, power surface, coordinated auto-hide, theme application/window toggle, invisible GlazeWM mode dispatch where a console would otherwise flash, the GlazeWM default window-behavior toggle, the narrow RawAccel GUI toggle, the bar-only one-shot Clipboard History opener, and the bar-only EarTrumpet mixer-hotkey trigger.
-- Runtime actions that must stay invisible use the windowless `wgdotw.exe` frontend; the interactive theme selector uses `wgdot.exe theme` inside Windows Terminal.
+- Runtime actions that must stay invisible normally use the windowless `wgdotw.exe` frontend. The launcher hotkeys are the deliberate exception: GlazeWM uses its own `shell-exec --hide-window` support to invoke `wgdot.exe launcher ...` directly and avoid an extra cold process. The interactive theme selector uses `wgdot.exe theme` inside Windows Terminal.
 
 ## Bar layout
 
@@ -49,7 +49,7 @@ The system tray definition remains available but is not rendered in the bar. `us
 
 ## Launcher ownership
 
-The application button is a lightweight YASB `CustomWidget` that opens `wgdotw.exe launcher bar`. GlazeWM opens the same single-purpose compiled surface with `wgdotw.exe launcher hotkey`.
+The application button is a lightweight YASB `CustomWidget` that opens `wgdotw.exe launcher bar`. GlazeWM opens the same compiled surface directly and hidden: `Alt+P` uses `wgdot.exe launcher hotkey`, while `Super+D` uses `wgdot.exe launcher super-d`.
 
 - Global `Alt+P` and `Super+D` open the launcher.
 - `noalt` retains `Super+D` but intentionally leaves plain `Alt+P` uncaptured.
@@ -58,8 +58,9 @@ The application button is a lightweight YASB `CustomWidget` that opens `wgdotw.e
 - For keyboard activation only, if YASB auto-hide is enabled or the foreground window fills the active monitor, the launcher opens centered on that monitor.
 - The launcher stays compact at roughly half the old search-window width while retaining normal application-name room.
 - Its results viewport uses pixel-smooth wheel scrolling with a wider WGDot-drawn scrollbar: a 16 px hit area and 12 px thumb colored from the active YASB theme instead of the bright native Windows scrollbar.
-- It loads a persistent WGDot-owned Start Menu index before the window is shown, refreshes that index asynchronously, and prewarms it during real WGDot runtime installation/refresh so repeat opens do not rescan and resolve every shortcut before results are usable.
+- It loads a persistent WGDot-owned Start Menu index before the window is shown, refreshes that index asynchronously, and prewarms it during real WGDot runtime installation/refresh so repeat opens do not rescan and resolve every shortcut before results are usable. Result icons are resolved off the UI thread so cold Windows shell icon extraction cannot block the first visible frame.
 - It indexes Start Menu shortcuts, activates them through Windows shell semantics, and resolves ordinary `.lnk` target/icon metadata so results prefer the underlying application icon instead of shortcut-style presentation where Windows exposes that metadata.
+- `Super+D` uses a short, one-shot post-key-release focus recovery only if Windows surfaces Start; this dismisses the transient Start surface without a resident keyboard hook or shell-process restart.
 - VM mode has no ordinary launcher binding that steals guest shortcuts.
 
 ## Binding modes
