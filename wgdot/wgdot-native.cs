@@ -5431,14 +5431,6 @@ class WgdotHidden
         if (String.Equals(handler, "miclocktray", StringComparison.OrdinalIgnoreCase))
             return File.Exists(GetPackageProgramFilePath(package, "installedFile"));
 
-        if (String.Equals(handler, "flameshot", StringComparison.OrdinalIgnoreCase))
-        {
-            string exe = FindFlameshotExe();
-            if (String.IsNullOrWhiteSpace(exe))
-                throw new Exception("Flameshot is selected for startup, but flameshot.exe could not be found.");
-            return Q(exe);
-        }
-
         if (String.Equals(handler, "eartrumpet", StringComparison.OrdinalIgnoreCase))
         {
             if (EarTrumpetProcessRunning()) return true;
@@ -6102,6 +6094,14 @@ class WgdotHidden
             string exe = FindAltSnapExe();
             if (String.IsNullOrWhiteSpace(exe))
                 throw new Exception("AltSnap is selected for startup, but AltSnap.exe could not be found.");
+            return Q(exe);
+        }
+
+        if (String.Equals(handler, "flameshot", StringComparison.OrdinalIgnoreCase))
+        {
+            string exe = FindFlameshotExe();
+            if (String.IsNullOrWhiteSpace(exe))
+                throw new Exception("Flameshot is selected for startup, but flameshot.exe could not be found.");
             return Q(exe);
         }
 
