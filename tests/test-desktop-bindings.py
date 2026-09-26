@@ -364,10 +364,22 @@ for name in ("config.yaml", "custom_work_config.yaml"):
             "GlazeWM bracket workspace navigation must use layout-independent OEM key names",
             all_keys,
         )
+        super_workspace_brackets = {
+            "lwin+oem_close_brackets",
+            "rwin+oem_close_brackets",
+            "lwin+oem_open_brackets",
+            "rwin+oem_open_brackets",
+        }
+        assert super_workspace_brackets <= all_keys, (
+            name,
+            mode,
+            "Super+[ / ] workspace navigation must survive normal and noalt modes",
+            all_keys,
+        )
         if mode == "normal":
             assert "alt+oem_close_brackets" in all_keys and "alt+oem_open_brackets" in all_keys, (
                 name,
-                "workspace bracket navigation bindings are missing",
+                "Alt+[ / ] workspace navigation bindings are missing",
                 all_keys,
             )
         assert {"lwin+shift+x", "rwin+shift+x", "lwin+alt+s", "rwin+alt+s"}.isdisjoint(all_keys), (
@@ -395,7 +407,99 @@ for name in ("config.yaml", "custom_work_config.yaml"):
             "Super+Shift+M must use the scoped compiled RawAccel toggle",
             rawaccel_keys,
         )
-        assert "alt+shift+m" not in rawaccel_keys, (name, mode, "RawAccel must not capture Alt+Shift+M")
+        if mode == "normal":
+            assert "alt+shift+m" in rawaccel_keys, (
+                name,
+                mode,
+                "normal mode must keep Awtarchy Alt+Shift+M RawAccel parity",
+                rawaccel_keys,
+            )
+        else:
+            assert "alt+shift+m" not in rawaccel_keys, (
+                name,
+                mode,
+                "noalt must leave plain Alt+Shift+M uncaptured",
+                rawaccel_keys,
+            )
+
+        tiling_direction_keys = {
+            key
+            for binding in bindings
+            if "toggle-tiling-direction" in binding["commands"]
+            for key in binding["bindings"]
+        }
+        assert {"lwin+shift+r", "rwin+shift+r"} <= tiling_direction_keys, (
+            name,
+            mode,
+            "Super+Shift+R must toggle tiling direction",
+            tiling_direction_keys,
+        )
+        if mode == "normal":
+            assert "alt+shift+r" in tiling_direction_keys, (
+                name,
+                mode,
+                "normal mode must keep Alt+Shift+R tiling-direction toggle",
+                tiling_direction_keys,
+            )
+
+        terminal_keys = {
+            key
+            for binding in bindings
+            if binding["commands"] == ["shell-exec wt.exe -w new"]
+            for key in binding["bindings"]
+        }
+        assert {"lwin+shift+enter", "rwin+shift+enter"} <= terminal_keys, (
+            name,
+            mode,
+            "Super+Shift+Enter must launch Windows Terminal",
+            terminal_keys,
+        )
+
+        window_behavior_keys = {
+            key
+            for binding in bindings
+            if any("wgdotw.exe glazewm-window-behavior-toggle" in command for command in binding["commands"])
+            for key in binding["bindings"]
+        }
+        assert {"lwin+alt+f", "rwin+alt+f"} <= window_behavior_keys, (
+            name,
+            mode,
+            "Super+Alt+F must toggle the default new-window floating behavior outside VM mode",
+            window_behavior_keys,
+        )
+
+        resize_keys = {
+            command: set(binding["bindings"])
+            for binding in bindings
+            for command in binding["commands"]
+            if command.startswith("resize --")
+        }
+        expected_resize = {
+            "resize --width -2%": {"lwin+ctrl+h", "rwin+ctrl+h"},
+            "resize --width +2%": {"lwin+ctrl+l", "rwin+ctrl+l"},
+            "resize --height -2%": {"lwin+ctrl+k", "rwin+ctrl+k"},
+            "resize --height +2%": {"lwin+ctrl+j", "rwin+ctrl+j"},
+        }
+        for command, expected in expected_resize.items():
+            assert expected <= resize_keys.get(command, set()), (
+                name,
+                mode,
+                "Awtarchy-style Super+Ctrl+H/J/K/L resize parity is incomplete",
+                command,
+                resize_keys,
+            )
+
+        assert {
+            "lwin+ctrl+left", "rwin+ctrl+left",
+            "lwin+ctrl+right", "rwin+ctrl+right",
+            "lwin+ctrl+up", "rwin+ctrl+up",
+            "lwin+ctrl+down", "rwin+ctrl+down",
+        }.isdisjoint(all_keys), (
+            name,
+            mode,
+            "Super+Ctrl+Arrow must remain free for native Windows behavior",
+            all_keys,
+        )
 
     guest_keys = {key for binding in modes["vm"] for key in binding["bindings"]}
     assert not ({"alt+p", "lwin+d", "rwin+d", "lwin", "rwin"} & guest_keys), (
