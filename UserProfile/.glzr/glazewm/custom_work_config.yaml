@@ -263,6 +263,17 @@ binding_modes:
       - commands: ["move --direction down"]
         bindings: ["lwin+shift+j", "rwin+shift+j", "lwin+shift+down", "rwin+shift+down"]
 
+      # Binding modes replace global bindings, so noalt must carry the
+      # Super equivalent of global Alt+Ctrl+Shift+Arrow workspace monitor moves.
+      - commands: ["move-workspace --direction left"]
+        bindings: ["lwin+ctrl+shift+left", "rwin+ctrl+shift+left"]
+      - commands: ["move-workspace --direction right"]
+        bindings: ["lwin+ctrl+shift+right", "rwin+ctrl+shift+right"]
+      - commands: ["move-workspace --direction up"]
+        bindings: ["lwin+ctrl+shift+up", "rwin+ctrl+shift+up"]
+      - commands: ["move-workspace --direction down"]
+        bindings: ["lwin+ctrl+shift+down", "rwin+ctrl+shift+down"]
+
       - commands: ["focus --workspace 1"]
         bindings: ["lwin+1", "rwin+1"]
       - commands: ["focus --workspace 2"]
