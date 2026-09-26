@@ -1245,7 +1245,7 @@ local WgdotYaziFolderActions = {
 }
 
 WgdotYaziContextMenu = {
-    _id = "awtarchy-yazi-context-menu",
+    _id = "wgdot-yazi-context-menu",
     _visible = false,
     _kind = "item",
     _x = 0,
@@ -1256,37 +1256,48 @@ WgdotYaziContextMenu = {
     _selection_count = 0,
     _drop_target = nil,
     _drop_sources = nil,
-    _choice_actions = nil,
-    _render_actions = nil,
-    _target_name = nil,
-    _target_is_dir = false,
-    _target_bookmarked = false,
 }
 
-local WgdotYaziContextChoiceKeys = {
-    smart_open = { "<Enter>" },
-    open_with = { "O" },
-    open_new_tab = { "t", "n" },
-    bookmark_hovered = { "B" },
-    bookmark_current = { "B" },
-    rename = { "R" },
-    bulk_rename = { "R" },
-    drag_out = { "d", "g" },
-    copy = { "y" },
-    cut = { "Y" },
-    copy_path = { "c", "c" },
-    compress_zip = { "c", "z" },
-    details = { "<Tab>" },
-    trash = { "d", "d" },
-    extract_here = { "e", "h" },
-    extract_folder = { "e", "f" },
-    new_file = { "a" },
-    new_folder = { "/" },
-    paste = { "p" },
-    terminal = { "t", "e" },
-    drop_copy = { "c" },
-    drop_move = { "m" },
-}
+function WgdotYaziContextMenu:show(kind, x, y, selection_count)
+    self._kind = kind
+    self._x = x
+    self._y = y
+    self._selection_count = selection_count or 0
+    self._hovered_row = nil
+    self._visible = true
+    ui.render()
+end
+
+function WgdotYaziContextMenu:show_drop(target, sources, x, y)
+    self._drop_target = tostring(target)
+    self._drop_sources = sources
+    self:show("drop", x, y, #sources)
+end
+
+function WgdotYaziContextMenu:hide()
+    if not self._visible then
+        return
+    end
+
+    self._visible = false
+    self._hovered_row = nil
+    self._drop_target = nil
+    self._drop_sources = nil
+    ui.render()
+end
+
+function WgdotYaziContextMenu:title()
+    if self._kind == "background" then
+        return " Folder actions "
+    elseif self._kind == "drop" then
+        local target = self._drop_target and Url(self._drop_target) or nil
+        return " Drop into " .. tostring(target and target.name or "folder") .. " "
+    elseif self._selection_count > 1 then
+        return " " .. tostring(self._selection_count) .. " selected "
+    end
+
+    return " Item actions "
+end
 
 function WgdotYaziContextMenu:actions()
     if self._kind == "background" then
@@ -1295,6 +1306,7 @@ function WgdotYaziContextMenu:actions()
         return WgdotYaziDropActions
     end
 
+    local hovered = cx.active.current.hovered
     if self._selection_count > 1 then
         return {
             {
@@ -1310,7 +1322,7 @@ function WgdotYaziContextMenu:actions()
         }
     end
 
-    if self._target_is_dir then
+    if hovered and hovered.cha.is_dir then
         return {
             { label = "Enter folder", shortcut = "Enter / l", action = "smart_open" },
             { label = "Open in new tab", shortcut = "t n", action = "open_new_tab" },
@@ -1335,7 +1347,7 @@ function WgdotYaziContextMenu:actions()
         actions[#actions + 1] = action
     end
 
-    if self._target_name and self._target_name:lower():sub(-4) == ".zip" then
+    if hovered and hovered.name:lower():sub(-4) == ".zip" then
         actions[#actions + 1] = { label = "Extract here", shortcut = "e h", action = "extract_here" }
         actions[#actions + 1] = { label = "Extract to folder", shortcut = "e f", action = "extract_folder" }
     end
@@ -1343,30 +1355,36 @@ function WgdotYaziContextMenu:actions()
     return actions
 end
 
-
-function WgdotYaziContextMenu:clear()
-    self._visible = false
-    self._hovered_row = nil
-    self._selection_count = 0
-    self._drop_target = nil
-    self._drop_sources = nil
-    self._choice_actions = nil
-    self._render_actions = nil
-    self._target_name = nil
-    self._target_is_dir = false
-    self._target_bookmarked = false
-end
-
-function WgdotYaziContextMenu:title()
+function WgdotYaziContextMenu:footer()
     if self._kind == "background" then
-        return " Folder actions "
+        return {
+            "Keys: a create | Ctrl+V/p paste | t e terminal | B bookmark",
+            "Navigate: g b bookmarks | g m drives | Ctrl+F recursive search",
+        }
     elseif self._kind == "drop" then
-        local target = self._drop_target and Url(self._drop_target) or nil
-        return " Drop into " .. tostring(target and target.name or "folder") .. " "
+        return {
+            "Release chose this folder as the destination",
+            "Choose Copy or Move; click elsewhere to cancel",
+        }
     elseif self._selection_count > 1 then
-        return " " .. tostring(self._selection_count) .. " selected "
+        return {
+            "Keys: R bulk rename | d g drag out | Ctrl+C/X copy/cut",
+            "More: c z ZIP | d d trash | Shift+D permanent delete",
+        }
     end
-    return " Item actions "
+
+    local hovered = cx.active.current.hovered
+    if hovered and hovered.cha.is_dir then
+        return {
+            "Keys: Enter open | t n new tab | d g drag out | R rename",
+            "More: B bookmark | Ctrl+C/X copy/cut | c c path | Tab info | c z ZIP | d d trash",
+        }
+    end
+
+    return {
+        "Keys: Enter open | d g drag out | R rename | Ctrl+C/X copy/cut",
+        "More: c z ZIP | c c path | Tab info | d d trash | e h/e f extract ZIP",
+    }
 end
 
 function WgdotYaziContextMenu:new(area)
@@ -1377,36 +1395,20 @@ function WgdotYaziContextMenu:new(area)
         return self
     end
 
-    local actions = self._render_actions or {}
-    local width = 28
-    for _, action in ipairs(actions) do
-        local label_width = ui.Line(action.label or ""):width()
-        local shortcut_width = ui.Line(action.shortcut or ""):width()
-        width = math.max(width, label_width + shortcut_width + 5)
-    end
-    width = math.min(width, 48, area.w)
+    local actions = self:actions()
+    local width = math.min(56, area.w)
+    local height = math.min(#actions + 4, area.h)
 
-    local height = #actions + 2
-    if width < 24 or height <= 2 or height > area.h then
+    if width < 28 or height < #actions + 4 then
         self._area = ui.Rect {}
         self._list_area = ui.Rect {}
         return self
     end
 
-    local right = area.x + area.w
-    local bottom = area.y + area.h
-
-    local x = self._x + 2
-    if x + width > right then
-        x = self._x - width - 1
-    end
-    x = math.max(area.x, math.min(x, right - width))
-
-    local y = self._y
-    if y + height > bottom then
-        y = self._y - height + 1
-    end
-    y = math.max(area.y, math.min(y, bottom - height))
+    local max_x = area.x + area.w - width
+    local max_y = area.y + area.h - height
+    local x = math.max(area.x, math.min(self._x, max_x))
+    local y = math.max(area.y, math.min(self._y, max_y))
 
     self._area = ui.Rect { x = x, y = y, w = width, h = height }
     self._list_area = ui.Rect {
@@ -1415,41 +1417,18 @@ function WgdotYaziContextMenu:new(area)
         w = width - 2,
         h = #actions,
     }
+    self._footer_area = ui.Rect {
+        x = x + 1,
+        y = y + 1 + #actions,
+        w = width - 2,
+        h = 2,
+    }
+
     return self
 end
 
 function WgdotYaziContextMenu:reflow()
     return self._visible and self._area.w > 0 and { self } or {}
-end
-
-local function WgdotYaziContextShortcutSpans(shortcut)
-    local text = tostring(shortcut or "")
-    if text == "" then return {} end
-
-    local alt_left, alt_right = text:match("^(.-) / (.-)$")
-    if alt_left and alt_right then
-        return {
-            ui.Span(alt_left):style(th.which.cand),
-            ui.Span(" / "):style(th.which.separator_style),
-            ui.Span(alt_right):style(th.which.cand),
-        }
-    end
-
-    local keys = {}
-    for key in text:gmatch("%S+") do
-        keys[#keys + 1] = key
-    end
-
-    if #keys <= 1 then
-        return { ui.Span(text):style(th.which.cand) }
-    end
-
-    local spans = { ui.Span(keys[1]):style(th.which.cand) }
-    for i = 2, #keys do
-        spans[#spans + 1] = ui.Span(" ")
-        spans[#spans + 1] = ui.Span(keys[i]):style(th.which.rest)
-    end
-    return spans
 end
 
 function WgdotYaziContextMenu:redraw()
@@ -1459,141 +1438,44 @@ function WgdotYaziContextMenu:redraw()
 
     local rows = {}
     local content_width = self._list_area.w
-    for i, action in ipairs(self._render_actions or {}) do
-        local left = " " .. tostring(action.label or "")
-        local shortcut_spans = WgdotYaziContextShortcutSpans(action.shortcut)
-        local right_width = ui.Line(shortcut_spans):width() + 1
-        local gap = math.max(
-            1,
-            content_width - ui.Line(left):width() - right_width
-        )
-
-        local row_spans = {
-            ui.Span(left):style(th.help.action),
+    for i, action in ipairs(self:actions()) do
+        local gap = math.max(1, content_width - #action.label - #action.shortcut - 2)
+        local row = ui.Line {
+            ui.Span(" " .. action.label):style(th.help.action),
             ui.Span(string.rep(" ", gap)),
+            ui.Span(action.shortcut):style(th.help.chord),
+            ui.Span(" "),
         }
-        for _, span in ipairs(shortcut_spans) do
-            row_spans[#row_spans + 1] = span
-        end
-        row_spans[#row_spans + 1] = ui.Span(" ")
-
-        local row = ui.Line(row_spans)
         if i == self._hovered_row then
             row:style(th.help.hovered)
         end
         rows[#rows + 1] = row
     end
 
+    local footer = self:footer()
     return {
         ui.Clear(self._area),
         ui.Border(ui.Edge.ALL)
             :area(self._area)
             :type(ui.Border.PLAIN)
             :style(th.help.border)
-            :title(ui.Line(self:title())),
+            :title(ui.Line(self:title()):align(ui.Align.CENTER)),
         ui.List(rows):area(self._list_area),
+        ui.Text({
+            ui.Line(" " .. footer[1]),
+            ui.Line(" " .. footer[2]),
+        }):area(self._footer_area),
     }
-end
-
-function WgdotYaziContextMenu:row_at(event)
-    if event.x < self._list_area.x
-        or event.x >= self._list_area.x + self._list_area.w
-        or event.y < self._list_area.y
-        or event.y >= self._list_area.y + self._list_area.h
-    then
-        return nil
-    end
-
-    local row = event.y - self._list_area.y + 1
-    return (self._render_actions or {})[row] and row or nil
-end
-
-function WgdotYaziContextMenu:move(event)
-    local row = self:row_at(event)
-    if row ~= self._hovered_row then
-        self._hovered_row = row
-        ui.render()
-    end
-end
-
-function WgdotYaziContextMenu:click(event, up)
-    if up then return end
-
-    if not event.is_left then
-        self:hide()
-        return
-    end
-
-    local index = self:row_at(event)
-    local action = index and self._choice_actions and self._choice_actions[index] or nil
-    if action then
-        self:run(action)
-    else
-        self:hide()
-    end
-end
-
-local function WgdotYaziOpenNativeContext(menu)
-    local actions = menu:actions()
-    local choices, render_actions = {}, {}
-
-    for _, action in ipairs(actions) do
-        choices[#choices + 1] = action.action
-        render_actions[#render_actions + 1] = action
-    end
-
-    if #choices == 0 then
-        menu:clear()
-        return
-    end
-
-    menu._choice_actions = choices
-    menu._render_actions = render_actions
-    menu._visible = true
-    menu._hovered_row = nil
-    ui.render()
-end
-
-function WgdotYaziContextMenu:show(kind, x, y, selection_count, target)
-    self._kind = kind
-    self._x = x or 0
-    self._y = y or 0
-    self._selection_count = selection_count or 0
-    self._drop_target = nil
-    self._drop_sources = nil
-    self._target_name = target and target.name or nil
-    self._target_is_dir = target and target.cha.is_dir or false
-    -- The managed bookmarks plugin exposes toggle behavior, not an
-    -- is_bookmarked() query method. Keep this action as an explicit toggle
-    -- instead of calling a nonexistent method before the chooser can open.
-    self._target_bookmarked = false
-    WgdotYaziOpenNativeContext(self)
-end
-
-function WgdotYaziContextMenu:show_drop(target, sources, x, y)
-    self._kind = "drop"
-    self._x = x or 0
-    self._y = y or 0
-    self._selection_count = #sources
-    self._drop_target = tostring(target)
-    self._drop_sources = sources
-    self._target_name = nil
-    self._target_is_dir = false
-    self._target_bookmarked = false
-    WgdotYaziOpenNativeContext(self)
-end
-
-function WgdotYaziContextMenu:hide()
-    if not self._visible then return end
-    self:clear()
-    ui.render()
 end
 
 function WgdotYaziContextMenu:run(action)
     local count = self._selection_count > 0 and self._selection_count or 1
     local drop_target = self._drop_target
     local drop_sources = self._drop_sources
-    self:clear()
+    self._visible = false
+    self._hovered_row = nil
+    self._drop_target = nil
+    self._drop_sources = nil
     ui.render()
 
     if action == "smart_open" then
@@ -1606,12 +1488,15 @@ function WgdotYaziContextMenu:run(action)
         ya.emit("rename", { hovered = true })
     elseif action == "bulk_rename" then
         ya.emit("rename", {})
-    elseif action == "bookmark_hovered" then
-        WgdotYaziBookmarkHovered()
-    elseif action == "bookmark_current" then
-        WgdotYaziBookmarkTarget(tostring(cx.active.current.cwd), true)
     elseif action == "drag_out" then
         WgdotYaziDragOut()
+    elseif action == "bookmark_hovered" then
+        local hovered = cx.active.current.hovered
+        if hovered then
+            WgdotYaziBookmarkTarget(tostring(hovered.url), hovered.cha.is_dir)
+        end
+    elseif action == "bookmark_current" then
+        WgdotYaziBookmarkTarget(tostring(cx.active.current.cwd), true)
     elseif action == "copy" then
         ya.emit("yank", {})
         ya.notify { title = "Yazi", content = "Copied " .. tostring(count) .. " item(s)", timeout = 2 }
@@ -1650,6 +1535,38 @@ function WgdotYaziContextMenu:run(action)
     end
 end
 
+function WgdotYaziContextMenu:move(event)
+    local row = nil
+    if event.x >= self._list_area.x
+        and event.x < self._list_area.x + self._list_area.w
+        and event.y >= self._list_area.y
+        and event.y < self._list_area.y + self._list_area.h
+    then
+        local candidate = event.y - self._list_area.y + 1
+        if self:actions()[candidate] then
+            row = candidate
+        end
+    end
+
+    if row ~= self._hovered_row then
+        self._hovered_row = row
+        ui.render()
+    end
+end
+
+function WgdotYaziContextMenu:click(event, up)
+    if up or not event.is_left then
+        return
+    end
+
+    local row = event.y - self._list_area.y + 1
+    local action = self:actions()[row]
+    if action then
+        self:run(action.action)
+    else
+        self:hide()
+    end
+end
 
 Modal:children_add(WgdotYaziContextMenu, 20)
 
@@ -1660,81 +1577,6 @@ function Root:move(event)
         return WgdotYaziContextMenu:move(event)
     end
     return WgdotYaziDefaultRootMove(self, event)
-end
-
-local WgdotYaziDefaultRootClick = Root.click
-
-local function WgdotYaziWhichCandidateAt(area, event)
-    local cands = cx.which.cands
-    local count = #cands
-    if count == 0 then return nil end
-
-    local cols = tonumber(th.which.cols) or 3
-    cols = math.max(1, math.min(3, cols))
-    local rows = math.ceil(count / cols)
-
-    -- Mirror Yazi 26.9.1's native Which geometry.
-    local outer_height = math.min(area.h, rows + 2)
-    if outer_height <= 2 then return nil end
-
-    local outer_x = area.x + math.min(1, area.w)
-    local outer_y = area.y + math.max(0, area.h - (outer_height + 2))
-    local outer_width = math.max(0, area.w - 2)
-
-    local inner_x = outer_x + 1
-    local inner_y = outer_y + 1
-    local inner_width = math.max(0, outer_width - 2)
-    local inner_height = math.max(0, outer_height - 2)
-
-    if inner_width == 0
-        or event.x < inner_x
-        or event.x >= inner_x + inner_width
-        or event.y < inner_y
-        or event.y >= inner_y + inner_height
-    then
-        return nil
-    end
-
-    local row = event.y - inner_y
-    local col = math.floor((event.x - inner_x) * cols / inner_width)
-    col = math.max(0, math.min(cols - 1, col))
-
-    local index = row * cols + col + 1
-    return index <= count and index or nil
-end
-
-function Root:click(event, up)
-    if WgdotYaziContextMenu._visible then
-        return WgdotYaziContextMenu:click(event, up)
-    end
-
-    -- Yazi's native Which UI is keyboard-driven upstream. Keep unrelated
-    -- visible Which prompts such as Ctrl+F mouse-clickable. The right-click
-    -- context menu itself stays on the direct Lua Modal path above.
-    if tostring(cx.layer) == "which" and cx.which.active then
-        if up then return end
-
-        if event.is_left then
-            local index = WgdotYaziWhichCandidateAt(self._area, event)
-            if index then
-                local cand = cx.which.cands[index]
-                local tx = cx.which.tx
-                if cand and tx then
-                    local ok = tx:send(cand)
-                    if ok then
-                        ya.emit("which:dismiss", {})
-                        return
-                    end
-                end
-            end
-        end
-
-        -- Any non-candidate click dismisses the chooser.
-        ya.emit("which:dismiss", {})
-        return
-    end
-
-    return WgdotYaziDefaultRootClick(self, event, up)
 end
 
 local WgdotYaziDefaultHeaderCwd = Header.cwd
