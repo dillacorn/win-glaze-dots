@@ -1091,10 +1091,10 @@ local WgdotYaziFileActions = {
     { label = "Drag out...", shortcut = "d g", action = "drag_out" },
     { label = "Copy", shortcut = "Ctrl+C / y", action = "copy" },
     { label = "Cut", shortcut = "Ctrl+X / Y", action = "cut" },
-    { label = "Copy path", shortcut = "cc", action = "copy_path" },
+    { label = "Copy path", shortcut = "c c", action = "copy_path" },
     { label = "Compress to ZIP...", shortcut = "c z", action = "compress_zip" },
     { label = "Details", shortcut = "Tab", action = "details" },
-    { label = "Trash", shortcut = "dd", action = "trash" },
+    { label = "Trash", shortcut = "d d", action = "trash" },
 }
 
 local WgdotYaziDropActions = {
@@ -1365,7 +1365,7 @@ function WgdotYaziContextMenu:footer()
     local hovered = cx.active.current.hovered
     if hovered and hovered.cha.is_dir then
         return {
-            "Keys: Enter open | g B bookmark | r rename | Ctrl+C/X copy/cut",
+            "Keys: Enter open | B bookmark | R rename | Ctrl+C/X copy/cut",
             "More: c c path | Tab info | c z ZIP | d d trash",
         }
     end
