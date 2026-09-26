@@ -495,9 +495,9 @@ keybindings:
     bindings: ["lwin+shift+b", "rwin+shift+b"]
 
   - commands: ["focus --next-workspace"]
-    bindings: ["alt+]"]
+    bindings: ["alt+oem_close_brackets"]
   - commands: ["focus --prev-workspace"]
-    bindings: ["alt+["]
+    bindings: ["alt+oem_open_brackets"]
 
   - commands: ["focus --recent-workspace"]
     bindings: ["alt+ctrl+c"]
