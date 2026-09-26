@@ -302,6 +302,18 @@ for name in ("config.yaml", "custom_work_config.yaml"):
             for command in binding["commands"]
         ), (name, mode, "GlazeWM must leave Flameshot activation to Flameshot itself")
         all_keys = {key for binding in bindings for key in binding["bindings"]}
+        assert "alt+]" not in all_keys and "alt+[" not in all_keys, (
+            name,
+            mode,
+            "GlazeWM bracket workspace navigation must use layout-independent OEM key names",
+            all_keys,
+        )
+        if mode == "normal":
+            assert "alt+oem_close_brackets" in all_keys and "alt+oem_open_brackets" in all_keys, (
+                name,
+                "workspace bracket navigation bindings are missing",
+                all_keys,
+            )
         assert {"lwin+shift+x", "rwin+shift+x", "lwin+alt+s", "rwin+alt+s"}.isdisjoint(all_keys), (
             name,
             mode,
