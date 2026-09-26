@@ -13259,6 +13259,7 @@ class WgdotHidden
         if (selectionChanged)
             WriteInstallationSelection(selection);
 
+        ApplyStartupDefaultsForSelection(source.Manifest, selection);
         UpdateSourceStateAfterApply(source);
         ReturnRuntimeSourceToMainAfterStableApply(source);
         RestartDesktopSessionAfterManagedApply(plan);
