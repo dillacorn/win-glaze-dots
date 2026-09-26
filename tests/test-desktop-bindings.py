@@ -15,7 +15,7 @@ APPROVED_WGDOT_RUNTIME = (
     "wgdotw.exe eartrumpet-mixer-toggle",
     "wgdotw.exe power-menu",
     "wgdotw.exe btop-toggle",
-    "wgdotw.exe launcher",
+    "wgdot.exe launcher",
 )
 
 FORBIDDEN_WGDOT_RUNTIME = (
@@ -212,31 +212,52 @@ for name in ("config.yaml", "custom_work_config.yaml"):
             power_keys,
         )
 
-        launcher_keys = {
+        alt_launcher_keys = {
             key
             for binding in bindings
-            if any("wgdotw.exe launcher hotkey" in command for command in binding["commands"])
+            if any("wgdot.exe launcher hotkey" in command for command in binding["commands"])
             for key in binding["bindings"]
         }
-        assert {"lwin+d", "rwin+d"} <= launcher_keys, (
+        super_d_launcher_keys = {
+            key
+            for binding in bindings
+            if any("wgdot.exe launcher super-d" in command for command in binding["commands"])
+            for key in binding["bindings"]
+        }
+        assert {"lwin+d", "rwin+d"} <= super_d_launcher_keys, (
             name,
             mode,
-            "Super+D must open the compiled application launcher",
-            launcher_keys,
+            "Super+D must use the compiled launcher's scoped Start recovery",
+            super_d_launcher_keys,
+        )
+        launcher_commands = [
+            command
+            for binding in bindings
+            for command in binding["commands"]
+            if "wgdot.exe launcher " in command
+        ]
+        assert launcher_commands and all(
+            command.startswith("shell-exec --hide-window ") for command in launcher_commands
+        ), (name, mode, "launcher hotkeys must use GlazeWM's direct hidden one-process path", launcher_commands)
+        assert all("wgdotw.exe launcher hotkey" not in command for command in launcher_commands), (
+            name,
+            mode,
+            "launcher hotkeys must not cold-start through wgdotw",
+            launcher_commands,
         )
         if mode == "normal":
-            assert "alt+p" in launcher_keys, (
+            assert "alt+p" in alt_launcher_keys, (
                 name,
                 mode,
                 "normal mode must bind Alt+P to the compiled launcher",
-                launcher_keys,
+                alt_launcher_keys,
             )
         else:
-            assert "alt+p" not in launcher_keys, (
+            assert "alt+p" not in alt_launcher_keys, (
                 name,
                 mode,
                 "noalt must leave plain Alt+P uncaptured",
-                launcher_keys,
+                alt_launcher_keys,
             )
 
         theme_keys = {
