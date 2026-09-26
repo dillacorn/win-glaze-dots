@@ -1525,23 +1525,7 @@ function WgdotYaziContextMenu:click(event, up)
     end
 
     local index = self:row_at(event)
-    if not index then
-        self:hide()
-        return
-    end
-
-    -- The visible menu is custom, but keyboard handling stays on Yazi's
-    -- silent native Which layer. Submit the same candidate for mouse clicks.
-    if tostring(cx.layer) == "which" and cx.which.active then
-        local cand = cx.which.cands[index]
-        local tx = cx.which.tx
-        if cand and tx and tx:send(cand) then
-            ya.emit("which:dismiss", {})
-            return
-        end
-    end
-
-    local action = self._choice_actions and self._choice_actions[index] or nil
+    local action = index and self._choice_actions and self._choice_actions[index] or nil
     if action then
         self:run(action)
     else
@@ -1551,23 +1535,11 @@ end
 
 local function WgdotYaziOpenNativeContext(menu)
     local actions = menu:actions()
-    local values, choices, render_actions = {}, {}, {}
+    local choices, render_actions = {}, {}
 
     for _, action in ipairs(actions) do
-        local keys = WgdotYaziContextChoiceKeys[action.action]
-        if keys then
-            local desc = action.label
-            if action.shortcut and action.shortcut ~= "" then
-                desc = desc .. "  [" .. action.shortcut .. "]"
-            end
-
-            -- Preserve multi-key chords (for example d g, c z, and d d)
-            -- across the plugin argument boundary.
-            values[#values + 1] = table.concat(keys, "\t")
-            values[#values + 1] = desc
-            choices[#choices + 1] = action.action
-            render_actions[#render_actions + 1] = action
-        end
+        choices[#choices + 1] = action.action
+        render_actions[#render_actions + 1] = action
     end
 
     if #choices == 0 then
@@ -1580,14 +1552,6 @@ local function WgdotYaziOpenNativeContext(menu)
     menu._visible = true
     menu._hovered_row = nil
     ui.render()
-
-    -- Mouse callbacks run inside Yazi's blocking Root runtime. Keep the
-    -- asynchronous native Which machinery only as an invisible keyboard
-    -- chord engine; the visible popup is the cursor-adjacent Modal overlay.
-    ya.emit("plugin", {
-        "wgdot-context-menu",
-        WgdotYaziPluginArgs("show", values),
-    })
 end
 
 function WgdotYaziContextMenu:show(kind, x, y, selection_count, target)
@@ -1623,19 +1587,6 @@ function WgdotYaziContextMenu:hide()
     if not self._visible then return end
     self:clear()
     ui.render()
-    if tostring(cx.layer) == "which" and cx.which.active then
-        ya.emit("which:dismiss", {})
-    end
-end
-
-function WgdotYaziContextMenu:choose(index)
-    local action = index and self._choice_actions and self._choice_actions[index] or nil
-    if not action then
-        self:clear()
-        ui.render()
-        return
-    end
-    self:run(action)
 end
 
 function WgdotYaziContextMenu:run(action)
@@ -1757,10 +1708,9 @@ function Root:click(event, up)
         return WgdotYaziContextMenu:click(event, up)
     end
 
-    -- Yazi's native Which UI is keyboard-driven upstream. Make every visible
-    -- Which prompt mouse-clickable here, including WGDot's right-click
-    -- chooser and existing prompts such as Ctrl+F. Do not depend on separate
-    -- WGDot visibility state; cx.which is the source of truth.
+    -- Yazi's native Which UI is keyboard-driven upstream. Keep unrelated
+    -- visible Which prompts such as Ctrl+F mouse-clickable. The right-click
+    -- context menu itself stays on the direct Lua Modal path above.
     if tostring(cx.layer) == "which" and cx.which.active then
         if up then return end
 
