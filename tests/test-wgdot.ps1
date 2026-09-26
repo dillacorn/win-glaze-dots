@@ -79,6 +79,10 @@ Assert-True ($componentIds -contains "glazewm") "GlazeWM component exists"
 Assert-True ($componentIds -contains "yasb") "YASB component exists"
 Assert-True ($componentIds -contains "cursor") "cursor component exists"
 Assert-True ($componentIds -contains "yazi") "Yazi component exists"
+$yaziComponent = @($manifest.components | Where-Object { [string]$_.id -eq "yazi" })[0]
+$yaziFileIds = @($yaziComponent.files | ForEach-Object { [string]$_.id })
+Assert-True ($yaziFileIds -contains "yazi-context-menu") "Yazi async context chooser is a managed file"
+Assert-True ($yaziFileIds -contains "yazi-context-run") "Yazi context action runner is a managed file"
 
 $yaziKeymapPath = Join-Path $repoRoot "UserProfile\AppData\Roaming\yazi\config\keymap.toml"
 $yaziKeymapText = Get-Content -LiteralPath $yaziKeymapPath -Raw
@@ -167,7 +171,11 @@ $yaziRecentPath = Join-Path $repoRoot "UserProfile\AppData\Roaming\yazi\config\p
 $yaziRecentText = Get-Content -LiteralPath $yaziRecentPath -Raw
 $yaziBookmarksPath = Join-Path $repoRoot "UserProfile\AppData\Roaming\yazi\config\plugins\bookmarks.yazi\main.lua"
 $yaziBookmarksText = Get-Content -LiteralPath $yaziBookmarksPath -Raw
-$yaziPluginTexts = @($yaziRecentText, $yaziBookmarksText, $yaziClipboardText)
+$yaziContextChooserPath = Join-Path $repoRoot "UserProfile\AppData\Roaming\yazi\config\plugins\wgdot-context-menu.yazi\main.lua"
+$yaziContextChooserText = Get-Content -LiteralPath $yaziContextChooserPath -Raw
+$yaziContextRunPath = Join-Path $repoRoot "UserProfile\AppData\Roaming\yazi\config\plugins\wgdot-context-run.yazi\main.lua"
+$yaziContextRunText = Get-Content -LiteralPath $yaziContextRunPath -Raw
+$yaziPluginTexts = @($yaziRecentText, $yaziBookmarksText, $yaziClipboardText, $yaziContextChooserText, $yaziContextRunText)
 Assert-True (-not ($yaziPluginTexts -match 'io\.popen|os\.execute')) "Managed Windows Yazi plugins avoid Lua subprocess APIs that can corrupt Ctrl+C console handling"
 Assert-True ($yaziRecentText -match 'fs\.create\("dir_all", Url\(state_dir\(\)\)\)') "Yazi recent-files creates state directories through Yazi fs API"
 Assert-True ($yaziBookmarksText -match 'fs\.create\("dir_all", Url\(state_dir\(\)\)\)') "Yazi bookmarks creates state directories through Yazi fs API"
@@ -280,7 +288,7 @@ Assert-True ($yaziInitText -match 'WgdotYaziContextMenu = \{') "Yazi native mous
 Assert-True ($yaziInitText -match 'Modal:children_add\(WgdotYaziContextMenu, 20\)') "Yazi mouse context menu is registered as a clickable modal child"
 Assert-True ($yaziInitText -match 'function Current:click\(event, up\)') "Yazi current-pane click handler supports blank-space context actions"
 Assert-True ($yaziInitText -match 'WgdotYaziContextMenu:show\("background", event\.x, event\.y\)') "Yazi blank-space right-click opens folder actions"
-Assert-True ($yaziInitText -match 'WgdotYaziContextMenu:show\("item", event\.x, event\.y, selected_count\)') "Yazi item right-click opens selection-aware item actions"
+Assert-True ($yaziInitText -match 'WgdotYaziContextMenu:show\("item", event\.x, event\.y, selected_count, self\._file\)') "Yazi item right-click freezes the exact clicked target"
 Assert-True ($yaziInitText -match 'function Header:click\(event, up\)') "Yazi header path has mouse clipboard behavior"
 Assert-True ($yaziInitText -match 'ya\.emit\("copy", \{ "dirpath" \}\)') "Yazi header click copies the current directory path with the native copy action"
 Assert-True ($yaziInitText -match 'Copied to clipboard: ') "Yazi header click reports clipboard success to the user"
@@ -288,8 +296,24 @@ Assert-True ($yaziInitText -match 'label = "New file".*shortcut = "a"') "Yazi fo
 Assert-True ($yaziInitText -match 'label = "New folder".*shortcut = "a /"') "Yazi folder context menu exposes New folder with the upstream create convention"
 Assert-True ($yaziInitText -match 'label = "Terminal here".*shortcut = "t e"') "Yazi folder context menu exposes Terminal here with keyboard parity"
 Assert-True ($yaziInitText -cmatch 'label = "Rename".*shortcut = "R"') "Yazi item context menu shows the Shift+R rename shortcut"
-Assert-True ($yaziInitText -match 'label = "Trash".*shortcut = "dd"') "Yazi item context menu shows the trash keyboard shortcut"
+Assert-True ($yaziInitText -match 'label = "Trash".*shortcut = "d d"') "Yazi item context menu shows the spaced trash chord"
 Assert-True ($yaziInitText -match 'function WgdotYaziContextMenu:row_at\(event\)') "Yazi compact context popup has exact mouse-row hit testing"
+Assert-True ($yaziInitText -match 'WgdotYaziPluginArgs\("show", values\)') "Yazi right-click candidates leave the blocking mouse callback through the async chooser"
+Assert-True ($yaziInitText -match '"wgdot-context-menu"') "Yazi compact popup dispatches the managed async chooser plugin"
+Assert-True ($yaziContextChooserText -match 'ya\.which \{ cands = cands, silent = true \}') "Yazi compact popup uses native Which only as a silent keyboard chord engine"
+Assert-True ($yaziContextChooserText -match 'wgdot-context-run') "Yazi silent chooser returns the chosen index through the sync action runner"
+Assert-True ($yaziContextRunText -match 'WgdotYaziContextMenu:choose') "Yazi sync action runner dispatches into the frozen context menu action list"
+Assert-True ($yaziInitText -match 'local cand = cx\.which\.cands\[index\]') "Yazi mouse rows map to the matching silent Which candidate"
+Assert-True ($yaziInitText -match 'local tx = cx\.which\.tx') "Yazi compact popup reads the silent Which submission channel"
+Assert-True ($yaziInitText -match 'tx:send\(cand\)') "Yazi compact popup submits mouse choices through the native Which channel"
+Assert-True ($yaziInitText -match 'local function WgdotYaziContextShortcutSpans\(shortcut\)') "Yazi compact popup splits displayed chord keys for styling"
+Assert-True ($yaziInitText -match 'ui\.Span\(keys\[1\]\):style\(th\.which\.cand\)') "Yazi compact popup highlights the primary chord key"
+Assert-True ($yaziInitText -match 'ui\.Span\(keys\[i\]\):style\(th\.which\.rest\)') "Yazi compact popup gives secondary chord keys distinct highlighting"
+Assert-True ($yaziInitText -match 'shortcut = "c z"') "Yazi ZIP context action exposes the c z chord"
+Assert-True ($yaziInitText -match 'shortcut = "d d"') "Yazi Trash context action exposes the d d chord"
+Assert-True ($yaziThemeText -match 'cand = \{ fg = "lightcyan", bold = true \}') "Yazi primary context chord key styling is defined"
+Assert-True ($yaziThemeText -match 'rest = \{ fg = "lightmagenta", bold = true \}') "Yazi secondary context chord key styling is distinct"
+Assert-True ($yaziInitText -notmatch 'function Root:redraw\(\)|function Root:layout\(\)|function Root:reflow\(\)') "Yazi compact context popup does not replace Root drawing or layout"
 Assert-True ($yaziInitText -match 'local width = 28') "Yazi compact context popup starts from a narrow minimum width"
 Assert-True ($yaziInitText -match 'width = math\.min\(width, 48, area\.w\)') "Yazi compact context popup caps width without spanning the terminal"
 Assert-True ($yaziInitText -match 'local height = #actions \+ 2') "Yazi compact context popup contains only action rows plus its border"
