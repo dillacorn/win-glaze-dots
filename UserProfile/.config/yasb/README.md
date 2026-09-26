@@ -71,9 +71,11 @@ GlazeWM owns `noalt` and `vm` modes directly with `wm-enable-binding-mode` and `
 
 YASB's native `GlazewmBindingModeWidget` displays those modes. Clicking the visible active mode disables that mode; it does not cycle to another mode. GlazeWM remains the source of truth for mode state.
 
-Real GlazeWM pause remains `Win+Alt+P` and uses `wm-toggle-pause`. Normal mode supports both `Alt+Ctrl+Shift+Arrow` and `Super+Ctrl+Shift+Arrow` for moving the active workspace between monitors, matching Awtarchy. Because GlazeWM binding modes do not inherit global bindings, `noalt` explicitly repeats the Super form.
+Real GlazeWM pause remains `Win+Alt+P` and uses `wm-toggle-pause`. Normal mode now mirrors the safe Awtarchy navigation/control aliases: `Alt/Super+Ctrl+Shift+Arrow` moves the active workspace between monitors, `Alt/Super+[ / ]` changes workspace, `Alt/Super+Shift+R` toggles tiling direction, and `Alt/Super+Shift+Enter` opens Windows Terminal. `Super+Ctrl+H/J/K/L` provides Awtarchy-style resize aliases while `Super+Ctrl+Arrow` remains untouched for native Windows virtual-desktop switching. Because GlazeWM binding modes do not inherit global bindings, `noalt` explicitly repeats the Super forms.
 
 The experimental mouse binding mode and low-level WGDot pointer hook were removed after real-Windows testing showed pointer lag and unreliable tiled-window dragging. Its old bar slot is gone completely. The four native GlazeWM workspace arrows remain directly visible and usable without a placeholder hub.
+
+`Super+Alt+F` mirrors Awtarchy's floating-windows control by invoking the existing WGDot default-window-behavior toggle in normal and `noalt`; VM keeps `Super+Alt+F` scoped to toggling the active window floating.
 
 ## Themes
 
@@ -113,7 +115,7 @@ The custom idle-inhibitor eye is retired. Real-Windows testing showed the cross-
 
 ## RawAccel
 
-`Super+Shift+M` uses `wgdotw.exe rawaccel-toggle` in both profiles. The helper is deliberately narrow: if the RawAccel GUI is open it closes that GUI process; otherwise it locates and launches `rawaccel.exe`. Windows does not add Awtarchy's `Alt+Shift+M` alias.
+`Alt+Shift+M` and `Super+Shift+M` use `wgdotw.exe rawaccel-toggle` in normal mode, matching Awtarchy; `noalt` keeps only the Super form. The helper is deliberately narrow: if the RawAccel GUI is open it closes that GUI process; otherwise it locates and launches `rawaccel.exe`.
 
 ## Power controls
 
