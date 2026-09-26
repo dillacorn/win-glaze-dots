@@ -1071,7 +1071,7 @@ Assert-True ($nativeSourceText -match 'BuildCommandLine\(originalArgs\)') "refre
 Assert-True ($nativeSourceText -match 'wgdot-next-') "native runtime stages a replacement executable safely"
 Assert-True ($nativeSourceText -match 'wgdot-next-" \+ remoteRevision \+ "-" \+ Guid\.NewGuid\(\)\.ToString\("N"\)') "runtime auto-refresh uses a unique staged executable path"
 Assert-True ($nativeSourceText -match 'wgdot-git-next-" \+ source\.Revision\.ToLowerInvariant\(\) \+ "-"') "Git-testing runtime sync uses a separate unique staged executable path"
-Assert-True ($nativeSourceText.Contains('^wgdot-next-([0-9a-fA-F]{40})(?:-[0-9a-fA-F]{32})?\\.exe
+Assert-True ($nativeSourceText.Contains('^wgdot-next-([0-9a-fA-F]{40})(?:-[0-9a-fA-F]{32})?\\.exe')) "staged runtime finalization recognizes unique runtime filenames"
 Assert-True ($nativeSourceText -match 'string pendingRevision = state == null \? "" : GetString\(state, "runtimeSyncPendingRevision"\)') "runtime finalization reads pending Git runtime state"
 Assert-True ($nativeSourceText -match 'if \(!String\.IsNullOrWhiteSpace\(pendingRevision\)\)\s*return;') "outer staged runtime does not race a Git-testing runtime replacement"
 Assert-True ($nativeSourceText -match 'ScheduleStagedRuntimeInstall') "staged runtime installs itself after the requested operation exits"
