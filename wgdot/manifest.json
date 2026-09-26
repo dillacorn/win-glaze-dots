@@ -378,7 +378,9 @@
       "id": "Flameshot.Flameshot",
       "category": "desktop",
       "defaultNormal": true,
-      "defaultWork": true
+      "defaultWork": true,
+      "startupHandler": "flameshot",
+      "startupDefault": true
     },
     {
       "name": "EarTrumpet",
