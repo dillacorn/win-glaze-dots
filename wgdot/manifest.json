@@ -138,18 +138,6 @@
           "merge": true
         },
         {
-          "id": "yazi-context-menu",
-          "source": "UserProfile/AppData/Roaming/yazi/config/plugins/wgdot-context-menu.yazi/main.lua",
-          "destination": "%APPDATA%\\yazi\\config\\plugins\\wgdot-context-menu.yazi\\main.lua",
-          "merge": true
-        },
-        {
-          "id": "yazi-context-run",
-          "source": "UserProfile/AppData/Roaming/yazi/config/plugins/wgdot-context-run.yazi/main.lua",
-          "destination": "%APPDATA%\\yazi\\config\\plugins\\wgdot-context-run.yazi\\main.lua",
-          "merge": true
-        },
-        {
           "id": "yazi-recent-files",
           "source": "UserProfile/AppData/Roaming/yazi/config/plugins/recent-files.yazi/main.lua",
           "destination": "%APPDATA%\\yazi\\config\\plugins\\recent-files.yazi\\main.lua",
