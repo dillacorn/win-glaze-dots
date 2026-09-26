@@ -169,3 +169,114 @@ jobs:
         run: |
           set "WGDOT_TEST_ROOT=%TEMP%\wgdot-native-maintenance-state"
           "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" maintenance-self-test
+
+  release-v4-6-2-yazi:
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.title == 'TEMP publish WGDot v4.6.2 Yazi' &&
+      github.event.pull_request.head.ref == 'release/v4.6.2-yazi' &&
+      github.event.pull_request.base.ref == 'main'
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_TAG: v4.6.2
+      RELEASE_TITLE: WGDot v4.6.2 Yazi
+      RELEASE_TARGET: 540343b24944811aa9a6953ef134b7dc7e6820cd
+      PREVIOUS_TAG: v4.6.1
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build release notes
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if gh release view "${RELEASE_TAG}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            echo "Release already exists: ${RELEASE_TAG}" >&2
+            exit 1
+          fi
+          if gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${RELEASE_TAG}" >/dev/null 2>&1; then
+            echo "Tag already exists: ${RELEASE_TAG}" >&2
+            exit 1
+          fi
+
+          gh release view "${PREVIOUS_TAG}" --repo "${GITHUB_REPOSITORY}" --json body -q .body > /tmp/previous-release.md
+
+          python3 - <<'PY'
+          notes = """# WGDot v4.6.2 Yazi
+
+          WGDot v4.6.2 folds the tested post-v4.6.1 Yazi and runtime work into the stable release stream so `wgdot update` installs the approved configuration.
+
+          ## Install and update
+
+          - **Install:** [INSTALL.md](https://github.com/dillacorn/win-glaze-dots/blob/main/INSTALL.md)
+          - **Update:** [UPDATE.md](https://github.com/dillacorn/win-glaze-dots/blob/main/UPDATE.md)
+
+          ## Yazi
+
+          - Restores the proven custom Lua `Modal` right-click menu with directly clickable item, folder, and blank-space actions while leaving upstream Root click/layout routing untouched.
+          - `b` toggles Bookmarks and returns to the exact per-tab source directory; `B` bookmarks/unbookmarks the highlighted item.
+          - `r` toggles Recents and returns to the exact per-tab source directory; `R` renames, with `F2` retained as an alias.
+          - `g b` and `g r` remain explicit Go commands; the old `g B` bookmark-mutation binding is removed.
+          - The v4.6.1 Yazi copy, wraparound navigation, Enter/Esc, and outbound drag fixes remain included.
+
+          ## WGDot runtime
+
+          - Git-testing/runtime refresh compiles now use unique staged executable names so Windows cannot block an update by locking the currently running revision-named executable.
+          - A pending Git-testing runtime replacement is protected from a competing outer staged-runtime replacement.
+
+          ## Validation
+
+          - Exact release target: `540343b24944811aa9a6953ef134b7dc7e6820cd`.
+          - PR #75 passed all four WGDot validation jobs before merge.
+          - The maintainer runtime-tested the final Windows custom right-click menu and approved the final Yazi behavior.
+
+          ## Post-release updates
+
+          _Placeholder for possible tested post-release patches to v4.6.2._
+          """
+          notes = "\n".join(line[10:] if line.startswith("          ") else line for line in notes.splitlines()) + "\n"
+          open("/tmp/release-notes.md", "w", encoding="utf-8", newline="\n").write(notes)
+          PY
+
+      - name: Publish release
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release create "${RELEASE_TAG}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --target "${RELEASE_TARGET}" \
+            --title "${RELEASE_TITLE}" \
+            --notes-file /tmp/release-notes.md
+
+      - name: Verify published release
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${RELEASE_TAG}" > /tmp/release.json
+          gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${RELEASE_TAG}" > /tmp/tag.json
+
+          python3 - <<'PY'
+          import json, os
+          release = json.load(open("/tmp/release.json", encoding="utf-8"))
+          tag = json.load(open("/tmp/tag.json", encoding="utf-8"))
+          body = release["body"]
+          assert release["tag_name"] == os.environ["RELEASE_TAG"]
+          assert release["name"] == os.environ["RELEASE_TITLE"]
+          assert release["draft"] is False
+          assert release["prerelease"] is False
+          assert release["target_commitish"] == os.environ["RELEASE_TARGET"]
+          assert "## Validation" in body
+          assert "540343b24944811aa9a6953ef134b7dc7e6820cd" in body
+          assert tag["object"]["type"] == "commit"
+          assert tag["object"]["sha"] == os.environ["RELEASE_TARGET"]
+          print("PASS: WGDot v4.6.2 release and tag target verified.")
+          PY
+
+      - name: Remove one-use helper branch
+        if: success()
+        shell: bash
+        run: git push origin --delete "${{ github.head_ref }}"
+
