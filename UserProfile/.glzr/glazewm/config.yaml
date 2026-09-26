@@ -219,7 +219,7 @@ binding_modes:
         bindings: ["lwin+p", "rwin+p"]
       - commands: ['shell-exec %LOCALAPPDATA%\wgdot\bin\wgdotw.exe bar-autohide-toggle']
         bindings: ["alt+ctrl+b"]
-      - commands: ['shell-exec %LOCALAPPDATA%\wgdot\bin\wgdotw.exe launcher hotkey']
+      - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe launcher super-d']
         bindings: ["lwin+d", "rwin+d"]
 
       - commands: ['shell-exec %LOCALAPPDATA%\wgdot\bin\wgdotw.exe theme-window-toggle']
@@ -382,8 +382,12 @@ binding_modes:
 
 keybindings:
 
-  - commands: ['shell-exec %LOCALAPPDATA%\wgdot\bin\wgdotw.exe launcher hotkey']
-    bindings: ["alt+p", "lwin+d", "rwin+d"]
+  # Launch WGDot directly here so cold launcher activation pays for one
+  # .NET process instead of wgdotw.exe spawning and waiting on wgdot.exe.
+  - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe launcher hotkey']
+    bindings: ["alt+p"]
+  - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe launcher super-d']
+    bindings: ["lwin+d", "rwin+d"]
 
 
 
