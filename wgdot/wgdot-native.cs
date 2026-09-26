@@ -22,7 +22,7 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-94";
+    const string Version = "native-preview-95";
     const string HiddenLauncherVersion = "2.0.0.0";
     const int WingetPreflightTimeoutMs = 30000;
     const int CurrentTweakDefaultsVersion = 1;
@@ -476,7 +476,8 @@ internal static class WgdotNative
         public string Path;
         public string IconPath;
         public System.Drawing.Image IconImage;
-        public bool IconLoaded;
+        public volatile bool IconLoaded;
+        public volatile bool IconLoading;
 
         public override string ToString()
         {
@@ -965,7 +966,10 @@ internal static class WgdotNative
                 }
 
                 LauncherApp app = _items[index];
-                System.Drawing.Image icon = GetLauncherAppIcon(app);
+                // Never make first paint wait on Windows shell icon extraction.
+                // Icon loads are queued off the UI thread whenever results change.
+                System.Drawing.Image icon =
+                    app != null && app.IconLoaded ? app.IconImage : null;
                 int textLeft = row.Left + 12;
 
                 if (icon != null)
@@ -9995,8 +9999,9 @@ class WgdotHidden
             : "hotkey";
 
         if (!(String.Equals(source, "bar", StringComparison.OrdinalIgnoreCase) ||
-              String.Equals(source, "hotkey", StringComparison.OrdinalIgnoreCase)))
-            throw new Exception("Usage: wgdot launcher [bar|hotkey]");
+              String.Equals(source, "hotkey", StringComparison.OrdinalIgnoreCase) ||
+              String.Equals(source, "super-d", StringComparison.OrdinalIgnoreCase)))
+            throw new Exception("Usage: wgdot launcher [bar|hotkey|super-d]");
 
         return Launcher(source);
     }
@@ -10438,38 +10443,195 @@ class WgdotHidden
         if (app == null)
             return null;
 
-        if (app.IconLoaded)
-            return app.IconImage;
+        lock (app)
+        {
+            if (app.IconLoaded)
+                return app.IconImage;
+            if (app.IconLoading)
+                return null;
+            app.IconLoading = true;
+        }
 
-        app.IconLoaded = true;
-        SHFILEINFO info;
-        string iconPath = String.IsNullOrWhiteSpace(app.IconPath)
-            ? app.Path
-            : app.IconPath;
-        IntPtr result = SHGetFileInfo(
-            iconPath,
-            0,
-            out info,
-            (uint)Marshal.SizeOf(typeof(SHFILEINFO)),
-            ShgfiIcon);
-
-        if (result == IntPtr.Zero || info.hIcon == IntPtr.Zero)
-            return null;
-
+        System.Drawing.Image loadedImage = null;
         try
         {
-            using (System.Drawing.Icon icon =
-                (System.Drawing.Icon)System.Drawing.Icon.FromHandle(info.hIcon).Clone())
+            SHFILEINFO info;
+            string iconPath = String.IsNullOrWhiteSpace(app.IconPath)
+                ? app.Path
+                : app.IconPath;
+            IntPtr result = SHGetFileInfo(
+                iconPath,
+                0,
+                out info,
+                (uint)Marshal.SizeOf(typeof(SHFILEINFO)),
+                ShgfiIcon);
+
+            if (result != IntPtr.Zero && info.hIcon != IntPtr.Zero)
             {
-                app.IconImage = icon.ToBitmap();
+                try
+                {
+                    using (System.Drawing.Icon icon =
+                        (System.Drawing.Icon)System.Drawing.Icon.FromHandle(info.hIcon).Clone())
+                    {
+                        loadedImage = icon.ToBitmap();
+                    }
+                }
+                finally
+                {
+                    DestroyIcon(info.hIcon);
+                }
             }
         }
         finally
         {
-            DestroyIcon(info.hIcon);
+            lock (app)
+            {
+                app.IconImage = loadedImage;
+                app.IconLoaded = true;
+                app.IconLoading = false;
+            }
         }
 
-        return app.IconImage;
+        return loadedImage;
+    }
+
+    static void QueueLauncherIconLoads(
+        System.Windows.Forms.Form form,
+        LauncherResultsView results,
+        List<LauncherApp> apps)
+    {
+        if (apps == null || apps.Count == 0)
+            return;
+
+        List<LauncherApp> pending = apps
+            .Where(x => x != null && !x.IconLoaded)
+            .ToList();
+        if (pending.Count == 0)
+            return;
+
+        System.Threading.ThreadPool.QueueUserWorkItem(delegate
+        {
+            foreach (LauncherApp app in pending)
+                GetLauncherAppIcon(app);
+
+            if (form.IsDisposed || results.IsDisposed || !form.IsHandleCreated)
+                return;
+
+            try
+            {
+                form.BeginInvoke((Action)delegate
+                {
+                    if (!results.IsDisposed)
+                        results.Invalidate();
+                });
+            }
+            catch
+            {
+            }
+        });
+    }
+
+    static bool IsWindowsStartSurfaceWindow(IntPtr window)
+    {
+        if (window == IntPtr.Zero)
+            return false;
+
+        uint processId;
+        if (GetWindowThreadProcessId(window, out processId) == 0 || processId == 0)
+            return false;
+
+        try
+        {
+            using (Process process = Process.GetProcessById((int)processId))
+            {
+                string name = process.ProcessName ?? "";
+                return
+                    String.Equals(name, "StartMenuExperienceHost", StringComparison.OrdinalIgnoreCase) ||
+                    String.Equals(name, "SearchHost", StringComparison.OrdinalIgnoreCase) ||
+                    String.Equals(name, "SearchApp", StringComparison.OrdinalIgnoreCase) ||
+                    String.Equals(name, "ShellExperienceHost", StringComparison.OrdinalIgnoreCase);
+            }
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    static void QueueLauncherSuperDFocusRecovery(
+        System.Windows.Forms.Form form,
+        System.Windows.Forms.Control focusControl,
+        Action completed)
+    {
+        IntPtr launcherHandle = form.Handle;
+
+        System.Threading.ThreadPool.QueueUserWorkItem(delegate
+        {
+            // Windows can surface Start on Win-key release even though GlazeWM
+            // handled Super+D. Wait only for this chord to finish; do not install
+            // a resident keyboard hook or delay the launcher's first frame.
+            for (int i = 0; i < 60; i++)
+            {
+                bool leftDown = (GetAsyncKeyState(VkLwin) & 0x8000) != 0;
+                bool rightDown = (GetAsyncKeyState(VkRwin) & 0x8000) != 0;
+                if (!leftDown && !rightDown)
+                    break;
+                System.Threading.Thread.Sleep(10);
+            }
+
+            bool startSurfaceSeen = false;
+            bool userSwitchedAway = false;
+            DateTime deadline = DateTime.UtcNow.AddMilliseconds(250);
+
+            while (DateTime.UtcNow < deadline && !form.IsDisposed)
+            {
+                IntPtr foreground = GetForegroundWindow();
+                if (IsWindowsStartSurfaceWindow(foreground))
+                {
+                    startSurfaceSeen = true;
+                    break;
+                }
+
+                if (foreground != IntPtr.Zero && foreground != launcherHandle)
+                {
+                    userSwitchedAway = true;
+                    break;
+                }
+
+                System.Threading.Thread.Sleep(10);
+            }
+
+            if (form.IsDisposed || !form.IsHandleCreated)
+                return;
+
+            try
+            {
+                form.BeginInvoke((Action)delegate
+                {
+                    if (form.IsDisposed)
+                        return;
+
+                    if (startSurfaceSeen)
+                    {
+                        // Taking focus back from Start dismisses its transient
+                        // surface without killing/restarting any Windows shell host.
+                        SetForegroundWindow(form.Handle);
+                        form.Activate();
+                        focusControl.Focus();
+                    }
+                    else if (userSwitchedAway)
+                    {
+                        form.Close();
+                    }
+
+                    if (completed != null)
+                        completed();
+                });
+            }
+            catch
+            {
+            }
+        });
     }
 
     static void LaunchLauncherApp(
@@ -10589,6 +10751,7 @@ class WgdotHidden
             List<LauncherApp> filtered =
                 FilterLauncherApps(apps, search.Text, 12);
             results.SetItems(filtered);
+            QueueLauncherIconLoads(form, results, filtered);
         };
 
         Action launchSelected = delegate
@@ -10657,8 +10820,13 @@ class WgdotHidden
             }
         };
 
+        bool superDFocusRecoveryPending =
+            String.Equals(source, "super-d", StringComparison.OrdinalIgnoreCase);
+
         form.Deactivate += delegate
         {
+            if (superDFocusRecoveryPending)
+                return;
             if (!form.IsDisposed)
                 form.Close();
         };
@@ -10682,6 +10850,14 @@ class WgdotHidden
             results.Refresh();
             form.Opacity = 0.98;
             search.Focus();
+
+            if (superDFocusRecoveryPending)
+            {
+                QueueLauncherSuperDFocusRecovery(
+                    form,
+                    search,
+                    delegate { superDFocusRecoveryPending = false; });
+            }
 
             List<LauncherApp> cachedApps =
                 new List<LauncherApp>(apps);
