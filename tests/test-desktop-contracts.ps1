@@ -231,10 +231,22 @@ try {
             Require ($text -notmatch 'wgdotw\.exe launcher hotkey') ('GlazeWM launcher still pays the wgdotw cold-start hop: ' + $relative)
             Require ($text -match 'bindings:\s*\["alt\+p"\]') ('Global Alt+P launcher binding missing: ' + $relative)
             Require ($text -match 'bindings:\s*\["lwin\+d",\s*"rwin\+d"\]') ('Global Super+D launcher binding missing: ' + $relative)
+            $noalt = [regex]::Match($text, '(?ms)^  - name: "noalt"\r?\n.*?(?=^  # VM mode|^  - name: "vm")').Value
+            Require ($noalt -match 'bindings:\s*\["lwin\+ctrl\+shift\+left",\s*"rwin\+ctrl\+shift\+left"\]') ('NoAlt Super+Ctrl+Shift+Left workspace monitor move missing: ' + $relative)
+            Require ($noalt -match 'bindings:\s*\["lwin\+ctrl\+shift\+right",\s*"rwin\+ctrl\+shift\+right"\]') ('NoAlt Super+Ctrl+Shift+Right workspace monitor move missing: ' + $relative)
+            Require ($noalt -match 'bindings:\s*\["lwin\+ctrl\+shift\+up",\s*"rwin\+ctrl\+shift\+up"\]') ('NoAlt Super+Ctrl+Shift+Up workspace monitor move missing: ' + $relative)
+            Require ($noalt -match 'bindings:\s*\["lwin\+ctrl\+shift\+down",\s*"rwin\+ctrl\+shift\+down"\]') ('NoAlt Super+Ctrl+Shift+Down workspace monitor move missing: ' + $relative)
             Require ($text -match 'bindings:\s*\["lwin\+shift\+m",\s*"rwin\+shift\+m"\]') ('Super+Shift+M RawAccel binding missing: ' + $relative)
             Require ($text -notmatch 'bindings:\s*\["alt\+shift\+m"') ('RawAccel must not capture Alt+Shift+M: ' + $relative)
             Require ($text -notmatch 'wgdotw?\.exe\s+(?:quick-launch|flow-open|eartrumpet-mixer(?:\s|$)|clipboard-anchor(?:\s|$)|clipboard-history(?:\s|$)|flameshot-gui|display-settings)') ('Native-capable action routed through WGDot: ' + $relative)
         }
+    }
+
+    Check 'Vesktop launches on workspace 3 in both profiles' {
+        $normal = Get-Content -LiteralPath (Join-Path $repo 'UserProfile\.glzr\glazewm\config.yaml') -Raw -Encoding UTF8
+        $work = Get-Content -LiteralPath (Join-Path $repo 'UserProfile\.glzr\glazewm\custom_work_config.yaml') -Raw -Encoding UTF8
+        Require ($normal -match 'window_process:\s*\{ regex: "\^\(Discord\|discord\|Vesktop\|vesktop\|Dorion\|dorion\)') 'Normal profile does not match lowercase Vesktop for workspace 3'
+        Require ($work -match 'window_process:\s*\{ regex: "\^\(Vesktop\|vesktop\)') 'Work profile does not match lowercase Vesktop for workspace 3'
     }
 
     Check 'GlazeWM focus follows cursor differs by profile intentionally' {
