@@ -185,7 +185,7 @@ jobs:
     permissions:
       contents: write
     env:
-      GH_TOKEN: \${{ github.token }}
+      GH_TOKEN: ${{ github.token }}
       RELEASE_TAG: v4.6.6
       RELEASE_SHA: 9ac417a3c642ab6645ec8e480a301efba481c244
       HELPER_BRANCH: release/v4.6.6-bridge
