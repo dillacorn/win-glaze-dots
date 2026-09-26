@@ -290,8 +290,12 @@ foreach ($glaze in @($glazeNormal, $glazeWork)) {
     Assert-Contains $glaze "bindings: [`"alt+oem_close_brackets`", `"lwin+oem_close_brackets`", `"rwin+oem_close_brackets`"]" "global Alt/Super+] focuses the next workspace"
     Assert-Contains $glaze "bindings: [`"alt+oem_open_brackets`", `"lwin+oem_open_brackets`", `"rwin+oem_open_brackets`"]" "global Alt/Super+[ focuses the previous workspace"
     Assert-Contains $glaze "bindings: [`"alt+shift+m`", `"lwin+shift+m`", `"rwin+shift+m`"]" "RawAccel matches Awtarchy Alt/Super+Shift+M parity"
-    Assert-Contains $glaze "wgdotw.exe glazewm-window-behavior-toggle" "GlazeWM exposes the compiled default floating-window behavior toggle"
-    Assert-Contains $glaze "bindings: [`"lwin+alt+f`", `"rwin+alt+f`"]" "Super+Alt+F toggles default new-window behavior outside VM mode"
+    $globalBindings = [regex]::Match($glaze, '(?ms)^keybindings:\r?\n.*?(?=^window_rules:)').Value
+    Assert-NotContains $globalBindings "glazewm-window-behavior-toggle" "default floating-window behavior stays bar-only in normal mode"
+    $noaltBlock = [regex]::Match($glaze, '(?ms)^  - name: "noalt"\r?\n.*?(?=^  # VM mode|^  - name: "vm")').Value
+    Assert-NotContains $noaltBlock "glazewm-window-behavior-toggle" "default floating-window behavior stays bar-only in noalt"
+    $vmBlock = [regex]::Match($glaze, '(?ms)^  - name: "vm"\r?\n.*?(?=^keybindings:)').Value
+    Assert-Contains $vmBlock "bindings: [`"lwin+alt+f`", `"rwin+alt+f`"]" "VM keeps Super+Alt+F for active-window floating"
     Assert-Contains $glaze "bindings: [`"lwin+ctrl+h`", `"rwin+ctrl+h`"]" "Super+Ctrl+H resize parity is present"
     Assert-Contains $glaze "bindings: [`"lwin+ctrl+j`", `"rwin+ctrl+j`"]" "Super+Ctrl+J resize parity is present"
     Assert-Contains $glaze "bindings: [`"lwin+ctrl+k`", `"rwin+ctrl+k`"]" "Super+Ctrl+K resize parity is present"
