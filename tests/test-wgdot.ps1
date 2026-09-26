@@ -504,6 +504,7 @@ Assert-Equal $true ([bool]$micLockTrayPackage.launchAfterInstall) "MicLockTray l
 $startupExpectations = @{
     "glzr-io.glazewm" = @{ Handler = "glazewm"; Default = $true }
     "AltSnap.AltSnap" = @{ Handler = "altsnap"; Default = $true }
+    "Flameshot.Flameshot" = @{ Handler = "flameshot"; Default = $true }
     "File-New-Project.EarTrumpet" = @{ Handler = "eartrumpet"; Default = $true }
     "dillacorn.MicLockTray" = @{ Handler = "miclocktray"; Default = $true }
     "RawAccelOfficial.RawAccel" = @{ Handler = "rawaccel"; Default = $false }
@@ -785,6 +786,8 @@ Assert-True ($nativeSourceText -match 'Disable all WGDot-managed startup') "soft
 Assert-True ($nativeSourceText -match 'Software\\Microsoft\\Windows\\CurrentVersion\\Run') "startup manager uses per-user Windows startup registration"
 Assert-True ($nativeSourceText -match '"WGDot\." \+ handler') "startup entries are namespaced to WGDot ownership"
 Assert-True ($nativeSourceText -match 'ApplyStartupDefaultsForSelection') "software reconciliation applies remembered/default WGDot startup policy"
+Assert-True ($nativeSourceText -match 'static string FindFlameshotExe\(\)') "Flameshot startup has a dedicated executable resolver"
+Assert-True ($nativeSourceText -match 'String\.Equals\(handler, "flameshot", StringComparison\.OrdinalIgnoreCase\)') "startup manager recognizes the Flameshot handler"
 Assert-True ($nativeSourceText -match 'static bool StartupPackageIsInstalled\(') "startup manager can positively detect supported installed applications"
 Assert-True ($nativeSourceText -match '(?s)selectedPackages\.Contains\(GetString\(p, "id"\)\)\s*\|\|\s*StartupPackageIsInstalled\(p\)') "startup manager lists selected or already-installed supported applications"
 Assert-True ($nativeSourceText -match 'bool desired = \(packageSelected \|\| packageInstalled\) && preferred;') "remembered startup preferences remain effective for installed-but-unselected applications"
