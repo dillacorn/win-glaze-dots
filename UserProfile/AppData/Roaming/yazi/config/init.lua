@@ -43,6 +43,62 @@ local function WgdotYaziCollectionCwd()
     return WgdotYaziCollectionKind(cx.active.current.cwd)
 end
 
+local WgdotYaziCollectionReturns = {}
+
+local function WgdotYaziCollectionReturnState()
+    local tab_key = tostring(cx.active.id)
+    local state = WgdotYaziCollectionReturns[tab_key]
+    if not state then
+        state = {}
+        WgdotYaziCollectionReturns[tab_key] = state
+    end
+    return state
+end
+
+local function WgdotYaziOpenCollection(kind)
+    local plugin = kind == "bookmarks" and "bookmarks" or "recent-files"
+    local state = WgdotYaziCollectionReturnState()
+
+    if WgdotYaziCollectionCwd() ~= kind then
+        state[kind] = tostring(cx.active.current.cwd)
+    end
+
+    ya.emit("plugin", { plugin })
+end
+
+local function WgdotYaziToggleCollection(kind)
+    local state = WgdotYaziCollectionReturnState()
+
+    if WgdotYaziCollectionCwd() == kind then
+        local target = state[kind]
+        state[kind] = nil
+        if target and target ~= "" then
+            ya.emit("cd", { Url(target), raw = true })
+        else
+            ya.emit("back", {})
+        end
+        return
+    end
+
+    WgdotYaziOpenCollection(kind)
+end
+
+function WgdotYaziGoBookmarks()
+    WgdotYaziOpenCollection("bookmarks")
+end
+
+function WgdotYaziToggleBookmarks()
+    WgdotYaziToggleCollection("bookmarks")
+end
+
+function WgdotYaziGoRecents()
+    WgdotYaziOpenCollection("recents")
+end
+
+function WgdotYaziToggleRecents()
+    WgdotYaziToggleCollection("recents")
+end
+
 local WgdotYaziDefaultEntityHighlights = Entity.highlights
 local WgdotYaziDefaultEntitySymlink = Entity.symlink
 
@@ -426,8 +482,21 @@ function WgdotYaziSearchMenu()
     end)
 end
 
-function WgdotYaziToggleBookmark()
-    WgdotYaziBookmarkTarget(tostring(cx.active.current.cwd), true)
+function WgdotYaziBookmarkHovered()
+    if WgdotYaziContextMenu
+        and WgdotYaziContextMenu._visible
+        and WgdotYaziContextMenu._kind == "background"
+    then
+        WgdotYaziBookmarkTarget(tostring(cx.active.current.cwd), true)
+        return
+    end
+
+    local hovered = cx.active.current.hovered
+    if not hovered or WgdotYaziIsCollectionItemUrl(hovered.url) then
+        return
+    end
+
+    WgdotYaziBookmarkTarget(tostring(hovered.url), hovered.cha.is_dir)
 end
 
 function WgdotYaziOpenHoveredTab()
@@ -1017,15 +1086,15 @@ end
 local WgdotYaziFileActions = {
     { label = "Open", shortcut = "Enter", action = "smart_open" },
     { label = "Open with...", shortcut = "O", action = "open_with" },
-    { label = "Bookmark / unbookmark", shortcut = "g B", action = "bookmark_hovered" },
-    { label = "Rename", shortcut = "r", action = "rename" },
+    { label = "Bookmark / unbookmark", shortcut = "B", action = "bookmark_hovered" },
+    { label = "Rename", shortcut = "R", action = "rename" },
     { label = "Drag out...", shortcut = "d g", action = "drag_out" },
     { label = "Copy", shortcut = "Ctrl+C / y", action = "copy" },
     { label = "Cut", shortcut = "Ctrl+X / Y", action = "cut" },
-    { label = "Copy path", shortcut = "cc", action = "copy_path" },
+    { label = "Copy path", shortcut = "c c", action = "copy_path" },
     { label = "Compress to ZIP...", shortcut = "c z", action = "compress_zip" },
     { label = "Details", shortcut = "Tab", action = "details" },
-    { label = "Trash", shortcut = "dd", action = "trash" },
+    { label = "Trash", shortcut = "d d", action = "trash" },
 }
 
 local WgdotYaziDropActions = {
@@ -1172,7 +1241,7 @@ local WgdotYaziFolderActions = {
     { label = "New folder", shortcut = "a /", action = "new_folder" },
     { label = "Paste", shortcut = "Ctrl+V / p", action = "paste" },
     { label = "Terminal here", shortcut = "t e", action = "terminal" },
-    { label = "Bookmark / unbookmark folder", shortcut = "g B", action = "bookmark_current" },
+    { label = "Bookmark / unbookmark folder", shortcut = "B", action = "bookmark_current" },
 }
 
 WgdotYaziContextMenu = {
@@ -1242,35 +1311,34 @@ function WgdotYaziContextMenu:actions()
         return {
             {
                 label = "Rename " .. tostring(self._selection_count) .. " items...",
-                shortcut = "r",
+                shortcut = "R",
                 action = "bulk_rename",
             },
             { label = "Drag out...", shortcut = "d g", action = "drag_out" },
             { label = "Copy", shortcut = "Ctrl+C / y", action = "copy" },
             { label = "Cut", shortcut = "Ctrl+X / Y", action = "cut" },
             { label = "Compress to ZIP...", shortcut = "c z", action = "compress_zip" },
-            { label = "Trash " .. tostring(self._selection_count) .. " items", shortcut = "dd", action = "trash" },
+            { label = "Trash " .. tostring(self._selection_count) .. " items", shortcut = "d d", action = "trash" },
         }
     end
 
     if hovered and hovered.cha.is_dir then
-        local bookmarked = require("bookmarks"):is_bookmarked(tostring(hovered.url))
         return {
             { label = "Enter folder", shortcut = "Enter / l", action = "smart_open" },
             { label = "Open in new tab", shortcut = "t n", action = "open_new_tab" },
             {
-                label = bookmarked and "Remove bookmark" or "Add bookmark",
-                shortcut = "g B",
+                label = "Bookmark / unbookmark",
+                shortcut = "B",
                 action = "bookmark_hovered",
             },
-            { label = "Rename", shortcut = "r", action = "rename" },
+            { label = "Rename", shortcut = "R", action = "rename" },
             { label = "Drag out...", shortcut = "d g", action = "drag_out" },
             { label = "Copy", shortcut = "Ctrl+C / y", action = "copy" },
             { label = "Cut", shortcut = "Ctrl+X / Y", action = "cut" },
-            { label = "Copy path", shortcut = "cc", action = "copy_path" },
+            { label = "Copy path", shortcut = "c c", action = "copy_path" },
             { label = "Compress to ZIP...", shortcut = "c z", action = "compress_zip" },
             { label = "Details", shortcut = "Tab", action = "details" },
-            { label = "Trash", shortcut = "dd", action = "trash" },
+            { label = "Trash", shortcut = "d d", action = "trash" },
         }
     end
 
@@ -1290,7 +1358,7 @@ end
 function WgdotYaziContextMenu:footer()
     if self._kind == "background" then
         return {
-            "Keys: a create | Ctrl+V/p paste | t e terminal | g B bookmark",
+            "Keys: a create | Ctrl+V/p paste | t e terminal | B bookmark",
             "Navigate: g b bookmarks | g m drives | Ctrl+F recursive search",
         }
     elseif self._kind == "drop" then
@@ -1300,22 +1368,22 @@ function WgdotYaziContextMenu:footer()
         }
     elseif self._selection_count > 1 then
         return {
-            "Keys: r bulk rename | d g drag out | Ctrl+C/X copy/cut",
-            "More: c z ZIP | dd trash | Shift+D permanent delete",
+            "Keys: R bulk rename | d g drag out | Ctrl+C/X copy/cut",
+            "More: c z ZIP | d d trash | Shift+D permanent delete",
         }
     end
 
     local hovered = cx.active.current.hovered
     if hovered and hovered.cha.is_dir then
         return {
-            "Keys: Enter open | t n new tab | d g drag out | r rename",
-            "More: g B bookmark | Ctrl+C/X copy/cut | cc path | Tab info | c z ZIP | dd trash",
+            "Keys: Enter open | t n new tab | d g drag out | R rename",
+            "More: B bookmark | Ctrl+C/X copy/cut | c c path | Tab info | c z ZIP | d d trash",
         }
     end
 
     return {
-        "Keys: Enter open | d g drag out | r rename | Ctrl+C/X copy/cut",
-        "More: c z ZIP | cc path | Tab info | dd trash | e h/e f extract ZIP",
+        "Keys: Enter open | d g drag out | R rename | Ctrl+C/X copy/cut",
+        "More: c z ZIP | c c path | Tab info | d d trash | e h/e f extract ZIP",
     }
 end
 

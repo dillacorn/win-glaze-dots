@@ -1648,9 +1648,10 @@ internal static class WgdotNative
         Console.WriteLine();
 
         string sourcePath = Path.Combine(CacheRoot, "runtime-" + remoteRevision + ".cs");
-        string nextExe = Path.Combine(CacheRoot, "wgdot-next-" + remoteRevision + ".exe");
+        string nextExe = Path.Combine(
+            CacheRoot,
+            "wgdot-next-" + remoteRevision + "-" + Guid.NewGuid().ToString("N") + ".exe");
         SafeDeleteFile(sourcePath);
-        SafeDeleteFile(nextExe);
 
         string rawUrl = "https://raw.githubusercontent.com/" + RepoFullName + "/" + remoteRevision + "/wgdot/wgdot-native.cs";
         Console.WriteLine("Downloading updated WGDot runtime source...");
@@ -1754,7 +1755,7 @@ internal static class WgdotNative
         string fileName = Path.GetFileName(currentExe);
         Match match = Regex.Match(
             fileName ?? "",
-            "^wgdot-next-([0-9a-fA-F]{40})\\.exe$",
+            "^wgdot-next-([0-9a-fA-F]{40})(?:-[0-9a-fA-F]{32})?\\.exe$",
             RegexOptions.IgnoreCase);
 
         if (!match.Success)
@@ -1762,6 +1763,14 @@ internal static class WgdotNative
 
         string revision = match.Groups[1].Value.ToLowerInvariant();
         var state = ReadJson(BootstrapStatePath);
+        string pendingRevision = state == null ? "" : GetString(state, "runtimeSyncPendingRevision");
+
+        // A managed Git update may already have staged the exact runtime it
+        // wants to install. Do not let this outer auto-refresh process race
+        // that helper and overwrite the requested Git-testing revision.
+        if (!String.IsNullOrWhiteSpace(pendingRevision))
+            return;
+
         string sourceRef = state == null ? "" : GetString(state, "sourceRef");
         if (String.IsNullOrWhiteSpace(sourceRef)) sourceRef = "main";
         ValidateBranchName(sourceRef);
@@ -13122,8 +13131,8 @@ class WgdotHidden
 
         string nextExe = Path.Combine(
             CacheRoot,
-            "wgdot-next-" + source.Revision.ToLowerInvariant() + ".exe");
-        SafeDeleteFile(nextExe);
+            "wgdot-git-next-" + source.Revision.ToLowerInvariant() + "-" +
+            Guid.NewGuid().ToString("N") + ".exe");
         CompileNativeSource(sourcePath, nextExe);
 
         ProcResult test = Run(nextExe, "self-test", null);
