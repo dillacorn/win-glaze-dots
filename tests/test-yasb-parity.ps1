@@ -289,7 +289,9 @@ foreach ($glaze in @($glazeNormal, $glazeWork)) {
     Assert-Contains $glaze "window_title: { equals: `"Win Glaze Themes`" }" "theme selector has a dedicated floating title"
     Assert-Contains $glaze "window_process: { regex: `"^WindowsTerminal(\\.exe)?`$`" }" "theme selector floating rule is scoped to Windows Terminal"
     Assert-Contains $glaze "wgdotw.exe power-menu" "GlazeWM routes Super+P through the approved compiled power surface"
-    Assert-Contains $glaze "wgdotw.exe launcher hotkey" "GlazeWM routes launcher hotkeys through the approved compiled surface"
+    Assert-Contains $glaze "shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe launcher hotkey" "GlazeWM routes Alt+P directly through the hidden compiled launcher"
+    Assert-Contains $glaze "shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe launcher super-d" "GlazeWM routes Super+D through the scoped Start-recovery launcher"
+    Assert-NotContains $glaze "wgdotw.exe launcher hotkey" "GlazeWM launcher hotkeys avoid the extra wgdotw cold process"
     Assert-NotContains $glaze "yasbc toggle-bar" "unsafe hard-hide command is not bound from GlazeWM"
     Assert-Contains $glaze "bindings: [`"alt+ctrl+b`"]" "GlazeWM retains coordinated auto-hide binding"
     Assert-Contains $glaze "bindings: [`"alt+ctrl+b`"]" "Alt+Ctrl+B toggles coordinated auto-hide"
@@ -304,8 +306,10 @@ foreach ($glaze in @($glazeNormal, $glazeWork)) {
 }
 
 Assert-NotContains $glazeNormal "yasb-quick-launch.ps1" "Normal GlazeWM has no YASB launcher relay"
-Assert-Contains $glazeNormal "bindings: [`"alt+p`", `"lwin+d`", `"rwin+d`"]" "Normal GlazeWM maps Alt+P and Super+D to the compiled launcher"
-Assert-Contains $glazeWork "bindings: [`"alt+p`", `"lwin+d`", `"rwin+d`"]" "Work GlazeWM maps Alt+P and Super+D to the compiled launcher"
+Assert-Contains $glazeNormal "bindings: [`"alt+p`"]" "Normal GlazeWM maps Alt+P to the compiled launcher"
+Assert-Contains $glazeWork "bindings: [`"alt+p`"]" "Work GlazeWM maps Alt+P to the compiled launcher"
+Assert-Contains $glazeNormal "bindings: [`"lwin+d`", `"rwin+d`"]" "Normal GlazeWM maps Super+D to the compiled launcher"
+Assert-Contains $glazeWork "bindings: [`"lwin+d`", `"rwin+d`"]" "Work GlazeWM maps Super+D to the compiled launcher"
 Assert-NotContains $glazeWork "FlowLauncher/Flow.Launcher.exe" "Work launcher hotkeys no longer default to Flow Launcher"
 Assert-NotContains $glazeNormal ".ps1" "Normal GlazeWM has no script-file runtime dependency"
 Assert-NotContains $glazeWork ".ps1" "Work GlazeWM has no script-file runtime dependency"
@@ -317,7 +321,8 @@ Assert-Contains $glazeNormal "focus_follows_cursor: true" "Normal profile follow
 Assert-Contains $glazeWork "focus_follows_cursor: false" "Work profile keeps click-focused behavior"
 Assert-Contains $glazeWork "wgdotw.exe bar-autohide-toggle" "Work auto-hide uses the compiled helper"
 Assert-Contains $glazeWork "wgdotw.exe theme-window-toggle" "Work theme selection uses the windowless theme-window toggle"
-Assert-Contains $glazeWork "wgdotw.exe launcher hotkey" "Work GlazeWM uses the compiled launcher surface"
+Assert-Contains $glazeWork "wgdot.exe launcher hotkey" "Work Alt+P uses the direct compiled launcher surface"
+Assert-Contains $glazeWork "wgdot.exe launcher super-d" "Work Super+D uses the Start-recovery launcher surface"
 
 Assert-NotContains $config "komorebi" "abandoned Komorebi integration is absent"
 Assert-NotContains $config "whkd" "whkd is not introduced"
