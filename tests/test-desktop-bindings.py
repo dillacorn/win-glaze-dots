@@ -226,25 +226,26 @@ for name in ("config.yaml", "custom_work_config.yaml"):
             power_keys,
         )
 
-        if mode == "noalt":
-            monitor_move_keys = {
-                command: set(binding["bindings"])
-                for binding in bindings
-                for command in binding["commands"]
-                if command.startswith("move-workspace --direction ")
+        monitor_move_keys = {
+            command: set(binding["bindings"])
+            for binding in bindings
+            for command in binding["commands"]
+            if command.startswith("move-workspace --direction ")
+        }
+        for direction in ("left", "right", "up", "down"):
+            command = f"move-workspace --direction {direction}"
+            expected = {
+                f"lwin+ctrl+shift+{direction}",
+                f"rwin+ctrl+shift+{direction}",
             }
-            for direction in ("left", "right", "up", "down"):
-                command = f"move-workspace --direction {direction}"
-                expected = {
-                    f"lwin+ctrl+shift+{direction}",
-                    f"rwin+ctrl+shift+{direction}",
-                }
-                assert expected <= monitor_move_keys.get(command, set()), (
-                    name,
-                    mode,
-                    f"Super+Ctrl+Shift+{direction.title()} must move the workspace between monitors",
-                    monitor_move_keys,
-                )
+            if mode == "normal":
+                expected.add(f"alt+ctrl+shift+{direction}")
+            assert expected <= monitor_move_keys.get(command, set()), (
+                name,
+                mode,
+                f"workspace-to-monitor shortcut parity is incomplete for {direction}",
+                monitor_move_keys,
+            )
 
         alt_launcher_keys = {
             key
