@@ -169,3 +169,104 @@ jobs:
         run: |
           set "WGDOT_TEST_ROOT=%TEMP%\wgdot-native-maintenance-state"
           "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" maintenance-self-test
+
+
+  release-v4-6-3:
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.title == 'release: v4.6.3' &&
+      github.event.pull_request.head.ref == 'release/v4.6.3-one-use' &&
+      github.event.pull_request.base.ref == 'main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TARGET_SHA: 6f23d7b74c095a6b64a8b6133d9ebb94a8ad61fe
+      RELEASE_TAG: v4.6.3
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Inspect current stable release
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release view v4.6.2 --json tagName,name,isDraft,isPrerelease,targetCommitish,body
+
+      - name: Verify release target and tag availability
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          current_main="$(gh api "repos/$GITHUB_REPOSITORY/commits/main" --jq .sha)"
+          if [[ "$current_main" != "$TARGET_SHA" ]]; then
+            echo "main moved: expected $TARGET_SHA, got $current_main" >&2
+            exit 1
+          fi
+
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            echo "Release $RELEASE_TAG already exists." >&2
+            exit 1
+          fi
+
+          if git ls-remote --exit-code --tags origin "refs/tags/$RELEASE_TAG" >/dev/null 2>&1; then
+            echo "Tag $RELEASE_TAG already exists." >&2
+            exit 1
+          fi
+
+      - name: Create v4.6.3 release
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          python - <<'PY'
+          from pathlib import Path
+          Path("/tmp/release-notes.md").write_text("""# WGDot v4.6.3
+
+          Flameshot Windows-login startup is now managed reliably for both fresh installs and existing WGDot installations updating to this release.
+
+          ## Install and update
+
+          - [Install](https://github.com/dillacorn/win-glaze-dots/blob/main/INSTALL.md)
+          - [Update](https://github.com/dillacorn/win-glaze-dots/blob/main/UPDATE.md)
+
+          ## Changes
+
+          - Added Flameshot to WGDot Startup Applications with a WGDot-owned `WGDot.flameshot` current-user Run entry and default-on behavior for selected installations.
+          - Existing selected installations now apply newly introduced startup defaults during normal or Git managed update/reset while preserving explicit OFF choices.
+          - Strict `dots-only` remains free of startup-registration side effects.
+
+          ## Validation
+
+          - WGDot CI passed PowerShell 7, Windows PowerShell 5.1, YASB stable-schema, and native-bootstrap validation for the release changes.
+          - Runtime tested on Windows: after a real logout/login, Flameshot launched automatically and the `WGDot.flameshot` registration persisted with the expected Flameshot executable command.
+          """, encoding="utf-8")
+          PY
+
+          gh release create "$RELEASE_TAG"             --title "WGDot v4.6.3"             --target "$TARGET_SHA"             --notes-file /tmp/release-notes.md
+
+      - name: Verify published release
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          gh release view "$RELEASE_TAG" --json tagName,name,isDraft,isPrerelease,targetCommitish,body
+
+          release_tag="$(gh release view "$RELEASE_TAG" --json tagName --jq .tagName)"
+          release_name="$(gh release view "$RELEASE_TAG" --json name --jq .name)"
+          is_draft="$(gh release view "$RELEASE_TAG" --json isDraft --jq .isDraft)"
+          is_prerelease="$(gh release view "$RELEASE_TAG" --json isPrerelease --jq .isPrerelease)"
+          tag_sha="$(gh api "repos/$GITHUB_REPOSITORY/commits/$RELEASE_TAG" --jq .sha)"
+
+          test "$release_tag" = "$RELEASE_TAG"
+          test "$release_name" = "WGDot v4.6.3"
+          test "$is_draft" = "false"
+          test "$is_prerelease" = "false"
+          test "$tag_sha" = "$TARGET_SHA"
+
+      - name: Delete one-use release branch
+        if: success()
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api -X DELETE "repos/$GITHUB_REPOSITORY/git/refs/heads/release/v4.6.3-one-use"
