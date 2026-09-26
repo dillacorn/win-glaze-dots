@@ -23,7 +23,8 @@ sep_left  = { open = "", close = "" }
 sep_right = { open = "", close = "" }
 
 [which]
-rest = { fg = "gray" }
+cand = { fg = "lightcyan", bold = true }
+rest = { fg = "lightmagenta", bold = true }
 desc = { fg = "lightcyan" }
 
 [help]
