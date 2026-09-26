@@ -139,6 +139,8 @@ A Git branch is not a stable release.
 
 Do not treat pre-WGDot releases as WGDot-compatible merely because they are published.
 
+Do not use post-release release-note entries as a delivery mechanism. WGDot stable update/reset/review resolves managed dots from immutable published release tags; editing an existing release body does not change the files users receive. If a merged change affects managed dots/configuration and should reach normal users, publish a new semantic stable release after the change is tested and approved. Runtime-only fixes may still self-refresh from `main` where the current architecture explicitly supports that separate lifecycle, but they must not be presented as a "post-release patch" to the previous managed-config release.
+
 ### Stable release notes
 
 Inspect the latest published stable release for release-specific context, but do not blindly copy its structure or repeat setup instructions that already belong in the canonical guides. `INSTALL.md` and `UPDATE.md` are the canonical user instructions for installation and maintenance; release notes should link to them instead of duplicating them.
@@ -149,7 +151,8 @@ A normal WGDot stable release body must include:
 - an **Install and update** section near the top linking to the canonical `main` versions of `INSTALL.md` and `UPDATE.md`;
 - the **Install** link before the **Update** link;
 - concise feature/change bullets appropriate to the release;
-- validation claims only when grounded in tests, CI, or runtime checks that actually passed for the release target.
+- validation claims only when grounded in tests, CI, or runtime checks that actually passed for the release target;
+- no **Post-release updates** section or placeholder.
 
 Release notes should remain proportionate to the release. Keep routine patch/minor releases concise and user-facing. Debugging chronology, temporary implementation details, and internal test-by-test narration belong in issues, PRs, or commit history instead.
 
