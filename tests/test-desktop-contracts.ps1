@@ -230,8 +230,8 @@ try {
             Require ($text -match 'bindings:\s*\["alt\+shift\+enter",\s*"lwin\+shift\+enter",\s*"rwin\+shift\+enter"\]') ('Global Alt/Super+Shift+Enter terminal parity missing: ' + $relative)
             Require ($text -match 'bindings:\s*\["alt\+oem_close_brackets",\s*"lwin\+oem_close_brackets",\s*"rwin\+oem_close_brackets"\]') ('Global Alt/Super+] workspace navigation missing: ' + $relative)
             Require ($text -match 'bindings:\s*\["alt\+oem_open_brackets",\s*"lwin\+oem_open_brackets",\s*"rwin\+oem_open_brackets"\]') ('Global Alt/Super+[ workspace navigation missing: ' + $relative)
-            Require ($text -match 'wgdotw\.exe glazewm-window-behavior-toggle') ('Default floating-window behavior helper binding missing: ' + $relative)
-            Require ($text -match 'bindings:\s*\["lwin\+alt\+f",\s*"rwin\+alt\+f"\]') ('Super+Alt+F default floating-window behavior binding missing: ' + $relative)
+            $globalBindings = [regex]::Match($text, '(?ms)^keybindings:\r?\n.*?(?=^window_rules:)').Value
+            Require ($globalBindings -notmatch 'glazewm-window-behavior-toggle') ('Default floating-window behavior must remain bar-only outside binding modes: ' + $relative)
             Require ($text -match 'bindings:\s*\["lwin\+ctrl\+h",\s*"rwin\+ctrl\+h"\]') ('Super+Ctrl+H resize parity missing: ' + $relative)
             Require ($text -match 'bindings:\s*\["lwin\+ctrl\+j",\s*"rwin\+ctrl\+j"\]') ('Super+Ctrl+J resize parity missing: ' + $relative)
             Require ($text -match 'bindings:\s*\["lwin\+ctrl\+k",\s*"rwin\+ctrl\+k"\]') ('Super+Ctrl+K resize parity missing: ' + $relative)
@@ -255,8 +255,9 @@ try {
             Require ($noalt -match 'bindings:\s*\[[^\]]*"lwin\+shift\+enter"[^\]]*"rwin\+shift\+enter"[^\]]*\]') ('NoAlt Super+Shift+Enter terminal binding missing: ' + $relative)
             Require ($noalt -match 'bindings:\s*\["lwin\+oem_close_brackets",\s*"rwin\+oem_close_brackets"\]') ('NoAlt Super+] workspace navigation missing: ' + $relative)
             Require ($noalt -match 'bindings:\s*\["lwin\+oem_open_brackets",\s*"rwin\+oem_open_brackets"\]') ('NoAlt Super+[ workspace navigation missing: ' + $relative)
-            Require ($noalt -match 'wgdotw\.exe glazewm-window-behavior-toggle') ('NoAlt default floating-window behavior helper binding missing: ' + $relative)
-            Require ($noalt -match 'bindings:\s*\["lwin\+alt\+f",\s*"rwin\+alt\+f"\]') ('NoAlt Super+Alt+F default floating-window behavior binding missing: ' + $relative)
+            Require ($noalt -notmatch 'glazewm-window-behavior-toggle') ('NoAlt default floating-window behavior must remain bar-only: ' + $relative)
+            $vm = [regex]::Match($text, '(?ms)^  - name: "vm"\r?\n.*?(?=^keybindings:)').Value
+            Require ($vm -match 'commands:\s*\["toggle-floating --centered"\]\s*\r?\n\s*bindings:\s*\["lwin\+alt\+f",\s*"rwin\+alt\+f"\]') ('VM Super+Alt+F active-window floating binding missing: ' + $relative)
             Require ($noalt -match 'bindings:\s*\["lwin\+ctrl\+h",\s*"rwin\+ctrl\+h"\]') ('NoAlt Super+Ctrl+H resize missing: ' + $relative)
             Require ($noalt -match 'bindings:\s*\["lwin\+ctrl\+j",\s*"rwin\+ctrl\+j"\]') ('NoAlt Super+Ctrl+J resize missing: ' + $relative)
             Require ($noalt -match 'bindings:\s*\["lwin\+ctrl\+k",\s*"rwin\+ctrl\+k"\]') ('NoAlt Super+Ctrl+K resize missing: ' + $relative)
