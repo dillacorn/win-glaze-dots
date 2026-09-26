@@ -461,10 +461,10 @@ for name in ("config.yaml", "custom_work_config.yaml"):
             if any("wgdotw.exe glazewm-window-behavior-toggle" in command for command in binding["commands"])
             for key in binding["bindings"]
         }
-        assert {"lwin+alt+f", "rwin+alt+f"} <= window_behavior_keys, (
+        assert not window_behavior_keys, (
             name,
             mode,
-            "Super+Alt+F must toggle the default new-window floating behavior outside VM mode",
+            "default floating-window behavior is bar-only outside VM mode",
             window_behavior_keys,
         )
 
@@ -505,6 +505,17 @@ for name in ("config.yaml", "custom_work_config.yaml"):
     assert not ({"alt+p", "lwin+d", "rwin+d", "lwin", "rwin"} & guest_keys), (
         name,
         "VM guest shortcuts intercepted",
+    )
+    vm_float_keys = {
+        key
+        for binding in modes["vm"]
+        if "toggle-floating --centered" in binding["commands"]
+        for key in binding["bindings"]
+    }
+    assert {"lwin+alt+f", "rwin+alt+f"} <= vm_float_keys, (
+        name,
+        "VM must retain Super+Alt+F active-window floating",
+        vm_float_keys,
     )
 
 for runtime_path in (
