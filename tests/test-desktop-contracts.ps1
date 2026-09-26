@@ -226,9 +226,11 @@ try {
             Require ($text -match 'wgdotw\.exe rawaccel-toggle') ('Scoped RawAccel toggle missing: ' + $relative)
             Require ($text -match 'wgdotw\.exe power-menu') ('Compiled Awtarchy-style power surface missing: ' + $relative)
             Require ($text -match 'bindings:\s*\["lwin\+p",\s*"rwin\+p"\]') ('Super+P compiled power binding missing: ' + $relative)
-            Require ($text -match 'wgdotw\.exe launcher hotkey') ('Compiled Awtarchy-style launcher missing: ' + $relative)
-            Require ($text -match '%LOCALAPPDATA%\\wgdot\\bin\\wgdotw\.exe.*launcher hotkey') ('Launcher helper path is not deterministic: ' + $relative)
-            Require ($text -match 'bindings:\s*\["alt\+p",\s*"lwin\+d",\s*"rwin\+d"\]') ('Global Alt+P/Super+D launcher binding missing: ' + $relative)
+            Require ($text -match 'shell-exec --hide-window %LOCALAPPDATA%\\wgdot\\bin\\wgdot\.exe launcher hotkey') ('Direct hidden Alt+P launcher path missing: ' + $relative)
+            Require ($text -match 'shell-exec --hide-window %LOCALAPPDATA%\\wgdot\\bin\\wgdot\.exe launcher super-d') ('Direct hidden Super+D launcher path missing: ' + $relative)
+            Require ($text -notmatch 'wgdotw\.exe launcher hotkey') ('GlazeWM launcher still pays the wgdotw cold-start hop: ' + $relative)
+            Require ($text -match 'bindings:\s*\["alt\+p"\]') ('Global Alt+P launcher binding missing: ' + $relative)
+            Require ($text -match 'bindings:\s*\["lwin\+d",\s*"rwin\+d"\]') ('Global Super+D launcher binding missing: ' + $relative)
             Require ($text -match 'bindings:\s*\["lwin\+shift\+m",\s*"rwin\+shift\+m"\]') ('Super+Shift+M RawAccel binding missing: ' + $relative)
             Require ($text -notmatch 'bindings:\s*\["alt\+shift\+m"') ('RawAccel must not capture Alt+Shift+M: ' + $relative)
             Require ($text -notmatch 'wgdotw?\.exe\s+(?:quick-launch|flow-open|eartrumpet-mixer(?:\s|$)|clipboard-anchor(?:\s|$)|clipboard-history(?:\s|$)|flameshot-gui|display-settings)') ('Native-capable action routed through WGDot: ' + $relative)
@@ -294,14 +296,20 @@ try {
         $work = Get-Content -LiteralPath (Join-Path $repo 'UserProfile\.glzr\glazewm\custom_work_config.yaml') -Raw -Encoding UTF8
         foreach ($text in @($normal, $work)) {
             Require ($text -notmatch 'flow-launcher\.ps1|yasb-quick-launch\.ps1') 'Launcher relay script returned to GlazeWM'
-            Require ($text -match 'wgdotw\.exe launcher hotkey') 'Compiled launcher hotkey surface is missing'
-            Require ($text -match 'bindings:\s*\["alt\+p",\s*"lwin\+d",\s*"rwin\+d"\]') 'Alt+P/Super+D compiled launcher binding is missing'
+            Require ($text -match 'shell-exec --hide-window %LOCALAPPDATA%\\wgdot\\bin\\wgdot\.exe launcher hotkey') 'Direct hidden Alt+P launcher surface is missing'
+            Require ($text -match 'shell-exec --hide-window %LOCALAPPDATA%\\wgdot\\bin\\wgdot\.exe launcher super-d') 'Direct hidden Super+D launcher surface is missing'
+            Require ($text -notmatch 'wgdotw\.exe launcher hotkey') 'GlazeWM launcher still routes through the extra wgdotw process'
+            Require ($text -match 'bindings:\s*\["alt\+p"\]') 'Alt+P compiled launcher binding is missing'
+            Require ($text -match 'bindings:\s*\["lwin\+d",\s*"rwin\+d"\]') 'Super+D compiled launcher binding is missing'
         }
         Require ($work -notmatch 'shell-exec %LOCALAPPDATA%/FlowLauncher/Flow\.Launcher\.exe') 'Work launcher still defaults to Flow Launcher'
         Require ($nativeSource -match 'if \(command == "launcher"\) return LauncherFromArgs') 'Native compiled launcher command is missing'
         Require ($nativeSource -match 'LauncherLocation') 'Launcher placement logic is missing'
         Require ($nativeSource -match 'YasbAutoHideEnabled') 'Launcher auto-hide placement override is missing'
         Require ($nativeSource -match 'ForegroundWindowFillsScreen') 'Launcher fullscreen placement override is missing'
+        Require ($nativeSource -match 'QueueLauncherIconLoads') 'Launcher icon extraction is not deferred off first paint'
+        Require ($nativeSource -match 'QueueLauncherSuperDFocusRecovery') 'Super+D Start-surface recovery is missing'
+        Require ($nativeSource -match 'DateTime\.UtcNow\.AddMilliseconds\(250\)') 'Super+D recovery is not bounded'
     }
 
     Check 'EarTrumpet and Clipboard keyboard ownership stays native' {
