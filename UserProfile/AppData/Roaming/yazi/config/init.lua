@@ -1344,39 +1344,6 @@ function WgdotYaziContextMenu:actions()
 end
 
 
-function WgdotYaziContextMenu:footer()
-    if self._kind == "background" then
-        return {
-            "Keys: a create | Ctrl+V/p paste | t e terminal | B bookmark",
-            "Navigate: g b bookmarks | g m mounts | Ctrl+F recursive search",
-        }
-    elseif self._kind == "drop" then
-        return {
-            "Release chose this folder as the destination",
-            "Choose Copy or Move; click elsewhere to cancel",
-        }
-    elseif self._selection_count > 1 then
-        return {
-            "Keys: R bulk rename | Ctrl+C/X copy/cut | c z ZIP",
-            "Delete: d d trash | Shift+D permanent delete",
-        }
-    end
-
-    local hovered = cx.active.current.hovered
-    if hovered and hovered.cha.is_dir then
-        return {
-            "Keys: Enter open | B bookmark | R rename | Ctrl+C/X copy/cut",
-            "More: c c path | Tab info | c z ZIP | d d trash",
-        }
-    end
-
-    return {
-        "Keys: Enter open | R rename | Ctrl+C/X copy/cut | c z ZIP",
-        "More: c c path | Tab info | d d trash | e h/e f extract ZIP",
-    }
-end
-
-
 function WgdotYaziContextMenu:clear()
     self._visible = false
     self._hovered_row = nil
