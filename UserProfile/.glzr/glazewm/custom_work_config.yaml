@@ -534,13 +534,13 @@ keybindings:
     bindings: ["alt+0", "lwin+0", "rwin+0"]
 
   - commands: ["move-workspace --direction left"]
-    bindings: ["alt+ctrl+shift+left"]
+    bindings: ["alt+ctrl+shift+left", "lwin+ctrl+shift+left", "rwin+ctrl+shift+left"]
   - commands: ["move-workspace --direction right"]
-    bindings: ["alt+ctrl+shift+right"]
+    bindings: ["alt+ctrl+shift+right", "lwin+ctrl+shift+right", "rwin+ctrl+shift+right"]
   - commands: ["move-workspace --direction up"]
-    bindings: ["alt+ctrl+shift+up"]
+    bindings: ["alt+ctrl+shift+up", "lwin+ctrl+shift+up", "rwin+ctrl+shift+up"]
   - commands: ["move-workspace --direction down"]
-    bindings: ["alt+ctrl+shift+down"]
+    bindings: ["alt+ctrl+shift+down", "lwin+ctrl+shift+down", "rwin+ctrl+shift+down"]
 
   - commands: ["move --workspace 1"]
     bindings: ["alt+shift+1", "lwin+shift+1", "rwin+shift+1"]
