@@ -301,6 +301,10 @@ foreach ($glaze in @($glazeNormal, $glazeWork)) {
     Assert-NotContains $glaze "bindings: [`"lwin`", `"rwin`"]" "GlazeWM does not rely on ineffective bare-Super bindings"
     Assert-Contains $glaze "bindings: [`"lwin+1`", `"rwin+1`"]" "Super+number workspace focus survives noalt"
     Assert-Contains $glaze "bindings: [`"lwin+shift+1`", `"rwin+shift+1`"]" "Super+Shift+number workspace move survives noalt"
+    Assert-Contains $glaze "bindings: [`"lwin+ctrl+shift+left`", `"rwin+ctrl+shift+left`"]" "Super+Ctrl+Shift+Left workspace monitor move survives noalt"
+    Assert-Contains $glaze "bindings: [`"lwin+ctrl+shift+right`", `"rwin+ctrl+shift+right`"]" "Super+Ctrl+Shift+Right workspace monitor move survives noalt"
+    Assert-Contains $glaze "bindings: [`"lwin+ctrl+shift+up`", `"rwin+ctrl+shift+up`"]" "Super+Ctrl+Shift+Up workspace monitor move survives noalt"
+    Assert-Contains $glaze "bindings: [`"lwin+ctrl+shift+down`", `"rwin+ctrl+shift+down`"]" "Super+Ctrl+Shift+Down workspace monitor move survives noalt"
     Assert-NotContains $glaze "yasb-quick-launch.ps1" "GlazeWM has no YASB synthetic-key launcher bridge"
     Assert-NotContains $glaze "flow-launcher.ps1" "GlazeWM has no Flow launcher helper bridge"
 }
