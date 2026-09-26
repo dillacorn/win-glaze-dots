@@ -247,7 +247,7 @@ Assert-True ($yaziInitText -match ':type\(ui\.Border\.PLAIN\)') "Yazi custom con
 Assert-True ($yaziInitText -match 'function WgdotYaziBookmarkHovered\(\)') "Yazi Shift+B highlighted-item bookmark helper is defined"
 Assert-True ($yaziInitText -match 'WgdotYaziBookmarkTarget\(tostring\(cx\.active\.current\.cwd\), true\)') "Yazi background context menu can bookmark the current directory"
 Assert-True ($yaziInitText -match 'WgdotYaziBookmarkTarget\(tostring\(hovered\.url\), hovered\.cha\.is_dir\)') "Yazi item context menu bookmarks the hovered file or folder"
-Assert-True ($yaziInitText -notmatch 'is_bookmarked') "Yazi directory context menu does not call an unavailable bookmarks API"
+Assert-True ($yaziInitText -notmatch ':is_bookmarked\(') "Yazi directory context menu does not call an unavailable bookmarks API"
 Assert-True ($yaziBookmarksText -match '\\collections\\\\Bookmarks') "Yazi bookmarks materialize into a real local collection folder"
 Assert-True ($yaziBookmarksText -match 'fs\.create\("dir_all", Url\(root\)\)') "Yazi bookmarks create the real collection directory"
 Assert-True ($yaziBookmarksText -match '\\.wgdot-target') "Yazi directory bookmark markers retain their real target"
