@@ -14,8 +14,8 @@ Paste the complete block into PowerShell. It is one script block so a source/dow
 & {
 $ErrorActionPreference = "Stop"
 $repoName = "dillacorn/win-glaze-dots"
-$releaseTag = "v4.5.3"
-$releaseRevision = "54569f94fd6e636f3ed5fd7058e95d1632e145d9"
+$releaseTag = "v4.6.2"
+$releaseRevision = "540343b24944811aa9a6953ef134b7dc7e6820cd"
 $scope = "work"              # work or normal
 $glazeProfile = "work"       # work or normal
 $selectedComponents = @(
@@ -451,8 +451,8 @@ This example uses the profile defaults stored in the release manifest. It verifi
 & {
 $ErrorActionPreference = "Stop"
 $repoName = "dillacorn/win-glaze-dots"
-$releaseTag = "v4.5.3"
-$releaseRevision = "54569f94fd6e636f3ed5fd7058e95d1632e145d9"
+$releaseTag = "v4.6.2"
+$releaseRevision = "540343b24944811aa9a6953ef134b7dc7e6820cd"
 $manifestUri = "https://raw.githubusercontent.com/$repoName/$releaseRevision/wgdot/manifest.json"
 
 if (-not (Get-Command winget.exe -ErrorAction SilentlyContinue)) {
