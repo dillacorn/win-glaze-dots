@@ -169,3 +169,88 @@ jobs:
         run: |
           set "WGDOT_TEST_ROOT=%TEMP%\wgdot-native-maintenance-state"
           "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" maintenance-self-test
+
+  release-v4-6-6:
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.title == 'release: WGDot v4.6.6' &&
+      github.event.pull_request.head.ref == 'release/v4.6.6-bridge' &&
+      github.event.pull_request.base.ref == 'main'
+    needs:
+      - yasb-stable-schema
+      - windows-powershell-51
+      - powershell-7
+      - native-bootstrap
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: \${{ github.token }}
+      RELEASE_TAG: v4.6.6
+      RELEASE_SHA: 9ac417a3c642ab6645ec8e480a301efba481c244
+      HELPER_BRANCH: release/v4.6.6-bridge
+    steps:
+      - uses: actions/checkout@v4
+      - name: Publish and verify WGDot v4.6.6
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          current_main="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq '.object.sha')"
+          test "$current_main" = "$RELEASE_SHA"
+
+          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release $RELEASE_TAG already exists; refusing to replace it." >&2
+            exit 1
+          fi
+
+          if git ls-remote --exit-code --tags origin "refs/tags/$RELEASE_TAG" >/dev/null 2>&1; then
+            echo "Tag $RELEASE_TAG already exists; refusing to replace it." >&2
+            exit 1
+          fi
+
+          notes="$RUNNER_TEMP/wgdot-v4.6.6.md"
+          cat > "$notes" <<'EOF'
+          # WGDot v4.6.6
+
+          Fixes the privacy.sexy compatibility regressions that can disable Windows Clipboard History and force the yellow screen-share capture border.
+
+          ## Install and update
+
+          - [Install](https://github.com/dillacorn/win-glaze-dots/blob/main/INSTALL.md)
+          - [Update](https://github.com/dillacorn/win-glaze-dots/blob/main/UPDATE.md)
+
+          ## Changes
+
+          - Added **Restore screenshot border control** beside the existing Clipboard History recovery under Windows tweaks / integrations.
+          - Normal WGDot updates now automatically repair exact known privacy.sexy Clipboard History and screenshot-border footprints when WGDot records that privacy.sexy was previously run through WGDot.
+          - WGDot-launched privacy.sexy now automatically restores newly introduced Clipboard History and screenshot-border breakage after privacy.sexy closes.
+          - Recovery remains narrowly scoped: custom/organization screenshot-border policy, programmatic screen-capture policy, cross-device clipboard sync, and unrelated privacy.sexy settings are preserved.
+          - UAC is requested only when WGDot detects a compatibility repair that actually needs administrator access.
+
+          ## Validation
+
+          - PR #87 passed Windows PowerShell 5.1, PowerShell 7, YASB/desktop schema, and native-bootstrap validation.
+          - The maintainer runtime-tested the screenshot-border recovery with Vesktop; the yellow sharing border disappeared immediately without restarting Vesktop.
+          - The automatic update/Clipboard compatibility path compiled and passed repository validation; it was not separately live-triggered on the maintainer system before release.
+          EOF
+
+          gh release create "$RELEASE_TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$RELEASE_SHA" \
+            --title "WGDot v4.6.6" \
+            --notes-file "$notes"
+
+          published="$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json tagName,name,isDraft,isPrerelease,targetCommitish,body)"
+          test "$(jq -r '.tagName' <<<"$published")" = "$RELEASE_TAG"
+          test "$(jq -r '.name' <<<"$published")" = "WGDot v4.6.6"
+          test "$(jq -r '.isDraft' <<<"$published")" = "false"
+          test "$(jq -r '.isPrerelease' <<<"$published")" = "false"
+          test "$(jq -r '.targetCommitish' <<<"$published")" = "$RELEASE_SHA"
+          diff -u "$notes" <(jq -r '.body' <<<"$published")
+
+          tag_sha="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$RELEASE_TAG" --jq '.object.sha')"
+          test "$tag_sha" = "$RELEASE_SHA"
+
+          gh api --method DELETE "repos/$GITHUB_REPOSITORY/git/refs/heads/$HELPER_BRANCH"
+
