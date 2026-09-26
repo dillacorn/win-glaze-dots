@@ -1561,6 +1561,10 @@ foreach ($text in @($glazeNormalText, $glazeWorkText)) {
     Assert-True ($text -match 'color:\s*"#a1a1a1"') "GlazeWM focused border is theme-neutral"
     Assert-True ($text -match 'bindings:\s*\["lwin\+alt\+t",\s*"rwin\+alt\+t"\]') "Super+Alt+T theme picker exists"
     Assert-True ($text -match 'bindings:\s*\["alt\+t",\s*"lwin\+t",\s*"rwin\+t"\]') "global Alt+T and Super+T toggle tiling"
+    Assert-True ($text -match 'bindings:\s*\["alt\+ctrl\+shift\+left",\s*"lwin\+ctrl\+shift\+left",\s*"rwin\+ctrl\+shift\+left"\]') "global Alt/Super+Ctrl+Shift+Left moves workspace between monitors"
+    Assert-True ($text -match 'bindings:\s*\["alt\+ctrl\+shift\+right",\s*"lwin\+ctrl\+shift\+right",\s*"rwin\+ctrl\+shift\+right"\]') "global Alt/Super+Ctrl+Shift+Right moves workspace between monitors"
+    Assert-True ($text -match 'bindings:\s*\["alt\+ctrl\+shift\+up",\s*"lwin\+ctrl\+shift\+up",\s*"rwin\+ctrl\+shift\+up"\]') "global Alt/Super+Ctrl+Shift+Up moves workspace between monitors"
+    Assert-True ($text -match 'bindings:\s*\["alt\+ctrl\+shift\+down",\s*"lwin\+ctrl\+shift\+down",\s*"rwin\+ctrl\+shift\+down"\]') "global Alt/Super+Ctrl+Shift+Down moves workspace between monitors"
     $noaltBlock = [regex]::Match($text, '(?ms)^  - name: "noalt"\r?\n.*?(?=^  # VM mode|^  - name: "vm")').Value
     Assert-True ($noaltBlock -match 'bindings:\s*\["lwin\+t",\s*"rwin\+t"\]') "noalt keeps Super+T tiling"
     Assert-True ($noaltBlock -match 'bindings:\s*\["lwin\+alt\+t",\s*"rwin\+alt\+t"\]') "noalt keeps Super+Alt+T themes"
