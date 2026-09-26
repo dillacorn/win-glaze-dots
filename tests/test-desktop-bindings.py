@@ -173,6 +173,20 @@ for name in ("config.yaml", "custom_work_config.yaml"):
         config["general"]["focus_follows_cursor"],
     )
 
+    workspace3_rules = [
+        rule
+        for rule in config["window_rules"]
+        if "move --workspace 3" in rule["commands"]
+    ]
+    assert any(
+        any(
+            "window_process" in matcher
+            and "vesktop" in matcher["window_process"].get("regex", "").lower()
+            for matcher in rule["match"]
+        )
+        for rule in workspace3_rules
+    ), (name, "Vesktop must launch on workspace 3")
+
     for mode, bindings in [("normal", config["keybindings"]), ("noalt", modes["noalt"])]:
         bridge_commands = [
             command
@@ -211,6 +225,26 @@ for name in ("config.yaml", "custom_work_config.yaml"):
             "Super+P must open the compiled Awtarchy-style power surface",
             power_keys,
         )
+
+        if mode == "noalt":
+            monitor_move_keys = {
+                command: set(binding["bindings"])
+                for binding in bindings
+                for command in binding["commands"]
+                if command.startswith("move-workspace --direction ")
+            }
+            for direction in ("left", "right", "up", "down"):
+                command = f"move-workspace --direction {direction}"
+                expected = {
+                    f"lwin+ctrl+shift+{direction}",
+                    f"rwin+ctrl+shift+{direction}",
+                }
+                assert expected <= monitor_move_keys.get(command, set()), (
+                    name,
+                    mode,
+                    f"Super+Ctrl+Shift+{direction.title()} must move the workspace between monitors",
+                    monitor_move_keys,
+                )
 
         alt_launcher_keys = {
             key
