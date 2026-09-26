@@ -1071,6 +1071,15 @@
       "defaultNormal": false,
       "defaultWork": false,
       "actionOnly": true
+    },
+    {
+      "id": "restore-screenshot-border-control",
+      "name": "Restore screenshot border control (undo privacy.sexy yellow capture border)",
+      "category": "privacy",
+      "type": "restore-screenshot-border-control",
+      "defaultNormal": false,
+      "defaultWork": false,
+      "actionOnly": true
     }
   ],
   "browserOptions": [

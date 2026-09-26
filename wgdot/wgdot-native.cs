@@ -22,7 +22,7 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-95";
+    const string Version = "native-preview-96";
     const string HiddenLauncherVersion = "2.0.0.0";
     const int WingetPreflightTimeoutMs = 30000;
     const int CurrentTweakDefaultsVersion = 1;
@@ -1186,6 +1186,8 @@ internal static class WgdotNative
             if (command == "git-reset") return GitManagedFromArgs("reset", args.Skip(1).ToArray());
             if (command == "apply-tweak") return ApplyTweakFromArgs(args.Skip(1).ToArray());
             if (command == "restore-clipboard-history") return RestorePrivacySexyClipboardHistory();
+            if (command == "restore-screenshot-border-control") return RestorePrivacySexyScreenshotBorderControl();
+            if (command == "restore-screenshot-border-control-elevated") return RestorePrivacySexyScreenshotBorderControl();
             if (command == "migrate-legacy-hotkeys") return MigrateLegacyWindowsShellHotkeys(true);
             if (command == "mark-runtime") return MarkRuntimeFromArgs(args.Skip(1).ToArray());
             if (command == "runtime-swap-stop") return RuntimeSwapStopFromArgs(args.Skip(1).ToArray());
@@ -1264,6 +1266,7 @@ internal static class WgdotNative
             String.Equals(command, "git-reset", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "dots-only", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "apply-tweak", StringComparison.OrdinalIgnoreCase) ||
+            String.Equals(command, "restore-screenshot-border-control", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "super-l-test", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "window-audit", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "software", StringComparison.OrdinalIgnoreCase) ||
@@ -8831,7 +8834,287 @@ class WgdotHidden
             RestorePrivacySexyClipboardHistory();
             return;
         }
+        if (String.Equals(id, "restore-screenshot-border-control", StringComparison.OrdinalIgnoreCase))
+        {
+            int exitCode = RestorePrivacySexyScreenshotBorderControl();
+            if (exitCode != 0)
+                throw new Exception("Screenshot border control restore stopped because an existing policy was preserved.");
+            return;
+        }
         throw new Exception("Unknown WGDot action tweak: " + id);
+    }
+
+    static string[] GetScreenshotBorderPolicyValueNames()
+    {
+        return new string[]
+        {
+            "LetAppsAccessGraphicsCaptureWithoutBorder",
+            "LetAppsAccessGraphicsCaptureWithoutBorder_UserInControlOfTheseApps",
+            "LetAppsAccessGraphicsCaptureWithoutBorder_ForceAllowTheseApps",
+            "LetAppsAccessGraphicsCaptureWithoutBorder_ForceDenyTheseApps"
+        };
+    }
+
+    static bool HasAnyScreenshotBorderPolicyValue()
+    {
+        const string path = @"SOFTWARE\Policies\Microsoft\Windows\AppPrivacy";
+        using (RegistryKey key = Registry.LocalMachine.OpenSubKey(path, false))
+        {
+            if (key == null) return false;
+
+            var existing = new HashSet<string>(
+                key.GetValueNames(),
+                StringComparer.OrdinalIgnoreCase);
+            return GetScreenshotBorderPolicyValueNames().Any(existing.Contains);
+        }
+    }
+
+    static string ReadScreenshotBorderConsentValue()
+    {
+        const string path =
+            @"SOFTWARE\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\graphicsCaptureWithoutBorder";
+
+        using (RegistryKey key = Registry.LocalMachine.OpenSubKey(path, false))
+        {
+            if (key == null) return "";
+            object raw = key.GetValue(
+                "Value",
+                null,
+                RegistryValueOptions.DoNotExpandEnvironmentNames);
+            return raw == null ? "" : raw.ToString();
+        }
+    }
+
+    static bool IsEmptyScreenshotBorderPolicyListValue(object raw)
+    {
+        if (raw == null) return true;
+
+        string[] values = raw as string[];
+        if (values != null)
+            return values.All(value =>
+                String.IsNullOrWhiteSpace((value ?? "").Trim('\0')));
+
+        string text = raw as string;
+        if (text != null)
+            return String.IsNullOrWhiteSpace(text.Trim('\0'));
+
+        return false;
+    }
+
+    static bool IsKnownPrivacySexyScreenshotBorderPolicy()
+    {
+        const string path = @"SOFTWARE\Policies\Microsoft\Windows\AppPrivacy";
+        const string defaultName = "LetAppsAccessGraphicsCaptureWithoutBorder";
+
+        using (RegistryKey key = Registry.LocalMachine.OpenSubKey(path, false))
+        {
+            if (key == null) return false;
+
+            object rawDefault = key.GetValue(
+                defaultName,
+                null,
+                RegistryValueOptions.DoNotExpandEnvironmentNames);
+            if (rawDefault == null) return false;
+
+            try
+            {
+                if (Convert.ToInt32(rawDefault, CultureInfo.InvariantCulture) != 2)
+                    return false;
+            }
+            catch
+            {
+                return false;
+            }
+
+            string[] names = GetScreenshotBorderPolicyValueNames();
+            for (int i = 1; i < names.Length; i++)
+            {
+                object raw = key.GetValue(
+                    names[i],
+                    null,
+                    RegistryValueOptions.DoNotExpandEnvironmentNames);
+                if (raw != null && !IsEmptyScreenshotBorderPolicyListValue(raw))
+                    return false;
+            }
+        }
+
+        return true;
+    }
+
+    static bool RemoveKnownPrivacySexyScreenshotBorderPolicy()
+    {
+        if (!IsKnownPrivacySexyScreenshotBorderPolicy())
+            return false;
+
+        const string path = @"SOFTWARE\Policies\Microsoft\Windows\AppPrivacy";
+        using (RegistryKey key = OpenRegistryKeyForValueWrite("HKLM", path))
+        {
+            if (key == null)
+                throw new Exception("Could not open HKLM\\" + path + " for screenshot border recovery.");
+
+            var existing = new HashSet<string>(
+                key.GetValueNames(),
+                StringComparer.OrdinalIgnoreCase);
+            foreach (string name in GetScreenshotBorderPolicyValueNames())
+            {
+                if (existing.Contains(name))
+                    key.DeleteValue(name, false);
+            }
+        }
+
+        Console.WriteLine("Removed privacy.sexy's screenshot-border Force Deny policy.");
+        return true;
+    }
+
+    static bool RestoreScreenshotBorderConsent()
+    {
+        const string path =
+            @"SOFTWARE\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\graphicsCaptureWithoutBorder";
+        string current = ReadScreenshotBorderConsentValue();
+
+        if (String.Equals(current, "Allow", StringComparison.OrdinalIgnoreCase))
+        {
+            Console.WriteLine("Screenshot-border access is already allowed.");
+            return false;
+        }
+
+        if (!String.IsNullOrWhiteSpace(current) &&
+            !String.Equals(current, "Deny", StringComparison.OrdinalIgnoreCase))
+        {
+            Console.WriteLine(
+                "Preserved screenshot-border access because its value is neither Allow nor the privacy.sexy Deny value.");
+            return false;
+        }
+
+        using (RegistryKey key = OpenRegistryKeyForValueWrite("HKLM", path))
+        {
+            if (key == null)
+                throw new Exception("Could not open HKLM\\" + path + " for screenshot border recovery.");
+            key.SetValue("Value", "Allow", RegistryValueKind.String);
+        }
+
+        Console.WriteLine("Allowed apps to request borderless screen capture.");
+        return true;
+    }
+
+    static int RestorePrivacySexyScreenshotBorderControl()
+    {
+        bool hasPolicy = HasAnyScreenshotBorderPolicyValue();
+        bool knownPolicy = IsKnownPrivacySexyScreenshotBorderPolicy();
+        string consent = ReadScreenshotBorderConsentValue();
+
+        if (hasPolicy && !knownPolicy)
+        {
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine();
+            Console.WriteLine(
+                "Screenshot-border policy was not changed because it does not match privacy.sexy's known Force Deny pattern.");
+            Console.WriteLine(
+                "This may be an organization or custom policy. WGDot will not override it.");
+            Console.ResetColor();
+            return 3;
+        }
+
+        bool needsRepair =
+            knownPolicy ||
+            String.Equals(consent, "Deny", StringComparison.OrdinalIgnoreCase);
+
+        if (!needsRepair)
+        {
+            Console.WriteLine();
+            Console.WriteLine("Screenshot border control is not disabled by the known privacy.sexy settings.");
+            return 0;
+        }
+
+        if (!IsAdministrator())
+        {
+            Console.WriteLine();
+            Console.WriteLine(
+                "Restoring screenshot border control needs administrator approval for the Windows policy setting.");
+            int exitCode = RunElevatedSelfWithExitCode(
+                "restore-screenshot-border-control-elevated");
+            if (exitCode != 0)
+                throw new Exception(
+                    "Elevated screenshot border control restore failed with exit code " +
+                    exitCode.ToString(CultureInfo.InvariantCulture) + ".");
+            return 0;
+        }
+
+        Console.WriteLine();
+        Console.WriteLine("Restore screenshot border control");
+
+        bool changed = false;
+        if (knownPolicy)
+            changed |= RemoveKnownPrivacySexyScreenshotBorderPolicy();
+
+        changed |= RestoreScreenshotBorderConsent();
+        RefreshShellSettings();
+
+        Console.WriteLine();
+        Console.ForegroundColor = ConsoleColor.Green;
+        Console.WriteLine(changed
+            ? "Windows screenshot border control was restored."
+            : "Windows screenshot border control already matched the recovery state.");
+        Console.ResetColor();
+        Console.WriteLine(
+            "Programmatic screen-capture policy and unrelated privacy.sexy settings were not changed.");
+        Console.WriteLine(
+            "Restart Vesktop/Discord/OBS or reconnect the screen share so the app reloads the policy.");
+        return 0;
+    }
+
+    static void TryRestoreScreenshotBorderAfterPrivacySexy(
+        bool hadPolicyBefore,
+        string consentBefore)
+    {
+        if (hadPolicyBefore ||
+            String.Equals(consentBefore, "Deny", StringComparison.OrdinalIgnoreCase))
+        {
+            if (HasAnyScreenshotBorderPolicyValue() ||
+                String.Equals(
+                    ReadScreenshotBorderConsentValue(),
+                    "Deny",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                Console.WriteLine();
+                Console.WriteLine(
+                    "Screenshot-border policy/control existed before privacy.sexy; WGDot preserved it.");
+            }
+            return;
+        }
+
+        if (!IsKnownPrivacySexyScreenshotBorderPolicy() ||
+            !String.Equals(
+                ReadScreenshotBorderConsentValue(),
+                "Deny",
+                StringComparison.OrdinalIgnoreCase))
+            return;
+
+        Console.WriteLine();
+        Console.WriteLine(
+            "privacy.sexy newly disabled borderless screen capture; WGDot is restoring screenshot-border control.");
+        Console.WriteLine(
+            "Existing organization/custom policies are never overridden by this automatic compatibility repair.");
+
+        try
+        {
+            int exitCode = RestorePrivacySexyScreenshotBorderControl();
+            if (exitCode != 0)
+            {
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine(
+                    "Automatic screenshot-border recovery was skipped because the policy no longer matched the known privacy.sexy state.");
+                Console.ResetColor();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine("Automatic screenshot-border recovery did not complete: " + ex.Message);
+            Console.WriteLine(
+                "Retry later with: wgdot restore-screenshot-border-control");
+            Console.ResetColor();
+        }
     }
 
     static int RestorePrivacySexyClipboardHistory()
@@ -13209,9 +13492,18 @@ class WgdotHidden
             " and approve its generated script/run operation.");
         Console.ResetColor();
         Console.WriteLine();
+        Console.WriteLine(
+            "WGDot preserves borderless Vesktop/Discord/OBS screen sharing: if privacy.sexy newly " +
+            "forces screenshot-border control off, WGDot restores only that setting after privacy.sexy closes.");
+        Console.WriteLine(
+            "Pre-existing organization/custom screenshot-border policy is never overridden automatically.");
+        Console.WriteLine();
 
         if (!ReadYesNo("Install/update and open official privacy.sexy now? [y/N]", false))
             return;
+
+        bool screenshotBorderPolicyBefore = HasAnyScreenshotBorderPolicyValue();
+        string screenshotBorderConsentBefore = ReadScreenshotBorderConsentValue();
 
         var release = GetJsonUrl("https://api.github.com/repos/undergroundwires/privacy.sexy/releases/latest");
         string installerUrl = "";
@@ -13276,6 +13568,10 @@ class WgdotHidden
 
         Console.WriteLine("WGDot will continue after privacy.sexy is closed.");
         WaitForProcessToExit("privacy.sexy");
+
+        TryRestoreScreenshotBorderAfterPrivacySexy(
+            screenshotBorderPolicyBefore,
+            screenshotBorderConsentBefore);
 
         var state = ReadJson(TweakStatePath) ?? new Dictionary<string, object>();
         state["privacySexyPreset"] = presetName;
