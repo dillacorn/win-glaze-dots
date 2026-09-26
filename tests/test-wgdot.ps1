@@ -1564,8 +1564,8 @@ foreach ($text in @($glazeNormalText, $glazeWorkText)) {
     Assert-True ($text -match 'bindings:\s*\["alt\+shift\+enter",\s*"lwin\+shift\+enter",\s*"rwin\+shift\+enter"\]') "global Alt/Super+Shift+Enter launches Windows Terminal"
     Assert-True ($text -match 'bindings:\s*\["alt\+oem_close_brackets",\s*"lwin\+oem_close_brackets",\s*"rwin\+oem_close_brackets"\]') "global Alt/Super+] focuses next workspace"
     Assert-True ($text -match 'bindings:\s*\["alt\+oem_open_brackets",\s*"lwin\+oem_open_brackets",\s*"rwin\+oem_open_brackets"\]') "global Alt/Super+[ focuses previous workspace"
-    Assert-True ($text -match 'wgdotw\.exe glazewm-window-behavior-toggle') "global config exposes the compiled default floating-window behavior toggle"
-    Assert-True ($text -match 'bindings:\s*\["lwin\+alt\+f",\s*"rwin\+alt\+f"\]') "Super+Alt+F is available for the default floating-window behavior toggle outside VM mode"
+    $globalBindingsBlock = [regex]::Match($text, '(?ms)^keybindings:\r?\n.*?(?=^window_rules:)').Value
+    Assert-True ($globalBindingsBlock -notmatch 'glazewm-window-behavior-toggle') "global default floating-window behavior remains bar-only"
     Assert-True ($text -match 'bindings:\s*\["lwin\+ctrl\+h",\s*"rwin\+ctrl\+h"\]') "Super+Ctrl+H resize alias is present"
     Assert-True ($text -match 'bindings:\s*\["lwin\+ctrl\+j",\s*"rwin\+ctrl\+j"\]') "Super+Ctrl+J resize alias is present"
     Assert-True ($text -match 'bindings:\s*\["lwin\+ctrl\+k",\s*"rwin\+ctrl\+k"\]') "Super+Ctrl+K resize alias is present"
@@ -1579,7 +1579,7 @@ foreach ($text in @($glazeNormalText, $glazeWorkText)) {
     Assert-True ($noaltBlock -match 'bindings:\s*\["lwin\+t",\s*"rwin\+t"\]') "noalt keeps Super+T tiling"
     Assert-True ($noaltBlock -match 'bindings:\s*\["lwin\+shift\+r",\s*"rwin\+shift\+r"\]') "noalt keeps Super+Shift+R tiling-direction toggle"
     Assert-True ($noaltBlock -match 'bindings:\s*\["lwin\+alt\+t",\s*"rwin\+alt\+t"\]') "noalt keeps Super+Alt+T themes"
-    Assert-True ($noaltBlock -match 'bindings:\s*\["lwin\+alt\+f",\s*"rwin\+alt\+f"\]') "noalt keeps Super+Alt+F default floating-window behavior toggle"
+    Assert-True ($noaltBlock -notmatch 'glazewm-window-behavior-toggle') "noalt keeps default floating-window behavior bar-only"
     Assert-True ($noaltBlock -match 'bindings:\s*\[[^\]]*"lwin\+shift\+enter"[^\]]*"rwin\+shift\+enter"[^\]]*\]') "noalt keeps Super+Shift+Enter terminal launcher"
     Assert-True ($noaltBlock -match 'bindings:\s*\["lwin\+oem_close_brackets",\s*"rwin\+oem_close_brackets"\]') "noalt keeps Super+] next-workspace navigation"
     Assert-True ($noaltBlock -match 'bindings:\s*\["lwin\+oem_open_brackets",\s*"rwin\+oem_open_brackets"\]') "noalt keeps Super+[ previous-workspace navigation"
@@ -1607,6 +1607,8 @@ foreach ($text in @($glazeNormalText, $glazeWorkText)) {
     Assert-True ($text -match 'wm-disable-binding-mode --name (?:noalt|vm)') "binding modes have native GlazeWM escape commands"
     Assert-True ($text -match 'bindings:\s*\["lwin\+alt\+v",\s*"rwin\+alt\+v"\]') "Win+Alt+V toggles/switches VM mode"
     Assert-True ($text -notmatch 'bindings:\s*\["lwin\+alt\+s",\s*"rwin\+alt\+s"\]') "VM mode leaves retired Win+Alt+S Flameshot chord unbound"
+    $vmBlock = [regex]::Match($text, '(?ms)^  - name: "vm"\r?\n.*?(?=^keybindings:)').Value
+    Assert-True ($vmBlock -match 'commands:\s*\["toggle-floating --centered"\]\s*\r?\n\s*bindings:\s*\["lwin\+alt\+f",\s*"rwin\+alt\+f"\]') "VM mode keeps Super+Alt+F active-window floating"
     Assert-True ($text -match 'bindings:\s*\["lwin\+alt\+1",\s*"rwin\+alt\+1"\]') "VM mode keeps host workspace switching on Win+Alt+number"
     Assert-True ($text -match 'bindings:\s*\["lwin\+alt\+shift\+1",\s*"rwin\+alt\+shift\+1"\]') "VM mode keeps host move-to-workspace on Win+Alt+Shift+number"
     Assert-True ($text -match 'bindings:\s*\["lwin\+shift\+e",\s*"rwin\+shift\+e"\]') "Yazi uses both Windows keys for Win+Shift+E"
