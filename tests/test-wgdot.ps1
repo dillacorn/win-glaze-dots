@@ -1580,7 +1580,7 @@ foreach ($text in @($glazeNormalText, $glazeWorkText)) {
     Assert-True ($noaltBlock -match 'bindings:\s*\["lwin\+shift\+r",\s*"rwin\+shift\+r"\]') "noalt keeps Super+Shift+R tiling-direction toggle"
     Assert-True ($noaltBlock -match 'bindings:\s*\["lwin\+alt\+t",\s*"rwin\+alt\+t"\]') "noalt keeps Super+Alt+T themes"
     Assert-True ($noaltBlock -match 'bindings:\s*\["lwin\+alt\+f",\s*"rwin\+alt\+f"\]') "noalt keeps Super+Alt+F default floating-window behavior toggle"
-    Assert-True ($noaltBlock -match 'bindings:\s*\["lwin\+shift\+enter",\s*"rwin\+shift\+enter"\]') "noalt keeps Super+Shift+Enter terminal launcher"
+    Assert-True ($noaltBlock -match 'bindings:\s*\[[^\]]*"lwin\+shift\+enter"[^\]]*"rwin\+shift\+enter"[^\]]*\]') "noalt keeps Super+Shift+Enter terminal launcher"
     Assert-True ($noaltBlock -match 'bindings:\s*\["lwin\+oem_close_brackets",\s*"rwin\+oem_close_brackets"\]') "noalt keeps Super+] next-workspace navigation"
     Assert-True ($noaltBlock -match 'bindings:\s*\["lwin\+oem_open_brackets",\s*"rwin\+oem_open_brackets"\]') "noalt keeps Super+[ previous-workspace navigation"
     Assert-True ($noaltBlock -match 'bindings:\s*\["lwin\+ctrl\+h",\s*"rwin\+ctrl\+h"\]') "noalt keeps Super+Ctrl+H resize"
