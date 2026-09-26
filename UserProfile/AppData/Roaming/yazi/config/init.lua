@@ -1902,7 +1902,7 @@ function Entity:click(event, up)
         end
 
         ya.emit("reveal", { self._file.url })
-        WgdotYaziContextMenu:show("item", event.x, event.y, selected_count, self._file)
+        WgdotYaziContextMenu:show("item", event.x, event.y, selected_count)
         return
     end
 
