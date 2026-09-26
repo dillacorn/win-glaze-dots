@@ -169,3 +169,85 @@ jobs:
         run: |
           set "WGDOT_TEST_ROOT=%TEMP%\wgdot-native-maintenance-state"
           "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" maintenance-self-test
+
+  release-v4-6-5:
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.title == 'Release WGDot v4.6.5' &&
+      github.head_ref == 'release/wgdot-v4.6.5' &&
+      github.base_ref == 'main'
+    needs:
+      - yasb-stable-schema
+      - windows-powershell-51
+      - powershell-7
+      - native-bootstrap
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+      - name: Publish and verify WGDot v4.6.5
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          tag='v4.6.5'
+          title='WGDot v4.6.5'
+          target='dbe39e401cba5e97282d0a6ba28756d3de01d5ac'
+          notes='.github/release-v4.6.5.md'
+
+          latest="$(gh release list --repo "$GITHUB_REPOSITORY" --limit 1 --json tagName --jq '.[0].tagName')"
+          [[ "$latest" == 'v4.6.4' ]] || {
+            echo "Expected latest stable release v4.6.4, found $latest" >&2
+            exit 1
+          }
+
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release $tag already exists" >&2
+            exit 1
+          fi
+          if git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null 2>&1; then
+            echo "Tag $tag already exists" >&2
+            exit 1
+          fi
+
+          git cat-file -e "$target^{commit}"
+          gh release create "$tag" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$target" \
+            --title "$title" \
+            --notes-file "$notes"
+
+          gh release view "$tag" --repo "$GITHUB_REPOSITORY" \
+            --json tagName,name,targetCommitish,isDraft,isPrerelease,body > /tmp/release.json
+
+          python3 - "$notes" "$target" "$title" <<'PY'
+          import json
+          import sys
+          from pathlib import Path
+
+          notes_path = Path(sys.argv[1])
+          target = sys.argv[2]
+          title = sys.argv[3]
+          release = json.loads(Path("/tmp/release.json").read_text(encoding="utf-8"))
+          expected_body = notes_path.read_text(encoding="utf-8").rstrip("\n")
+          assert release["tagName"] == "v4.6.5", release
+          assert release["name"] == title, release
+          assert release["targetCommitish"] == target, release
+          assert release["isDraft"] is False, release
+          assert release["isPrerelease"] is False, release
+          assert release["body"].rstrip("\n") == expected_body, release
+          PY
+
+          git fetch --force origin "refs/tags/$tag:refs/tags/$tag"
+          [[ "$(git rev-list -n1 "$tag")" == "$target" ]] || {
+            echo "Published tag does not resolve to intended target" >&2
+            exit 1
+          }
+
+          gh api -X DELETE "repos/$GITHUB_REPOSITORY/git/refs/heads/release/wgdot-v4.6.5"
