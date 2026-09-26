@@ -231,6 +231,10 @@ try {
             Require ($text -notmatch 'wgdotw\.exe launcher hotkey') ('GlazeWM launcher still pays the wgdotw cold-start hop: ' + $relative)
             Require ($text -match 'bindings:\s*\["alt\+p"\]') ('Global Alt+P launcher binding missing: ' + $relative)
             Require ($text -match 'bindings:\s*\["lwin\+d",\s*"rwin\+d"\]') ('Global Super+D launcher binding missing: ' + $relative)
+            Require ($text -match 'bindings:\s*\["alt\+ctrl\+shift\+left",\s*"lwin\+ctrl\+shift\+left",\s*"rwin\+ctrl\+shift\+left"\]') ('Global Alt/Super+Ctrl+Shift+Left workspace monitor move missing: ' + $relative)
+            Require ($text -match 'bindings:\s*\["alt\+ctrl\+shift\+right",\s*"lwin\+ctrl\+shift\+right",\s*"rwin\+ctrl\+shift\+right"\]') ('Global Alt/Super+Ctrl+Shift+Right workspace monitor move missing: ' + $relative)
+            Require ($text -match 'bindings:\s*\["alt\+ctrl\+shift\+up",\s*"lwin\+ctrl\+shift\+up",\s*"rwin\+ctrl\+shift\+up"\]') ('Global Alt/Super+Ctrl+Shift+Up workspace monitor move missing: ' + $relative)
+            Require ($text -match 'bindings:\s*\["alt\+ctrl\+shift\+down",\s*"lwin\+ctrl\+shift\+down",\s*"rwin\+ctrl\+shift\+down"\]') ('Global Alt/Super+Ctrl+Shift+Down workspace monitor move missing: ' + $relative)
             $noalt = [regex]::Match($text, '(?ms)^  - name: "noalt"\r?\n.*?(?=^  # VM mode|^  - name: "vm")').Value
             Require ($noalt -match 'bindings:\s*\["lwin\+ctrl\+shift\+left",\s*"rwin\+ctrl\+shift\+left"\]') ('NoAlt Super+Ctrl+Shift+Left workspace monitor move missing: ' + $relative)
             Require ($noalt -match 'bindings:\s*\["lwin\+ctrl\+shift\+right",\s*"rwin\+ctrl\+shift\+right"\]') ('NoAlt Super+Ctrl+Shift+Right workspace monitor move missing: ' + $relative)
