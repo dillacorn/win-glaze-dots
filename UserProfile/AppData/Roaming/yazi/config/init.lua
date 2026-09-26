@@ -43,6 +43,62 @@ local function WgdotYaziCollectionCwd()
     return WgdotYaziCollectionKind(cx.active.current.cwd)
 end
 
+local WgdotYaziCollectionReturns = {}
+
+local function WgdotYaziCollectionReturnState()
+    local tab_key = tostring(cx.active.id)
+    local state = WgdotYaziCollectionReturns[tab_key]
+    if not state then
+        state = {}
+        WgdotYaziCollectionReturns[tab_key] = state
+    end
+    return state
+end
+
+local function WgdotYaziOpenCollection(kind)
+    local plugin = kind == "bookmarks" and "bookmarks" or "recent-files"
+    local state = WgdotYaziCollectionReturnState()
+
+    if WgdotYaziCollectionCwd() ~= kind then
+        state[kind] = tostring(cx.active.current.cwd)
+    end
+
+    ya.emit("plugin", { plugin })
+end
+
+local function WgdotYaziToggleCollection(kind)
+    local state = WgdotYaziCollectionReturnState()
+
+    if WgdotYaziCollectionCwd() == kind then
+        local target = state[kind]
+        state[kind] = nil
+        if target and target ~= "" then
+            ya.emit("cd", { Url(target), raw = true })
+        else
+            ya.emit("back", {})
+        end
+        return
+    end
+
+    WgdotYaziOpenCollection(kind)
+end
+
+function WgdotYaziGoBookmarks()
+    WgdotYaziOpenCollection("bookmarks")
+end
+
+function WgdotYaziToggleBookmarks()
+    WgdotYaziToggleCollection("bookmarks")
+end
+
+function WgdotYaziGoRecents()
+    WgdotYaziOpenCollection("recents")
+end
+
+function WgdotYaziToggleRecents()
+    WgdotYaziToggleCollection("recents")
+end
+
 local WgdotYaziDefaultEntityHighlights = Entity.highlights
 local WgdotYaziDefaultEntitySymlink = Entity.symlink
 
@@ -426,8 +482,21 @@ function WgdotYaziSearchMenu()
     end)
 end
 
-function WgdotYaziToggleBookmark()
-    WgdotYaziBookmarkTarget(tostring(cx.active.current.cwd), true)
+function WgdotYaziBookmarkHovered()
+    if WgdotYaziContextMenu
+        and WgdotYaziContextMenu._visible
+        and WgdotYaziContextMenu._kind == "background"
+    then
+        WgdotYaziBookmarkTarget(tostring(cx.active.current.cwd), true)
+        return
+    end
+
+    local hovered = cx.active.current.hovered
+    if not hovered or WgdotYaziIsCollectionItemUrl(hovered.url) then
+        return
+    end
+
+    WgdotYaziBookmarkTarget(tostring(hovered.url), hovered.cha.is_dir)
 end
 
 function WgdotYaziOpenHoveredTab()
@@ -1017,8 +1086,8 @@ end
 local WgdotYaziFileActions = {
     { label = "Open", shortcut = "Enter", action = "smart_open" },
     { label = "Open with...", shortcut = "O", action = "open_with" },
-    { label = "Bookmark / unbookmark", shortcut = "g B", action = "bookmark_hovered" },
-    { label = "Rename", shortcut = "r", action = "rename" },
+    { label = "Bookmark / unbookmark", shortcut = "B", action = "bookmark_hovered" },
+    { label = "Rename", shortcut = "R", action = "rename" },
     { label = "Drag out...", shortcut = "d g", action = "drag_out" },
     { label = "Copy", shortcut = "Ctrl+C / y", action = "copy" },
     { label = "Cut", shortcut = "Ctrl+X / Y", action = "cut" },
@@ -1172,7 +1241,7 @@ local WgdotYaziFolderActions = {
     { label = "New folder", shortcut = "a /", action = "new_folder" },
     { label = "Paste", shortcut = "Ctrl+V / p", action = "paste" },
     { label = "Terminal here", shortcut = "t e", action = "terminal" },
-    { label = "Bookmark / unbookmark folder", shortcut = "g B", action = "bookmark_current" },
+    { label = "Bookmark / unbookmark folder", shortcut = "B", action = "bookmark_current" },
 }
 
 WgdotYaziContextMenu = {
@@ -1242,7 +1311,7 @@ function WgdotYaziContextMenu:actions()
         return {
             {
                 label = "Rename " .. tostring(self._selection_count) .. " items...",
-                shortcut = "r",
+                shortcut = "R",
                 action = "bulk_rename",
             },
             { label = "Drag out...", shortcut = "d g", action = "drag_out" },
@@ -1254,16 +1323,15 @@ function WgdotYaziContextMenu:actions()
     end
 
     if hovered and hovered.cha.is_dir then
-        local bookmarked = require("bookmarks"):is_bookmarked(tostring(hovered.url))
         return {
             { label = "Enter folder", shortcut = "Enter / l", action = "smart_open" },
             { label = "Open in new tab", shortcut = "t n", action = "open_new_tab" },
             {
-                label = bookmarked and "Remove bookmark" or "Add bookmark",
-                shortcut = "g B",
+                label = "Bookmark / unbookmark",
+                shortcut = "B",
                 action = "bookmark_hovered",
             },
-            { label = "Rename", shortcut = "r", action = "rename" },
+            { label = "Rename", shortcut = "R", action = "rename" },
             { label = "Drag out...", shortcut = "d g", action = "drag_out" },
             { label = "Copy", shortcut = "Ctrl+C / y", action = "copy" },
             { label = "Cut", shortcut = "Ctrl+X / Y", action = "cut" },
@@ -1401,10 +1469,7 @@ function WgdotYaziContextMenu:run(action)
     elseif action == "drag_out" then
         WgdotYaziDragOut()
     elseif action == "bookmark_hovered" then
-        local hovered = cx.active.current.hovered
-        if hovered then
-            WgdotYaziBookmarkTarget(tostring(hovered.url), hovered.cha.is_dir)
-        end
+        WgdotYaziBookmarkHovered()
     elseif action == "bookmark_current" then
         WgdotYaziBookmarkTarget(tostring(cx.active.current.cwd), true)
     elseif action == "copy" then
