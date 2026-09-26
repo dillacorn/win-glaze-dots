@@ -169,3 +169,81 @@ jobs:
         run: |
           set "WGDOT_TEST_ROOT=%TEMP%\wgdot-native-maintenance-state"
           "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" maintenance-self-test
+
+  post-release-v4-6-1-yazi-context:
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.title == 'TEMP append v4.6.1 Yazi context post release note' &&
+      github.event.pull_request.head.ref == 'release/v4.6.1-yazi-context-note' &&
+      github.event.pull_request.base.ref == 'main'
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_TAG: v4.6.1
+      EXPECTED_TAG_SHA: 0a60dd464ba88f2a97eb4866c77f25be9a6de0eb
+      EXPECTED_TARGET: 0a60dd464ba88f2a97eb4866c77f25be9a6de0eb
+      EXPECTED_NAME: WGDot v4.6.1 Yazi
+      NOTE: "- **2026-09-25 — Yazi context menu and collection shortcuts:** Restored the proven custom Lua right-click menu on Windows, simplified Bookmarks/Recents to `b`/`r` toggles with `B`/`R` acting on highlighted items, and hardened WGDot Git-testing runtime staging against locked revision-named executables. Maintainer runtime testing confirmed the Windows right-click menu; PR #75 passed all four WGDot validation jobs before merge. Delivered from post-release main commit `540343b24944811aa9a6953ef134b7dc7e6820cd`; the v4.6.1 tag remains unchanged."
+    steps:
+      - uses: actions/checkout@v4
+      - name: Append verified v4.6.1 post-release update
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${RELEASE_TAG}" > /tmp/release-before.json
+          gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${RELEASE_TAG}" > /tmp/tag-before.json
+
+          python3 - <<'PY'
+          import json, os
+          release = json.load(open("/tmp/release-before.json", encoding="utf-8"))
+          tag = json.load(open("/tmp/tag-before.json", encoding="utf-8"))
+          assert release["tag_name"] == os.environ["RELEASE_TAG"]
+          assert release["name"] == os.environ["EXPECTED_NAME"]
+          assert release["draft"] is False
+          assert release["prerelease"] is False
+          assert release["target_commitish"] == os.environ["EXPECTED_TARGET"]
+          assert tag["object"]["type"] == "commit"
+          assert tag["object"]["sha"] == os.environ["EXPECTED_TAG_SHA"]
+
+          body = release["body"]
+          note = os.environ["NOTE"]
+          placeholder = "_Placeholder for possible tested post-release patches to v4.6.1._"
+          assert "## Post-release updates" in body
+          assert placeholder in body
+          if note not in body:
+              body = body.replace(placeholder, note + "\n\n" + placeholder, 1)
+          open("/tmp/release-notes.md", "w", encoding="utf-8", newline="\n").write(body)
+          PY
+
+          gh release edit "${RELEASE_TAG}" --repo "${GITHUB_REPOSITORY}" --notes-file /tmp/release-notes.md
+
+          gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${RELEASE_TAG}" > /tmp/release-after.json
+          gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${RELEASE_TAG}" > /tmp/tag-after.json
+
+          python3 - <<'PY'
+          import json, os
+          before = json.load(open("/tmp/release-before.json", encoding="utf-8"))
+          after = json.load(open("/tmp/release-after.json", encoding="utf-8"))
+          tag = json.load(open("/tmp/tag-after.json", encoding="utf-8"))
+          intended = open("/tmp/release-notes.md", encoding="utf-8").read()
+
+          assert after["tag_name"] == before["tag_name"] == os.environ["RELEASE_TAG"]
+          assert after["name"] == before["name"] == os.environ["EXPECTED_NAME"]
+          assert after["draft"] == before["draft"] is False
+          assert after["prerelease"] == before["prerelease"] is False
+          assert after["target_commitish"] == before["target_commitish"] == os.environ["EXPECTED_TARGET"]
+          assert after["body"] == intended
+          assert os.environ["NOTE"] in after["body"]
+          assert tag["object"]["type"] == "commit"
+          assert tag["object"]["sha"] == os.environ["EXPECTED_TAG_SHA"]
+          print("PASS: v4.6.1 release body updated; release metadata and tag SHA unchanged.")
+          PY
+
+      - name: Remove one-use helper branch
+        if: success()
+        shell: bash
+        run: git push origin --delete "${{ github.head_ref }}"
+
