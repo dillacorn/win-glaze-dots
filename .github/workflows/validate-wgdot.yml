@@ -169,3 +169,77 @@ jobs:
         run: |
           set "WGDOT_TEST_ROOT=%TEMP%\wgdot-native-maintenance-state"
           "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" maintenance-self-test
+
+  remove-v4-6-2-post-release-section:
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.title == 'TEMP remove v4.6.2 Post-release updates section' &&
+      github.event.pull_request.head.ref == 'release/remove-v4.6.2-post-release' &&
+      github.event.pull_request.base.ref == 'main'
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_TAG: v4.6.2
+      RELEASE_TITLE: WGDot v4.6.2 Yazi
+      EXPECTED_TARGET: 540343b24944811aa9a6953ef134b7dc7e6820cd
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Remove retired section
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${RELEASE_TAG}" > /tmp/release-before.json
+          gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${RELEASE_TAG}" > /tmp/tag-before.json
+
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          release = json.load(open("/tmp/release-before.json", encoding="utf-8"))
+          tag = json.load(open("/tmp/tag-before.json", encoding="utf-8"))
+          assert release["tag_name"] == os.environ["RELEASE_TAG"]
+          assert release["name"] == os.environ["RELEASE_TITLE"]
+          assert release["draft"] is False
+          assert release["prerelease"] is False
+          assert release["target_commitish"] == os.environ["EXPECTED_TARGET"]
+          assert tag["object"]["type"] == "commit"
+          assert tag["object"]["sha"] == os.environ["EXPECTED_TARGET"]
+
+          body = release["body"]
+          marker = "\n## Post-release updates\n"
+          assert marker in body, "current release has no Post-release updates section"
+          body = body.split(marker, 1)[0].rstrip() + "\n"
+          Path("/tmp/updated.md").write_text(body, encoding="utf-8", newline="\n")
+          PY
+
+          gh release edit "${RELEASE_TAG}" --repo "${GITHUB_REPOSITORY}" --notes-file /tmp/updated.md
+
+      - name: Verify release and tag unchanged
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${RELEASE_TAG}" > /tmp/release-after.json
+          gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${RELEASE_TAG}" > /tmp/tag-after.json
+
+          python3 - <<'PY'
+          import json, os
+          release = json.load(open("/tmp/release-after.json", encoding="utf-8"))
+          tag = json.load(open("/tmp/tag-after.json", encoding="utf-8"))
+          assert "## Post-release updates" not in release["body"]
+          assert release["tag_name"] == os.environ["RELEASE_TAG"]
+          assert release["name"] == os.environ["RELEASE_TITLE"]
+          assert release["draft"] is False
+          assert release["prerelease"] is False
+          assert release["target_commitish"] == os.environ["EXPECTED_TARGET"]
+          assert tag["object"]["type"] == "commit"
+          assert tag["object"]["sha"] == os.environ["EXPECTED_TARGET"]
+          print("PASS: v4.6.2 release notes cleaned; tag/target unchanged.")
+          PY
+
+      - name: Remove one-use helper branch
+        if: success()
+        shell: bash
+        run: git push origin --delete "${{ github.head_ref }}"
+
