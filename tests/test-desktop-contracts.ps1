@@ -185,6 +185,27 @@ try {
         Require ($nativeSource -notmatch 'SetWindowsHookEx') 'Production WGDot runtime must not compile a global Windows input hook'
     }
 
+    Check 'OBS lock lookup is scoped to exact hook files through Restart Manager' {
+        $hookRoot = Join-Path $temp 'obs-studio-hook'
+        New-Item -ItemType Directory -Path $hookRoot -Force | Out-Null
+        $hookFile = Join-Path $hookRoot 'graphics-hook64.dll'
+        [IO.File]::WriteAllBytes($hookFile, [byte[]](1, 2, 3, 4))
+
+        $stream = [IO.File]::Open(
+            $hookFile,
+            [IO.FileMode]::Open,
+            [IO.FileAccess]::ReadWrite,
+            [IO.FileShare]::None
+        )
+        try {
+            $lockers = @(Invoke-Native 'FindObsGraphicsHookLockers')
+            Require ($lockers.Count -ge 1) 'Restart Manager did not report the process holding the exact OBS hook file'
+        }
+        finally {
+            $stream.Dispose()
+        }
+    }
+
     $desktopRuntimeFiles = @(
         'UserProfile/.glzr/glazewm/config.yaml',
         'UserProfile/.glzr/glazewm/custom_work_config.yaml',
