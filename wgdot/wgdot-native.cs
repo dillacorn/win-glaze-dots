@@ -22,7 +22,7 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-98";
+    const string Version = "native-preview-99";
     const string HiddenLauncherVersion = "2.0.0.0";
     const int WingetPreflightTimeoutMs = 30000;
     const int CurrentTweakDefaultsVersion = 1;
@@ -4227,7 +4227,7 @@ class WgdotHidden
         }
     }
 
-    static ProcResult RunWingetInstallWithObsHookRecovery(
+    static ProcResult RunWingetMutationWithObsHookRecovery(
         Dictionary<string, object> package,
         string winget,
         string arguments,
@@ -4246,7 +4246,7 @@ class WgdotHidden
                 CleanupOrphanedObsHookStateForInstall();
             }
 
-            return RunWingetInstallWithObsHookRecoveryCore(
+            return RunWingetMutationWithObsHookRecoveryCore(
                 package,
                 winget,
                 arguments,
@@ -4258,7 +4258,7 @@ class WgdotHidden
         }
     }
 
-    static ProcResult RunWingetInstallWithObsHookRecoveryCore(
+    static ProcResult RunWingetMutationWithObsHookRecoveryCore(
         Dictionary<string, object> package,
         string winget,
         string arguments,
@@ -4521,7 +4521,7 @@ class WgdotHidden
                     continue;
                 }
 
-                ProcResult install = RunWingetInstallWithObsHookRecovery(
+                ProcResult install = RunWingetMutationWithObsHookRecovery(
                     package,
                     winget,
                     "install --id " + Q(id) + " --exact --source winget --accept-source-agreements --accept-package-agreements --disable-interactivity",
@@ -4599,9 +4599,11 @@ class WgdotHidden
                     continue;
                 }
 
-                ProcResult upgrade = RunInteractive(
+                ProcResult upgrade = RunWingetMutationWithObsHookRecovery(
+                    package,
                     winget,
-                    "upgrade --id " + Q(id) + " --exact --source winget --accept-source-agreements --accept-package-agreements --disable-interactivity");
+                    "upgrade --id " + Q(id) + " --exact --source winget --accept-source-agreements --accept-package-agreements --disable-interactivity",
+                    GetWingetInstallTimeoutMs(package));
 
                 if (upgrade.ExitCode == 0)
                 {
@@ -4668,7 +4670,7 @@ class WgdotHidden
                 }
 
                 Console.WriteLine("Reinstalling " + id + "...");
-                ProcResult reinstall = RunWingetInstallWithObsHookRecovery(
+                ProcResult reinstall = RunWingetMutationWithObsHookRecovery(
                     package,
                     winget,
                     "install --id " + Q(id) + " --exact --source winget --accept-source-agreements --accept-package-agreements --disable-interactivity",
