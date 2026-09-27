@@ -169,17 +169,20 @@ try {
     }
 
     Check 'legacy runtime replacement stop signals are preserved' {
-        foreach ($name in @('SignalIdleInhibitorStop', 'SignalMouseModeHookStop', 'SignalDesktopWorkerStop')) {
+        foreach ($name in @('SignalIdleInhibitorStop', 'SignalMouseModeHookStop', 'SignalSuperLTestStop', 'SignalDesktopWorkerStop')) {
             Require ($null -ne (Get-NativeMethod $name)) ('Legacy cleanup signal is missing: ' + $name)
         }
         Require ($nativeSource -match 'Local\\WGDot\.IdleInhibitor') 'Legacy idle-inhibitor mutex identity changed'
         Require ($nativeSource -match 'Local\\WGDot\.MouseModeHook') 'Legacy mouse-mode mutex identity changed'
+        Require ($nativeSource -match 'Local\\WGDot\.SuperLTestHook') 'Legacy Super+L hook mutex identity changed'
         Require ($nativeSource -match 'Local\\WGDot\.DesktopWorker') 'Legacy desktop-worker mutex identity changed'
     }
 
-    Check 'Super+L remains development-only native testing support' {
-        Require ($null -ne (Get-NativeMethod 'SuperLTestFromArgs')) 'super-l-test command implementation is missing'
-        Require ($null -ne (Get-NativeMethod 'SuperLHookWorker')) 'super-l-hook worker implementation is missing'
+    Check 'global input hooks stay out of the production runtime' {
+        Require ($null -eq (Get-NativeMethod 'SuperLTestFromArgs')) 'Retired Super+L hook controller returned'
+        Require ($null -eq (Get-NativeMethod 'SuperLHookWorker')) 'Retired Super+L hook worker returned'
+        Require ($nativeSource -notmatch 'command == "super-l-(?:test|hook)"') 'Retired Super+L hook command dispatch returned'
+        Require ($nativeSource -notmatch 'SetWindowsHookEx') 'Production WGDot runtime must not compile a global Windows input hook'
     }
 
     $desktopRuntimeFiles = @(
