@@ -22,7 +22,7 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-97";
+    const string Version = "native-preview-98";
     const string HiddenLauncherVersion = "2.0.0.0";
     const int WingetPreflightTimeoutMs = 30000;
     const int CurrentTweakDefaultsVersion = 1;
@@ -96,30 +96,6 @@ internal static class WgdotNative
         public int Bottom;
     }
 
-    [StructLayout(LayoutKind.Sequential)]
-    struct MSLLHOOKSTRUCT
-    {
-        public POINT pt;
-        public uint mouseData;
-        public uint flags;
-        public uint time;
-        public UIntPtr dwExtraInfo;
-    }
-
-    delegate IntPtr LowLevelMouseProc(int nCode, IntPtr wParam, IntPtr lParam);
-
-
-    [StructLayout(LayoutKind.Sequential)]
-    struct KBDLLHOOKSTRUCT
-    {
-        public uint vkCode;
-        public uint scanCode;
-        public uint flags;
-        public uint time;
-        public UIntPtr dwExtraInfo;
-    }
-
-    delegate IntPtr LowLevelKeyboardProc(int nCode, IntPtr wParam, IntPtr lParam);
 
     delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
 
@@ -138,18 +114,6 @@ internal static class WgdotNative
     [DllImport("user32.dll")]
     static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
 
-    [DllImport("user32.dll", SetLastError = true)]
-    static extern IntPtr SetWindowsHookEx(
-        int idHook,
-        LowLevelMouseProc lpfn,
-        IntPtr hMod,
-        uint dwThreadId);
-
-    [DllImport("user32.dll")]
-    static extern IntPtr WindowFromPoint(POINT point);
-
-    [DllImport("user32.dll")]
-    static extern IntPtr GetAncestor(IntPtr hWnd, uint gaFlags);
 
     [DllImport("user32.dll")]
     static extern bool SetForegroundWindow(IntPtr hWnd);
@@ -163,25 +127,6 @@ internal static class WgdotNative
     [DllImport("user32.dll")]
     static extern bool GetCursorPos(out POINT lpPoint);
 
-    [DllImport("user32.dll", EntryPoint = "SetWindowsHookEx", SetLastError = true)]
-    static extern IntPtr SetWindowsHookExKeyboard(
-        int idHook,
-        LowLevelKeyboardProc lpfn,
-        IntPtr hMod,
-        uint dwThreadId);
-
-    [DllImport("user32.dll", SetLastError = true)]
-    static extern bool UnhookWindowsHookEx(IntPtr hhk);
-
-    [DllImport("user32.dll")]
-    static extern IntPtr CallNextHookEx(
-        IntPtr hhk,
-        int nCode,
-        IntPtr wParam,
-        IntPtr lParam);
-
-    [DllImport("kernel32.dll", CharSet = CharSet.Auto)]
-    static extern IntPtr GetModuleHandle(string lpModuleName);
 
     [DllImport("user32.dll", CharSet = CharSet.Auto)]
     static extern int GetClassName(IntPtr hWnd, StringBuilder className, int maxCount);
@@ -207,6 +152,62 @@ internal static class WgdotNative
     [DllImport("dwmapi.dll")]
     static extern int DwmGetWindowAttribute(IntPtr hWnd, int attribute, out int value, int valueSize);
 
+    const int ErrorMoreData = 234;
+    const int RestartManagerSessionKeyLength = 32;
+
+    [StructLayout(LayoutKind.Sequential)]
+    struct RM_UNIQUE_PROCESS
+    {
+        public int dwProcessId;
+        public System.Runtime.InteropServices.ComTypes.FILETIME ProcessStartTime;
+    }
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    struct RM_PROCESS_INFO
+    {
+        public RM_UNIQUE_PROCESS Process;
+
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 256)]
+        public string strAppName;
+
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 64)]
+        public string strServiceShortName;
+
+        public int ApplicationType;
+        public uint AppStatus;
+        public uint TSSessionId;
+
+        [MarshalAs(UnmanagedType.Bool)]
+        public bool bRestartable;
+    }
+
+    [DllImport("rstrtmgr.dll", CharSet = CharSet.Unicode)]
+    static extern int RmStartSession(
+        out uint sessionHandle,
+        int sessionFlags,
+        StringBuilder sessionKey);
+
+    [DllImport("rstrtmgr.dll", CharSet = CharSet.Unicode)]
+    static extern int RmRegisterResources(
+        uint sessionHandle,
+        uint fileCount,
+        string[] fileNames,
+        uint applicationCount,
+        RM_UNIQUE_PROCESS[] applications,
+        uint serviceCount,
+        string[] serviceNames);
+
+    [DllImport("rstrtmgr.dll")]
+    static extern int RmGetList(
+        uint sessionHandle,
+        out uint processInfoNeeded,
+        ref uint processInfoCount,
+        [In, Out] RM_PROCESS_INFO[] affectedApps,
+        ref uint rebootReasons);
+
+    [DllImport("rstrtmgr.dll")]
+    static extern int RmEndSession(uint sessionHandle);
+
     const uint WmClose = 0x0010;
     const uint WmNcLButtonDown = 0x00A1;
     const uint WmLButtonUp = 0x0202;
@@ -218,11 +219,6 @@ internal static class WgdotNative
     const int WmKeyUp = 0x0101;
     const int WmSysKeyDown = 0x0104;
     const int WmSysKeyUp = 0x0105;
-    const int WhKeyboardLl = 13;
-    const int WhMouseLl = 14;
-    const uint GaRoot = 2;
-    const uint LlMhfInjected = 0x00000001;
-    const uint LlKhfInjected = 0x00000010;
     const int HtCaption = 2;
     const int HtTopLeft = 13;
     const int HtTopRight = 14;
@@ -250,13 +246,6 @@ internal static class WgdotNative
     const string DesktopWorkerStopEventName = @"Local\WGDot.DesktopWorkerStop";
     const string ClipboardHistoryWindowTitle = "WGDot Clipboard History";
 
-    static LowLevelKeyboardProc SuperLHookProc;
-    static IntPtr SuperLHookHandle = IntPtr.Zero;
-    static bool SuperLLeftWinDown;
-    static bool SuperLRightWinDown;
-    static bool SuperLSuppressKeyUp;
-
-    const byte VkL = 0x4C;
     const byte VkV = 0x56;
     const byte VkLwin = 0x5B;
     const byte VkLmenu = 0xA4;
@@ -1208,8 +1197,6 @@ internal static class WgdotNative
             if (command == "software-elevated") return SoftwareElevatedFromArgs(args.Skip(1).ToArray());
             if (command == "cursor") return CursorManagerFromArgs(args.Skip(1).ToArray());
             if (command == "window-audit") return WindowAudit();
-            if (command == "super-l-test") return SuperLTestFromArgs(args.Skip(1).ToArray());
-            if (command == "super-l-hook") return SuperLHookWorker();
             if (command == "bar-autohide-toggle") return BarAutoHideToggle();
             if (command == "glazewm-binding-mode-toggle") return GlazeWmBindingModeToggleFromArgs(args.Skip(1).ToArray());
             if (command == "glazewm-window-behavior-toggle") return GlazeWmWindowBehaviorToggle();
@@ -1268,7 +1255,6 @@ internal static class WgdotNative
             String.Equals(command, "dots-only", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "apply-tweak", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "restore-screenshot-border-control", StringComparison.OrdinalIgnoreCase) ||
-            String.Equals(command, "super-l-test", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "window-audit", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "software", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "bar-font-install", StringComparison.OrdinalIgnoreCase) ||
@@ -3772,138 +3758,142 @@ class WgdotHidden
             StringComparison.OrdinalIgnoreCase);
     }
 
-    static bool IsProtectedObsHookProcess(string processName)
+    static List<string> ObsGraphicsHookFiles()
     {
-        string[] protectedNames =
-        {
-            "System",
-            "Idle",
-            "Registry",
-            "smss",
-            "csrss",
-            "wininit",
-            "winlogon",
-            "services",
-            "lsass",
-            "svchost",
-            "dwm",
-            "explorer",
-            "fontdrvhost",
-            "sihost",
-            "taskhostw",
-            "SearchHost",
-            "StartMenuExperienceHost",
-            "ShellExperienceHost"
-        };
+        string hookRoot = ObsHookDirectory();
+        var files = new List<string>();
+        if (!Directory.Exists(hookRoot))
+            return files;
 
-        return protectedNames.Contains(
-            processName ?? "",
-            StringComparer.OrdinalIgnoreCase);
+        foreach (string path in Directory.EnumerateFiles(
+            hookRoot,
+            "*.dll",
+            SearchOption.AllDirectories))
+        {
+            string leaf = Path.GetFileName(path);
+            if (!String.Equals(
+                    leaf,
+                    "graphics-hook64.dll",
+                    StringComparison.OrdinalIgnoreCase) &&
+                !String.Equals(
+                    leaf,
+                    "graphics-hook32.dll",
+                    StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            files.Add(Path.GetFullPath(path));
+        }
+
+        return files
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
     }
 
-    static bool ProcessUsesObsGraphicsHook(Process process)
+    static Exception RestartManagerFailure(string operation, int error)
     {
+        return new System.ComponentModel.Win32Exception(
+            error,
+            "Windows Restart Manager " + operation + " failed.");
+    }
+
+    static List<RM_PROCESS_INFO> FindObsGraphicsHookLockers()
+    {
+        List<string> files = ObsGraphicsHookFiles();
+        if (files.Count == 0)
+            return new List<RM_PROCESS_INFO>();
+
+        uint sessionHandle;
+        var sessionKey = new StringBuilder(RestartManagerSessionKeyLength + 1);
+        int result = RmStartSession(out sessionHandle, 0, sessionKey);
+        if (result != 0)
+            throw RestartManagerFailure("session start", result);
+
         try
         {
-            foreach (ProcessModule module in process.Modules)
+            result = RmRegisterResources(
+                sessionHandle,
+                (uint)files.Count,
+                files.ToArray(),
+                0,
+                null,
+                0,
+                null);
+            if (result != 0)
+                throw RestartManagerFailure("resource registration", result);
+
+            for (int attempt = 0; attempt < 4; attempt++)
             {
-                string moduleName = module.ModuleName ?? "";
-                if (String.Equals(
-                        moduleName,
-                        "graphics-hook64.dll",
-                        StringComparison.OrdinalIgnoreCase) ||
-                    String.Equals(
-                        moduleName,
-                        "graphics-hook32.dll",
-                        StringComparison.OrdinalIgnoreCase))
-                    return true;
+                uint needed = 0;
+                uint count = 0;
+                uint rebootReasons = 0;
+                result = RmGetList(
+                    sessionHandle,
+                    out needed,
+                    ref count,
+                    null,
+                    ref rebootReasons);
 
-                string fileName = module.FileName ?? "";
-                if (fileName.IndexOf(
-                        "obs-studio-hook",
-                        StringComparison.OrdinalIgnoreCase) >= 0 &&
-                    (fileName.EndsWith(
-                         "graphics-hook64.dll",
-                         StringComparison.OrdinalIgnoreCase) ||
-                     fileName.EndsWith(
-                         "graphics-hook32.dll",
-                         StringComparison.OrdinalIgnoreCase)))
-                    return true;
+                if (result == 0)
+                    return new List<RM_PROCESS_INFO>();
+                if (result != ErrorMoreData)
+                    throw RestartManagerFailure("lock-holder query", result);
+                if (needed == 0)
+                    return new List<RM_PROCESS_INFO>();
+
+                var affected = new RM_PROCESS_INFO[checked((int)needed)];
+                count = needed;
+                result = RmGetList(
+                    sessionHandle,
+                    out needed,
+                    ref count,
+                    affected,
+                    ref rebootReasons);
+
+                if (result == ErrorMoreData)
+                    continue;
+                if (result != 0)
+                    throw RestartManagerFailure("lock-holder query", result);
+
+                var unique = new Dictionary<int, RM_PROCESS_INFO>();
+                int returned = Math.Min(affected.Length, checked((int)count));
+                for (int i = 0; i < returned; i++)
+                {
+                    int pid = affected[i].Process.dwProcessId;
+                    if (pid > 0 && !unique.ContainsKey(pid))
+                        unique[pid] = affected[i];
+                }
+
+                return unique.Values
+                    .OrderBy(info => info.Process.dwProcessId)
+                    .ToList();
             }
-        }
-        catch
-        {
-        }
 
-        return false;
+            throw new Exception(
+                "Windows Restart Manager lock-holder list changed repeatedly; retry the OBS operation.");
+        }
+        finally
+        {
+            RmEndSession(sessionHandle);
+        }
     }
 
-    static List<string> StopObsGraphicsHookBlockers()
+    static string FormatObsGraphicsHookLocker(RM_PROCESS_INFO info)
     {
-        var stopped = new List<string>();
-        var protectedBlockers = new List<string>();
-        int currentPid = Process.GetCurrentProcess().Id;
+        string name = info.strAppName;
+        if (String.IsNullOrWhiteSpace(name))
+            name = info.strServiceShortName;
+        if (String.IsNullOrWhiteSpace(name))
+            name = "Process";
 
-        foreach (Process process in Process.GetProcesses())
-        {
-            try
-            {
-                if (process.Id == currentPid || !ProcessUsesObsGraphicsHook(process))
-                    continue;
+        return name + " (PID " +
+            info.Process.dwProcessId.ToString(CultureInfo.InvariantCulture) + ")";
+    }
 
-                string processName = process.ProcessName ?? "";
-                string label =
-                    processName + " (PID " +
-                    process.Id.ToString(CultureInfo.InvariantCulture) + ")";
-
-                if (IsProtectedObsHookProcess(processName))
-                {
-                    protectedBlockers.Add(label);
-                    continue;
-                }
-
-                Console.WriteLine(
-                    "Closing OBS graphics-hook blocker: " + label + "...");
-
-                bool exited = false;
-                try
-                {
-                    if (process.CloseMainWindow())
-                        exited = process.WaitForExit(5000);
-                }
-                catch
-                {
-                }
-
-                if (!exited)
-                {
-                    try
-                    {
-                        process.Kill();
-                        exited = process.WaitForExit(5000);
-                    }
-                    catch
-                    {
-                    }
-                }
-
-                if (exited)
-                    stopped.Add(label);
-                else
-                    protectedBlockers.Add(label);
-            }
-            finally
-            {
-                process.Dispose();
-            }
-        }
-
-        if (protectedBlockers.Count > 0)
-            throw new Exception(
-                "OBS graphics-hook files are still in use by protected/unclosable processes: " +
-                String.Join(", ", protectedBlockers.ToArray()) + ".");
-
-        return stopped;
+    static List<string> ObsGraphicsHookLockerLabels()
+    {
+        return FindObsGraphicsHookLockers()
+            .Select(FormatObsGraphicsHookLocker)
+            .ToList();
     }
 
     static List<ObsVulkanLayerSnapshot> DisableObsVulkanImplicitLayers()
@@ -4084,18 +4074,6 @@ class WgdotHidden
                 "1");
             RemoveObsVulkanImplicitLayerRegistrations();
 
-            try
-            {
-                StopObsGraphicsHookBlockers();
-            }
-            catch (Exception ex)
-            {
-                Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.WriteLine(
-                    "OBS hook cleanup found an active blocker: " + ex.Message);
-                Console.ResetColor();
-            }
-
             Exception last = null;
             for (int i = 0; i < 20; i++)
             {
@@ -4126,7 +4104,22 @@ class WgdotHidden
             {
                 Console.ForegroundColor = ConsoleColor.Yellow;
                 Console.WriteLine(
-                    "Stale OBS hook state is still locked; the official installer will identify the blocker if automatic recovery also fails.");
+                    "Stale OBS hook state is still locked. WGDot will not scan or close unrelated applications.");
+                try
+                {
+                    List<string> lockers = ObsGraphicsHookLockerLabels();
+                    if (lockers.Count > 0)
+                        Console.WriteLine(
+                            "Windows Restart Manager reports the exact OBS hook-file holder(s): " +
+                            String.Join(", ", lockers.ToArray()) + ".");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(
+                        "Targeted OBS hook-file lock lookup failed: " + ex.Message);
+                }
+                Console.WriteLine(
+                    "The official OBS installer will handle any remaining lock interactively.");
                 if (last != null)
                     Console.WriteLine(last.Message);
                 Console.ResetColor();
@@ -4283,7 +4276,7 @@ class WgdotHidden
         Console.WriteLine(
             "OBS install is blocked by another application using OBS graphics-hook files.");
         Console.WriteLine(
-            "WGDot will temporarily disable the OBS Vulkan layer, close the exact hook users, and retry.");
+            "WGDot will query only the exact OBS hook files and will not scan or close unrelated applications.");
         Console.ResetColor();
 
         List<ObsVulkanLayerSnapshot> snapshots = null;
@@ -4296,7 +4289,37 @@ class WgdotHidden
                 "DISABLE_VULKAN_OBS_CAPTURE",
                 "1");
             snapshots = DisableObsVulkanImplicitLayers();
-            StopObsGraphicsHookBlockers();
+
+            List<string> lockers = new List<string>();
+            try
+            {
+                lockers = ObsGraphicsHookLockerLabels();
+            }
+            catch (Exception ex)
+            {
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine(
+                    "Targeted OBS hook-file lock lookup failed: " + ex.Message);
+                Console.ResetColor();
+            }
+
+            if (lockers.Count > 0)
+            {
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine(
+                    "Windows Restart Manager reports the exact OBS hook-file holder(s): " +
+                    String.Join(", ", lockers.ToArray()) + ".");
+                Console.WriteLine(
+                    "WGDot will not close those applications automatically.");
+                Console.WriteLine(
+                    "Opening the official OBS installer interactively so you can close only the application it identifies.");
+                Console.ResetColor();
+
+                return RunInteractiveWithTimeout(
+                    winget,
+                    MakeWingetInteractiveArguments(arguments),
+                    timeoutMs);
+            }
 
             ProcResult retry = RunInteractiveWithTimeout(
                 winget,
@@ -4308,11 +4331,9 @@ class WgdotHidden
                 Console.ForegroundColor = ConsoleColor.Yellow;
                 Console.WriteLine();
                 Console.WriteLine(
-                    "Automatic OBS lock recovery could not clear every blocker.");
+                    "OBS is still reporting a package-in-use lock after targeted recovery.");
                 Console.WriteLine(
-                    "Opening the official OBS installer interactively so it can identify the exact application holding its files.");
-                Console.WriteLine(
-                    "Close the application named by OBS, then continue the installer.");
+                    "Opening the official OBS installer interactively; WGDot will not inspect or terminate unrelated processes.");
                 Console.ResetColor();
 
                 return RunInteractiveWithTimeout(
@@ -12495,193 +12516,6 @@ class WgdotHidden
         }
     }
 
-    static void StartSuperLHookWorker()
-    {
-        string exe = Process.GetCurrentProcess().MainModule.FileName;
-        var psi = new ProcessStartInfo();
-        psi.FileName = exe;
-        psi.Arguments = "super-l-hook";
-        psi.UseShellExecute = false;
-        psi.CreateNoWindow = true;
-        psi.WindowStyle = ProcessWindowStyle.Hidden;
-        psi.EnvironmentVariables["WGDOT_SKIP_RUNTIME_REFRESH"] = "1";
-
-        Process process = Process.Start(psi);
-        if (process == null)
-            throw new Exception("Failed to start the WGDot Super+L test hook.");
-    }
-
-    static int SuperLTestFromArgs(string[] args)
-    {
-        if (args.Length != 1)
-        {
-            Console.Error.WriteLine("Usage: wgdot super-l-test <start|stop|status>");
-            return 2;
-        }
-
-        string action = args[0].Trim().ToLowerInvariant();
-        if (action == "status")
-        {
-            Console.WriteLine(
-                "Super+L focus-right test hook: " +
-                (NamedMutexExists(SuperLTestMutexName) ? "running" : "stopped"));
-            return 0;
-        }
-
-        if (action == "stop")
-        {
-            SignalSuperLTestStop();
-            for (int i = 0; i < 20 && NamedMutexExists(SuperLTestMutexName); i++)
-                System.Threading.Thread.Sleep(50);
-            Console.WriteLine("Super+L focus-right test hook stopped.");
-            return 0;
-        }
-
-        if (action != "start")
-        {
-            Console.Error.WriteLine("Usage: wgdot super-l-test <start|stop|status>");
-            return 2;
-        }
-
-        if (NamedMutexExists(SuperLTestMutexName))
-        {
-            Console.WriteLine("Super+L focus-right test hook is already running.");
-            return 0;
-        }
-
-        StartSuperLHookWorker();
-        for (int i = 0; i < 30 && !NamedMutexExists(SuperLTestMutexName); i++)
-            System.Threading.Thread.Sleep(50);
-
-        if (!NamedMutexExists(SuperLTestMutexName))
-            throw new Exception("Super+L focus-right test hook did not start.");
-
-        Console.WriteLine("Super+L focus-right test hook started.");
-        Console.WriteLine("Press Super+L with two adjacent tiled windows. It should focus right instead of locking.");
-        Console.WriteLine("Stop test: wgdot super-l-test stop");
-        return 0;
-    }
-
-    static void FocusRightFromSuperL()
-    {
-        ProcResult result = Run(RequireGlazeWmExe(), "command focus --direction right", null);
-        if (result.ExitCode != 0)
-            Console.Error.WriteLine(
-                "Super+L focus-right command failed: " +
-                LastUsefulLine(result.StdErr + "\n" + result.StdOut));
-    }
-
-    static IntPtr SuperLHookCallback(int nCode, IntPtr wParam, IntPtr lParam)
-    {
-        if (nCode < 0)
-            return CallNextHookEx(SuperLHookHandle, nCode, wParam, lParam);
-
-        KBDLLHOOKSTRUCT data =
-            (KBDLLHOOKSTRUCT)Marshal.PtrToStructure(lParam, typeof(KBDLLHOOKSTRUCT));
-
-        if ((data.flags & LlKhfInjected) != 0)
-            return CallNextHookEx(SuperLHookHandle, nCode, wParam, lParam);
-
-        int message = unchecked((int)wParam.ToInt64());
-        bool down = message == WmKeyDown || message == WmSysKeyDown;
-        bool up = message == WmKeyUp || message == WmSysKeyUp;
-
-        if (data.vkCode == VkLwin)
-        {
-            if (down) SuperLLeftWinDown = true;
-            if (up) SuperLLeftWinDown = false;
-            return CallNextHookEx(SuperLHookHandle, nCode, wParam, lParam);
-        }
-
-        if (data.vkCode == VkRwin)
-        {
-            if (down) SuperLRightWinDown = true;
-            if (up) SuperLRightWinDown = false;
-            return CallNextHookEx(SuperLHookHandle, nCode, wParam, lParam);
-        }
-
-        if (data.vkCode == VkL && down && (SuperLLeftWinDown || SuperLRightWinDown))
-        {
-            if (!SuperLSuppressKeyUp)
-            {
-                SuperLSuppressKeyUp = true;
-                System.Threading.ThreadPool.QueueUserWorkItem(
-                    delegate { FocusRightFromSuperL(); });
-            }
-            return new IntPtr(1);
-        }
-
-        if (data.vkCode == VkL && up && SuperLSuppressKeyUp)
-        {
-            SuperLSuppressKeyUp = false;
-            return new IntPtr(1);
-        }
-
-        return CallNextHookEx(SuperLHookHandle, nCode, wParam, lParam);
-    }
-
-    static int SuperLHookWorker()
-    {
-        bool createdNew;
-        using (var mutex = new System.Threading.Mutex(true, SuperLTestMutexName, out createdNew))
-        {
-            if (!createdNew)
-                return 0;
-
-            using (var stop = new System.Threading.EventWaitHandle(
-                false,
-                System.Threading.EventResetMode.ManualReset,
-                SuperLTestStopEventName))
-            {
-                stop.Reset();
-                SuperLLeftWinDown = false;
-                SuperLRightWinDown = false;
-                SuperLSuppressKeyUp = false;
-
-                SuperLHookProc = SuperLHookCallback;
-                SuperLHookHandle = SetWindowsHookExKeyboard(
-                    WhKeyboardLl,
-                    SuperLHookProc,
-                    GetModuleHandle(null),
-                    0);
-
-                if (SuperLHookHandle == IntPtr.Zero)
-                    throw new System.ComponentModel.Win32Exception(
-                        Marshal.GetLastWin32Error(),
-                        "Failed to install WGDot Super+L test hook.");
-
-                var timer = new System.Windows.Forms.Timer();
-                timer.Interval = 250;
-                timer.Tick += delegate
-                {
-                    if (stop.WaitOne(0) || Process.GetProcessesByName("glazewm").Length == 0)
-                        System.Windows.Forms.Application.ExitThread();
-                };
-
-                try
-                {
-                    timer.Start();
-                    System.Windows.Forms.Application.Run();
-                }
-                finally
-                {
-                    timer.Stop();
-                    timer.Dispose();
-                    if (SuperLHookHandle != IntPtr.Zero)
-                    {
-                        UnhookWindowsHookEx(SuperLHookHandle);
-                        SuperLHookHandle = IntPtr.Zero;
-                    }
-                    SuperLHookProc = null;
-                    SuperLLeftWinDown = false;
-                    SuperLRightWinDown = false;
-                    SuperLSuppressKeyUp = false;
-                }
-            }
-        }
-
-        return 0;
-    }
 
     static IntPtr FindTopLevelWindowByExactTitle(string title)
     {
