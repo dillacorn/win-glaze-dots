@@ -4001,6 +4001,9 @@ class WgdotHidden
 
     static string ObsHookDirectory()
     {
+        if (!String.IsNullOrWhiteSpace(TestRootOverride))
+            return Path.Combine(TestRootOverride, "obs-studio-hook");
+
         return Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
             "obs-studio-hook");
