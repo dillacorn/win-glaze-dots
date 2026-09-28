@@ -210,14 +210,54 @@
       "defaultNormal": true,
       "defaultWork": true,
       "files": [
-        { "id": "micro-theme-geany", "source": "UserProfile/.config/micro/colorschemes/geany.micro", "destination": "%USERPROFILE%\\.config\\micro\\colorschemes\\geany.micro", "merge": false },
-        { "id": "micro-theme-zenburn", "source": "UserProfile/.config/micro/colorschemes/zenburn.micro", "destination": "%USERPROFILE%\\.config\\micro\\colorschemes\\zenburn.micro", "merge": false },
-        { "id": "micro-theme-gruvbox", "source": "UserProfile/.config/micro/colorschemes/gruvbox.micro", "destination": "%USERPROFILE%\\.config\\micro\\colorschemes\\gruvbox.micro", "merge": false },
-        { "id": "micro-theme-gotham", "source": "UserProfile/.config/micro/colorschemes/gotham.micro", "destination": "%USERPROFILE%\\.config\\micro\\colorschemes\\gotham.micro", "merge": false },
-        { "id": "micro-theme-railscast", "source": "UserProfile/.config/micro/colorschemes/railscast.micro", "destination": "%USERPROFILE%\\.config\\micro\\colorschemes\\railscast.micro", "merge": false },
-        { "id": "micro-theme-cmc-16", "source": "UserProfile/.config/micro/colorschemes/cmc-16.micro", "destination": "%USERPROFILE%\\.config\\micro\\colorschemes\\cmc-16.micro", "merge": false },
-        { "id": "micro-theme-catppuccin-frappe-transparent", "source": "UserProfile/.config/micro/colorschemes/catppuccin-frappe-transparent.micro", "destination": "%USERPROFILE%\\.config\\micro\\colorschemes\\catppuccin-frappe-transparent.micro", "merge": false },
-        { "id": "micro-theme-catppuccin-mocha-transparent", "source": "UserProfile/.config/micro/colorschemes/catppuccin-mocha-transparent.micro", "destination": "%USERPROFILE%\\.config\\micro\\colorschemes\\catppuccin-mocha-transparent.micro", "merge": false }
+        {
+          "id": "micro-theme-geany",
+          "source": "UserProfile/.config/micro/colorschemes/geany.micro",
+          "destination": "%USERPROFILE%\\.config\\micro\\colorschemes\\geany.micro",
+          "merge": false
+        },
+        {
+          "id": "micro-theme-zenburn",
+          "source": "UserProfile/.config/micro/colorschemes/zenburn.micro",
+          "destination": "%USERPROFILE%\\.config\\micro\\colorschemes\\zenburn.micro",
+          "merge": false
+        },
+        {
+          "id": "micro-theme-gruvbox",
+          "source": "UserProfile/.config/micro/colorschemes/gruvbox.micro",
+          "destination": "%USERPROFILE%\\.config\\micro\\colorschemes\\gruvbox.micro",
+          "merge": false
+        },
+        {
+          "id": "micro-theme-gotham",
+          "source": "UserProfile/.config/micro/colorschemes/gotham.micro",
+          "destination": "%USERPROFILE%\\.config\\micro\\colorschemes\\gotham.micro",
+          "merge": false
+        },
+        {
+          "id": "micro-theme-railscast",
+          "source": "UserProfile/.config/micro/colorschemes/railscast.micro",
+          "destination": "%USERPROFILE%\\.config\\micro\\colorschemes\\railscast.micro",
+          "merge": false
+        },
+        {
+          "id": "micro-theme-cmc-16",
+          "source": "UserProfile/.config/micro/colorschemes/cmc-16.micro",
+          "destination": "%USERPROFILE%\\.config\\micro\\colorschemes\\cmc-16.micro",
+          "merge": false
+        },
+        {
+          "id": "micro-theme-catppuccin-frappe-transparent",
+          "source": "UserProfile/.config/micro/colorschemes/catppuccin-frappe-transparent.micro",
+          "destination": "%USERPROFILE%\\.config\\micro\\colorschemes\\catppuccin-frappe-transparent.micro",
+          "merge": false
+        },
+        {
+          "id": "micro-theme-catppuccin-mocha-transparent",
+          "source": "UserProfile/.config/micro/colorschemes/catppuccin-mocha-transparent.micro",
+          "destination": "%USERPROFILE%\\.config\\micro\\colorschemes\\catppuccin-mocha-transparent.micro",
+          "merge": false
+        }
       ]
     },
     {
@@ -996,6 +1036,14 @@
       "type": "communications-do-nothing",
       "defaultNormal": true,
       "defaultWork": true
+    },
+    {
+      "id": "rnnoise-mic-suppression",
+      "name": "RNNoise microphone suppression (Equalizer APO, default microphone)",
+      "category": "audio",
+      "type": "rnnoise-mic-suppression",
+      "defaultNormal": false,
+      "defaultWork": false
     },
     {
       "id": "disable-snap-assist",
