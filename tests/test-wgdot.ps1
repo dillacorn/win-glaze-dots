@@ -1538,6 +1538,8 @@ Assert-True ($glazeNormalText -match 'bindings:\s*\["alt\+shift\+c"\]') "Normal 
 Assert-True ($glazeNormalText -match 'bindings:\s*\["lwin\+shift\+c",\s*"rwin\+shift\+c"\]') "Normal profile keeps Awtarchy Super+Shift+C SpeedCrunch"
 Assert-True ($glazeNormalText -match '(?ms)cursor_jump:\s*\r?\n\s+enabled:\s*true\r?\n\s+trigger:\s*"monitor_focus"') "Normal profile jumps cursor on monitor focus"
 Assert-True ($glazeWorkText -match '(?ms)cursor_jump:\s*\r?\n\s+enabled:\s*true\r?\n\s+trigger:\s*"monitor_focus"') "Work profile jumps cursor on monitor focus"
+Assert-True ($glazeNormalText -match '(?ms)outer_gap:\s*\r?\n\s+top:\s*"35px"\r?\n\s+right:\s*"5px"\r?\n\s+bottom:\s*"5px"\r?\n\s+left:\s*"5px"') "Normal profile uses 5 px side/bottom outer gaps"
+Assert-True ($glazeWorkText -match '(?ms)outer_gap:\s*\r?\n\s+top:\s*"35px"\r?\n\s+right:\s*"5px"\r?\n\s+bottom:\s*"5px"\r?\n\s+left:\s*"5px"') "Work profile uses 5 px side/bottom outer gaps"
 Assert-True ($glazeNormalText -notmatch '(?ms)- name: "1"\r?\n\s+display_name: "1: Flame"\r?\n\s+keep_alive:\s*true') "normal GlazeWM workspace 1 is not pinned alive"
 Assert-True ($glazeNormalText -notmatch 'yasb-quick-launch\.ps1|flow-launcher\.ps1') "Normal GlazeWM has no launcher relay scripts"
 Assert-True ($glazeWorkText -notmatch 'yasb-quick-launch\.ps1|flow-launcher\.ps1') "Work GlazeWM has no launcher relay scripts"
