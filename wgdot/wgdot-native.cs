@@ -220,6 +220,9 @@ internal static class WgdotNative
         int securityInformation,
         IntPtr securityDescriptor);
 
+    [DllImport("advapi32.dll", SetLastError = true)]
+    static extern int RegCloseKey(IntPtr hKey);
+
     const int ErrorSuccess = 0;
     const int KeyWow6464 = 0x0100;
     const int ReadControlRight = 0x00020000;
