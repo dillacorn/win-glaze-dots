@@ -9590,9 +9590,6 @@ class WgdotHidden
 
     static bool RegisterEqualizerApoOnDefaultCapture(MicEndpointInfo endpoint)
     {
-        byte[] endpointSecurity =
-            SnapshotMachineRegistrySecurity(endpoint.RegistryPath);
-
         string[] apoValueNames =
         {
             "{d04e05a6-594b-4fb6-a80d-01af5eed7d1d},1",
