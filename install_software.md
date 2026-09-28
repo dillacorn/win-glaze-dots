@@ -218,6 +218,22 @@ Mullvad Browser is intentionally left untouched. WGDot does not install extensio
 - WGDot never runs `winget upgrade --all`; upgrade checks are opt-in and each selected package requires approval.
 
 
+## Microphone suppression
+
+WGDot offers optional/default-off RNNoise microphone suppression for the current Windows default microphone using Equalizer APO + Werman noise-suppression-for-voice. The setup is automated through **Windows tweaks / integrations** and requires a 48000 Hz microphone format.
+
+Direct controls:
+
+```powershell
+wgdot mic-suppression status
+wgdot mic-suppression enable
+wgdot mic-suppression disable
+wgdot mic-suppression mono
+wgdot mic-suppression stereo
+```
+
+See [mic_suppression_apo.md](mic_suppression_apo.md) for behavior and troubleshooting details.
+
 ## GPU drivers
 
 WGDot has a separate GPU driver maintenance workflow in the main menu.
