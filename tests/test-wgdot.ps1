@@ -696,7 +696,7 @@ Assert-True ($nativeSourceText -match 'rnnoise_mono\.dll') "RNNoise setup deploy
 Assert-True ($nativeSourceText -match 'rnnoise_stereo\.dll') "RNNoise setup deploys stereo VST"
 Assert-True ($nativeSourceText -match 'CoreAudioDataFlow\.Capture') "RNNoise setup resolves the Windows default capture endpoint"
 Assert-True ($nativeSourceText -match 'CoreAudioRole\.Multimedia') "RNNoise setup follows the default multimedia microphone role"
-Assert-True ($nativeSourceText -match 'Werman RNNoise requires 48000 Hz') "RNNoise setup enforces upstream 48 kHz requirement"
+Assert-True ($nativeSourceText -match 'RNNoise-required 48000 Hz') "RNNoise setup enforces upstream 48 kHz requirement"
 Assert-True ($nativeSourceText -match 'PolicyConfigClientComObject') "RNNoise setup can request a Windows endpoint-format change"
 Assert-True ($nativeSourceText -match 'EnsureDefaultCapture48000') "RNNoise setup automatically repairs non-48 kHz microphone formats"
 Assert-True ($nativeSourceText -match 'TryRestoreMicFormat') "RNNoise setup can roll back an attempted microphone-format change"
