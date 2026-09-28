@@ -1,9 +1,45 @@
-## EqualizerAPO Microphone Noise Suppression Guide
+# RNNoise microphone suppression on Windows
 
-[How to install?](https://github.com/dillacorn/win-glaze-dots/blob/main/install_software.md#microphone-suppression-requires-equalizer_apo)
+WGDot can configure low-latency microphone noise suppression using [Equalizer APO](https://sourceforge.net/projects/equalizerapo/) and [Werman's noise-suppression-for-voice](https://github.com/werman/noise-suppression-for-voice).
 
-### Dev Warns user to only use 48000hz.
-### For lower CPU usage use 1-channel and "mono" per pictures if avaliable.
+The integration is optional and defaults OFF.
+
+## WGDot setup
+
+From the interactive installer or **Windows tweaks / integrations**, enable:
+
+`RNNoise microphone suppression (Equalizer APO, default microphone)`
+
+WGDot then:
+
+- installs the official x64 Equalizer APO 1.4.2 build after verifying its published SHA-256;
+- installs Werman's official Windows RNNoise VST release;
+- detects the current Windows default multimedia capture endpoint;
+- registers Equalizer APO on that microphone only;
+- keeps the RNNoise filter in a dedicated `wgdot-mic-suppression.txt` file and adds one bounded `Include:` block to Equalizer APO's main config;
+- defaults to the lower-overhead mono RNNoise plugin.
+
+Werman RNNoise requires a **48000 Hz** microphone format. WGDot refuses to enable the filter when Windows reports a different sample rate rather than silently installing a configuration that cannot work.
+
+A newly registered Equalizer APO capture endpoint requires one Windows restart. After that, enabling/disabling the include or switching mono/stereo reloads through Equalizer APO's normal config-file behavior.
+
+## Scriptable controls
+
+```powershell
+wgdot mic-suppression status
+wgdot mic-suppression enable
+wgdot mic-suppression disable
+wgdot mic-suppression mono
+wgdot mic-suppression stereo
+```
+
+`disable` removes only WGDot's active RNNoise include. It intentionally leaves Equalizer APO, the VST files, and the endpoint registration installed so suppression can be toggled back on without rebuilding the audio stack.
+
+Use `mono` unless the microphone actually needs independent left/right processing. Stereo runs two RNNoise processing paths and costs more CPU.
+
+## Historical manual screenshots
+
+These screenshots document the older manual Equalizer APO workflow that this automation replaces and remain useful for troubleshooting:
 
 ![step 1](https://raw.githubusercontent.com/dillacorn/win-glaze-dots/refs/heads/main/ScreenShots_For_Guides/mic_suppression_apo/APO_mic_suppression_%231.png)
 
