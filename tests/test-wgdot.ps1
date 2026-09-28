@@ -640,6 +640,7 @@ foreach ($id in @(
     "disable-printscreen-snipping",
     "disable-enhanced-pointer-precision",
     "communications-do-nothing",
+    "rnnoise-mic-suppression",
     "disable-snap-assist",
     "automatic-time-and-timezone",
     "disable-remote-assistance",
@@ -656,6 +657,7 @@ foreach ($id in @(
     "classic-context-menu",
     "oops-all-links-cursor",
     "privacy-sexy",
+    "rnnoise-mic-suppression",
 
     "disable-remote-assistance",
     "enable-windows-sudo",
@@ -686,6 +688,19 @@ Assert-True ($nativeSourceText -match 'theme\.Hover') "Yazi drag surface uses th
 Assert-True ($nativeSourceText -match 'theme\.Focus') "Yazi drag surface uses the active theme border/focus color"
 Assert-True ($nativeSourceText -match 'scope == "work" \? GetBool\(package, "defaultWork"\) : GetBool\(package, "defaultNormal"\)') "fresh package selection honors profile default flags"
 Assert-True ($nativeSourceText -match 'if \(command == "bar-font-install"\) return BarFontInstall\(\);') "native runtime exposes targeted YASB font install"
+Assert-True ($nativeSourceText -match 'if \(command == "mic-suppression"\) return MicSuppressionFromArgs') "native runtime exposes scriptable microphone suppression control"
+Assert-True ($nativeSourceText -match 'EqualizerApoVersion = "1\.4\.2"') "RNNoise setup pins the tested Equalizer APO release"
+Assert-True ($nativeSourceText -match '7403be7427bbe1936a40dded082829b6e217fc4f5990fee5cba501f0ae055afa') "Equalizer APO installer uses the published SHA-256"
+Assert-True ($nativeSourceText -match 'werman/noise-suppression-for-voice') "RNNoise setup uses Werman upstream"
+Assert-True ($nativeSourceText -match 'rnnoise_mono\.dll') "RNNoise setup deploys mono VST"
+Assert-True ($nativeSourceText -match 'rnnoise_stereo\.dll') "RNNoise setup deploys stereo VST"
+Assert-True ($nativeSourceText -match 'CoreAudioDataFlow\.Capture') "RNNoise setup resolves the Windows default capture endpoint"
+Assert-True ($nativeSourceText -match 'CoreAudioRole\.Multimedia') "RNNoise setup follows the default multimedia microphone role"
+Assert-True ($nativeSourceText -match 'Werman RNNoise requires 48000 Hz') "RNNoise setup enforces upstream 48 kHz requirement"
+Assert-True ($nativeSourceText -match '# WGDot RNNoise microphone suppression BEGIN') "RNNoise setup owns a bounded Equalizer APO include block"
+Assert-True ($nativeSourceText -match 'Include: wgdot-mic-suppression\.txt') "RNNoise setup preserves unrelated Equalizer APO config behind a dedicated include"
+Assert-True ($nativeSourceText -match 'Device: " \+ endpoint\.Guid') "RNNoise config scopes suppression to the selected default microphone endpoint"
+Assert-True ($nativeSourceText -match 'Process\.GetProcessesByName\("DeviceSelector"\)') "silent Equalizer APO install controls only its package-specific Device Selector"
 Assert-True ($nativeSourceText -match 'FindPackageById\(source\.Manifest, "NerdFonts\.Noto"\)') "targeted YASB font install resolves only the managed Noto package"
 Assert-True ($nativeSourceText -match 'No WinGet packages or unrelated software will be reconciled\.') "targeted YASB font install documents its narrow scope"
 Assert-True ($nativeSourceText -match 'NotoSansM Nerd Font Mono \(TrueType\)') "font installer recognizes the legacy verbose Noto registry alias"
@@ -772,7 +787,7 @@ Assert-True ($nativeSourceText -match '(?s)SpecialFolder\.ApplicationData.*?AltS
 Assert-True ($nativeSourceText -match 'GlazeWM \+ YASB') "startup manager presents the GlazeWM/YASB session as one login unit"
 Assert-True ($nativeSourceText -notmatch 'startupHandler.*yasb') "YASB is not registered as a duplicate Windows startup application"
 Assert-True ($nativeSourceText -match 'SoftwareUninstallManager') "native runtime exposes explicit individual uninstall management"
-foreach ($command in @("software-reconcile", "software-uninstall", "startup", "startup-disable-all")) {
+foreach ($command in @("software-reconcile", "software-uninstall", "startup", "startup-disable-all", "mic-suppression")) {
     Assert-True ($nativeSourceText -match ('String\.Equals\(command, "' + [regex]::Escape($command) + '"')) "direct $command command participates in runtime auto-refresh"
 }
 Assert-True ($nativeSourceText -match 'Disable all WGDot-managed startup') "software manager exposes a non-uninstall startup back-out path"
@@ -1028,7 +1043,7 @@ $rustDeskPackage = @($manifest.packages | Where-Object { $_.id -eq 'RustDesk.Rus
 Assert-True ($null -ne $rustDeskPackage) "RustDesk catalog entry exists"
 Assert-Equal ([string]$rustDeskPackage.installMode) 'official-github' "RustDesk uses its verified official GitHub source instead of a missing WinGet ID"
 Assert-Equal ([string]$rustDeskPackage.fallbackGitHubRepo) 'rustdesk/rustdesk' "RustDesk official GitHub source remains publisher-owned"
-Assert-True ($nativeSourceText -match 'const string Version = "native-preview-99"') "native runtime version tracks current WGDot maintenance changes"
+Assert-True ($nativeSourceText -match 'const string Version = "native-preview-100"') "native runtime version tracks current WGDot maintenance changes"
 Assert-True ($nativeSourceText -match 'InstallGitHubFontArchivePackage') "native runtime installs managed Nerd Font archives without inventing a WinGet ID"
 Assert-True ($nativeSourceText -match 'AddFontResourceEx') "managed Noto font is loaded into the current Windows session"
 Assert-True ($nativeSourceText -match 'Software\\Microsoft\\Windows NT\\CurrentVersion\\Fonts') "managed Noto font registers under the current-user Windows Fonts key"
