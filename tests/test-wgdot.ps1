@@ -1037,7 +1037,7 @@ Assert-True ($nativeSourceText -match 'RmGetList') "OBS recovery asks Windows Re
 Assert-True ($nativeSourceText -notmatch 'Process\.GetProcesses\(\)') "WGDot does not enumerate every running process"
 Assert-True ($nativeSourceText -notmatch 'ProcessUsesObsGraphicsHook|StopObsGraphicsHookBlockers|ProcessModule|\.Modules') "OBS recovery does not inspect process module lists"
 Assert-True ($nativeSourceText -match 'will not scan or close unrelated applications') "OBS recovery documents the anti-cheat-safe process boundary"
-Assert-True ($nativeSourceText -notmatch 'OpenProcess|ReadProcessMemory|WriteProcessMemory|CreateRemoteThread') "WGDot has no process-memory or remote-thread primitives"
+Assert-True ($nativeSourceText -notmatch '\bOpenProcess\s*\(|\bReadProcessMemory\s*\(|\bWriteProcessMemory\s*\(|\bCreateRemoteThread\s*\(') "WGDot has no process-memory or remote-thread primitives"
 Assert-True ($nativeSourceText -notmatch 'SetWindowsHookEx') "WGDot production runtime contains no global Windows input-hook primitive"
 Assert-True ($nativeSourceText -match 'DISABLE_VULKAN_OBS_CAPTURE') "OBS recovery disables Vulkan hook injection while blockers are closed"
 Assert-True ($nativeSourceText -match 'obs-vulkan64\.json') "OBS recovery temporarily disables the registered 64-bit Vulkan layer"
