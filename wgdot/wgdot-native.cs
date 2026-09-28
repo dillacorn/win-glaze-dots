@@ -22,7 +22,7 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-103";
+    const string Version = "native-preview-104";
     const string HiddenLauncherVersion = "2.0.0.0";
     const int WingetPreflightTimeoutMs = 30000;
     const int CurrentTweakDefaultsVersion = 1;
@@ -9363,7 +9363,7 @@ class WgdotHidden
         }
     }
 
-    static void SetTakeOwnershipPrivilege(bool enable)
+    static void SetProcessPrivilege(string privilegeName, bool enable)
     {
         IntPtr token = IntPtr.Zero;
         try
@@ -9377,9 +9377,11 @@ class WgdotHidden
                     new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error()).Message);
 
             LUID luid;
-            if (!LookupPrivilegeValue(null, "SeTakeOwnershipPrivilege", out luid))
+            if (!LookupPrivilegeValue(null, privilegeName, out luid))
                 throw new Exception(
-                    "LookupPrivilegeValue failed for SeTakeOwnershipPrivilege: " +
+                    "LookupPrivilegeValue failed for " +
+                    privilegeName +
+                    ": " +
                     new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error()).Message);
 
             var privileges = new TOKEN_PRIVILEGES_ONE();
@@ -9390,6 +9392,7 @@ class WgdotHidden
                 Attributes = enable ? SePrivilegeEnabled : 0
             };
 
+            Marshal.GetLastWin32Error();
             if (!AdjustTokenPrivileges(
                     token,
                     false,
@@ -9398,13 +9401,17 @@ class WgdotHidden
                     IntPtr.Zero,
                     IntPtr.Zero))
                 throw new Exception(
-                    "AdjustTokenPrivileges failed for SeTakeOwnershipPrivilege: " +
+                    "AdjustTokenPrivileges failed for " +
+                    privilegeName +
+                    ": " +
                     new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error()).Message);
 
             int lastError = Marshal.GetLastWin32Error();
             if (lastError != 0)
                 throw new Exception(
-                    "Windows did not grant SeTakeOwnershipPrivilege: " +
+                    "Windows did not grant " +
+                    privilegeName +
+                    ": " +
                     new System.ComponentModel.Win32Exception(lastError).Message);
         }
         finally
@@ -9445,27 +9452,49 @@ class WgdotHidden
         if (descriptor == null || descriptor.Length == 0)
             return true;
 
+        SecurityIdentifier administrators =
+            new SecurityIdentifier(WellKnownSidType.BuiltinAdministratorsSid, null);
+
         try
         {
-            SetTakeOwnershipPrivilege(true);
+            SetProcessPrivilege("SeTakeOwnershipPrivilege", true);
+            using (RegistryKey baseKey = RegistryKey.OpenBaseKey(
+                RegistryHive.LocalMachine,
+                RegistryView.Registry64))
+            using (RegistryKey ownershipKey = baseKey.OpenSubKey(
+                path,
+                RegistryKeyPermissionCheck.ReadSubTree,
+                RegistryRights.TakeOwnership))
+            {
+                if (ownershipKey == null)
+                    throw new Exception(
+                        "Audio endpoint registry key disappeared during security rollback.");
+
+                var ownerSecurity = new RegistrySecurity();
+                ownerSecurity.SetOwner(administrators);
+                ownershipKey.SetAccessControl(ownerSecurity);
+            }
+
+            SetProcessPrivilege("SeRestorePrivilege", true);
             using (RegistryKey baseKey = RegistryKey.OpenBaseKey(
                 RegistryHive.LocalMachine,
                 RegistryView.Registry64))
             using (RegistryKey key = baseKey.OpenSubKey(
                 path,
                 RegistryKeyPermissionCheck.ReadWriteSubTree,
-                RegistryRights.TakeOwnership |
                 RegistryRights.ChangePermissions |
+                RegistryRights.TakeOwnership |
                 RegistryRights.ReadPermissions))
             {
                 if (key == null)
                     throw new Exception(
-                        "Audio endpoint registry key disappeared during security rollback.");
+                        "Audio endpoint registry key could not be reopened during security rollback.");
 
                 var security = new RegistrySecurity();
                 security.SetSecurityDescriptorBinaryForm(descriptor);
                 key.SetAccessControl(security);
             }
+
             return true;
         }
         catch (Exception ex)
@@ -9475,7 +9504,8 @@ class WgdotHidden
         }
         finally
         {
-            try { SetTakeOwnershipPrivilege(false); } catch { }
+            try { SetProcessPrivilege("SeRestorePrivilege", false); } catch { }
+            try { SetProcessPrivilege("SeTakeOwnershipPrivilege", false); } catch { }
         }
     }
 
@@ -9501,7 +9531,7 @@ class WgdotHidden
         SecurityIdentifier administrators =
             new SecurityIdentifier(WellKnownSidType.BuiltinAdministratorsSid, null);
 
-        SetTakeOwnershipPrivilege(true);
+        SetProcessPrivilege("SeTakeOwnershipPrivilege", true);
         try
         {
             using (RegistryKey baseKey = RegistryKey.OpenBaseKey(
@@ -9563,7 +9593,7 @@ class WgdotHidden
         }
         finally
         {
-            try { SetTakeOwnershipPrivilege(false); } catch { }
+            try { SetProcessPrivilege("SeTakeOwnershipPrivilege", false); } catch { }
         }
     }
 
@@ -9613,13 +9643,51 @@ class WgdotHidden
             }
         }
 
-        using (RegistryKey endpointKey = OpenWritableMachineKey(endpoint.RegistryPath))
+        RegistryKey fx = null;
+        try
         {
-            using (RegistryKey fx = endpointKey.OpenSubKey("FxProperties", true) ??
-                endpointKey.CreateSubKey("FxProperties", RegistryKeyPermissionCheck.ReadWriteSubTree))
+            if (fxExisted)
+            {
+                try
+                {
+                    fx = OpenWritableMachineKey(fxPath);
+                }
+                catch (Exception ex)
+                {
+                    throw new Exception(
+                        "opening existing microphone FxProperties for write failed: " +
+                        ex.Message,
+                        ex);
+                }
+            }
+            else
+            {
+                try
+                {
+                    using (RegistryKey endpointKey = OpenWritableMachineKey(endpoint.RegistryPath))
+                    using (RegistryKey created = endpointKey.CreateSubKey(
+                        "FxProperties",
+                        RegistryKeyPermissionCheck.ReadWriteSubTree))
+                    {
+                        if (created == null)
+                            throw new Exception("CreateSubKey returned no registry key.");
+                    }
+
+                    fx = OpenWritableMachineKey(fxPath);
+                }
+                catch (Exception ex)
+                {
+                    throw new Exception(
+                        "creating microphone FxProperties failed: " +
+                        ex.Message,
+                        ex);
+                }
+            }
+
+            using (fx)
             {
                 if (fx == null)
-                    throw new Exception("Could not create the default microphone FxProperties registry key.");
+                    throw new Exception("Could not open the default microphone FxProperties registry key.");
 
                 string sentinel = fxExisted ? "!VALUE" : "!KEY";
                 string[] originals = apoValueNames
@@ -9703,6 +9771,11 @@ class WgdotHidden
                 fx.DeleteValue("{1da5d803-d492-4edd-8c23-e0c0ffee7f0e},5", false);
             }
         }
+        finally
+        {
+            if (fx != null)
+                fx.Dispose();
+        }
 
         return true;
     }
@@ -9710,30 +9783,54 @@ class WgdotHidden
     static bool RegisterEqualizerApoOnDefaultCaptureTransactional(
         MicEndpointInfo endpoint)
     {
-        byte[] security = SnapshotMachineRegistrySecurity(endpoint.RegistryPath);
+        string fxPath = endpoint.RegistryPath + @"\FxProperties";
+        bool fxExisted = Registry.LocalMachine.OpenSubKey(fxPath, false) != null;
+        byte[] endpointSecurity =
+            SnapshotMachineRegistrySecurity(endpoint.RegistryPath);
+        byte[] fxSecurity = fxExisted
+            ? SnapshotMachineRegistrySecurity(fxPath)
+            : null;
+
         try
         {
             return RegisterEqualizerApoOnDefaultCapture(endpoint);
         }
         catch (Exception ex)
         {
-            string rollbackError;
+            var rollbackErrors = new List<string>();
+
+            if (fxSecurity != null)
+            {
+                string fxRollbackError;
+                if (!TryRestoreMachineRegistrySecurity(
+                        fxPath,
+                        fxSecurity,
+                        out fxRollbackError))
+                    rollbackErrors.Add(
+                        "FxProperties security: " + fxRollbackError);
+            }
+
+            string endpointRollbackError;
             if (!TryRestoreMachineRegistrySecurity(
                     endpoint.RegistryPath,
-                    security,
-                    out rollbackError))
+                    endpointSecurity,
+                    out endpointRollbackError))
+                rollbackErrors.Add(
+                    "endpoint security: " + endpointRollbackError);
+
+            if (rollbackErrors.Count > 0)
                 throw new Exception(
                     "Equalizer APO endpoint registration failed (" +
                     ex.Message +
-                    "), and WGDot could not restore the microphone endpoint security descriptor (" +
-                    rollbackError +
+                    "), and WGDot could not fully restore registry security (" +
+                    String.Join("; ", rollbackErrors.ToArray()) +
                     ").",
                     ex);
 
             throw new Exception(
                 "Equalizer APO endpoint registration failed (" +
                 ex.Message +
-                "). WGDot restored the microphone endpoint security descriptor.",
+                "). WGDot restored the microphone endpoint registry security.",
                 ex);
         }
     }
