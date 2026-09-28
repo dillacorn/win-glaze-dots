@@ -19,10 +19,11 @@ using System.Text.RegularExpressions;
 using System.Web.Script.Serialization;
 using System.Xml;
 using Microsoft.Win32;
+using Microsoft.Win32.SafeHandles;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-104";
+    const string Version = "native-preview-105";
     const string HiddenLauncherVersion = "2.0.0.0";
     const int WingetPreflightTimeoutMs = 30000;
     const int CurrentTweakDefaultsVersion = 1;
@@ -204,6 +205,32 @@ internal static class WgdotNative
 
     [DllImport("kernel32.dll", SetLastError = true)]
     static extern bool CloseHandle(IntPtr handle);
+
+    [DllImport("advapi32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    static extern int RegOpenKeyEx(
+        IntPtr hKey,
+        string subKey,
+        uint options,
+        int samDesired,
+        out IntPtr result);
+
+    [DllImport("advapi32.dll", SetLastError = true)]
+    static extern int RegSetKeySecurity(
+        IntPtr hKey,
+        int securityInformation,
+        IntPtr securityDescriptor);
+
+    const int ErrorSuccess = 0;
+    const int KeyWow6464 = 0x0100;
+    const int ReadControlRight = 0x00020000;
+    const int WriteDacRight = 0x00040000;
+    const int WriteOwnerRight = 0x00080000;
+    const int OwnerSecurityInformation = 0x00000001;
+    const int GroupSecurityInformation = 0x00000002;
+    const int DaclSecurityInformation = 0x00000004;
+    static readonly IntPtr HkeyLocalMachine =
+        new IntPtr(unchecked((int)0x80000002));
+
 
     [DllImport("powrprof.dll", SetLastError = true)]
     static extern bool SetSuspendState(bool hibernate, bool forceCritical, bool disableWakeEvent);
@@ -9421,26 +9448,136 @@ class WgdotHidden
         }
     }
 
+    static RegistryKey OpenMachineRegistryKeyNative(
+        string path,
+        RegistryRights rights)
+    {
+        IntPtr raw = IntPtr.Zero;
+        int status = RegOpenKeyEx(
+            HkeyLocalMachine,
+            path,
+            0,
+            ((int)rights) | KeyWow6464,
+            out raw);
+        if (status != ErrorSuccess || raw == IntPtr.Zero)
+            throw new Exception(
+                "RegOpenKeyEx failed for HKLM\\" +
+                path +
+                ": " +
+                new System.ComponentModel.Win32Exception(status).Message);
+
+        try
+        {
+            SafeRegistryHandle safe = new SafeRegistryHandle(raw, true);
+            raw = IntPtr.Zero;
+            return RegistryKey.FromHandle(safe, RegistryView.Registry64);
+        }
+        finally
+        {
+            if (raw != IntPtr.Zero)
+                RegCloseKey(raw);
+        }
+    }
+
+    static void SetMachineRegistrySecurityNative(
+        string path,
+        RegistryRights openRights,
+        int securityInformation,
+        byte[] descriptor)
+    {
+        if (descriptor == null || descriptor.Length == 0)
+            throw new Exception("Registry security descriptor is empty.");
+
+        using (RegistryKey key = OpenMachineRegistryKeyNative(path, openRights))
+        {
+            SafeRegistryHandle safe = key.Handle;
+            GCHandle pin = default(GCHandle);
+            try
+            {
+                pin = GCHandle.Alloc(descriptor, GCHandleType.Pinned);
+                int status = RegSetKeySecurity(
+                    safe.DangerousGetHandle(),
+                    securityInformation,
+                    pin.AddrOfPinnedObject());
+                if (status != ErrorSuccess)
+                    throw new Exception(
+                        "RegSetKeySecurity failed for HKLM\\" +
+                        path +
+                        ": " +
+                        new System.ComponentModel.Win32Exception(status).Message);
+            }
+            finally
+            {
+                if (pin.IsAllocated)
+                    pin.Free();
+            }
+        }
+    }
+
     static byte[] SnapshotMachineRegistrySecurity(string path)
     {
-        using (RegistryKey baseKey = RegistryKey.OpenBaseKey(
-            RegistryHive.LocalMachine,
-            RegistryView.Registry64))
-        using (RegistryKey key = baseKey.OpenSubKey(
+        using (RegistryKey key = OpenMachineRegistryKeyNative(
             path,
-            RegistryKeyPermissionCheck.ReadSubTree,
             RegistryRights.ReadPermissions))
         {
-            if (key == null)
-                throw new Exception(
-                    "Audio endpoint registry key was not found: HKLM\\" + path);
-
             RegistrySecurity security = key.GetAccessControl(
                 AccessControlSections.Owner |
                 AccessControlSections.Group |
                 AccessControlSections.Access);
             return security.GetSecurityDescriptorBinaryForm();
         }
+    }
+
+    static void TakeOwnershipAndGrantAdministratorsRegistryAccess(
+        string path)
+    {
+        SecurityIdentifier administrators =
+            new SecurityIdentifier(
+                WellKnownSidType.BuiltinAdministratorsSid,
+                null);
+
+        SetProcessPrivilege("SeTakeOwnershipPrivilege", true);
+        try
+        {
+            var ownerSecurity = new RegistrySecurity();
+            ownerSecurity.SetOwner(administrators);
+            SetMachineRegistrySecurityNative(
+                path,
+                RegistryRights.TakeOwnership,
+                OwnerSecurityInformation,
+                ownerSecurity.GetSecurityDescriptorBinaryForm());
+        }
+        finally
+        {
+            try
+            {
+                SetProcessPrivilege(
+                    "SeTakeOwnershipPrivilege",
+                    false);
+            }
+            catch
+            {
+            }
+        }
+
+        byte[] current = SnapshotMachineRegistrySecurity(path);
+        var writableSecurity = new RegistrySecurity();
+        writableSecurity.SetSecurityDescriptorBinaryForm(current);
+        writableSecurity.SetAccessRule(
+            new RegistryAccessRule(
+                administrators,
+                RegistryRights.FullControl,
+                InheritanceFlags.ContainerInherit |
+                InheritanceFlags.ObjectInherit,
+                PropagationFlags.None,
+                AccessControlType.Allow));
+
+        SetMachineRegistrySecurityNative(
+            path,
+            RegistryRights.ReadPermissions |
+            RegistryRights.ChangePermissions,
+            DaclSecurityInformation,
+            writableSecurity.GetSecurityDescriptorBinaryForm());
     }
 
     static bool TryRestoreMachineRegistrySecurity(
@@ -9453,46 +9590,60 @@ class WgdotHidden
             return true;
 
         SecurityIdentifier administrators =
-            new SecurityIdentifier(WellKnownSidType.BuiltinAdministratorsSid, null);
+            new SecurityIdentifier(
+                WellKnownSidType.BuiltinAdministratorsSid,
+                null);
 
         try
         {
             SetProcessPrivilege("SeTakeOwnershipPrivilege", true);
-            using (RegistryKey baseKey = RegistryKey.OpenBaseKey(
-                RegistryHive.LocalMachine,
-                RegistryView.Registry64))
-            using (RegistryKey ownershipKey = baseKey.OpenSubKey(
-                path,
-                RegistryKeyPermissionCheck.ReadSubTree,
-                RegistryRights.TakeOwnership))
+            try
             {
-                if (ownershipKey == null)
-                    throw new Exception(
-                        "Audio endpoint registry key disappeared during security rollback.");
-
-                var ownerSecurity = new RegistrySecurity();
-                ownerSecurity.SetOwner(administrators);
-                ownershipKey.SetAccessControl(ownerSecurity);
+                var temporaryOwner = new RegistrySecurity();
+                temporaryOwner.SetOwner(administrators);
+                SetMachineRegistrySecurityNative(
+                    path,
+                    RegistryRights.TakeOwnership,
+                    OwnerSecurityInformation,
+                    temporaryOwner.GetSecurityDescriptorBinaryForm());
+            }
+            finally
+            {
+                try
+                {
+                    SetProcessPrivilege(
+                        "SeTakeOwnershipPrivilege",
+                        false);
+                }
+                catch
+                {
+                }
             }
 
             SetProcessPrivilege("SeRestorePrivilege", true);
-            using (RegistryKey baseKey = RegistryKey.OpenBaseKey(
-                RegistryHive.LocalMachine,
-                RegistryView.Registry64))
-            using (RegistryKey key = baseKey.OpenSubKey(
-                path,
-                RegistryKeyPermissionCheck.ReadWriteSubTree,
-                RegistryRights.ChangePermissions |
-                RegistryRights.TakeOwnership |
-                RegistryRights.ReadPermissions))
+            try
             {
-                if (key == null)
-                    throw new Exception(
-                        "Audio endpoint registry key could not be reopened during security rollback.");
-
-                var security = new RegistrySecurity();
-                security.SetSecurityDescriptorBinaryForm(descriptor);
-                key.SetAccessControl(security);
+                SetMachineRegistrySecurityNative(
+                    path,
+                    RegistryRights.ReadPermissions |
+                    RegistryRights.ChangePermissions |
+                    RegistryRights.TakeOwnership,
+                    OwnerSecurityInformation |
+                    GroupSecurityInformation |
+                    DaclSecurityInformation,
+                    descriptor);
+            }
+            finally
+            {
+                try
+                {
+                    SetProcessPrivilege(
+                        "SeRestorePrivilege",
+                        false);
+                }
+                catch
+                {
+                }
             }
 
             return true;
@@ -9502,25 +9653,21 @@ class WgdotHidden
             error = ex.Message;
             return false;
         }
-        finally
-        {
-            try { SetProcessPrivilege("SeRestorePrivilege", false); } catch { }
-            try { SetProcessPrivilege("SeTakeOwnershipPrivilege", false); } catch { }
-        }
     }
 
     static RegistryKey OpenWritableMachineKey(string path)
     {
-        RegistryKey writable = null;
         try
         {
-            writable = Registry.LocalMachine.OpenSubKey(path, true);
-            if (writable != null) return writable;
+            return OpenMachineRegistryKeyNative(
+                path,
+                RegistryRights.QueryValues |
+                RegistryRights.SetValue |
+                RegistryRights.CreateSubKey |
+                RegistryRights.EnumerateSubKeys |
+                RegistryRights.ReadKey);
         }
-        catch (UnauthorizedAccessException)
-        {
-        }
-        catch (SecurityException)
+        catch
         {
         }
 
@@ -9528,72 +9675,24 @@ class WgdotHidden
             throw new UnauthorizedAccessException(
                 "Administrator rights are required for the audio endpoint registry.");
 
-        SecurityIdentifier administrators =
-            new SecurityIdentifier(WellKnownSidType.BuiltinAdministratorsSid, null);
+        TakeOwnershipAndGrantAdministratorsRegistryAccess(path);
 
-        SetProcessPrivilege("SeTakeOwnershipPrivilege", true);
         try
         {
-            using (RegistryKey baseKey = RegistryKey.OpenBaseKey(
-                RegistryHive.LocalMachine,
-                RegistryView.Registry64))
-            {
-                using (RegistryKey ownershipKey = baseKey.OpenSubKey(
-                    path,
-                    RegistryKeyPermissionCheck.ReadSubTree,
-                    RegistryRights.TakeOwnership |
-                    RegistryRights.ReadPermissions))
-                {
-                    if (ownershipKey == null)
-                        throw new Exception(
-                            "Audio endpoint registry key was not found: HKLM\\" + path);
-
-                    RegistrySecurity security =
-                        ownershipKey.GetAccessControl(AccessControlSections.Owner);
-                    security.SetOwner(administrators);
-                    ownershipKey.SetAccessControl(security);
-                }
-
-                using (RegistryKey aclKey = baseKey.OpenSubKey(
-                    path,
-                    RegistryKeyPermissionCheck.ReadWriteSubTree,
-                    RegistryRights.ChangePermissions |
-                    RegistryRights.ReadPermissions))
-                {
-                    if (aclKey == null)
-                        throw new Exception(
-                            "Could not reopen the audio endpoint registry ACL after taking ownership.");
-
-                    RegistrySecurity security =
-                        aclKey.GetAccessControl(AccessControlSections.Access);
-                    security.SetAccessRule(
-                        new RegistryAccessRule(
-                            administrators,
-                            RegistryRights.FullControl,
-                            InheritanceFlags.ContainerInherit |
-                            InheritanceFlags.ObjectInherit,
-                            PropagationFlags.None,
-                            AccessControlType.Allow));
-                    aclKey.SetAccessControl(security);
-                }
-
-                writable = baseKey.OpenSubKey(
-                    path,
-                    RegistryKeyPermissionCheck.ReadWriteSubTree,
-                    RegistryRights.QueryValues |
-                    RegistryRights.SetValue |
-                    RegistryRights.CreateSubKey |
-                    RegistryRights.EnumerateSubKeys |
-                    RegistryRights.ReadKey);
-                if (writable == null)
-                    throw new UnauthorizedAccessException(
-                        "Could not make the audio endpoint registry writable.");
-                return writable;
-            }
+            return OpenMachineRegistryKeyNative(
+                path,
+                RegistryRights.QueryValues |
+                RegistryRights.SetValue |
+                RegistryRights.CreateSubKey |
+                RegistryRights.EnumerateSubKeys |
+                RegistryRights.ReadKey);
         }
-        finally
+        catch (Exception ex)
         {
-            try { SetProcessPrivilege("SeTakeOwnershipPrivilege", false); } catch { }
+            throw new Exception(
+                "protected registry key remained unwritable after applying Equalizer APO-style permissions: " +
+                ex.Message,
+                ex);
         }
     }
 
