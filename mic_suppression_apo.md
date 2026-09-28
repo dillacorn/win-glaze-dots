@@ -19,7 +19,7 @@ WGDot then:
 - keeps the RNNoise filter in a dedicated `wgdot-mic-suppression.txt` file and adds one bounded `Include:` block to Equalizer APO's main config;
 - defaults to the lower-overhead mono RNNoise plugin.
 
-Werman RNNoise requires a **48000 Hz** microphone format. WGDot refuses to enable the filter when Windows reports a different sample rate rather than silently installing a configuration that cannot work.
+Werman RNNoise requires a **48000 Hz** microphone format. If the default microphone is using another rate, WGDot first asks Windows to switch that endpoint to 48000 Hz while preserving its channel/bit-depth format. WGDot verifies the result before installing or activating RNNoise. If the driver rejects the change, WGDot restores the original endpoint format and stops with a precise manual-fix message. If WGDot successfully changes the rate but a later RNNoise setup stage fails, it restores the original microphone format before returning the failure.
 
 A newly registered Equalizer APO capture endpoint requires one Windows restart. After that, enabling/disabling the include or switching mono/stereo reloads through Equalizer APO's normal config-file behavior.
 
