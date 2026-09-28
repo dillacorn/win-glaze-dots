@@ -24,9 +24,9 @@ gaps:
   inner_gap: "5px"
   outer_gap:
     top: "35px"
-    right: "3px"
+    right: "5px"
     bottom: "5px"
-    left: "3px"
+    left: "5px"
 
 window_effects:
   focused_window:
