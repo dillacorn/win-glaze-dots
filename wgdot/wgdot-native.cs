@@ -22,7 +22,7 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-101";
+    const string Version = "native-preview-102";
     const string HiddenLauncherVersion = "2.0.0.0";
     const int WingetPreflightTimeoutMs = 30000;
     const int CurrentTweakDefaultsVersion = 1;
@@ -9751,9 +9751,132 @@ class WgdotHidden
         Console.WriteLine("WGDot Equalizer APO include active: " + (linked ? "yes" : "no"));
     }
 
+    static string NormalizeMicSuppressionResultPath(string rawPath)
+    {
+        if (String.IsNullOrWhiteSpace(rawPath))
+            throw new Exception("Missing RNNoise elevated result path.");
+
+        string full = Path.GetFullPath(rawPath);
+        string root = Path.GetFullPath(StateRoot)
+            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        string prefix = root + Path.DirectorySeparatorChar;
+        string fileName = Path.GetFileName(full);
+
+        if (!full.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) ||
+            !Regex.IsMatch(
+                fileName ?? "",
+                "^mic-suppression-result-[0-9a-f]{32}\\.json$",
+                RegexOptions.IgnoreCase))
+            throw new Exception("Invalid RNNoise elevated result path.");
+
+        return full;
+    }
+
+    static void WriteMicSuppressionElevatedResult(
+        string resultPath,
+        bool success,
+        string error)
+    {
+        if (String.IsNullOrWhiteSpace(resultPath)) return;
+
+        string normalized = NormalizeMicSuppressionResultPath(resultPath);
+        var result = new Dictionary<string, object>();
+        result["success"] = success;
+        result["error"] = error ?? "";
+        WriteJson(normalized, result);
+    }
+
+    static int RunMicSuppressionActionElevated(
+        string action,
+        string resultPath)
+    {
+        try
+        {
+            if (action == "enable")
+            {
+                ApplyRnnoiseMicSuppression(true, null);
+                SetMicSuppressionSelection(true);
+            }
+            else if (action == "disable")
+            {
+                ApplyRnnoiseMicSuppression(false, null);
+                SetMicSuppressionSelection(false);
+            }
+            else
+            {
+                Dictionary<string, object> state = ReadMicSuppressionState();
+                bool enabled = GetBool(state, "enabled");
+                string mode = action;
+                if (enabled)
+                {
+                    ApplyRnnoiseMicSuppression(true, mode);
+                }
+                else
+                {
+                    WriteMicSuppressionState(false, mode, null);
+                    Console.WriteLine(
+                        "RNNoise mode set to " +
+                        mode +
+                        ". Suppression remains disabled.");
+                }
+            }
+
+            WriteMicSuppressionElevatedResult(resultPath, true, "");
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            WriteMicSuppressionElevatedResult(resultPath, false, ex.Message);
+            throw;
+        }
+    }
+
+    static int RunElevatedMicSuppression(string action)
+    {
+        string resultPath = Path.Combine(
+            StateRoot,
+            "mic-suppression-result-" +
+            Guid.NewGuid().ToString("N") +
+            ".json");
+
+        SafeDeleteFile(resultPath);
+        try
+        {
+            int exitCode = RunElevatedSelfWithExitCode(
+                "mic-suppression " +
+                action +
+                " --result " +
+                Q(resultPath));
+
+            Dictionary<string, object> result = ReadJson(resultPath);
+            if (result != null && !GetBool(result, "success"))
+            {
+                string error = GetString(result, "error");
+                if (!String.IsNullOrWhiteSpace(error))
+                    throw new Exception(error);
+            }
+
+            if (exitCode != 0)
+                throw new Exception(
+                    "Elevated RNNoise microphone suppression failed with exit code " +
+                    exitCode.ToString(CultureInfo.InvariantCulture) + ".");
+
+            if (result == null || !GetBool(result, "success"))
+                throw new Exception(
+                    "Elevated RNNoise microphone suppression did not return a success result.");
+
+            return 0;
+        }
+        finally
+        {
+            SafeDeleteFile(resultPath);
+        }
+    }
+
     static int MicSuppressionFromArgs(string[] args)
     {
         string action = args.Length == 0 ? "status" : args[0].Trim().ToLowerInvariant();
+        string resultPath = GetOption(args, "--result");
 
         if (action == "status")
         {
@@ -9768,35 +9891,16 @@ class WgdotHidden
             throw new Exception("mic-suppression requires enable, disable, mono, stereo, or status.");
 
         if (!IsAdministrator())
-            return RunElevatedSelfWithExitCode("mic-suppression " + action);
-
-        if (action == "enable")
         {
-            ApplyRnnoiseMicSuppression(true, null);
-            SetMicSuppressionSelection(true);
-            return 0;
+            if (!String.IsNullOrWhiteSpace(resultPath))
+                throw new Exception("RNNoise elevated result path is valid only inside the elevated worker.");
+            return RunElevatedMicSuppression(action);
         }
 
-        if (action == "disable")
-        {
-            ApplyRnnoiseMicSuppression(false, null);
-            SetMicSuppressionSelection(false);
-            return 0;
-        }
+        if (!String.IsNullOrWhiteSpace(resultPath))
+            resultPath = NormalizeMicSuppressionResultPath(resultPath);
 
-        Dictionary<string, object> state = ReadMicSuppressionState();
-        bool enabled = GetBool(state, "enabled");
-        string mode = action;
-        if (enabled)
-        {
-            ApplyRnnoiseMicSuppression(true, mode);
-        }
-        else
-        {
-            WriteMicSuppressionState(false, mode, null);
-            Console.WriteLine("RNNoise mode set to " + mode + ". Suppression remains disabled.");
-        }
-        return 0;
+        return RunMicSuppressionActionElevated(action, resultPath);
     }
 
     static void TweakManager()
@@ -9938,6 +10042,17 @@ class WgdotHidden
 
     static void ApplyTweak(string id, bool enable, bool allowElevation)
     {
+        if (String.Equals(id, "rnnoise-mic-suppression", StringComparison.OrdinalIgnoreCase))
+        {
+            int code = MicSuppressionFromArgs(
+                new string[] { enable ? "enable" : "disable" });
+            if (code != 0)
+                throw new Exception(
+                    "RNNoise microphone suppression operation failed with exit code " +
+                    code.ToString(CultureInfo.InvariantCulture) + ".");
+            return;
+        }
+
         if (TweakNeedsAdministrator(id) && !IsAdministrator())
         {
             if (!allowElevation)
