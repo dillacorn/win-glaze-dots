@@ -22,7 +22,7 @@ using Microsoft.Win32;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-100";
+    const string Version = "native-preview-101";
     const string HiddenLauncherVersion = "2.0.0.0";
     const int WingetPreflightTimeoutMs = 30000;
     const int CurrentTweakDefaultsVersion = 1;
@@ -407,14 +407,81 @@ internal static class WgdotNative
         int GetId([MarshalAs(UnmanagedType.LPWStr)] out string id);
     }
 
+    [ComImport]
+    [Guid("870AF99C-171D-4F9E-AF0D-E63DF40C2BC9")]
+    class PolicyConfigClientComObject
+    {
+    }
+
+    [ComImport]
+    [Guid("F8679F50-850A-41CF-9C72-430F290290C8")]
+    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    interface IPolicyConfig
+    {
+        [PreserveSig]
+        int GetMixFormat(
+            [MarshalAs(UnmanagedType.LPWStr)] string deviceId,
+            IntPtr formatPointerPointer);
+
+        [PreserveSig]
+        int GetDeviceFormat(
+            [MarshalAs(UnmanagedType.LPWStr)] string deviceId,
+            [MarshalAs(UnmanagedType.Bool)] bool defaultFormat,
+            IntPtr formatPointerPointer);
+
+        [PreserveSig]
+        int ResetDeviceFormat(
+            [MarshalAs(UnmanagedType.LPWStr)] string deviceId);
+
+        [PreserveSig]
+        int SetDeviceFormat(
+            [MarshalAs(UnmanagedType.LPWStr)] string deviceId,
+            IntPtr endpointFormat,
+            IntPtr mixFormat);
+    }
+
+    [ComImport]
+    [Guid("568B9108-44BF-40B4-9006-86AFE5B5A620")]
+    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    interface IPolicyConfigVista
+    {
+        [PreserveSig]
+        int GetMixFormat(
+            [MarshalAs(UnmanagedType.LPWStr)] string deviceId,
+            IntPtr formatPointerPointer);
+
+        [PreserveSig]
+        int GetDeviceFormat(
+            [MarshalAs(UnmanagedType.LPWStr)] string deviceId,
+            [MarshalAs(UnmanagedType.Bool)] bool defaultFormat,
+            IntPtr formatPointerPointer);
+
+        [PreserveSig]
+        int SetDeviceFormat(
+            [MarshalAs(UnmanagedType.LPWStr)] string deviceId,
+            IntPtr endpointFormat,
+            IntPtr mixFormat);
+    }
+
     sealed class MicEndpointInfo
     {
+        public string EndpointId;
         public string Guid;
         public string DeviceName;
         public string ConnectionName;
         public int SampleRate;
         public int Channels;
         public string RegistryPath;
+    }
+
+    sealed class MicFormatAdjustment
+    {
+        public bool Changed;
+        public string EndpointId;
+        public string EndpointGuid;
+        public int OriginalSampleRate;
+        public byte[] OriginalEndpointFormat;
+        public byte[] OriginalMixFormat;
     }
 
     sealed class ChoiceItem
@@ -8910,6 +8977,7 @@ class WgdotHidden
             string propertiesPath = endpointPath + @"\Properties";
 
             var info = new MicEndpointInfo();
+            info.EndpointId = endpointId;
             info.Guid = guid;
             info.RegistryPath = endpointPath;
             info.DeviceName = guid;
@@ -8949,6 +9017,297 @@ class WgdotHidden
         {
             if (endpoint != null) Marshal.ReleaseComObject(endpoint);
             if (enumerator != null) Marshal.ReleaseComObject(enumerator);
+        }
+    }
+
+    static byte[] ReadWaveFormatBytes(IntPtr format)
+    {
+        if (format == IntPtr.Zero)
+            throw new Exception("Windows returned an empty audio format.");
+
+        int cbSize = (ushort)Marshal.ReadInt16(format, 16);
+        int length = 18 + cbSize;
+        if (length < 18 || length > 1024)
+            throw new Exception(
+                "Windows returned an unexpected audio format size: " +
+                length.ToString(CultureInfo.InvariantCulture) + " bytes.");
+
+        byte[] bytes = new byte[length];
+        Marshal.Copy(format, bytes, 0, length);
+        return bytes;
+    }
+
+    static int WaveFormatSampleRate(byte[] format)
+    {
+        if (format == null || format.Length < 16)
+            throw new Exception("Audio format data is incomplete.");
+        return BitConverter.ToInt32(format, 4);
+    }
+
+    static byte[] WaveFormatAtSampleRate(byte[] original, int sampleRate)
+    {
+        if (original == null || original.Length < 18)
+            throw new Exception("Audio format data is incomplete.");
+
+        byte[] next = (byte[])original.Clone();
+        ushort blockAlign = BitConverter.ToUInt16(next, 12);
+        if (blockAlign == 0)
+            throw new Exception("Audio format has an invalid block alignment.");
+
+        byte[] rate = BitConverter.GetBytes(sampleRate);
+        Buffer.BlockCopy(rate, 0, next, 4, rate.Length);
+
+        long avgBytes = (long)sampleRate * blockAlign;
+        if (avgBytes <= 0 || avgBytes > UInt32.MaxValue)
+            throw new Exception("Audio format average byte rate is invalid.");
+
+        byte[] avg = BitConverter.GetBytes((uint)avgBytes);
+        Buffer.BlockCopy(avg, 0, next, 8, avg.Length);
+        return next;
+    }
+
+    static IntPtr AllocateWaveFormat(byte[] bytes)
+    {
+        if (bytes == null || bytes.Length < 18)
+            throw new Exception("Audio format data is incomplete.");
+
+        IntPtr result = Marshal.AllocCoTaskMem(bytes.Length);
+        Marshal.Copy(bytes, 0, result, bytes.Length);
+        return result;
+    }
+
+    static byte[] ReadPolicyFormat(
+        object client,
+        string endpointId,
+        bool mixFormat)
+    {
+        IntPtr holder = Marshal.AllocHGlobal(IntPtr.Size);
+        IntPtr format = IntPtr.Zero;
+        try
+        {
+            Marshal.WriteIntPtr(holder, IntPtr.Zero);
+            int hr;
+
+            IPolicyConfig modern = client as IPolicyConfig;
+            if (modern != null)
+            {
+                hr = mixFormat
+                    ? modern.GetMixFormat(endpointId, holder)
+                    : modern.GetDeviceFormat(endpointId, false, holder);
+            }
+            else
+            {
+                IPolicyConfigVista vista = client as IPolicyConfigVista;
+                if (vista == null)
+                    throw new Exception("Windows PolicyConfig audio interface is unavailable.");
+
+                hr = mixFormat
+                    ? vista.GetMixFormat(endpointId, holder)
+                    : vista.GetDeviceFormat(endpointId, false, holder);
+            }
+
+            if (hr != 0)
+                Marshal.ThrowExceptionForHR(hr);
+
+            format = Marshal.ReadIntPtr(holder);
+            return ReadWaveFormatBytes(format);
+        }
+        finally
+        {
+            if (format != IntPtr.Zero)
+                Marshal.FreeCoTaskMem(format);
+            Marshal.FreeHGlobal(holder);
+        }
+    }
+
+    static void SetPolicyDeviceFormat(
+        object client,
+        string endpointId,
+        byte[] endpointFormat,
+        byte[] mixFormat)
+    {
+        IntPtr endpointPointer = IntPtr.Zero;
+        IntPtr mixPointer = IntPtr.Zero;
+        try
+        {
+            endpointPointer = AllocateWaveFormat(endpointFormat);
+            mixPointer = AllocateWaveFormat(mixFormat);
+
+            int hr;
+            IPolicyConfig modern = client as IPolicyConfig;
+            if (modern != null)
+            {
+                hr = modern.SetDeviceFormat(
+                    endpointId,
+                    endpointPointer,
+                    mixPointer);
+            }
+            else
+            {
+                IPolicyConfigVista vista = client as IPolicyConfigVista;
+                if (vista == null)
+                    throw new Exception("Windows PolicyConfig audio interface is unavailable.");
+
+                hr = vista.SetDeviceFormat(
+                    endpointId,
+                    endpointPointer,
+                    mixPointer);
+            }
+
+            if (hr != 0)
+                Marshal.ThrowExceptionForHR(hr);
+        }
+        finally
+        {
+            if (endpointPointer != IntPtr.Zero)
+                Marshal.FreeCoTaskMem(endpointPointer);
+            if (mixPointer != IntPtr.Zero)
+                Marshal.FreeCoTaskMem(mixPointer);
+        }
+    }
+
+    static bool TryRestoreMicFormat(
+        MicFormatAdjustment adjustment,
+        out string error)
+    {
+        error = "";
+        if (adjustment == null ||
+            adjustment.OriginalEndpointFormat == null ||
+            adjustment.OriginalMixFormat == null ||
+            String.IsNullOrWhiteSpace(adjustment.EndpointId))
+            return true;
+
+        object client = null;
+        try
+        {
+            client = new PolicyConfigClientComObject();
+            SetPolicyDeviceFormat(
+                client,
+                adjustment.EndpointId,
+                adjustment.OriginalEndpointFormat,
+                adjustment.OriginalMixFormat);
+
+            System.Threading.Thread.Sleep(250);
+            MicEndpointInfo verified = GetDefaultCaptureEndpoint();
+            if (!String.Equals(
+                    verified.Guid,
+                    adjustment.EndpointGuid,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                error = "the Windows default microphone changed during rollback";
+                return false;
+            }
+
+            if (verified.SampleRate > 0 &&
+                verified.SampleRate != adjustment.OriginalSampleRate)
+            {
+                error =
+                    "Windows still reports " +
+                    verified.SampleRate.ToString(CultureInfo.InvariantCulture) +
+                    " Hz instead of the original " +
+                    adjustment.OriginalSampleRate.ToString(CultureInfo.InvariantCulture) +
+                    " Hz";
+                return false;
+            }
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+            return false;
+        }
+        finally
+        {
+            if (client != null && Marshal.IsComObject(client))
+                Marshal.FinalReleaseComObject(client);
+        }
+    }
+
+    static MicFormatAdjustment EnsureDefaultCapture48000(MicEndpointInfo endpoint)
+    {
+        var adjustment = new MicFormatAdjustment();
+        adjustment.EndpointId = endpoint.EndpointId;
+        adjustment.EndpointGuid = endpoint.Guid;
+        adjustment.OriginalSampleRate = endpoint.SampleRate;
+
+        if (endpoint.SampleRate == 48000)
+            return adjustment;
+
+        if (String.IsNullOrWhiteSpace(endpoint.EndpointId))
+            throw new Exception("Windows did not expose an endpoint ID for the default microphone.");
+
+        object client = null;
+        bool formatWriteAttempted = false;
+        try
+        {
+            Console.WriteLine(
+                "Default microphone is " +
+                endpoint.SampleRate.ToString(CultureInfo.InvariantCulture) +
+                " Hz; attempting to switch it to the RNNoise-required 48000 Hz format...");
+
+            client = new PolicyConfigClientComObject();
+            adjustment.OriginalEndpointFormat =
+                ReadPolicyFormat(client, endpoint.EndpointId, false);
+            adjustment.OriginalMixFormat =
+                ReadPolicyFormat(client, endpoint.EndpointId, true);
+
+            byte[] endpoint48000 =
+                WaveFormatAtSampleRate(adjustment.OriginalEndpointFormat, 48000);
+            byte[] mix48000 =
+                WaveFormatAtSampleRate(adjustment.OriginalMixFormat, 48000);
+
+            SetPolicyDeviceFormat(
+                client,
+                endpoint.EndpointId,
+                endpoint48000,
+                mix48000);
+            formatWriteAttempted = true;
+
+            System.Threading.Thread.Sleep(300);
+            MicEndpointInfo verified = GetDefaultCaptureEndpoint();
+            if (!String.Equals(
+                    verified.Guid,
+                    endpoint.Guid,
+                    StringComparison.OrdinalIgnoreCase))
+                throw new Exception(
+                    "the Windows default microphone changed while the format was being updated");
+
+            if (verified.SampleRate != 48000)
+                throw new Exception(
+                    "the audio driver did not accept 48000 Hz; Windows still reports " +
+                    verified.SampleRate.ToString(CultureInfo.InvariantCulture) + " Hz");
+
+            adjustment.Changed = true;
+            Console.WriteLine("Microphone format changed to 48000 Hz.");
+            return adjustment;
+        }
+        catch (Exception ex)
+        {
+            string rollbackError = "";
+            bool rolledBack = true;
+            if (formatWriteAttempted ||
+                adjustment.OriginalEndpointFormat != null ||
+                adjustment.OriginalMixFormat != null)
+                rolledBack = TryRestoreMicFormat(adjustment, out rollbackError);
+
+            if (!rolledBack)
+                throw new Exception(
+                    "WGDot could not switch the default microphone to 48000 Hz (" +
+                    ex.Message +
+                    "), and automatic format rollback also failed (" +
+                    rollbackError +
+                    "). Open Windows Sound > Input > microphone > Format and restore the previous rate manually.");
+
+            throw new Exception(
+                "WGDot could not switch the default microphone to 48000 Hz (" +
+                ex.Message +
+                "). The original microphone format was restored. Set the device to 48000 Hz manually and retry.");
+        }
+        finally
+        {
+            if (client != null && Marshal.IsComObject(client))
+                Marshal.FinalReleaseComObject(client);
         }
     }
 
@@ -9289,47 +9648,75 @@ class WgdotHidden
             return;
         }
 
-        EnsureEqualizerApoInstalled();
-
-        string monoPath;
-        string stereoPath;
-        EnsureRnnoiseVstFiles(out monoPath, out stereoPath);
-
         MicEndpointInfo current = GetDefaultCaptureEndpoint();
-        if (current.SampleRate > 0 && current.SampleRate != 48000)
-            throw new Exception(
-                "The default microphone is configured for " +
-                current.SampleRate.ToString(CultureInfo.InvariantCulture) +
-                " Hz. Werman RNNoise requires 48000 Hz. Change the microphone's Windows Advanced format to 48000 Hz, then retry.");
+        MicFormatAdjustment formatAdjustment = EnsureDefaultCapture48000(current);
+        current = GetDefaultCaptureEndpoint();
 
-        bool endpointRegistrationChanged =
-            RegisterEqualizerApoOnDefaultCapture(current);
-        WriteRnnoiseEqualizerConfig(true, mode, current, monoPath, stereoPath);
-        WriteMicSuppressionState(true, mode, current);
-
-        Console.WriteLine();
-        Console.ForegroundColor = ConsoleColor.Green;
-        Console.WriteLine("RNNoise microphone suppression enabled.");
-        Console.ResetColor();
-        Console.WriteLine("Default microphone: " + current.ConnectionName + " | " + current.DeviceName);
-        Console.WriteLine("Endpoint: " + current.Guid);
-        Console.WriteLine("RNNoise mode: " + mode);
-        if (current.SampleRate > 0)
-            Console.WriteLine("Microphone format: " + current.SampleRate.ToString(CultureInfo.InvariantCulture) + " Hz, " +
-                current.Channels.ToString(CultureInfo.InvariantCulture) + " channel(s)");
-        else
-            Console.WriteLine("Microphone sample rate could not be read; verify Windows is set to 48000 Hz.");
-
-        if (endpointRegistrationChanged)
+        try
         {
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine("Equalizer APO was newly registered on this capture endpoint. Restart Windows once before testing the microphone.");
+            EnsureEqualizerApoInstalled();
+
+            string monoPath;
+            string stereoPath;
+            EnsureRnnoiseVstFiles(out monoPath, out stereoPath);
+
+            bool endpointRegistrationChanged =
+                RegisterEqualizerApoOnDefaultCapture(current);
+            WriteRnnoiseEqualizerConfig(true, mode, current, monoPath, stereoPath);
+            WriteMicSuppressionState(true, mode, current);
+
+            Console.WriteLine();
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine("RNNoise microphone suppression enabled.");
             Console.ResetColor();
+            Console.WriteLine("Default microphone: " + current.ConnectionName + " | " + current.DeviceName);
+            Console.WriteLine("Endpoint: " + current.Guid);
+            Console.WriteLine("RNNoise mode: " + mode);
+            if (current.SampleRate > 0)
+                Console.WriteLine("Microphone format: " + current.SampleRate.ToString(CultureInfo.InvariantCulture) + " Hz, " +
+                    current.Channels.ToString(CultureInfo.InvariantCulture) + " channel(s)");
+            else
+                Console.WriteLine("Microphone sample rate could not be read; verify Windows is set to 48000 Hz.");
+
+            if (endpointRegistrationChanged)
+            {
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine("Equalizer APO was newly registered on this capture endpoint. Restart Windows once before testing the microphone.");
+                Console.ResetColor();
+            }
+            else
+            {
+                Console.WriteLine("Equalizer APO was already registered on this capture endpoint; config changes reload automatically.");
+            }
         }
-        else
+        catch (Exception ex)
         {
-            Console.WriteLine("Equalizer APO was already registered on this capture endpoint; config changes reload automatically.");
+            if (formatAdjustment != null && formatAdjustment.Changed)
+            {
+                string rollbackError;
+                if (TryRestoreMicFormat(formatAdjustment, out rollbackError))
+                    throw new Exception(
+                        "RNNoise setup did not complete (" +
+                        ex.Message +
+                        "). WGDot restored the microphone to " +
+                        formatAdjustment.OriginalSampleRate.ToString(CultureInfo.InvariantCulture) +
+                        " Hz.",
+                        ex);
+
+                throw new Exception(
+                    "RNNoise setup did not complete (" +
+                    ex.Message +
+                    "), and WGDot could not restore the microphone's original " +
+                    formatAdjustment.OriginalSampleRate.ToString(CultureInfo.InvariantCulture) +
+                    " Hz format (" +
+                    rollbackError +
+                    "). Restore the microphone format manually in Windows Sound settings.",
+                    ex);
+            }
+
+            throw;
         }
+
     }
 
     static void PrintMicSuppressionStatus()
