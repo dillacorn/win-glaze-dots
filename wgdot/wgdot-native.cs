@@ -19,10 +19,11 @@ using System.Text.RegularExpressions;
 using System.Web.Script.Serialization;
 using System.Xml;
 using Microsoft.Win32;
+using Microsoft.Win32.SafeHandles;
 
 internal static class WgdotNative
 {
-    const string Version = "native-preview-99";
+    const string Version = "native-preview-105";
     const string HiddenLauncherVersion = "2.0.0.0";
     const int WingetPreflightTimeoutMs = 30000;
     const int CurrentTweakDefaultsVersion = 1;
@@ -54,6 +55,13 @@ internal static class WgdotNative
     static readonly string GlazeBindingModeStatePath = Path.Combine(StateRoot, "glazewm-binding-mode.json");
     static readonly string StartupStatePath = Path.Combine(StateRoot, "startup.json");
     static readonly string CursorStatePath = Path.Combine(StateRoot, "cursor.json");
+    static readonly string MicSuppressionStatePath = Path.Combine(StateRoot, "mic-suppression.json");
+    const string EqualizerApoVersion = "1.4.2";
+    const string EqualizerApoInstallerUrl = "https://sourceforge.net/projects/equalizerapo/files/1.4.2/EqualizerAPO-x64-1.4.2.exe/download";
+    const string EqualizerApoInstallerSha256 = "7403be7427bbe1936a40dded082829b6e217fc4f5990fee5cba501f0ae055afa";
+    const string EqualizerApoPreMixGuid = "{EACD2258-FCAC-4FF4-B36D-419E924A6D79}";
+    const string RnnoiseRepo = "werman/noise-suppression-for-voice";
+    const string RnnoiseAssetRegex = "^win-rnnoise\\.zip$";
     static readonly string LauncherCachePath = Path.Combine(CacheRoot, "launcher-apps.json");
     static readonly JavaScriptSerializer Json = new JavaScriptSerializer { MaxJsonLength = int.MaxValue, RecursionLimit = 100 };
 
@@ -145,6 +153,87 @@ internal static class WgdotNative
 
     [DllImport("user32.dll", SetLastError = true)]
     static extern bool LockWorkStation();
+
+    const uint TokenAdjustPrivileges = 0x0020;
+    const uint TokenQuery = 0x0008;
+    const uint SePrivilegeEnabled = 0x00000002;
+
+    [StructLayout(LayoutKind.Sequential)]
+    struct LUID
+    {
+        public uint LowPart;
+        public int HighPart;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    struct LUID_AND_ATTRIBUTES
+    {
+        public LUID Luid;
+        public uint Attributes;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    struct TOKEN_PRIVILEGES_ONE
+    {
+        public uint PrivilegeCount;
+        public LUID_AND_ATTRIBUTES Privileges;
+    }
+
+    [DllImport("kernel32.dll")]
+    static extern IntPtr GetCurrentProcess();
+
+    [DllImport("advapi32.dll", SetLastError = true)]
+    static extern bool OpenProcessToken(
+        IntPtr processHandle,
+        uint desiredAccess,
+        out IntPtr tokenHandle);
+
+    [DllImport("advapi32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    static extern bool LookupPrivilegeValue(
+        string systemName,
+        string name,
+        out LUID luid);
+
+    [DllImport("advapi32.dll", SetLastError = true)]
+    static extern bool AdjustTokenPrivileges(
+        IntPtr tokenHandle,
+        bool disableAllPrivileges,
+        ref TOKEN_PRIVILEGES_ONE newState,
+        uint bufferLength,
+        IntPtr previousState,
+        IntPtr returnLength);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    static extern bool CloseHandle(IntPtr handle);
+
+    [DllImport("advapi32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    static extern int RegOpenKeyEx(
+        IntPtr hKey,
+        string subKey,
+        uint options,
+        int samDesired,
+        out IntPtr result);
+
+    [DllImport("advapi32.dll", SetLastError = true)]
+    static extern int RegSetKeySecurity(
+        IntPtr hKey,
+        int securityInformation,
+        IntPtr securityDescriptor);
+
+    [DllImport("advapi32.dll", SetLastError = true)]
+    static extern int RegCloseKey(IntPtr hKey);
+
+    const int ErrorSuccess = 0;
+    const int KeyWow6464 = 0x0100;
+    const int ReadControlRight = 0x00020000;
+    const int WriteDacRight = 0x00040000;
+    const int WriteOwnerRight = 0x00080000;
+    const int OwnerSecurityInformation = 0x00000001;
+    const int GroupSecurityInformation = 0x00000002;
+    const int DaclSecurityInformation = 0x00000004;
+    static readonly IntPtr HkeyLocalMachine =
+        new IntPtr(unchecked((int)0x80000002));
+
 
     [DllImport("powrprof.dll", SetLastError = true)]
     static extern bool SetSuspendState(bool hibernate, bool forceCritical, bool disableWakeEvent);
@@ -352,6 +441,130 @@ internal static class WgdotNative
     const uint SpdrpMfg = 0x0000000B;
     const uint SpdrpFriendlyName = 0x0000000C;
     static readonly IntPtr InvalidHandleValue = new IntPtr(-1);
+
+    enum CoreAudioDataFlow
+    {
+        Render = 0,
+        Capture = 1,
+        All = 2
+    }
+
+    enum CoreAudioRole
+    {
+        Console = 0,
+        Multimedia = 1,
+        Communications = 2
+    }
+
+    [ComImport]
+    [Guid("BCDE0395-E52F-467C-8E3D-C4579291692E")]
+    class MMDeviceEnumeratorComObject
+    {
+    }
+
+    [ComImport]
+    [Guid("A95664D2-9614-4F35-A746-DE8DB63617E6")]
+    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    interface IMMDeviceEnumerator
+    {
+        [PreserveSig]
+        int EnumAudioEndpoints(CoreAudioDataFlow dataFlow, uint stateMask, out IntPtr devices);
+
+        [PreserveSig]
+        int GetDefaultAudioEndpoint(CoreAudioDataFlow dataFlow, CoreAudioRole role, out IMMDevice endpoint);
+    }
+
+    [ComImport]
+    [Guid("D666063F-1587-4E43-81F1-B948E807363F")]
+    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    interface IMMDevice
+    {
+        [PreserveSig]
+        int Activate(ref Guid iid, uint clsCtx, IntPtr activationParams, out IntPtr interfacePointer);
+
+        [PreserveSig]
+        int OpenPropertyStore(uint access, out IntPtr propertyStore);
+
+        [PreserveSig]
+        int GetId([MarshalAs(UnmanagedType.LPWStr)] out string id);
+    }
+
+    [ComImport]
+    [Guid("870AF99C-171D-4F9E-AF0D-E63DF40C2BC9")]
+    class PolicyConfigClientComObject
+    {
+    }
+
+    [ComImport]
+    [Guid("F8679F50-850A-41CF-9C72-430F290290C8")]
+    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    interface IPolicyConfig
+    {
+        [PreserveSig]
+        int GetMixFormat(
+            [MarshalAs(UnmanagedType.LPWStr)] string deviceId,
+            IntPtr formatPointerPointer);
+
+        [PreserveSig]
+        int GetDeviceFormat(
+            [MarshalAs(UnmanagedType.LPWStr)] string deviceId,
+            [MarshalAs(UnmanagedType.Bool)] bool defaultFormat,
+            IntPtr formatPointerPointer);
+
+        [PreserveSig]
+        int ResetDeviceFormat(
+            [MarshalAs(UnmanagedType.LPWStr)] string deviceId);
+
+        [PreserveSig]
+        int SetDeviceFormat(
+            [MarshalAs(UnmanagedType.LPWStr)] string deviceId,
+            IntPtr endpointFormat,
+            IntPtr mixFormat);
+    }
+
+    [ComImport]
+    [Guid("568B9108-44BF-40B4-9006-86AFE5B5A620")]
+    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    interface IPolicyConfigVista
+    {
+        [PreserveSig]
+        int GetMixFormat(
+            [MarshalAs(UnmanagedType.LPWStr)] string deviceId,
+            IntPtr formatPointerPointer);
+
+        [PreserveSig]
+        int GetDeviceFormat(
+            [MarshalAs(UnmanagedType.LPWStr)] string deviceId,
+            [MarshalAs(UnmanagedType.Bool)] bool defaultFormat,
+            IntPtr formatPointerPointer);
+
+        [PreserveSig]
+        int SetDeviceFormat(
+            [MarshalAs(UnmanagedType.LPWStr)] string deviceId,
+            IntPtr endpointFormat,
+            IntPtr mixFormat);
+    }
+
+    sealed class MicEndpointInfo
+    {
+        public string EndpointId;
+        public string Guid;
+        public string DeviceName;
+        public string ConnectionName;
+        public int SampleRate;
+        public int Channels;
+        public string RegistryPath;
+    }
+
+    sealed class MicFormatAdjustment
+    {
+        public bool Changed;
+        public string EndpointId;
+        public string EndpointGuid;
+        public int OriginalSampleRate;
+        public byte[] OriginalEndpointFormat;
+        public byte[] OriginalMixFormat;
+    }
 
     sealed class ChoiceItem
     {
@@ -1174,6 +1387,7 @@ internal static class WgdotNative
             if (command == "git-update") return GitManagedFromArgs("update", args.Skip(1).ToArray());
             if (command == "git-reset") return GitManagedFromArgs("reset", args.Skip(1).ToArray());
             if (command == "apply-tweak") return ApplyTweakFromArgs(args.Skip(1).ToArray());
+            if (command == "mic-suppression") return MicSuppressionFromArgs(args.Skip(1).ToArray());
             if (command == "restore-clipboard-history") return RestorePrivacySexyClipboardHistory();
             if (command == "restore-screenshot-border-control") return RestorePrivacySexyScreenshotBorderControl();
             if (command == "restore-screenshot-border-control-elevated") return RestorePrivacySexyScreenshotBorderControl();
@@ -1254,6 +1468,7 @@ internal static class WgdotNative
             String.Equals(command, "git-reset", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "dots-only", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "apply-tweak", StringComparison.OrdinalIgnoreCase) ||
+            String.Equals(command, "mic-suppression", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "restore-screenshot-border-control", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "window-audit", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(command, "software", StringComparison.OrdinalIgnoreCase) ||
@@ -5375,6 +5590,7 @@ class WgdotHidden
             "software-audit",
             "acceptance-audit",
             "cursor",
+            "mic-suppression",
             "gpu-driver",
             "update",
             "reset",
@@ -8649,6 +8865,1469 @@ class WgdotHidden
         return 0;
     }
 
+    static string GetEqualizerApoInstallPath()
+    {
+        using (RegistryKey key = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\EqualizerAPO", false))
+        {
+            string path = key == null ? "" : Convert.ToString(
+                key.GetValue("InstallPath", "", RegistryValueOptions.DoNotExpandEnvironmentNames));
+            if (!String.IsNullOrWhiteSpace(path)) return path;
+        }
+
+        return Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
+            "EqualizerAPO");
+    }
+
+    static string GetEqualizerApoConfigPath()
+    {
+        using (RegistryKey key = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\EqualizerAPO", false))
+        {
+            string path = key == null ? "" : Convert.ToString(
+                key.GetValue("ConfigPath", "", RegistryValueOptions.DoNotExpandEnvironmentNames));
+            if (!String.IsNullOrWhiteSpace(path)) return path;
+        }
+
+        return Path.Combine(GetEqualizerApoInstallPath(), "config");
+    }
+
+    static bool IsEqualizerApoInstalled()
+    {
+        string root = GetEqualizerApoInstallPath();
+        return File.Exists(Path.Combine(root, "EqualizerAPO.dll")) &&
+            File.Exists(Path.Combine(root, "DeviceSelector.exe"));
+    }
+
+    static void StopEqualizerApoDeviceSelector()
+    {
+        foreach (Process process in Process.GetProcessesByName("DeviceSelector"))
+        {
+            try
+            {
+                if (!process.HasExited)
+                {
+                    try { process.CloseMainWindow(); } catch { }
+                    if (!process.WaitForExit(750))
+                        process.Kill();
+                }
+            }
+            catch
+            {
+            }
+            finally
+            {
+                process.Dispose();
+            }
+        }
+    }
+
+    static void EnsureEqualizerApoInstalled()
+    {
+        if (IsEqualizerApoInstalled()) return;
+
+        if (!Environment.Is64BitOperatingSystem)
+            throw new Exception("WGDot RNNoise setup currently supports x64 Windows only.");
+
+        string cache = Path.Combine(CacheRoot, "equalizer-apo");
+        Directory.CreateDirectory(cache);
+        string installer = Path.Combine(cache, "EqualizerAPO-x64-" + EqualizerApoVersion + ".exe");
+        SafeDeleteFile(installer);
+
+        Console.WriteLine("Downloading official Equalizer APO " + EqualizerApoVersion + "...");
+        using (var client = new WebClient())
+        {
+            client.Headers[HttpRequestHeader.UserAgent] = "wgdot";
+            client.DownloadFile(EqualizerApoInstallerUrl, installer);
+        }
+
+        if (!IsWindowsExecutableFile(installer))
+            throw new Exception("Equalizer APO download is not a valid Windows executable.");
+
+        string digest = NormalizeSha256(
+            Sha256OrNull(installer),
+            "Equalizer APO installer SHA-256");
+        if (!String.Equals(digest, EqualizerApoInstallerSha256, StringComparison.OrdinalIgnoreCase))
+            throw new Exception(
+                "Equalizer APO installer SHA-256 mismatch. Expected " +
+                EqualizerApoInstallerSha256 + ", received " + digest + ".");
+
+        Console.WriteLine("Installing Equalizer APO silently from the verified official installer...");
+        var psi = new ProcessStartInfo();
+        psi.FileName = installer;
+        psi.Arguments = "/S";
+        psi.UseShellExecute = false;
+        psi.CreateNoWindow = true;
+
+        using (Process installerProcess = Process.Start(psi))
+        {
+            if (installerProcess == null)
+                throw new Exception("Equalizer APO installer did not start.");
+
+            DateTime deadline = DateTime.UtcNow.AddMinutes(3);
+            while (!installerProcess.WaitForExit(500))
+            {
+                StopEqualizerApoDeviceSelector();
+                if (DateTime.UtcNow >= deadline)
+                {
+                    try { installerProcess.Kill(); } catch { }
+                    throw new Exception("Equalizer APO silent installation timed out.");
+                }
+            }
+
+            StopEqualizerApoDeviceSelector();
+
+            if (installerProcess.ExitCode != 0)
+                throw new Exception(
+                    "Equalizer APO installer failed with exit " +
+                    installerProcess.ExitCode.ToString(CultureInfo.InvariantCulture) + ".");
+        }
+
+        if (!IsEqualizerApoInstalled())
+            throw new Exception("Equalizer APO installer finished, but the expected installation files were not found.");
+    }
+
+    static void EnsureRnnoiseVstFiles(out string monoPath, out string stereoPath)
+    {
+        string installRoot = GetEqualizerApoInstallPath();
+        string target = Path.Combine(installRoot, "VSTPlugins", "WGDot-RNNoise");
+        monoPath = Path.Combine(target, "rnnoise_mono.dll");
+        stereoPath = Path.Combine(target, "rnnoise_stereo.dll");
+
+        if (File.Exists(monoPath) && File.Exists(stereoPath))
+            return;
+
+        var package = new Dictionary<string, object>();
+        package["name"] = "Werman RNNoise";
+        package["fallbackGitHubRepo"] = RnnoiseRepo;
+        package["fallbackAssetRegex"] = RnnoiseAssetRegex;
+
+        string assetName;
+        string archive = DownloadOfficialGitHubPackageAsset(package, out assetName);
+        string staging = Path.Combine(
+            CacheRoot,
+            "rnnoise-extract",
+            Guid.NewGuid().ToString("N"));
+
+        try
+        {
+            ExtractZipToDirectorySafe(archive, staging);
+            string stagedMono = FindPackageArchiveFile(staging, "rnnoise_mono.dll");
+            string stagedStereo = FindPackageArchiveFile(staging, "rnnoise_stereo.dll");
+
+            Directory.CreateDirectory(target);
+            File.Copy(stagedMono, monoPath, true);
+            File.Copy(stagedStereo, stereoPath, true);
+
+            if (!IsWindowsExecutableFile(monoPath) || !IsWindowsExecutableFile(stereoPath))
+                throw new Exception("The Werman RNNoise release did not contain valid Windows VST DLLs.");
+        }
+        finally
+        {
+            SafeDeleteDirectory(staging);
+        }
+    }
+
+    static MicEndpointInfo GetDefaultCaptureEndpoint()
+    {
+        IMMDeviceEnumerator enumerator = null;
+        IMMDevice endpoint = null;
+
+        try
+        {
+            enumerator = (IMMDeviceEnumerator)new MMDeviceEnumeratorComObject();
+            int hr = enumerator.GetDefaultAudioEndpoint(
+                CoreAudioDataFlow.Capture,
+                CoreAudioRole.Multimedia,
+                out endpoint);
+            if (hr != 0 || endpoint == null)
+                Marshal.ThrowExceptionForHR(hr);
+
+            string endpointId;
+            hr = endpoint.GetId(out endpointId);
+            if (hr != 0)
+                Marshal.ThrowExceptionForHR(hr);
+
+            Match guidMatch = Regex.Match(
+                endpointId ?? "",
+                @"\{[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}\}$");
+            if (!guidMatch.Success)
+                throw new Exception("Windows returned an unexpected default microphone endpoint ID: " + endpointId);
+
+            string guid = guidMatch.Value.ToUpperInvariant();
+            string endpointPath =
+                @"SOFTWARE\Microsoft\Windows\CurrentVersion\MMDevices\Audio\Capture\" + guid;
+            string propertiesPath = endpointPath + @"\Properties";
+
+            var info = new MicEndpointInfo();
+            info.EndpointId = endpointId;
+            info.Guid = guid;
+            info.RegistryPath = endpointPath;
+            info.DeviceName = guid;
+            info.ConnectionName = "Default capture device";
+
+            using (RegistryKey properties = Registry.LocalMachine.OpenSubKey(propertiesPath, false))
+            {
+                if (properties != null)
+                {
+                    object connection = properties.GetValue(
+                        "{a45c254e-df1c-4efd-8020-67d146a850e0},2",
+                        null,
+                        RegistryValueOptions.DoNotExpandEnvironmentNames);
+                    object device = properties.GetValue(
+                        "{b3f8fa53-0004-438e-9003-51a46e139bfc},6",
+                        null,
+                        RegistryValueOptions.DoNotExpandEnvironmentNames);
+
+                    if (connection != null) info.ConnectionName = Convert.ToString(connection);
+                    if (device != null) info.DeviceName = Convert.ToString(device);
+
+                    byte[] format = properties.GetValue(
+                        "{f19f064d-082c-4e27-bc73-6882a1bb8e4c},0",
+                        null,
+                        RegistryValueOptions.DoNotExpandEnvironmentNames) as byte[];
+                    if (format != null && format.Length >= 16)
+                    {
+                        info.Channels = BitConverter.ToUInt16(format, 10);
+                        info.SampleRate = (int)BitConverter.ToUInt32(format, 12);
+                    }
+                }
+            }
+
+            return info;
+        }
+        finally
+        {
+            if (endpoint != null) Marshal.ReleaseComObject(endpoint);
+            if (enumerator != null) Marshal.ReleaseComObject(enumerator);
+        }
+    }
+
+    static byte[] ReadWaveFormatBytes(IntPtr format)
+    {
+        if (format == IntPtr.Zero)
+            throw new Exception("Windows returned an empty audio format.");
+
+        int cbSize = (ushort)Marshal.ReadInt16(format, 16);
+        int length = 18 + cbSize;
+        if (length < 18 || length > 1024)
+            throw new Exception(
+                "Windows returned an unexpected audio format size: " +
+                length.ToString(CultureInfo.InvariantCulture) + " bytes.");
+
+        byte[] bytes = new byte[length];
+        Marshal.Copy(format, bytes, 0, length);
+        return bytes;
+    }
+
+    static int WaveFormatSampleRate(byte[] format)
+    {
+        if (format == null || format.Length < 16)
+            throw new Exception("Audio format data is incomplete.");
+        return BitConverter.ToInt32(format, 4);
+    }
+
+    static byte[] WaveFormatAtSampleRate(byte[] original, int sampleRate)
+    {
+        if (original == null || original.Length < 18)
+            throw new Exception("Audio format data is incomplete.");
+
+        byte[] next = (byte[])original.Clone();
+        ushort blockAlign = BitConverter.ToUInt16(next, 12);
+        if (blockAlign == 0)
+            throw new Exception("Audio format has an invalid block alignment.");
+
+        byte[] rate = BitConverter.GetBytes(sampleRate);
+        Buffer.BlockCopy(rate, 0, next, 4, rate.Length);
+
+        long avgBytes = (long)sampleRate * blockAlign;
+        if (avgBytes <= 0 || avgBytes > UInt32.MaxValue)
+            throw new Exception("Audio format average byte rate is invalid.");
+
+        byte[] avg = BitConverter.GetBytes((uint)avgBytes);
+        Buffer.BlockCopy(avg, 0, next, 8, avg.Length);
+        return next;
+    }
+
+    static IntPtr AllocateWaveFormat(byte[] bytes)
+    {
+        if (bytes == null || bytes.Length < 18)
+            throw new Exception("Audio format data is incomplete.");
+
+        IntPtr result = Marshal.AllocCoTaskMem(bytes.Length);
+        Marshal.Copy(bytes, 0, result, bytes.Length);
+        return result;
+    }
+
+    static byte[] ReadPolicyFormat(
+        object client,
+        string endpointId,
+        bool mixFormat)
+    {
+        IntPtr holder = Marshal.AllocHGlobal(IntPtr.Size);
+        IntPtr format = IntPtr.Zero;
+        try
+        {
+            Marshal.WriteIntPtr(holder, IntPtr.Zero);
+            int hr;
+
+            IPolicyConfig modern = client as IPolicyConfig;
+            if (modern != null)
+            {
+                hr = mixFormat
+                    ? modern.GetMixFormat(endpointId, holder)
+                    : modern.GetDeviceFormat(endpointId, false, holder);
+            }
+            else
+            {
+                IPolicyConfigVista vista = client as IPolicyConfigVista;
+                if (vista == null)
+                    throw new Exception("Windows PolicyConfig audio interface is unavailable.");
+
+                hr = mixFormat
+                    ? vista.GetMixFormat(endpointId, holder)
+                    : vista.GetDeviceFormat(endpointId, false, holder);
+            }
+
+            if (hr != 0)
+                Marshal.ThrowExceptionForHR(hr);
+
+            format = Marshal.ReadIntPtr(holder);
+            return ReadWaveFormatBytes(format);
+        }
+        finally
+        {
+            if (format != IntPtr.Zero)
+                Marshal.FreeCoTaskMem(format);
+            Marshal.FreeHGlobal(holder);
+        }
+    }
+
+    static void SetPolicyDeviceFormat(
+        object client,
+        string endpointId,
+        byte[] endpointFormat,
+        byte[] mixFormat)
+    {
+        IntPtr endpointPointer = IntPtr.Zero;
+        IntPtr mixPointer = IntPtr.Zero;
+        try
+        {
+            endpointPointer = AllocateWaveFormat(endpointFormat);
+            mixPointer = AllocateWaveFormat(mixFormat);
+
+            int hr;
+            IPolicyConfig modern = client as IPolicyConfig;
+            if (modern != null)
+            {
+                hr = modern.SetDeviceFormat(
+                    endpointId,
+                    endpointPointer,
+                    mixPointer);
+            }
+            else
+            {
+                IPolicyConfigVista vista = client as IPolicyConfigVista;
+                if (vista == null)
+                    throw new Exception("Windows PolicyConfig audio interface is unavailable.");
+
+                hr = vista.SetDeviceFormat(
+                    endpointId,
+                    endpointPointer,
+                    mixPointer);
+            }
+
+            if (hr != 0)
+                Marshal.ThrowExceptionForHR(hr);
+        }
+        finally
+        {
+            if (endpointPointer != IntPtr.Zero)
+                Marshal.FreeCoTaskMem(endpointPointer);
+            if (mixPointer != IntPtr.Zero)
+                Marshal.FreeCoTaskMem(mixPointer);
+        }
+    }
+
+    static bool TryRestoreMicFormat(
+        MicFormatAdjustment adjustment,
+        out string error)
+    {
+        error = "";
+        if (adjustment == null ||
+            adjustment.OriginalEndpointFormat == null ||
+            adjustment.OriginalMixFormat == null ||
+            String.IsNullOrWhiteSpace(adjustment.EndpointId))
+            return true;
+
+        object client = null;
+        try
+        {
+            client = new PolicyConfigClientComObject();
+            SetPolicyDeviceFormat(
+                client,
+                adjustment.EndpointId,
+                adjustment.OriginalEndpointFormat,
+                adjustment.OriginalMixFormat);
+
+            System.Threading.Thread.Sleep(250);
+            MicEndpointInfo verified = GetDefaultCaptureEndpoint();
+            if (!String.Equals(
+                    verified.Guid,
+                    adjustment.EndpointGuid,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                error = "the Windows default microphone changed during rollback";
+                return false;
+            }
+
+            if (verified.SampleRate > 0 &&
+                verified.SampleRate != adjustment.OriginalSampleRate)
+            {
+                error =
+                    "Windows still reports " +
+                    verified.SampleRate.ToString(CultureInfo.InvariantCulture) +
+                    " Hz instead of the original " +
+                    adjustment.OriginalSampleRate.ToString(CultureInfo.InvariantCulture) +
+                    " Hz";
+                return false;
+            }
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+            return false;
+        }
+        finally
+        {
+            if (client != null && Marshal.IsComObject(client))
+                Marshal.FinalReleaseComObject(client);
+        }
+    }
+
+    static MicFormatAdjustment EnsureDefaultCapture48000(MicEndpointInfo endpoint)
+    {
+        var adjustment = new MicFormatAdjustment();
+        adjustment.EndpointId = endpoint.EndpointId;
+        adjustment.EndpointGuid = endpoint.Guid;
+        adjustment.OriginalSampleRate = endpoint.SampleRate;
+
+        if (endpoint.SampleRate == 48000)
+            return adjustment;
+
+        if (String.IsNullOrWhiteSpace(endpoint.EndpointId))
+            throw new Exception("Windows did not expose an endpoint ID for the default microphone.");
+
+        object client = null;
+        bool formatWriteAttempted = false;
+        try
+        {
+            Console.WriteLine(
+                "Default microphone is " +
+                endpoint.SampleRate.ToString(CultureInfo.InvariantCulture) +
+                " Hz; attempting to switch it to the RNNoise-required 48000 Hz format...");
+
+            client = new PolicyConfigClientComObject();
+            adjustment.OriginalEndpointFormat =
+                ReadPolicyFormat(client, endpoint.EndpointId, false);
+            adjustment.OriginalMixFormat =
+                ReadPolicyFormat(client, endpoint.EndpointId, true);
+
+            byte[] endpoint48000 =
+                WaveFormatAtSampleRate(adjustment.OriginalEndpointFormat, 48000);
+            byte[] mix48000 =
+                WaveFormatAtSampleRate(adjustment.OriginalMixFormat, 48000);
+
+            SetPolicyDeviceFormat(
+                client,
+                endpoint.EndpointId,
+                endpoint48000,
+                mix48000);
+            formatWriteAttempted = true;
+
+            System.Threading.Thread.Sleep(300);
+            MicEndpointInfo verified = GetDefaultCaptureEndpoint();
+            if (!String.Equals(
+                    verified.Guid,
+                    endpoint.Guid,
+                    StringComparison.OrdinalIgnoreCase))
+                throw new Exception(
+                    "the Windows default microphone changed while the format was being updated");
+
+            if (verified.SampleRate != 48000)
+                throw new Exception(
+                    "the audio driver did not accept 48000 Hz; Windows still reports " +
+                    verified.SampleRate.ToString(CultureInfo.InvariantCulture) + " Hz");
+
+            adjustment.Changed = true;
+            Console.WriteLine("Microphone format changed to 48000 Hz.");
+            return adjustment;
+        }
+        catch (Exception ex)
+        {
+            string rollbackError = "";
+            bool rolledBack = true;
+            if (formatWriteAttempted ||
+                adjustment.OriginalEndpointFormat != null ||
+                adjustment.OriginalMixFormat != null)
+                rolledBack = TryRestoreMicFormat(adjustment, out rollbackError);
+
+            if (!rolledBack)
+                throw new Exception(
+                    "WGDot could not switch the default microphone to 48000 Hz (" +
+                    ex.Message +
+                    "), and automatic format rollback also failed (" +
+                    rollbackError +
+                    "). Open Windows Sound > Input > microphone > Format and restore the previous rate manually.");
+
+            throw new Exception(
+                "WGDot could not switch the default microphone to 48000 Hz (" +
+                ex.Message +
+                "). The original microphone format was restored. Set the device to 48000 Hz manually and retry.");
+        }
+        finally
+        {
+            if (client != null && Marshal.IsComObject(client))
+                Marshal.FinalReleaseComObject(client);
+        }
+    }
+
+    static void SetProcessPrivilege(string privilegeName, bool enable)
+    {
+        IntPtr token = IntPtr.Zero;
+        try
+        {
+            if (!OpenProcessToken(
+                    GetCurrentProcess(),
+                    TokenAdjustPrivileges | TokenQuery,
+                    out token))
+                throw new Exception(
+                    "OpenProcessToken failed while preparing the protected audio endpoint registry: " +
+                    new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error()).Message);
+
+            LUID luid;
+            if (!LookupPrivilegeValue(null, privilegeName, out luid))
+                throw new Exception(
+                    "LookupPrivilegeValue failed for " +
+                    privilegeName +
+                    ": " +
+                    new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error()).Message);
+
+            var privileges = new TOKEN_PRIVILEGES_ONE();
+            privileges.PrivilegeCount = 1;
+            privileges.Privileges = new LUID_AND_ATTRIBUTES
+            {
+                Luid = luid,
+                Attributes = enable ? SePrivilegeEnabled : 0
+            };
+
+            Marshal.GetLastWin32Error();
+            if (!AdjustTokenPrivileges(
+                    token,
+                    false,
+                    ref privileges,
+                    0,
+                    IntPtr.Zero,
+                    IntPtr.Zero))
+                throw new Exception(
+                    "AdjustTokenPrivileges failed for " +
+                    privilegeName +
+                    ": " +
+                    new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error()).Message);
+
+            int lastError = Marshal.GetLastWin32Error();
+            if (lastError != 0)
+                throw new Exception(
+                    "Windows did not grant " +
+                    privilegeName +
+                    ": " +
+                    new System.ComponentModel.Win32Exception(lastError).Message);
+        }
+        finally
+        {
+            if (token != IntPtr.Zero)
+                CloseHandle(token);
+        }
+    }
+
+    static RegistryKey OpenMachineRegistryKeyNative(
+        string path,
+        RegistryRights rights)
+    {
+        IntPtr raw = IntPtr.Zero;
+        int status = RegOpenKeyEx(
+            HkeyLocalMachine,
+            path,
+            0,
+            ((int)rights) | KeyWow6464,
+            out raw);
+        if (status != ErrorSuccess || raw == IntPtr.Zero)
+            throw new Exception(
+                "RegOpenKeyEx failed for HKLM\\" +
+                path +
+                ": " +
+                new System.ComponentModel.Win32Exception(status).Message);
+
+        try
+        {
+            SafeRegistryHandle safe = new SafeRegistryHandle(raw, true);
+            raw = IntPtr.Zero;
+            return RegistryKey.FromHandle(safe, RegistryView.Registry64);
+        }
+        finally
+        {
+            if (raw != IntPtr.Zero)
+                RegCloseKey(raw);
+        }
+    }
+
+    static void SetMachineRegistrySecurityNative(
+        string path,
+        RegistryRights openRights,
+        int securityInformation,
+        byte[] descriptor)
+    {
+        if (descriptor == null || descriptor.Length == 0)
+            throw new Exception("Registry security descriptor is empty.");
+
+        using (RegistryKey key = OpenMachineRegistryKeyNative(path, openRights))
+        {
+            SafeRegistryHandle safe = key.Handle;
+            GCHandle pin = default(GCHandle);
+            try
+            {
+                pin = GCHandle.Alloc(descriptor, GCHandleType.Pinned);
+                int status = RegSetKeySecurity(
+                    safe.DangerousGetHandle(),
+                    securityInformation,
+                    pin.AddrOfPinnedObject());
+                if (status != ErrorSuccess)
+                    throw new Exception(
+                        "RegSetKeySecurity failed for HKLM\\" +
+                        path +
+                        ": " +
+                        new System.ComponentModel.Win32Exception(status).Message);
+            }
+            finally
+            {
+                if (pin.IsAllocated)
+                    pin.Free();
+            }
+        }
+    }
+
+    static byte[] SnapshotMachineRegistrySecurity(string path)
+    {
+        using (RegistryKey key = OpenMachineRegistryKeyNative(
+            path,
+            RegistryRights.ReadPermissions))
+        {
+            RegistrySecurity security = key.GetAccessControl(
+                AccessControlSections.Owner |
+                AccessControlSections.Group |
+                AccessControlSections.Access);
+            return security.GetSecurityDescriptorBinaryForm();
+        }
+    }
+
+    static void TakeOwnershipAndGrantAdministratorsRegistryAccess(
+        string path)
+    {
+        SecurityIdentifier administrators =
+            new SecurityIdentifier(
+                WellKnownSidType.BuiltinAdministratorsSid,
+                null);
+
+        SetProcessPrivilege("SeTakeOwnershipPrivilege", true);
+        try
+        {
+            var ownerSecurity = new RegistrySecurity();
+            ownerSecurity.SetOwner(administrators);
+            SetMachineRegistrySecurityNative(
+                path,
+                RegistryRights.TakeOwnership,
+                OwnerSecurityInformation,
+                ownerSecurity.GetSecurityDescriptorBinaryForm());
+        }
+        finally
+        {
+            try
+            {
+                SetProcessPrivilege(
+                    "SeTakeOwnershipPrivilege",
+                    false);
+            }
+            catch
+            {
+            }
+        }
+
+        byte[] current = SnapshotMachineRegistrySecurity(path);
+        var writableSecurity = new RegistrySecurity();
+        writableSecurity.SetSecurityDescriptorBinaryForm(current);
+        writableSecurity.SetAccessRule(
+            new RegistryAccessRule(
+                administrators,
+                RegistryRights.FullControl,
+                InheritanceFlags.ContainerInherit |
+                InheritanceFlags.ObjectInherit,
+                PropagationFlags.None,
+                AccessControlType.Allow));
+
+        SetMachineRegistrySecurityNative(
+            path,
+            RegistryRights.ReadPermissions |
+            RegistryRights.ChangePermissions,
+            DaclSecurityInformation,
+            writableSecurity.GetSecurityDescriptorBinaryForm());
+    }
+
+    static bool TryRestoreMachineRegistrySecurity(
+        string path,
+        byte[] descriptor,
+        out string error)
+    {
+        error = "";
+        if (descriptor == null || descriptor.Length == 0)
+            return true;
+
+        SecurityIdentifier administrators =
+            new SecurityIdentifier(
+                WellKnownSidType.BuiltinAdministratorsSid,
+                null);
+
+        try
+        {
+            SetProcessPrivilege("SeTakeOwnershipPrivilege", true);
+            try
+            {
+                var temporaryOwner = new RegistrySecurity();
+                temporaryOwner.SetOwner(administrators);
+                SetMachineRegistrySecurityNative(
+                    path,
+                    RegistryRights.TakeOwnership,
+                    OwnerSecurityInformation,
+                    temporaryOwner.GetSecurityDescriptorBinaryForm());
+            }
+            finally
+            {
+                try
+                {
+                    SetProcessPrivilege(
+                        "SeTakeOwnershipPrivilege",
+                        false);
+                }
+                catch
+                {
+                }
+            }
+
+            SetProcessPrivilege("SeRestorePrivilege", true);
+            try
+            {
+                SetMachineRegistrySecurityNative(
+                    path,
+                    RegistryRights.ReadPermissions |
+                    RegistryRights.ChangePermissions |
+                    RegistryRights.TakeOwnership,
+                    OwnerSecurityInformation |
+                    GroupSecurityInformation |
+                    DaclSecurityInformation,
+                    descriptor);
+            }
+            finally
+            {
+                try
+                {
+                    SetProcessPrivilege(
+                        "SeRestorePrivilege",
+                        false);
+                }
+                catch
+                {
+                }
+            }
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+            return false;
+        }
+    }
+
+    static RegistryKey OpenWritableMachineKey(string path)
+    {
+        try
+        {
+            return OpenMachineRegistryKeyNative(
+                path,
+                RegistryRights.QueryValues |
+                RegistryRights.SetValue |
+                RegistryRights.CreateSubKey |
+                RegistryRights.EnumerateSubKeys |
+                RegistryRights.ReadKey);
+        }
+        catch
+        {
+        }
+
+        if (!IsAdministrator())
+            throw new UnauthorizedAccessException(
+                "Administrator rights are required for the audio endpoint registry.");
+
+        TakeOwnershipAndGrantAdministratorsRegistryAccess(path);
+
+        try
+        {
+            return OpenMachineRegistryKeyNative(
+                path,
+                RegistryRights.QueryValues |
+                RegistryRights.SetValue |
+                RegistryRights.CreateSubKey |
+                RegistryRights.EnumerateSubKeys |
+                RegistryRights.ReadKey);
+        }
+        catch (Exception ex)
+        {
+            throw new Exception(
+                "protected registry key remained unwritable after applying Equalizer APO-style permissions: " +
+                ex.Message,
+                ex);
+        }
+    }
+
+    static string RegistryStringOrSentinel(RegistryKey key, string name, string sentinel)
+    {
+        if (key == null) return sentinel;
+        object raw = key.GetValue(name, null, RegistryValueOptions.DoNotExpandEnvironmentNames);
+        if (raw == null) return sentinel;
+        string value = Convert.ToString(raw);
+        if (String.Equals(value, EqualizerApoPreMixGuid, StringComparison.OrdinalIgnoreCase) ||
+            String.Equals(value, "{EC1CC9CE-FAED-4822-828A-82A81A6F018F}", StringComparison.OrdinalIgnoreCase))
+            return "!VALUE";
+        return value;
+    }
+
+    static string RealApoGuidOrEmpty(string value)
+    {
+        if (String.IsNullOrWhiteSpace(value) ||
+            String.Equals(value, "!KEY", StringComparison.Ordinal) ||
+            String.Equals(value, "!VALUE", StringComparison.Ordinal))
+            return "";
+        return value;
+    }
+
+    static bool RegisterEqualizerApoOnDefaultCapture(MicEndpointInfo endpoint)
+    {
+        string[] apoValueNames =
+        {
+            "{d04e05a6-594b-4fb6-a80d-01af5eed7d1d},1",
+            "{d04e05a6-594b-4fb6-a80d-01af5eed7d1d},2",
+            "{d04e05a6-594b-4fb6-a80d-01af5eed7d1d},5",
+            "{d04e05a6-594b-4fb6-a80d-01af5eed7d1d},6",
+            "{d04e05a6-594b-4fb6-a80d-01af5eed7d1d},7"
+        };
+
+        string fxPath = endpoint.RegistryPath + @"\FxProperties";
+        bool fxExisted = Registry.LocalMachine.OpenSubKey(fxPath, false) != null;
+        using (RegistryKey currentFx = Registry.LocalMachine.OpenSubKey(fxPath, false))
+        {
+            if (currentFx != null)
+            {
+                string lfx = Convert.ToString(currentFx.GetValue(apoValueNames[0], ""));
+                string sfx = Convert.ToString(currentFx.GetValue(apoValueNames[2], ""));
+                if (String.Equals(lfx, EqualizerApoPreMixGuid, StringComparison.OrdinalIgnoreCase) ||
+                    String.Equals(sfx, EqualizerApoPreMixGuid, StringComparison.OrdinalIgnoreCase))
+                    return false;
+            }
+        }
+
+        RegistryKey fx = null;
+        try
+        {
+            if (fxExisted)
+            {
+                try
+                {
+                    fx = OpenWritableMachineKey(fxPath);
+                }
+                catch (Exception ex)
+                {
+                    throw new Exception(
+                        "opening existing microphone FxProperties for write failed: " +
+                        ex.Message,
+                        ex);
+                }
+            }
+            else
+            {
+                try
+                {
+                    using (RegistryKey endpointKey = OpenWritableMachineKey(endpoint.RegistryPath))
+                    using (RegistryKey created = endpointKey.CreateSubKey(
+                        "FxProperties",
+                        RegistryKeyPermissionCheck.ReadWriteSubTree))
+                    {
+                        if (created == null)
+                            throw new Exception("CreateSubKey returned no registry key.");
+                    }
+
+                    fx = OpenWritableMachineKey(fxPath);
+                }
+                catch (Exception ex)
+                {
+                    throw new Exception(
+                        "creating microphone FxProperties failed: " +
+                        ex.Message,
+                        ex);
+                }
+            }
+
+            using (fx)
+            {
+                if (fx == null)
+                    throw new Exception("Could not open the default microphone FxProperties registry key.");
+
+                string sentinel = fxExisted ? "!VALUE" : "!KEY";
+                string[] originals = apoValueNames
+                    .Select(name => RegistryStringOrSentinel(fx, name, sentinel))
+                    .ToArray();
+
+                using (RegistryKey childRoot = Registry.LocalMachine.CreateSubKey(
+                    @"SOFTWARE\EqualizerAPO\Child APOs",
+                    RegistryKeyPermissionCheck.ReadWriteSubTree))
+                using (RegistryKey child = childRoot.CreateSubKey(
+                    endpoint.Guid,
+                    RegistryKeyPermissionCheck.ReadWriteSubTree))
+                {
+                    for (int i = 0; i < apoValueNames.Length; i++)
+                        child.SetValue(apoValueNames[i], originals[i], RegistryValueKind.String);
+
+                    bool onlyLegacy =
+                        fxExisted &&
+                        (fx.GetValue(apoValueNames[0]) != null || fx.GetValue(apoValueNames[1]) != null) &&
+                        fx.GetValue(apoValueNames[2]) == null &&
+                        fx.GetValue(apoValueNames[3]) == null &&
+                        fx.GetValue(apoValueNames[4]) == null &&
+                        fx.GetValue("{d04e05a6-594b-4fb6-a80d-01af5eed7d1d},13") == null &&
+                        fx.GetValue("{d04e05a6-594b-4fb6-a80d-01af5eed7d1d},14") == null &&
+                        fx.GetValue("{d04e05a6-594b-4fb6-a80d-01af5eed7d1d},15") == null;
+
+                    bool combinedDevice;
+                    using (RegistryKey props = Registry.LocalMachine.OpenSubKey(
+                        endpoint.RegistryPath + @"\Properties",
+                        false))
+                    {
+                        combinedDevice =
+                            props != null &&
+                            props.GetValue("{b3f8fa53-0004-438e-9003-51a46e139bfc},41") != null;
+                    }
+
+                    bool useLegacy = !fxExisted || onlyLegacy;
+                    string preMixChild;
+                    if (useLegacy)
+                    {
+                        preMixChild = originals[0];
+                        if (String.Equals(originals[0], "!VALUE", StringComparison.Ordinal) &&
+                            String.Equals(originals[1], "!VALUE", StringComparison.Ordinal))
+                            preMixChild = originals[2];
+
+                        fx.SetValue(apoValueNames[0], EqualizerApoPreMixGuid, RegistryValueKind.String);
+                        fx.DeleteValue(apoValueNames[2], false);
+                        fx.DeleteValue(apoValueNames[3], false);
+                        fx.DeleteValue(apoValueNames[4], false);
+                    }
+                    else
+                    {
+                        preMixChild = originals[2];
+                        int pairedIndex = combinedDevice ? 3 : 4;
+                        if (String.Equals(originals[2], "!VALUE", StringComparison.Ordinal) &&
+                            String.Equals(originals[pairedIndex], "!VALUE", StringComparison.Ordinal))
+                            preMixChild = originals[0];
+
+                        fx.DeleteValue(apoValueNames[0], false);
+                        fx.DeleteValue(apoValueNames[1], false);
+                        fx.SetValue(apoValueNames[2], EqualizerApoPreMixGuid, RegistryValueKind.String);
+                        if (fx.GetValue("{d3993a3f-99c2-4402-b5ec-a92a0367664b},5") == null)
+                            fx.SetValue(
+                                "{d3993a3f-99c2-4402-b5ec-a92a0367664b},5",
+                                new string[] { "{C18E2F7E-933D-4965-B7D1-1EEF228D2AF3}" },
+                                RegistryValueKind.MultiString);
+                    }
+
+                    child.SetValue("PreMixChild", RealApoGuidOrEmpty(preMixChild), RegistryValueKind.String);
+                    child.SetValue("PostMixChild", "", RegistryValueKind.String);
+                    child.SetValue("AllowSilentBufferModification", "false", RegistryValueKind.String);
+                    child.SetValue("Version", "2", RegistryValueKind.String);
+                }
+
+                if (!fxExisted)
+                    fx.SetValue(
+                        "{b725f130-47ef-101a-a5f1-02608c9eebac},10",
+                        "Equalizer APO",
+                        RegistryValueKind.String);
+
+                fx.DeleteValue("{1da5d803-d492-4edd-8c23-e0c0ffee7f0e},5", false);
+            }
+        }
+        finally
+        {
+            if (fx != null)
+                fx.Dispose();
+        }
+
+        return true;
+    }
+
+    static bool RegisterEqualizerApoOnDefaultCaptureTransactional(
+        MicEndpointInfo endpoint)
+    {
+        string fxPath = endpoint.RegistryPath + @"\FxProperties";
+        bool fxExisted = Registry.LocalMachine.OpenSubKey(fxPath, false) != null;
+        byte[] endpointSecurity =
+            SnapshotMachineRegistrySecurity(endpoint.RegistryPath);
+        byte[] fxSecurity = fxExisted
+            ? SnapshotMachineRegistrySecurity(fxPath)
+            : null;
+
+        try
+        {
+            return RegisterEqualizerApoOnDefaultCapture(endpoint);
+        }
+        catch (Exception ex)
+        {
+            var rollbackErrors = new List<string>();
+
+            if (fxSecurity != null)
+            {
+                string fxRollbackError;
+                if (!TryRestoreMachineRegistrySecurity(
+                        fxPath,
+                        fxSecurity,
+                        out fxRollbackError))
+                    rollbackErrors.Add(
+                        "FxProperties security: " + fxRollbackError);
+            }
+
+            string endpointRollbackError;
+            if (!TryRestoreMachineRegistrySecurity(
+                    endpoint.RegistryPath,
+                    endpointSecurity,
+                    out endpointRollbackError))
+                rollbackErrors.Add(
+                    "endpoint security: " + endpointRollbackError);
+
+            if (rollbackErrors.Count > 0)
+                throw new Exception(
+                    "Equalizer APO endpoint registration failed (" +
+                    ex.Message +
+                    "), and WGDot could not fully restore registry security (" +
+                    String.Join("; ", rollbackErrors.ToArray()) +
+                    ").",
+                    ex);
+
+            throw new Exception(
+                "Equalizer APO endpoint registration failed (" +
+                ex.Message +
+                "). WGDot restored the microphone endpoint registry security.",
+                ex);
+        }
+    }
+
+    static string NormalizeMicSuppressionMode(string mode)
+    {
+        if (String.Equals(mode, "stereo", StringComparison.OrdinalIgnoreCase))
+            return "stereo";
+        return "mono";
+    }
+
+    static Dictionary<string, object> ReadMicSuppressionState()
+    {
+        return ReadJson(MicSuppressionStatePath) ?? new Dictionary<string, object>();
+    }
+
+    static void WriteMicSuppressionState(
+        bool enabled,
+        string mode,
+        MicEndpointInfo endpoint)
+    {
+        var state = new Dictionary<string, object>();
+        state["enabled"] = enabled;
+        state["mode"] = NormalizeMicSuppressionMode(mode);
+        if (endpoint != null)
+        {
+            state["deviceGuid"] = endpoint.Guid;
+            state["deviceName"] = endpoint.DeviceName;
+            state["connectionName"] = endpoint.ConnectionName;
+            state["sampleRate"] = endpoint.SampleRate;
+            state["channels"] = endpoint.Channels;
+        }
+        state["updatedAt"] = DateTime.UtcNow.ToString("o");
+        WriteJson(MicSuppressionStatePath, state);
+    }
+
+    static void SetMicSuppressionSelection(bool enabled)
+    {
+        InstallationSelection selection = ReadInstallationSelection();
+        if (selection == null) return;
+
+        selection.Tweaks.RemoveAll(
+            id => String.Equals(
+                id,
+                "rnnoise-mic-suppression",
+                StringComparison.OrdinalIgnoreCase));
+        if (enabled)
+            selection.Tweaks.Add("rnnoise-mic-suppression");
+        selection.TweaksConfigured = true;
+        WriteInstallationSelection(selection);
+    }
+
+    static string RemoveWgdotRnnoiseIncludeBlock(string text)
+    {
+        return Regex.Replace(
+            text ?? "",
+            @"(?ms)^# WGDot RNNoise microphone suppression BEGIN\r?\n.*?^# WGDot RNNoise microphone suppression END\r?\n?",
+            "");
+    }
+
+    static void WriteRnnoiseEqualizerConfig(
+        bool enabled,
+        string mode,
+        MicEndpointInfo endpoint,
+        string monoPath,
+        string stereoPath)
+    {
+        string configRoot = GetEqualizerApoConfigPath();
+        Directory.CreateDirectory(configRoot);
+        string managedPath = Path.Combine(configRoot, "wgdot-mic-suppression.txt");
+        string mainPath = Path.Combine(configRoot, "config.txt");
+        string plugin = String.Equals(mode, "stereo", StringComparison.OrdinalIgnoreCase)
+            ? stereoPath
+            : monoPath;
+
+        string managed =
+            "# Managed by WGDot. Use 'wgdot mic-suppression mono|stereo' to change mode.\r\n" +
+            "Device: " + endpoint.Guid + "\r\n" +
+            "VSTPlugin: Library \"" + plugin + "\"\r\n" +
+            "Device: all\r\n";
+        File.WriteAllText(managedPath, managed, new UTF8Encoding(false));
+
+        string main = File.Exists(mainPath)
+            ? File.ReadAllText(mainPath)
+            : "";
+        string clean = RemoveWgdotRnnoiseIncludeBlock(main).TrimEnd('\r', '\n');
+        if (enabled)
+        {
+            if (clean.Length > 0) clean += "\r\n\r\n";
+            clean +=
+                "# WGDot RNNoise microphone suppression BEGIN\r\n" +
+                "Include: wgdot-mic-suppression.txt\r\n" +
+                "# WGDot RNNoise microphone suppression END\r\n";
+        }
+        else if (clean.Length > 0)
+        {
+            clean += "\r\n";
+        }
+
+        File.WriteAllText(mainPath, clean, new UTF8Encoding(false));
+    }
+
+    static void ApplyRnnoiseMicSuppression(bool enable, string requestedMode)
+    {
+        if (!IsAdministrator())
+            throw new UnauthorizedAccessException("RNNoise microphone suppression setup requires administrator rights.");
+
+        Dictionary<string, object> prior = ReadMicSuppressionState();
+        string mode = NormalizeMicSuppressionMode(
+            String.IsNullOrWhiteSpace(requestedMode)
+                ? GetString(prior, "mode")
+                : requestedMode);
+
+        if (!enable)
+        {
+            if (IsEqualizerApoInstalled())
+            {
+                MicEndpointInfo endpoint = GetDefaultCaptureEndpoint();
+                string mono = Path.Combine(
+                    GetEqualizerApoInstallPath(),
+                    "VSTPlugins",
+                    "WGDot-RNNoise",
+                    "rnnoise_mono.dll");
+                string stereo = Path.Combine(
+                    GetEqualizerApoInstallPath(),
+                    "VSTPlugins",
+                    "WGDot-RNNoise",
+                    "rnnoise_stereo.dll");
+                WriteRnnoiseEqualizerConfig(false, mode, endpoint, mono, stereo);
+                WriteMicSuppressionState(false, mode, endpoint);
+            }
+            else
+            {
+                WriteMicSuppressionState(false, mode, null);
+            }
+
+            Console.WriteLine("RNNoise microphone suppression disabled. Equalizer APO and plugin files were left installed.");
+            return;
+        }
+
+        MicEndpointInfo current = GetDefaultCaptureEndpoint();
+        MicFormatAdjustment formatAdjustment = EnsureDefaultCapture48000(current);
+        current = GetDefaultCaptureEndpoint();
+
+        try
+        {
+            EnsureEqualizerApoInstalled();
+
+            string monoPath;
+            string stereoPath;
+            EnsureRnnoiseVstFiles(out monoPath, out stereoPath);
+
+            bool endpointRegistrationChanged =
+                RegisterEqualizerApoOnDefaultCaptureTransactional(current);
+            WriteRnnoiseEqualizerConfig(true, mode, current, monoPath, stereoPath);
+            WriteMicSuppressionState(true, mode, current);
+
+            Console.WriteLine();
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine("RNNoise microphone suppression enabled.");
+            Console.ResetColor();
+            Console.WriteLine("Default microphone: " + current.ConnectionName + " | " + current.DeviceName);
+            Console.WriteLine("Endpoint: " + current.Guid);
+            Console.WriteLine("RNNoise mode: " + mode);
+            if (current.SampleRate > 0)
+                Console.WriteLine("Microphone format: " + current.SampleRate.ToString(CultureInfo.InvariantCulture) + " Hz, " +
+                    current.Channels.ToString(CultureInfo.InvariantCulture) + " channel(s)");
+            else
+                Console.WriteLine("Microphone sample rate could not be read; verify Windows is set to 48000 Hz.");
+
+            if (endpointRegistrationChanged)
+            {
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine("Equalizer APO was newly registered on this capture endpoint. Restart Windows once before testing the microphone.");
+                Console.ResetColor();
+            }
+            else
+            {
+                Console.WriteLine("Equalizer APO was already registered on this capture endpoint; config changes reload automatically.");
+            }
+        }
+        catch (Exception ex)
+        {
+            if (formatAdjustment != null && formatAdjustment.Changed)
+            {
+                string rollbackError;
+                if (TryRestoreMicFormat(formatAdjustment, out rollbackError))
+                    throw new Exception(
+                        "RNNoise setup did not complete (" +
+                        ex.Message +
+                        "). WGDot restored the microphone to " +
+                        formatAdjustment.OriginalSampleRate.ToString(CultureInfo.InvariantCulture) +
+                        " Hz.",
+                        ex);
+
+                throw new Exception(
+                    "RNNoise setup did not complete (" +
+                    ex.Message +
+                    "), and WGDot could not restore the microphone's original " +
+                    formatAdjustment.OriginalSampleRate.ToString(CultureInfo.InvariantCulture) +
+                    " Hz format (" +
+                    rollbackError +
+                    "). Restore the microphone format manually in Windows Sound settings.",
+                    ex);
+            }
+
+            throw;
+        }
+
+    }
+
+    static void PrintMicSuppressionStatus()
+    {
+        Dictionary<string, object> state = ReadMicSuppressionState();
+        bool enabled = GetBool(state, "enabled");
+        string mode = NormalizeMicSuppressionMode(GetString(state, "mode"));
+        MicEndpointInfo current = null;
+        try { current = GetDefaultCaptureEndpoint(); } catch { }
+
+        WriteTitle("RNNoise microphone suppression");
+        Console.WriteLine("Enabled: " + (enabled ? "yes" : "no"));
+        Console.WriteLine("Mode: " + mode);
+        Console.WriteLine("Equalizer APO installed: " + (IsEqualizerApoInstalled() ? "yes" : "no"));
+        if (current != null)
+        {
+            Console.WriteLine("Default microphone: " + current.ConnectionName + " | " + current.DeviceName);
+            Console.WriteLine("Endpoint: " + current.Guid);
+            if (current.SampleRate > 0)
+                Console.WriteLine("Format: " + current.SampleRate.ToString(CultureInfo.InvariantCulture) + " Hz, " +
+                    current.Channels.ToString(CultureInfo.InvariantCulture) + " channel(s)");
+        }
+
+        string configPath = Path.Combine(GetEqualizerApoConfigPath(), "config.txt");
+        bool linked = false;
+        if (File.Exists(configPath))
+        {
+            linked = File.ReadAllText(configPath).IndexOf(
+                "# WGDot RNNoise microphone suppression BEGIN",
+                StringComparison.Ordinal) >= 0;
+        }
+        Console.WriteLine("WGDot Equalizer APO include active: " + (linked ? "yes" : "no"));
+    }
+
+    static string NormalizeMicSuppressionResultPath(string rawPath)
+    {
+        if (String.IsNullOrWhiteSpace(rawPath))
+            throw new Exception("Missing RNNoise elevated result path.");
+
+        string full = Path.GetFullPath(rawPath);
+        string root = Path.GetFullPath(StateRoot)
+            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        string prefix = root + Path.DirectorySeparatorChar;
+        string fileName = Path.GetFileName(full);
+
+        if (!full.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) ||
+            !Regex.IsMatch(
+                fileName ?? "",
+                "^mic-suppression-result-[0-9a-f]{32}\\.json$",
+                RegexOptions.IgnoreCase))
+            throw new Exception("Invalid RNNoise elevated result path.");
+
+        return full;
+    }
+
+    static void WriteMicSuppressionElevatedResult(
+        string resultPath,
+        bool success,
+        string error)
+    {
+        if (String.IsNullOrWhiteSpace(resultPath)) return;
+
+        string normalized = NormalizeMicSuppressionResultPath(resultPath);
+        var result = new Dictionary<string, object>();
+        result["success"] = success;
+        result["error"] = error ?? "";
+        WriteJson(normalized, result);
+    }
+
+    static int RunMicSuppressionActionElevated(
+        string action,
+        string resultPath)
+    {
+        try
+        {
+            if (action == "enable")
+            {
+                ApplyRnnoiseMicSuppression(true, null);
+                SetMicSuppressionSelection(true);
+            }
+            else if (action == "disable")
+            {
+                ApplyRnnoiseMicSuppression(false, null);
+                SetMicSuppressionSelection(false);
+            }
+            else
+            {
+                Dictionary<string, object> state = ReadMicSuppressionState();
+                bool enabled = GetBool(state, "enabled");
+                string mode = action;
+                if (enabled)
+                {
+                    ApplyRnnoiseMicSuppression(true, mode);
+                }
+                else
+                {
+                    WriteMicSuppressionState(false, mode, null);
+                    Console.WriteLine(
+                        "RNNoise mode set to " +
+                        mode +
+                        ". Suppression remains disabled.");
+                }
+            }
+
+            WriteMicSuppressionElevatedResult(resultPath, true, "");
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            WriteMicSuppressionElevatedResult(resultPath, false, ex.Message);
+            throw;
+        }
+    }
+
+    static int RunElevatedMicSuppression(string action)
+    {
+        string resultPath = Path.Combine(
+            StateRoot,
+            "mic-suppression-result-" +
+            Guid.NewGuid().ToString("N") +
+            ".json");
+
+        SafeDeleteFile(resultPath);
+        try
+        {
+            int exitCode = RunElevatedSelfWithExitCode(
+                "mic-suppression " +
+                action +
+                " --result " +
+                Q(resultPath));
+
+            Dictionary<string, object> result = ReadJson(resultPath);
+            if (result != null && !GetBool(result, "success"))
+            {
+                string error = GetString(result, "error");
+                if (!String.IsNullOrWhiteSpace(error))
+                    throw new Exception(error);
+            }
+
+            if (exitCode != 0)
+                throw new Exception(
+                    "Elevated RNNoise microphone suppression failed with exit code " +
+                    exitCode.ToString(CultureInfo.InvariantCulture) + ".");
+
+            if (result == null || !GetBool(result, "success"))
+                throw new Exception(
+                    "Elevated RNNoise microphone suppression did not return a success result.");
+
+            return 0;
+        }
+        finally
+        {
+            SafeDeleteFile(resultPath);
+        }
+    }
+
+    static int MicSuppressionFromArgs(string[] args)
+    {
+        string action = args.Length == 0 ? "status" : args[0].Trim().ToLowerInvariant();
+        string resultPath = GetOption(args, "--result");
+
+        if (action == "status")
+        {
+            PrintMicSuppressionStatus();
+            return 0;
+        }
+
+        if (action != "enable" &&
+            action != "disable" &&
+            action != "mono" &&
+            action != "stereo")
+            throw new Exception("mic-suppression requires enable, disable, mono, stereo, or status.");
+
+        if (!IsAdministrator())
+        {
+            if (!String.IsNullOrWhiteSpace(resultPath))
+                throw new Exception("RNNoise elevated result path is valid only inside the elevated worker.");
+            return RunElevatedMicSuppression(action);
+        }
+
+        if (!String.IsNullOrWhiteSpace(resultPath))
+            resultPath = NormalizeMicSuppressionResultPath(resultPath);
+
+        return RunMicSuppressionActionElevated(action, resultPath);
+    }
+
     static void TweakManager()
     {
         SourceContext source = ResolveDefaultSource();
@@ -8768,6 +10447,7 @@ class WgdotHidden
     {
         return
             String.Equals(id, "automatic-time-and-timezone", StringComparison.OrdinalIgnoreCase) ||
+            String.Equals(id, "rnnoise-mic-suppression", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(id, "disable-remote-assistance", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(id, "enable-windows-sudo", StringComparison.OrdinalIgnoreCase);
     }
@@ -8787,6 +10467,17 @@ class WgdotHidden
 
     static void ApplyTweak(string id, bool enable, bool allowElevation)
     {
+        if (String.Equals(id, "rnnoise-mic-suppression", StringComparison.OrdinalIgnoreCase))
+        {
+            int code = MicSuppressionFromArgs(
+                new string[] { enable ? "enable" : "disable" });
+            if (code != 0)
+                throw new Exception(
+                    "RNNoise microphone suppression operation failed with exit code " +
+                    code.ToString(CultureInfo.InvariantCulture) + ".");
+            return;
+        }
+
         if (TweakNeedsAdministrator(id) && !IsAdministrator())
         {
             if (!allowElevation)
@@ -8831,6 +10522,8 @@ class WgdotHidden
             ApplyPointerPrecision(enable);
         else if (String.Equals(id, "communications-do-nothing", StringComparison.OrdinalIgnoreCase))
             ApplyCommunicationsDucking(enable);
+        else if (String.Equals(id, "rnnoise-mic-suppression", StringComparison.OrdinalIgnoreCase))
+            ApplyRnnoiseMicSuppression(enable, null);
         else if (String.Equals(id, "disable-snap-assist", StringComparison.OrdinalIgnoreCase))
             ApplySnapAssist(enable);
         else if (String.Equals(id, "automatic-time-and-timezone", StringComparison.OrdinalIgnoreCase))

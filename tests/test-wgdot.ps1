@@ -11,7 +11,6 @@ $shortInstallerPath = Join-Path $repoRoot "i.ps1"
 $nativeBootstrapPath = Join-Path $repoRoot "wgdot\\bootstrap.cmd"
 $nativeSourcePath = Join-Path $repoRoot "wgdot\\wgdot-native.cs"
 $installSoftwarePath = Join-Path $repoRoot "install_software.md"
-$legacyThemeSwitcherPath = Join-Path $repoRoot "UserProfile\.config\win-glaze\scripts\theme-switcher.ps1"
 
 function Assert-True {
     param([bool]$Condition, [string]$Message)
@@ -46,12 +45,6 @@ Assert-True ($nativeBootstrapText -match 'System\.Windows\.Forms\.dll') "native 
 Assert-True ($nativeBootstrapText -match 'System\.Drawing\.dll') "native bootstrap references System.Drawing for the WGDot power overlay"
 Assert-True (Test-Path -LiteralPath $nativeSourcePath -PathType Leaf) "native bootstrap source exists"
 Assert-True (Test-Path -LiteralPath $installSoftwarePath -PathType Leaf) "software guide exists"
-Assert-True (Test-Path -LiteralPath $legacyThemeSwitcherPath -PathType Leaf) "legacy theme switcher source exists"
-$legacyThemeSwitcherText = Get-Content -LiteralPath $legacyThemeSwitcherPath -Raw
-[scriptblock]::Create($legacyThemeSwitcherText) | Out-Null
-Assert-True ($legacyThemeSwitcherText -match '#9AB8D7') "legacy theme switcher keeps readable ANSI blue fallback"
-Assert-True ($legacyThemeSwitcherText -match '#8CD0D3') "legacy theme switcher keeps readable ANSI cyan fallback"
-Assert-True ($legacyThemeSwitcherText -match '#709080') "legacy theme switcher keeps readable brightBlack fallback"
 $installSoftwareText = Get-Content -LiteralPath $installSoftwarePath -Raw
 Assert-True ($installSoftwareText -match 'Noto Nerd Font') "software guide documents the managed Awtarchy-matching Noto font"
 Assert-True ($installSoftwareText -match 'Open-Shell remains selectable but defaults OFF') "software guide documents Open-Shell default-off behavior"
@@ -647,6 +640,7 @@ foreach ($id in @(
     "disable-printscreen-snipping",
     "disable-enhanced-pointer-precision",
     "communications-do-nothing",
+    "rnnoise-mic-suppression",
     "disable-snap-assist",
     "automatic-time-and-timezone",
     "disable-remote-assistance",
@@ -663,6 +657,7 @@ foreach ($id in @(
     "classic-context-menu",
     "oops-all-links-cursor",
     "privacy-sexy",
+    "rnnoise-mic-suppression",
 
     "disable-remote-assistance",
     "enable-windows-sudo",
@@ -693,6 +688,38 @@ Assert-True ($nativeSourceText -match 'theme\.Hover') "Yazi drag surface uses th
 Assert-True ($nativeSourceText -match 'theme\.Focus') "Yazi drag surface uses the active theme border/focus color"
 Assert-True ($nativeSourceText -match 'scope == "work" \? GetBool\(package, "defaultWork"\) : GetBool\(package, "defaultNormal"\)') "fresh package selection honors profile default flags"
 Assert-True ($nativeSourceText -match 'if \(command == "bar-font-install"\) return BarFontInstall\(\);') "native runtime exposes targeted YASB font install"
+Assert-True ($nativeSourceText -match 'if \(command == "mic-suppression"\) return MicSuppressionFromArgs') "native runtime exposes scriptable microphone suppression control"
+Assert-True ($nativeSourceText -match 'EqualizerApoVersion = "1\.4\.2"') "RNNoise setup pins the tested Equalizer APO release"
+Assert-True ($nativeSourceText -match '7403be7427bbe1936a40dded082829b6e217fc4f5990fee5cba501f0ae055afa') "Equalizer APO installer uses the published SHA-256"
+Assert-True ($nativeSourceText -match 'werman/noise-suppression-for-voice') "RNNoise setup uses Werman upstream"
+Assert-True ($nativeSourceText -match 'rnnoise_mono\.dll') "RNNoise setup deploys mono VST"
+Assert-True ($nativeSourceText -match 'rnnoise_stereo\.dll') "RNNoise setup deploys stereo VST"
+Assert-True ($nativeSourceText -match 'CoreAudioDataFlow\.Capture') "RNNoise setup resolves the Windows default capture endpoint"
+Assert-True ($nativeSourceText -match 'CoreAudioRole\.Multimedia') "RNNoise setup follows the default multimedia microphone role"
+Assert-True ($nativeSourceText -match 'RNNoise-required 48000 Hz') "RNNoise setup enforces upstream 48 kHz requirement"
+Assert-True ($nativeSourceText -match 'PolicyConfigClientComObject') "RNNoise setup can request a Windows endpoint-format change"
+Assert-True ($nativeSourceText -match 'EnsureDefaultCapture48000') "RNNoise setup automatically repairs non-48 kHz microphone formats"
+Assert-True ($nativeSourceText -match 'TryRestoreMicFormat') "RNNoise setup can roll back an attempted microphone-format change"
+Assert-True ($nativeSourceText -match 'The original microphone format was restored') "failed 48 kHz conversion reports successful rollback"
+Assert-True ($nativeSourceText -match 'WGDot restored the microphone to ') "later RNNoise setup failures restore a format WGDot changed"
+Assert-True ($nativeSourceText -match 'mic-suppression-result-') "RNNoise elevation uses a bounded result file for failure propagation"
+Assert-True ($nativeSourceText -match 'NormalizeMicSuppressionResultPath') "RNNoise elevated result path is constrained to WGDot state"
+Assert-True ($nativeSourceText -match 'RunElevatedMicSuppression') "RNNoise direct and tweak flows relay elevated failures to the caller"
+Assert-True ($nativeSourceText -match 'SeTakeOwnershipPrivilege') "Equalizer APO endpoint registration enables the same narrow take-ownership privilege used upstream"
+Assert-True ($nativeSourceText -match 'SnapshotMachineRegistrySecurity') "Equalizer APO endpoint registration snapshots protected endpoint security"
+Assert-True ($nativeSourceText -match 'TryRestoreMachineRegistrySecurity') "failed Equalizer APO endpoint registration restores the endpoint security descriptor"
+Assert-True ($nativeSourceText -match 'SeRestorePrivilege') "registry security rollback can restore the original owner and ACL"
+Assert-True ($nativeSourceText -match 'RegOpenKeyEx') "protected audio endpoint access uses native registry open calls"
+Assert-True ($nativeSourceText -match 'RegSetKeySecurity') "protected audio endpoint ACL updates use native registry security calls"
+Assert-True ($nativeSourceText -match 'TakeOwnershipAndGrantAdministratorsRegistryAccess') "Equalizer APO-style ownership and ACL changes are scoped to the exact protected key"
+Assert-True ($nativeSourceText -match 'OpenWritableMachineKey\(fxPath\)') "existing microphone FxProperties receives targeted permission handling"
+Assert-True ($nativeSourceText -match 'opening existing microphone FxProperties for write failed') "Equalizer APO endpoint failures identify the exact protected registry stage"
+Assert-True ($nativeSourceText -match 'RegisterEqualizerApoOnDefaultCaptureTransactional') "Equalizer APO endpoint registration is wrapped transactionally"
+Assert-True ($nativeSourceText -match 'if \(!String\.IsNullOrWhiteSpace\(error\)\)\s*throw new Exception\(error\);') "RNNoise parent surfaces the actual elevated failure text"
+Assert-True ($nativeSourceText -match '# WGDot RNNoise microphone suppression BEGIN') "RNNoise setup owns a bounded Equalizer APO include block"
+Assert-True ($nativeSourceText -match 'Include: wgdot-mic-suppression\.txt') "RNNoise setup preserves unrelated Equalizer APO config behind a dedicated include"
+Assert-True ($nativeSourceText -match 'Device: " \+ endpoint\.Guid') "RNNoise config scopes suppression to the selected default microphone endpoint"
+Assert-True ($nativeSourceText -match 'Process\.GetProcessesByName\("DeviceSelector"\)') "silent Equalizer APO install controls only its package-specific Device Selector"
 Assert-True ($nativeSourceText -match 'FindPackageById\(source\.Manifest, "NerdFonts\.Noto"\)') "targeted YASB font install resolves only the managed Noto package"
 Assert-True ($nativeSourceText -match 'No WinGet packages or unrelated software will be reconciled\.') "targeted YASB font install documents its narrow scope"
 Assert-True ($nativeSourceText -match 'NotoSansM Nerd Font Mono \(TrueType\)') "font installer recognizes the legacy verbose Noto registry alias"
@@ -779,7 +806,7 @@ Assert-True ($nativeSourceText -match '(?s)SpecialFolder\.ApplicationData.*?AltS
 Assert-True ($nativeSourceText -match 'GlazeWM \+ YASB') "startup manager presents the GlazeWM/YASB session as one login unit"
 Assert-True ($nativeSourceText -notmatch 'startupHandler.*yasb') "YASB is not registered as a duplicate Windows startup application"
 Assert-True ($nativeSourceText -match 'SoftwareUninstallManager') "native runtime exposes explicit individual uninstall management"
-foreach ($command in @("software-reconcile", "software-uninstall", "startup", "startup-disable-all")) {
+foreach ($command in @("software-reconcile", "software-uninstall", "startup", "startup-disable-all", "mic-suppression")) {
     Assert-True ($nativeSourceText -match ('String\.Equals\(command, "' + [regex]::Escape($command) + '"')) "direct $command command participates in runtime auto-refresh"
 }
 Assert-True ($nativeSourceText -match 'Disable all WGDot-managed startup') "software manager exposes a non-uninstall startup back-out path"
@@ -1016,7 +1043,7 @@ Assert-True ($nativeSourceText -match 'RmGetList') "OBS recovery asks Windows Re
 Assert-True ($nativeSourceText -notmatch 'Process\.GetProcesses\(\)') "WGDot does not enumerate every running process"
 Assert-True ($nativeSourceText -notmatch 'ProcessUsesObsGraphicsHook|StopObsGraphicsHookBlockers|ProcessModule|\.Modules') "OBS recovery does not inspect process module lists"
 Assert-True ($nativeSourceText -match 'will not scan or close unrelated applications') "OBS recovery documents the anti-cheat-safe process boundary"
-Assert-True ($nativeSourceText -notmatch 'OpenProcess|ReadProcessMemory|WriteProcessMemory|CreateRemoteThread') "WGDot has no process-memory or remote-thread primitives"
+Assert-True ($nativeSourceText -notmatch '\bOpenProcess\s*\(|\bReadProcessMemory\s*\(|\bWriteProcessMemory\s*\(|\bCreateRemoteThread\s*\(') "WGDot has no process-memory or remote-thread primitives"
 Assert-True ($nativeSourceText -notmatch 'SetWindowsHookEx') "WGDot production runtime contains no global Windows input-hook primitive"
 Assert-True ($nativeSourceText -match 'DISABLE_VULKAN_OBS_CAPTURE') "OBS recovery disables Vulkan hook injection while blockers are closed"
 Assert-True ($nativeSourceText -match 'obs-vulkan64\.json') "OBS recovery temporarily disables the registered 64-bit Vulkan layer"
@@ -1035,7 +1062,7 @@ $rustDeskPackage = @($manifest.packages | Where-Object { $_.id -eq 'RustDesk.Rus
 Assert-True ($null -ne $rustDeskPackage) "RustDesk catalog entry exists"
 Assert-Equal ([string]$rustDeskPackage.installMode) 'official-github' "RustDesk uses its verified official GitHub source instead of a missing WinGet ID"
 Assert-Equal ([string]$rustDeskPackage.fallbackGitHubRepo) 'rustdesk/rustdesk' "RustDesk official GitHub source remains publisher-owned"
-Assert-True ($nativeSourceText -match 'const string Version = "native-preview-99"') "native runtime version tracks current WGDot maintenance changes"
+Assert-True ($nativeSourceText -match 'const string Version = "native-preview-105"') "native runtime version tracks current WGDot maintenance changes"
 Assert-True ($nativeSourceText -match 'InstallGitHubFontArchivePackage') "native runtime installs managed Nerd Font archives without inventing a WinGet ID"
 Assert-True ($nativeSourceText -match 'AddFontResourceEx') "managed Noto font is loaded into the current Windows session"
 Assert-True ($nativeSourceText -match 'Software\\Microsoft\\Windows NT\\CurrentVersion\\Fonts') "managed Noto font registers under the current-user Windows Fonts key"

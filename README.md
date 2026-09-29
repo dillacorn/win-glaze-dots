@@ -41,6 +41,7 @@ WGDot's native runtime can refresh independently from `main`, while normal manag
 - ### [**privacy.sexy**](https://github.com/dillacorn/win-glaze-dots/blob/main/privacy.sexy.md)
 - ### [**browser_notes**](https://github.com/dillacorn/win-glaze-dots/tree/main/browser_notes)
 - ### [**low_latency_gaming_guide**](https://github.com/dillacorn/win-glaze-dots/blob/main/low_latency_gaming_guide.md)
+- ### [**microphone RNNoise suppression**](https://github.com/dillacorn/win-glaze-dots/blob/main/mic_suppression_apo.md)
 - ### [**my_steam_launch_options**](https://github.com/dillacorn/win-glaze-dots/blob/main/steam_launch_options.md)
 - ### [**amd_software_settings**](https://github.com/dillacorn/win-glaze-dots/blob/main/amd_software_settings.md)
 - ### [**rustdesk+tailscale_unattended_startup**](https://github.com/dillacorn/win-glaze-dots/blob/main/rustdesk+tailscale_unattended_startup.md)
