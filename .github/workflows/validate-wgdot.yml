@@ -169,3 +169,89 @@ jobs:
         run: |
           set "WGDOT_TEST_ROOT=%TEMP%\wgdot-native-maintenance-state"
           "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" maintenance-self-test
+
+
+  release-v4-6-9:
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.title == 'release: WGDot v4.6.9' &&
+      github.event.pull_request.head.ref == 'release/v4.6.9-bridge' &&
+      github.event.pull_request.base.ref == 'main'
+    needs:
+      - yasb-stable-schema
+      - windows-powershell-51
+      - powershell-7
+      - native-bootstrap
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_TAG: v4.6.9
+      RELEASE_SHA: 1a891d59dba830e04e74c85f79f51778b249aaba
+      HELPER_BRANCH: release/v4.6.9-bridge
+    steps:
+      - uses: actions/checkout@v4
+      - name: Publish and verify WGDot v4.6.9
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          current_main="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq '.object.sha')"
+          test "$current_main" = "$RELEASE_SHA"
+
+          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release $RELEASE_TAG already exists; refusing to replace it." >&2
+            exit 1
+          fi
+
+          if git ls-remote --exit-code --tags origin "refs/tags/$RELEASE_TAG" >/dev/null 2>&1; then
+            echo "Tag $RELEASE_TAG already exists; refusing to replace it." >&2
+            exit 1
+          fi
+
+          notes="$RUNNER_TEMP/wgdot-v4.6.9.md"
+          cat > "$notes" <<'EOF'
+          # WGDot v4.6.9
+
+          Adds optional RNNoise microphone suppression on Windows through Equalizer APO, managed directly by WGDot.
+
+          ## Install and update
+
+          - [Install](https://github.com/dillacorn/win-glaze-dots/blob/main/INSTALL.md)
+          - [Update](https://github.com/dillacorn/win-glaze-dots/blob/main/UPDATE.md)
+
+          ## Changes
+
+          - Added default-off **RNNoise microphone suppression (Equalizer APO, default microphone)** under WGDot tweaks / integrations.
+          - WGDot discovers the current default multimedia capture endpoint, enforces 48 kHz before activation, and registers Equalizer APO only on that microphone endpoint.
+          - Added `wgdot mic-suppression enable|disable|mono|stereo|status`; mono is the default suppression mode.
+          - Uses an isolated WGDot Equalizer APO include so unrelated Equalizer APO configuration is preserved.
+          - Added protected endpoint-registry security handling and rollback so failed setup restores the previous microphone format/security state instead of leaving a partial configuration.
+          - Removed four retired Windows helper scripts and their obsolete legacy test coverage.
+
+          ## Validation
+
+          - PR #92 passed the complete Validate WGDot workflow at the final feature-branch commit.
+          - The post-merge Validate WGDot workflow also passed on exact `main` commit `1a891d59dba830e04e74c85f79f51778b249aaba`, including Windows PowerShell 5.1, PowerShell 7, schema/desktop checks, and native bootstrap/maintenance validation.
+          - Real-Windows testing on a Scarlett Solo USB microphone successfully enabled suppression, registered the endpoint at 48000 Hz, reported the WGDot Equalizer APO include active, and retained that enabled state after reboot.
+          EOF
+
+          gh release create "$RELEASE_TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$RELEASE_SHA" \
+            --title "WGDot v4.6.9" \
+            --notes-file "$notes"
+
+          published="$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json tagName,name,isDraft,isPrerelease,targetCommitish,body)"
+          test "$(jq -r '.tagName' <<<"$published")" = "$RELEASE_TAG"
+          test "$(jq -r '.name' <<<"$published")" = "WGDot v4.6.9"
+          test "$(jq -r '.isDraft' <<<"$published")" = "false"
+          test "$(jq -r '.isPrerelease' <<<"$published")" = "false"
+          test "$(jq -r '.targetCommitish' <<<"$published")" = "$RELEASE_SHA"
+          diff -u "$notes" <(jq -r '.body' <<<"$published")
+
+          tag_sha="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$RELEASE_TAG" --jq '.object.sha')"
+          test "$tag_sha" = "$RELEASE_SHA"
+
+          gh api --method DELETE "repos/$GITHUB_REPOSITORY/git/refs/heads/$HELPER_BRANCH"
