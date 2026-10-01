@@ -165,6 +165,7 @@ Mullvad Browser is intentionally left untouched. WGDot does not install extensio
 - **Shotcut** — `Meltytech.Shotcut`
 - **GIMP** — `GIMP.GIMP`
 - **ScreenToGif** — `NickeManarin.ScreenToGif`
+- **Lively Wallpaper** — `rocksdanister.LivelyWallpaper`
 
 ### 3D printing
 

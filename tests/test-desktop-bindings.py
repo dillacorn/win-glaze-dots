@@ -358,6 +358,21 @@ for name in ("config.yaml", "custom_work_config.yaml"):
             for command in binding["commands"]
         ), (name, mode, "GlazeWM must leave Flameshot activation to Flameshot itself")
         all_keys = {key for binding in bindings for key in binding["bindings"]}
+        lively_keys = {
+            key
+            for binding in bindings
+            if any(
+                "Lively Wallpaper/Lively.exe" in command and "--showApp true" in command
+                for command in binding["commands"]
+            )
+            for key in binding["bindings"]
+        }
+        assert {"lwin+w", "rwin+w"} <= lively_keys, (
+            name,
+            mode,
+            "Super+W must open Lively directly in normal and noalt modes",
+            lively_keys,
+        )
         assert "alt+]" not in all_keys and "alt+[" not in all_keys, (
             name,
             mode,
@@ -502,7 +517,7 @@ for name in ("config.yaml", "custom_work_config.yaml"):
         )
 
     guest_keys = {key for binding in modes["vm"] for key in binding["bindings"]}
-    assert not ({"alt+p", "lwin+d", "rwin+d", "lwin", "rwin"} & guest_keys), (
+    assert not ({"alt+p", "lwin+d", "rwin+d", "lwin+w", "rwin+w", "lwin", "rwin"} & guest_keys), (
         name,
         "VM guest shortcuts intercepted",
     )

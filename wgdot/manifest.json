@@ -828,6 +828,13 @@
       "defaultWork": false
     },
     {
+      "name": "Lively Wallpaper",
+      "id": "rocksdanister.LivelyWallpaper",
+      "category": "creative",
+      "defaultNormal": false,
+      "defaultWork": false
+    },
+    {
       "name": "Ventoy",
       "id": "Ventoy.Ventoy",
       "category": "system",

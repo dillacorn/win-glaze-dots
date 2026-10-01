@@ -543,6 +543,11 @@ foreach ($package in $manifest.packages) {
     Assert-Equal $shouldDefaultOn ([bool]$package.defaultWork) "$id Work default follows conservative public baseline"
 }
 
+$livelyPackage = Get-ManifestPackage -Id "rocksdanister.LivelyWallpaper"
+Assert-True ($null -ne $livelyPackage) "Lively Wallpaper is available as an optional WinGet package"
+Assert-True (-not [bool]$livelyPackage.defaultNormal) "Lively Wallpaper defaults off for Normal installs"
+Assert-True (-not [bool]$livelyPackage.defaultWork) "Lively Wallpaper defaults off for Work installs"
+
 function Get-BrowserDefinition {
     param([string]$PackageId)
     return $manifest.browserOptions |

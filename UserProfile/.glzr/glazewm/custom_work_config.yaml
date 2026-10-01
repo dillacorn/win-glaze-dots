@@ -222,6 +222,9 @@ binding_modes:
         bindings: ["alt+ctrl+b"]
       - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe launcher super-d']
         bindings: ["lwin+d", "rwin+d"]
+
+      - commands: ['shell-exec --hide-window cmd.exe /d /c start "" "%ProgramFiles%/Lively Wallpaper/Lively.exe" --showApp true']
+        bindings: ["lwin+w", "rwin+w"]
       - commands: ['shell-exec %LOCALAPPDATA%\wgdot\bin\wgdotw.exe theme-window-toggle']
         bindings: ["lwin+alt+t", "rwin+alt+t"]
       - commands: ["toggle-tiling"]
@@ -415,6 +418,10 @@ keybindings:
     bindings: ["alt+p"]
   - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe launcher super-d']
     bindings: ["lwin+d", "rwin+d"]
+
+  # Open Lively's native wallpaper library directly; WGDot is not in the live path.
+  - commands: ['shell-exec --hide-window cmd.exe /d /c start "" "%ProgramFiles%/Lively Wallpaper/Lively.exe" --showApp true']
+    bindings: ["lwin+w", "rwin+w"]
 
 
 
