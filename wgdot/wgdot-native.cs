@@ -63,6 +63,7 @@ internal static class WgdotNative
     const string RnnoiseRepo = "werman/noise-suppression-for-voice";
     const string RnnoiseAssetRegex = "^win-rnnoise\\.zip$";
     static readonly string LauncherCachePath = Path.Combine(CacheRoot, "launcher-apps.json");
+    static readonly string LauncherUsagePath = Path.Combine(CacheRoot, "launcher-usage.json");
     static readonly JavaScriptSerializer Json = new JavaScriptSerializer { MaxJsonLength = int.MaxValue, RecursionLimit = 100 };
 
     static readonly IntPtr HwndBroadcast = new IntPtr(0xffff);
@@ -12829,7 +12830,7 @@ class WgdotHidden
         string q = (query ?? "").Trim().ToLowerInvariant();
 
         if (q.Length == 0)
-            return 1000 + n.Length;
+            return 0;
 
         if (String.Equals(n, q, StringComparison.OrdinalIgnoreCase))
             return 0;
@@ -12849,19 +12850,111 @@ class WgdotHidden
         return score + n.Length;
     }
 
+    static string LauncherUsageKey(LauncherApp app)
+    {
+        if (app == null || String.IsNullOrWhiteSpace(app.Path))
+            return "";
+
+        try
+        {
+            return Path.GetFullPath(app.Path).Trim();
+        }
+        catch
+        {
+            return app.Path.Trim();
+        }
+    }
+
+    static Dictionary<string, int> ReadLauncherLaunchCounts()
+    {
+        var result = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
+        try
+        {
+            Dictionary<string, object> root = ReadJson(LauncherUsagePath);
+            if (root == null || GetInt(root, "schemaVersion") != 1)
+                return result;
+
+            Dictionary<string, object> launches = GetDictionary(root, "launches");
+            foreach (KeyValuePair<string, object> pair in launches)
+            {
+                int count;
+                try
+                {
+                    count = Convert.ToInt32(pair.Value, CultureInfo.InvariantCulture);
+                }
+                catch
+                {
+                    continue;
+                }
+
+                if (!String.IsNullOrWhiteSpace(pair.Key) && count > 0)
+                    result[pair.Key.Trim()] = count;
+            }
+        }
+        catch
+        {
+            return new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        }
+
+        return result;
+    }
+
+    static void RecordLauncherLaunch(LauncherApp app)
+    {
+        string key = LauncherUsageKey(app);
+        if (String.IsNullOrWhiteSpace(key))
+            return;
+
+        Dictionary<string, int> counts = ReadLauncherLaunchCounts();
+        int current;
+        counts.TryGetValue(key, out current);
+        counts[key] = current >= Int32.MaxValue ? Int32.MaxValue : current + 1;
+
+        var launches = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+        foreach (KeyValuePair<string, int> pair in counts)
+            launches[pair.Key] = pair.Value;
+
+        var root = new Dictionary<string, object>();
+        root["schemaVersion"] = 1;
+        root["updatedAt"] = DateTime.UtcNow.ToString("o");
+        root["launches"] = launches;
+        WriteJson(LauncherUsagePath, root);
+    }
+
+    static int LauncherLaunchCount(
+        LauncherApp app,
+        Dictionary<string, int> launchCounts)
+    {
+        if (launchCounts == null)
+            return 0;
+
+        string key = LauncherUsageKey(app);
+        int count;
+        return
+            !String.IsNullOrWhiteSpace(key) &&
+            launchCounts.TryGetValue(key, out count) &&
+            count > 0
+                ? count
+                : 0;
+    }
+
     static List<LauncherApp> FilterLauncherApps(
         List<LauncherApp> apps,
         string query,
-        int maxResults)
+        int maxResults,
+        Dictionary<string, int> launchCounts)
     {
         return apps
             .Select(x => new
             {
                 App = x,
-                Score = LauncherMatchScore(x.Name, query)
+                Score = LauncherMatchScore(x.Name, query),
+                LaunchCount = LauncherLaunchCount(x, launchCounts)
             })
             .Where(x => x.Score != Int32.MaxValue)
             .OrderBy(x => x.Score)
+            .ThenByDescending(x => x.LaunchCount)
             .ThenBy(x => x.App.Name, StringComparer.OrdinalIgnoreCase)
             .Take(maxResults)
             .Select(x => x.App)
@@ -13077,6 +13170,7 @@ class WgdotHidden
         psi.ErrorDialog = false;
 
         Process.Start(psi);
+        RecordLauncherLaunch(app);
         form.Close();
     }
 
@@ -13091,6 +13185,7 @@ class WgdotHidden
         }
 
         List<LauncherApp> apps = ReadLauncherAppCache();
+        Dictionary<string, int> launchCounts = ReadLauncherLaunchCounts();
 
         IntPtr foreground = GetForegroundWindow();
         POINT cursor;
@@ -13179,7 +13274,7 @@ class WgdotHidden
         Action refresh = delegate
         {
             List<LauncherApp> filtered =
-                FilterLauncherApps(apps, search.Text, 12);
+                FilterLauncherApps(apps, search.Text, 12, launchCounts);
             results.SetItems(filtered);
             QueueLauncherIconLoads(form, results, filtered);
         };
