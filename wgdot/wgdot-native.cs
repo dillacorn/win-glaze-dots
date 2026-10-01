@@ -1405,7 +1405,7 @@ internal static class WgdotNative
             if (command == "software-uninstall") return SoftwareUninstallManager();
             if (command == "startup") return StartupManager();
             if (command == "startup-disable-all") return DisableAllManagedStartup(true);
-            if (command == "software-audit") return SoftwareCatalogAudit();
+            if (command == "software-audit") return SoftwareCatalogAuditFromArgs(args.Skip(1).ToArray());
             if (command == "ensure-winget") return EnsureWingetAvailable();
             if (command == "acceptance-audit") return AcceptanceAudit();
             if (command == "software-elevated") return SoftwareElevatedFromArgs(args.Skip(1).ToArray());
@@ -5114,25 +5114,167 @@ class WgdotHidden
 
     static int SoftwareCatalogAudit()
     {
-        return SoftwareCatalogAudit(true);
+        return SoftwareCatalogAudit(true, false);
+    }
+
+    static int SoftwareCatalogAuditFromArgs(string[] args)
+    {
+        bool downloadInstallers = false;
+        foreach (string arg in args ?? new string[0])
+        {
+            if (String.Equals(arg, "--download", StringComparison.OrdinalIgnoreCase))
+            {
+                downloadInstallers = true;
+                continue;
+            }
+
+            throw new Exception("Unknown software-audit option: " + arg);
+        }
+
+        return SoftwareCatalogAudit(true, downloadInstallers);
     }
 
     static int SoftwareCatalogAudit(bool askConfirmation)
+    {
+        return SoftwareCatalogAudit(askConfirmation, false);
+    }
+
+    static bool ProbeWingetPackageDownload(
+        Dictionary<string, object> package,
+        out string error)
+    {
+        error = "";
+        string id = GetString(package, "id");
+        string root = Path.Combine(
+            Path.GetTempPath(),
+            "wgdot-winget-download-" + Guid.NewGuid().ToString("N"));
+
+        try
+        {
+            Directory.CreateDirectory(root);
+            ProcResult download = RunWithTimeout(
+                "winget.exe",
+                "download --id " + Q(id) +
+                " --exact --source winget --accept-source-agreements --accept-package-agreements" +
+                " --disable-interactivity --skip-license --download-directory " + Q(root),
+                null,
+                GetWingetInstallTimeoutMs(package));
+
+            if (download.TimedOut)
+            {
+                error = "WinGet download timed out.";
+                return false;
+            }
+
+            if (download.ExitCode != 0)
+            {
+                error =
+                    "WinGet download failed (exit " +
+                    download.ExitCode.ToString(CultureInfo.InvariantCulture) +
+                    "): " +
+                    LastUsefulLine(download.StdErr + "\n" + download.StdOut);
+                return false;
+            }
+
+            string[] downloadedFiles = Directory.GetFiles(
+                root,
+                "*",
+                SearchOption.AllDirectories);
+            if (downloadedFiles.Length == 0)
+            {
+                error = "WinGet reported success but produced no downloaded installer/dependency files.";
+                return false;
+            }
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+            return false;
+        }
+        finally
+        {
+            SafeDeleteDirectory(root);
+        }
+    }
+
+    static bool ProbeOfficialGitHubPackageDownload(
+        Dictionary<string, object> package,
+        out string assetName,
+        out string error)
+    {
+        assetName = "";
+        error = "";
+        string downloaded = "";
+
+        try
+        {
+            downloaded = DownloadOfficialGitHubPackageAsset(package, out assetName);
+            if (assetName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+            {
+                using (FileStream stream = File.OpenRead(downloaded))
+                {
+                    if (stream.Length < 2 ||
+                        stream.ReadByte() != 0x50 ||
+                        stream.ReadByte() != 0x4B)
+                    {
+                        error = "Downloaded official GitHub asset is not a valid ZIP archive.";
+                        return false;
+                    }
+                }
+            }
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+            return false;
+        }
+        finally
+        {
+            if (!String.IsNullOrWhiteSpace(downloaded))
+                SafeDeleteFile(downloaded);
+        }
+    }
+
+    static int SoftwareCatalogAudit(bool askConfirmation, bool downloadInstallers)
     {
         SourceContext source = ResolveDefaultSource();
         Dictionary<string, object> manifest = source.Manifest;
         List<object> packages = GetList(manifest, "packages");
 
-        WriteTitle("Software catalog audit (no install)");
+        WriteTitle(
+            downloadInstallers
+                ? "Software catalog deep-download audit (no install)"
+                : "Software catalog audit (no install)");
         Console.WriteLine("Packages in manifest: " + packages.Count.ToString(CultureInfo.InvariantCulture));
         Console.WriteLine();
-        Console.WriteLine("This audit does not install, upgrade, download installers, launch apps,");
-        Console.WriteLine("change registry settings, or request administrator access.");
-        Console.WriteLine("It validates each package's declared source: WinGet, official GitHub, or official publisher page.");
+
+        if (downloadInstallers)
+        {
+            Console.WriteLine("This audit does not install, upgrade, launch apps, change registry settings,");
+            Console.WriteLine("or request administrator access.");
+            Console.WriteLine("It downloads each real WinGet installer/dependency payload to a temporary");
+            Console.WriteLine("directory, lets WinGet verify it, then deletes it before moving on.");
+            Console.WriteLine("Official GitHub package assets are also downloaded and validated, then deleted.");
+            Console.WriteLine("Publisher-page-only packages can only have their official page checked.");
+        }
+        else
+        {
+            Console.WriteLine("This audit does not install, upgrade, download installers, launch apps,");
+            Console.WriteLine("change registry settings, or request administrator access.");
+            Console.WriteLine("It validates each package's declared source: WinGet, official GitHub, or official publisher page.");
+        }
         Console.WriteLine();
 
         if (askConfirmation &&
-            !ReadYesNo("Audit all software now? [y/N]", false))
+            !ReadYesNo(
+                downloadInstallers
+                    ? "Deep-audit all software downloads now? [y/N]"
+                    : "Audit all software now? [y/N]",
+                false))
         {
             Console.WriteLine("No audit was run.");
             return 0;
@@ -5145,6 +5287,8 @@ class WgdotHidden
         int officialPageOk = 0;
         int alternateSourceCount = 0;
         int warningCount = 0;
+        int installerDownloadsOk = 0;
+        int installerDownloadsFailed = 0;
         int failureCount = 0;
         var failureDetails = new List<string>();
         var warningDetails = new List<string>();
@@ -5198,7 +5342,38 @@ class WgdotHidden
                         Console.ForegroundColor = ConsoleColor.Green;
                         Console.Write("official GitHub OK");
                         Console.ResetColor();
-                        Console.WriteLine(" (" + assetName + ")");
+                        Console.Write(" (" + assetName + ")");
+
+                        if (downloadInstallers)
+                        {
+                            string downloadedAsset;
+                            string downloadError;
+                            if (ProbeOfficialGitHubPackageDownload(
+                                    package,
+                                    out downloadedAsset,
+                                    out downloadError))
+                            {
+                                installerDownloadsOk++;
+                                Console.Write(" | payload ");
+                                Console.ForegroundColor = ConsoleColor.Green;
+                                Console.Write("OK");
+                                Console.ResetColor();
+                            }
+                            else
+                            {
+                                installerDownloadsFailed++;
+                                failureCount++;
+                                Console.Write(" | payload ");
+                                Console.ForegroundColor = ConsoleColor.Red;
+                                Console.Write("FAIL");
+                                Console.ResetColor();
+                                failureDetails.Add(
+                                    "Official GitHub payload download failed for " +
+                                    id + ": " + downloadError);
+                            }
+                        }
+
+                        Console.WriteLine();
                     }
                     else
                     {
@@ -5255,12 +5430,50 @@ class WgdotHidden
                 WingetPreflightTimeoutMs);
 
             bool exactOk = !show.TimedOut && show.ExitCode == 0;
+            bool wingetDownloadOk = false;
             if (exactOk)
             {
                 wingetOk++;
                 Console.ForegroundColor = ConsoleColor.Green;
                 Console.Write("WinGet OK");
                 Console.ResetColor();
+
+                if (downloadInstallers)
+                {
+                    string downloadError;
+                    wingetDownloadOk = ProbeWingetPackageDownload(package, out downloadError);
+                    if (wingetDownloadOk)
+                    {
+                        installerDownloadsOk++;
+                        Console.Write(" | payload ");
+                        Console.ForegroundColor = ConsoleColor.Green;
+                        Console.Write("OK");
+                        Console.ResetColor();
+                    }
+                    else
+                    {
+                        installerDownloadsFailed++;
+                        Console.Write(" | payload ");
+                        Console.ForegroundColor = ConsoleColor.Red;
+                        Console.Write("FAIL");
+                        Console.ResetColor();
+
+                        if (!hasFallback)
+                        {
+                            failureCount++;
+                            failureDetails.Add(
+                                "WinGet payload download failed for " + id + ": " + downloadError);
+                        }
+                        else
+                        {
+                            warningCount++;
+                            warningDetails.Add(
+                                "WinGet payload download failed for " + id +
+                                "; the declared official GitHub fallback will be tested: " +
+                                downloadError);
+                        }
+                    }
+                }
             }
             else
             {
@@ -5292,6 +5505,35 @@ class WgdotHidden
                         Console.Write("OK");
                         Console.ResetColor();
                         Console.Write(" (" + assetName + ")");
+
+                        if (downloadInstallers)
+                        {
+                            string downloadedAsset;
+                            string fallbackDownloadError;
+                            if (ProbeOfficialGitHubPackageDownload(
+                                    package,
+                                    out downloadedAsset,
+                                    out fallbackDownloadError))
+                            {
+                                installerDownloadsOk++;
+                                Console.Write(" | fallback payload ");
+                                Console.ForegroundColor = ConsoleColor.Green;
+                                Console.Write("OK");
+                                Console.ResetColor();
+                            }
+                            else
+                            {
+                                installerDownloadsFailed++;
+                                failureCount++;
+                                Console.Write(" | fallback payload ");
+                                Console.ForegroundColor = ConsoleColor.Red;
+                                Console.Write("FAIL");
+                                Console.ResetColor();
+                                failureDetails.Add(
+                                    "Official GitHub fallback payload download failed for " +
+                                    id + ": " + fallbackDownloadError);
+                            }
+                        }
                     }
                     else
                     {
@@ -5332,6 +5574,15 @@ class WgdotHidden
         Console.WriteLine("Official GitHub fallbacks verified: " + fallbackOk.ToString(CultureInfo.InvariantCulture));
         Console.WriteLine("Official download pages verified: " + officialPageOk.ToString(CultureInfo.InvariantCulture));
         Console.WriteLine("Packages using alternate official source: " + alternateSourceCount.ToString(CultureInfo.InvariantCulture));
+        if (downloadInstallers)
+        {
+            Console.WriteLine(
+                "Installer/dependency payload downloads verified: " +
+                installerDownloadsOk.ToString(CultureInfo.InvariantCulture));
+            Console.WriteLine(
+                "Installer/dependency payload download failures: " +
+                installerDownloadsFailed.ToString(CultureInfo.InvariantCulture));
+        }
         Console.WriteLine("Warnings: " + warningCount.ToString(CultureInfo.InvariantCulture));
         Console.WriteLine("Failures: " + failureCount.ToString(CultureInfo.InvariantCulture));
 
@@ -5357,8 +5608,11 @@ class WgdotHidden
 
         Console.WriteLine();
         Console.WriteLine(
-            "Audit scope: catalog/fallback/post-install metadata only. " +
-            "Installer execution and application-specific runtime behavior still require an installed app.");
+            downloadInstallers
+                ? "Audit scope: catalog metadata plus real installer/dependency payload retrieval. " +
+                  "Installers are not executed; installer-side failures still require an isolated Windows Sandbox/VM test."
+                : "Audit scope: catalog/fallback/post-install metadata only. " +
+                  "Installer execution and application-specific runtime behavior still require an installed app.");
 
         return failureCount == 0 ? 0 : 1;
     }
