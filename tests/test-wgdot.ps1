@@ -1008,6 +1008,7 @@ Assert-True ($nativeSourceText -match 'Audit all software \(no install\)') "main
 Assert-True ($nativeSourceText -match 'if \(command == "software-audit"\) return SoftwareCatalogAudit') "software audit has a direct native command"
 Assert-True ($nativeSourceText -match 'SoftwareCatalogAuditFromArgs') "software audit accepts explicit deep-audit options"
 Assert-True ($nativeSourceText -match 'String\.Equals\(arg, "--download"') "software audit exposes the opt-in installer payload download mode"
+Assert-True ($nativeSourceText -match 'return SoftwareCatalogAudit\(!downloadInstallers, downloadInstallers\);') "explicit --download starts immediately without a redundant default-No confirmation"
 Assert-True ($nativeSourceText -match 'This audit does not install, upgrade, download installers, launch apps') "default software audit clearly states its non-mutating no-download scope"
 Assert-True ($nativeSourceText -match '(?s)download --id .*--download-directory') "deep software audit asks WinGet to retrieve the real installer payload without installing"
 Assert-True ($nativeSourceText -match '--skip-license') "deep software audit avoids Microsoft Store offline-license authentication"
