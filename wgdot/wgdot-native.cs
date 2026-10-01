@@ -5131,7 +5131,7 @@ class WgdotHidden
             throw new Exception("Unknown software-audit option: " + arg);
         }
 
-        return SoftwareCatalogAudit(true, downloadInstallers);
+        return SoftwareCatalogAudit(!downloadInstallers, downloadInstallers);
     }
 
     static int SoftwareCatalogAudit(bool askConfirmation)
