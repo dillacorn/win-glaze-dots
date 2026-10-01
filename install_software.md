@@ -130,7 +130,6 @@ Mullvad Browser is intentionally left untouched. WGDot does not install extensio
 - **System Informer** — `WinsiderSS.SystemInformer`
 - **HWMonitor** — `CPUID.HWMonitor`
 - **Ventoy** — `Ventoy.Ventoy`
-- **CCleaner** — `Piriform.CCleaner`
 - **WizTree** — `AntibodySoftware.WizTree`
 - **CPU-Z** — `CPUID.CPU-Z`
 - **GPU-Z** — `TechPowerUp.GPU-Z`
