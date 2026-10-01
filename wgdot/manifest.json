@@ -835,13 +835,6 @@
       "defaultWork": false
     },
     {
-      "name": "CCleaner",
-      "id": "Piriform.CCleaner",
-      "category": "system",
-      "defaultNormal": false,
-      "defaultWork": false
-    },
-    {
       "name": "WizTree",
       "id": "AntibodySoftware.WizTree",
       "category": "system",
