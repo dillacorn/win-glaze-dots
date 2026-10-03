@@ -1621,7 +1621,20 @@ local function WgdotYaziBreadcrumbSegments(path)
     return segments
 end
 
+local function WgdotYaziApplyFolderSort()
+    local cwd = WgdotYaziNormalizeFsPath(cx.active.current.cwd)
+    local home = WgdotYaziNormalizeFsPath(os.getenv("USERPROFILE"))
+
+    if home ~= "" and cwd == home .. "/downloads" then
+        ya.emit("sort", { "mtime", reverse = true, dir_first = true })
+    else
+        ya.emit("sort", { "natural", reverse = false, dir_first = true })
+    end
+end
+
 ps.sub("cd", function()
+    WgdotYaziApplyFolderSort()
+
     if not WgdotYaziBreadcrumbTarget then
         return
     end
