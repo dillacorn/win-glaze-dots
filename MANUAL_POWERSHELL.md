@@ -14,8 +14,8 @@ Paste the complete block into PowerShell. It is one script block so a source/dow
 & {
 $ErrorActionPreference = "Stop"
 $repoName = "dillacorn/win-glaze-dots"
-$releaseTag = "v4.6.6"
-$releaseRevision = "9ac417a3c642ab6645ec8e480a301efba481c244"
+$releaseTag = "v4.7.1"
+$releaseRevision = "a4a93778de0ed4d93e40e6a9e42479bfa25f404b"
 $scope = "work"              # work or normal
 $glazeProfile = "work"       # work or normal
 $selectedComponents = @(
