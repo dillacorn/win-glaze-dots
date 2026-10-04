@@ -169,3 +169,102 @@ jobs:
         run: |
           set "WGDOT_TEST_ROOT=%TEMP%\wgdot-native-maintenance-state"
           "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" maintenance-self-test
+
+  release-v4-7-1:
+    name: Publish WGDot v4.7.1
+    needs: [yasb-stable-schema, windows-powershell-51, powershell-7, native-bootstrap]
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.title == 'release-bridge: WGDot v4.7.1' &&
+      github.head_ref == 'release-bridge-v4.7.1' &&
+      github.base_ref == 'main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Create and verify v4.7.1
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          target='a4a93778de0ed4d93e40e6a9e42479bfa25f404b'
+          current_main="$(gh api "repos/${GITHUB_REPOSITORY}/commits/main" --jq .sha)"
+          [[ "$current_main" == "$target" ]] || {
+            printf 'main moved: expected %s, got %s\n' "$target" "$current_main" >&2
+            exit 1
+          }
+
+          if gh release view v4.7.1 --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            printf '%s\n' 'v4.7.1 already exists; refusing to replace it.' >&2
+            exit 1
+          fi
+          if gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/v4.7.1" >/dev/null 2>&1; then
+            printf '%s\n' 'v4.7.1 tag already exists; refusing to move or replace it.' >&2
+            exit 1
+          fi
+
+          notes="$RUNNER_TEMP/wgdot-v4.7.1.md"
+          cat >"$notes" <<'EOF_NOTES'
+          # WGDot v4.7.1
+          
+          Fixes Windows/Linux dual-boot clock drift with an opt-in UTC hardware-clock compatibility tweak.
+          
+          ## Install and update
+          
+          - [Install](https://github.com/dillacorn/win-glaze-dots/blob/main/INSTALL.md)
+          - [Update](https://github.com/dillacorn/win-glaze-dots/blob/main/UPDATE.md)
+          
+          ## Changes
+          
+          - Added **Use UTC hardware clock (fix Windows/Linux dual-boot time)** under Windows tweaks / integrations.
+          - The tweak is default OFF, administrator-level, and sets Windows' `RealTimeIsUniversal=1` RTC interpretation while preserving the prior registry state for rollback.
+          - Enabling it requests a best-effort Windows Time resync and does not modify Linux, the selected Windows time zone, or unrelated time settings.
+          
+          ## Validation
+          
+          - The complete `Validate WGDot` workflow passed on exact release commit `a4a93778de0ed4d93e40e6a9e42479bfa25f404b`, including Windows PowerShell 5.1, PowerShell 7, YASB/schema and Yazi Lua checks, and native bootstrap/maintenance validation.
+          - Maintainer runtime testing confirmed the clock remains correct after booting Arch Linux and returning to Windows.
+          EOF_NOTES
+
+          gh release create v4.7.1 \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$target" \
+            --title 'WGDot v4.7.1' \
+            --notes-file "$notes"
+
+          actual_notes="$RUNNER_TEMP/wgdot-v4.7.1.actual.md"
+          gh release view v4.7.1 --repo "$GITHUB_REPOSITORY" --json body --jq .body >"$actual_notes"
+          python3 - "$notes" "$actual_notes" <<'PY_VERIFY_NOTES'
+          from pathlib import Path
+          import sys
+          expected = Path(sys.argv[1]).read_text(encoding='utf-8').rstrip('\n')
+          actual = Path(sys.argv[2]).read_text(encoding='utf-8').rstrip('\n')
+          if actual != expected:
+              raise SystemExit('published release body does not match intended notes')
+          PY_VERIFY_NOTES
+
+          release_json="$(gh release view v4.7.1 --repo "$GITHUB_REPOSITORY" --json name,tagName,isDraft,isPrerelease,targetCommitish)"
+          [[ "$(jq -r .name <<<"$release_json")" == 'WGDot v4.7.1' ]]
+          [[ "$(jq -r .tagName <<<"$release_json")" == 'v4.7.1' ]]
+          [[ "$(jq -r .isDraft <<<"$release_json")" == 'false' ]]
+          [[ "$(jq -r .isPrerelease <<<"$release_json")" == 'false' ]]
+          [[ "$(jq -r .targetCommitish <<<"$release_json")" == "$target" ]]
+          tag_sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/v4.7.1" --jq .object.sha)"
+          [[ "$tag_sha" == "$target" ]]
+
+      - name: Remove helper branch after PR closes
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          pr='${{ github.event.pull_request.number }}'
+          for _ in $(seq 1 120); do
+            state="$(curl -fsSL -H 'Accept: application/vnd.github+json' "https://api.github.com/repos/${GITHUB_REPOSITORY}/pulls/${pr}" | jq -r .state)"
+            if [[ "$state" == 'closed' ]]; then
+              gh api --method DELETE "repos/${GITHUB_REPOSITORY}/git/refs/heads/release-bridge-v4.7.1"
+              exit 0
+            fi
+            sleep 5
+          done
+          printf '%s\n' 'Release is verified, but the helper PR was not closed before cleanup timeout.' >&2
+          exit 1
