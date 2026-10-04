@@ -650,6 +650,7 @@ foreach ($id in @(
     "rnnoise-mic-suppression",
     "disable-snap-assist",
     "automatic-time-and-timezone",
+    "dual-boot-utc-hardware-clock",
     "disable-remote-assistance",
     "enable-windows-sudo",
     "reduce-visual-effects",
@@ -666,6 +667,7 @@ foreach ($id in @(
     "privacy-sexy",
     "rnnoise-mic-suppression",
 
+    "dual-boot-utc-hardware-clock",
     "disable-remote-assistance",
     "enable-windows-sudo",
     "reduce-visual-effects",
@@ -1004,6 +1006,9 @@ Assert-True ($nativeSourceText -match 'Windows also protected the Widgets machin
 Assert-True ($nativeSourceText -match 'Widgets were left unchanged; the remaining taskbar cleanup will continue') "Widgets access denial does not abort the rest of clean-taskbar-items"
 Assert-True ($nativeSourceText -match 'DiscardRegistryOriginalSnapshot\(\s*id,\s*"HKLM",\s*widgetsPolicyPath,\s*widgetsPolicyName\)') "failed Widgets policy fallback does not retain false rollback ownership"
 Assert-True ($nativeSourceText -match 'automatic-time-and-timezone') "native runtime manages automatic time/time-zone setup"
+Assert-True ($nativeSourceText -match 'dual-boot-utc-hardware-clock') "native runtime manages Windows/Linux dual-boot RTC compatibility"
+Assert-True ($nativeSourceText -match 'RealTimeIsUniversal') "dual-boot UTC tweak sets the Windows RTC interpretation value"
+Assert-True ($nativeSourceText -match 'ApplyDualBootUtcHardwareClock') "native runtime implements the dual-boot UTC hardware-clock tweak"
 Assert-True ($nativeSourceText -match 'Services\\tzautoupdate') "automatic time-zone setup manages the Windows Auto Time Zone service"
 Assert-True ($nativeSourceText -match 'CapabilityAccessManager\\ConsentStore\\location') "automatic time-zone setup enables Windows Location services"
 Assert-True ($nativeSourceText -match '"Allow", RegistryValueKind\.String') "automatic time-zone setup uses Microsoft\'s Location Allow value"

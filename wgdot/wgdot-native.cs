@@ -10701,6 +10701,7 @@ class WgdotHidden
     {
         return
             String.Equals(id, "automatic-time-and-timezone", StringComparison.OrdinalIgnoreCase) ||
+            String.Equals(id, "dual-boot-utc-hardware-clock", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(id, "rnnoise-mic-suppression", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(id, "disable-remote-assistance", StringComparison.OrdinalIgnoreCase) ||
             String.Equals(id, "enable-windows-sudo", StringComparison.OrdinalIgnoreCase);
@@ -10782,6 +10783,8 @@ class WgdotHidden
             ApplySnapAssist(enable);
         else if (String.Equals(id, "automatic-time-and-timezone", StringComparison.OrdinalIgnoreCase))
             ApplyAutomaticTimeAndTimeZone(enable);
+        else if (String.Equals(id, "dual-boot-utc-hardware-clock", StringComparison.OrdinalIgnoreCase))
+            ApplyDualBootUtcHardwareClock(enable);
         else if (String.Equals(id, "disable-remote-assistance", StringComparison.OrdinalIgnoreCase))
             ApplyRemoteAssistance(enable);
         else if (String.Equals(id, "enable-windows-sudo", StringComparison.OrdinalIgnoreCase))
@@ -15151,6 +15154,50 @@ class WgdotHidden
         Console.WriteLine(
             "Automatic time-zone detection is enabled through Windows Location services. " +
             "Windows may update the zone after location resolves.");
+    }
+
+    static void ApplyDualBootUtcHardwareClock(bool enable)
+    {
+        const string id = "dual-boot-utc-hardware-clock";
+        const string timeZonePath =
+            @"SYSTEM\CurrentControlSet\Control\TimeZoneInformation";
+
+        if (!enable)
+        {
+            RestoreRegistryOriginals(id);
+            Console.WriteLine(
+                "Windows hardware-clock interpretation was restored to its pre-WGDot value.");
+            return;
+        }
+
+        SetRegistryValueWithSnapshot(
+            id,
+            "HKLM",
+            timeZonePath,
+            "RealTimeIsUniversal",
+            1,
+            RegistryValueKind.DWord);
+
+        Console.WriteLine(
+            "Windows is configured to interpret the hardware clock as UTC for Linux dual boot.");
+
+        ProcResult sync = Run("w32tm.exe", "/resync /rediscover", null);
+        if (sync.ExitCode == 0)
+        {
+            Console.WriteLine("Windows time resync requested successfully.");
+        }
+        else
+        {
+            string detail = ((sync.StdOut ?? "") + " " + (sync.StdErr ?? "")).Trim();
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine(
+                "UTC hardware-clock mode is enabled, but the immediate Windows time resync did not complete" +
+                (String.IsNullOrWhiteSpace(detail) ? "." : ": " + detail));
+            Console.ResetColor();
+        }
+
+        Console.WriteLine(
+            "This changes only Windows RTC interpretation. Linux configuration is not modified.");
     }
 
     static void ApplyRemoteAssistance(bool enable)
