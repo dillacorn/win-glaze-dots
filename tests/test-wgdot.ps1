@@ -313,7 +313,9 @@ Assert-True ($yaziInitText -match 'self:run\(action\.action\)') "Yazi custom con
 Assert-True ($yaziInitText -notmatch 'function WgdotYaziContextMenu:footer\(\)') "Yazi custom context menu removes the clipping-prone shortcut footer"
 Assert-True ($yaziInitText -match 'local width = math\.min\(56, area\.w\)') "Yazi custom context menu keeps the proven stable width"
 Assert-True ($yaziInitText -match 'local height = math\.min\(#actions \+ 2, area\.h\)') "Yazi custom context menu sizes only for actions and its border"
-Assert-True ($yaziInitText -notmatch 'ui\.Span\(action\.shortcut\)') "Yazi custom context menu does not render redundant inline shortcut columns"
+$contextRedrawMatch = [regex]::Match($yaziInitText, 'function WgdotYaziContextMenu:redraw\(\)(?<body>[\s\S]*?)\r?\nend')
+Assert-True ($contextRedrawMatch.Success) "Yazi custom context menu redraw function exists"
+Assert-True ($contextRedrawMatch.Groups['body'].Value -notmatch 'action\.shortcut') "Yazi custom context menu does not render redundant inline shortcut columns"
 Assert-True ($yaziInitText -match ':title\(ui\.Line\(self:title\(\)\):align\(ui\.Align\.CENTER\)\)') "Yazi custom context menu keeps the proven centered title"
 Assert-True ($yaziInitText -notmatch 'local WgdotYaziDefaultRootClick = Root\.click|function Root:click\(event, up\)') "Yazi right-click menu relies on upstream Root click routing"
 Assert-True ($yaziInitText -notmatch 'function Root:redraw\(\)|function Root:layout\(\)|function Root:reflow\(\)') "Yazi custom context menu does not replace Root drawing or layout"
