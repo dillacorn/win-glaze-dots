@@ -169,3 +169,90 @@ jobs:
         run: |
           set "WGDOT_TEST_ROOT=%TEMP%\wgdot-native-maintenance-state"
           "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" maintenance-self-test
+
+
+  create-v472-yazi-release:
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.title == 'release-bridge: WGDot v4.7.2 Yazi' &&
+      github.head_ref == 'release-bridge/v4.7.2-yazi' &&
+      github.base_ref == 'main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: v4.7.2
+      TITLE: WGDot v4.7.2 Yazi
+      TARGET: f838909a5e63d9e0bc29f0a68cf59d5a09425325
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Verify immutable release target
+        shell: bash
+        run: |
+          set -euo pipefail
+          main_sha="$(git ls-remote origin refs/heads/main | awk '{print $1}')"
+          test "$main_sha" = "$TARGET"
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release $TAG already exists; refusing replacement." >&2
+            exit 1
+          fi
+          if git ls-remote --tags origin "refs/tags/$TAG" | grep -q .; then
+            echo "Tag $TAG already exists; refusing replacement." >&2
+            exit 1
+          fi
+      - name: Create and verify release
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > release-notes.md <<'EOF'
+          # WGDot v4.7.2 Yazi
+
+          This release improves Yazi tab organization, mouse workflows, context menus, and file-information controls while keeping the implementation native to Yazi.
+
+          ## Install and update
+
+          - [Install](https://github.com/dillacorn/win-glaze-dots/blob/main/INSTALL.md)
+          - [Update](https://github.com/dillacorn/win-glaze-dots/blob/main/UPDATE.md)
+
+          ## Yazi improvements
+
+          - Tabs can be reordered by left-dragging them; the numbered tab order follows the new position.
+          - Right-clicking a tab switches to it and opens Yazi's native tab rename prompt.
+          - Ctrl+A now uses native selection inversion: with nothing selected it selects all, and with an existing selection it inverts the selection.
+          - `i` opens file information like Tab and closes that information view when pressed again.
+          - Right-click menus are action-only instead of duplicating clipped shortcut directions; keyboard guidance remains in Yazi Help.
+          - Context menus add **Help** and **Open File Explorer here**.
+          - Mouse-wheel scrolling works in Yazi Help while normal manager and preview scrolling keep their native behavior.
+          - Selectable text mode accepts either Enter or Esc to return to Yazi.
+
+          ## Validation
+
+          - The complete **Validate WGDot** workflow passed on feature head `11aad78d9431952192038ae015567a6650e548a1`, including Windows PowerShell 5.1, PowerShell 7, Yazi Lua/schema validation, and native bootstrap checks.
+          - Maintainer runtime testing confirmed the requested Yazi interaction changes on the Windows work environment.
+          - The complete **Validate WGDot** workflow passed again on exact release target `f838909a5e63d9e0bc29f0a68cf59d5a09425325` after merge.
+          EOF
+          gh release create "$TAG"             --repo "$GITHUB_REPOSITORY"             --target "$TARGET"             --title "$TITLE"             --notes-file release-notes.md
+
+          gh release view "$TAG"             --repo "$GITHUB_REPOSITORY"             --json tagName,name,isDraft,isPrerelease,targetCommitish,body,url > published.json
+
+          jq -e --arg tag "$TAG" --arg title "$TITLE" --arg target "$TARGET" '
+            .tagName == $tag and
+            .name == $title and
+            .isDraft == false and
+            .isPrerelease == false and
+            .targetCommitish == $target
+          ' published.json >/dev/null
+
+          jq -r '.body' published.json > published-body.md
+          cmp -s release-notes.md published-body.md
+
+          git fetch --force origin "refs/tags/$TAG:refs/tags/$TAG"
+          test "$(git rev-list -n 1 "$TAG")" = "$TARGET"
+      - name: Remove one-use helper branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api --method DELETE             "repos/$GITHUB_REPOSITORY/git/refs/heads/release-bridge%2Fv4.7.2-yazi"
