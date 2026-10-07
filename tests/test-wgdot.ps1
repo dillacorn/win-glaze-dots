@@ -353,7 +353,7 @@ Assert-True ($yaziInitText -match 'WgdotYaziDropInto\("move"') "Yazi internal dr
 Assert-True ($yaziInitText -match '\\\\wgdot\\\\bin\\\\wgdotw\.exe') "Yazi resolves the installed windowless WGDot helper for outbound drag"
 Assert-True ($yaziInitText -match 'function WgdotYaziDragOut\(\)') "Yazi exposes explicit outbound drag"
 Assert-True ($yaziKeymapText -match 'on = \["d", "g"\].*WgdotYaziDragOut') "Yazi d g opens the outbound drag surface"
-Assert-True ($yaziInitText -match 'label = "Drag out\.\.\.", shortcut = "d g", action = "drag_out"') "Yazi context menu exposes Drag out"
+Assert-True ($yaziInitText -match 'label = "Drag out\.\.\.", action = "drag_out"') "Yazi context menu exposes Drag out"
 Assert-True ($yaziInitText -match 'Command\(helper\):arg\(\{ "yazi-drag", list_path \}\)') "Yazi explicit outbound drag invokes the native helper"
 $currentDragBlock = [regex]::Match($yaziInitText, '(?ms)function Current:drag\(event\).*?^end').Value
 Assert-True ($currentDragBlock -notmatch 'WgdotYaziStartOutboundDrag') "Yazi internal mouse drag does not auto-launch the outbound drag surface"
