@@ -335,6 +335,78 @@ function WgdotYaziCloseTab()
     end
 end
 
+local WgdotYaziTabDrag = nil
+
+local function WgdotYaziTabIndexAtX(tabs, x)
+    for i = #cx.tabs, 1, -1 do
+        local offset = tabs._offsets[i]
+        if offset and x >= offset then
+            return i
+        end
+    end
+    return nil
+end
+
+local function WgdotYaziMoveActiveTabTo(target)
+    local current = cx.tabs.idx
+    if not current or not target or current == target then
+        return
+    end
+
+    local step = target > current and 1 or -1
+    for _ = 1, math.abs(target - current) do
+        ya.emit("tab_swap", { step })
+    end
+end
+
+function Tabs:click(event, up)
+    local index = WgdotYaziTabIndexAtX(self, event.x)
+    if not index then
+        WgdotYaziTabDrag = nil
+        return
+    end
+
+    if event.is_right then
+        if up then
+            return
+        end
+        WgdotYaziTabDrag = nil
+        ya.emit("tab_switch", { index - 1 })
+        ya.emit("tab_rename", { interactive = true })
+        return
+    elseif not event.is_left then
+        return
+    end
+
+    if not up then
+        WgdotYaziTabDrag = {
+            source = index,
+            target = index,
+            moved = false,
+        }
+        ya.emit("tab_switch", { index - 1 })
+        return
+    end
+
+    local drag = WgdotYaziTabDrag
+    WgdotYaziTabDrag = nil
+    if drag and drag.moved then
+        WgdotYaziMoveActiveTabTo(WgdotYaziTabIndexAtX(self, event.x) or drag.target)
+    end
+end
+
+function Tabs:drag(event)
+    if not WgdotYaziTabDrag then
+        return
+    end
+
+    local target = WgdotYaziTabIndexAtX(self, event.x)
+    if target then
+        WgdotYaziTabDrag.target = target
+        WgdotYaziTabDrag.moved = true
+    end
+end
+
 WgdotYaziDeleteMenu = {
     _id = "wgdot-yazi-delete-menu",
     _visible = false,
@@ -665,7 +737,8 @@ function WgdotYaziSelectPreviewText()
         "Clear-Host; " ..
         "Get-Content -LiteralPath $p; " ..
         "Write-Host ''; " ..
-        "$null = Read-Host 'Select text with the mouse; it copies automatically. Press Enter to return to Yazi'"
+        "Write-Host 'Select text with the mouse; it copies automatically. Press Enter or Esc to return to Yazi'; " ..
+        "do { $k = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown') } while ($k.VirtualKeyCode -ne 13 -and $k.VirtualKeyCode -ne 27)"
 
     local encoded = WgdotYaziBase64(WgdotYaziUtf16Le(script))
     local command = "powershell.exe -NoLogo -NoProfile -EncodedCommand " .. encoded
@@ -1244,6 +1317,16 @@ local WgdotYaziFolderActions = {
     { label = "Bookmark / unbookmark folder", shortcut = "B", action = "bookmark_current" },
 }
 
+local function WgdotYaziContextActions(actions)
+    local result = {}
+    for _, action in ipairs(actions) do
+        result[#result + 1] = action
+    end
+    result[#result + 1] = { label = "Open File Explorer here", action = "explorer_here" }
+    result[#result + 1] = { label = "Help", action = "help" }
+    return result
+end
+
 WgdotYaziContextMenu = {
     _id = "wgdot-yazi-context-menu",
     _visible = false,
@@ -1301,14 +1384,14 @@ end
 
 function WgdotYaziContextMenu:actions()
     if self._kind == "background" then
-        return WgdotYaziFolderActions
+        return WgdotYaziContextActions(WgdotYaziFolderActions)
     elseif self._kind == "drop" then
         return WgdotYaziDropActions
     end
 
     local hovered = cx.active.current.hovered
     if self._selection_count > 1 then
-        return {
+        return WgdotYaziContextActions {
             {
                 label = "Rename " .. tostring(self._selection_count) .. " items...",
                 shortcut = "R",
@@ -1323,7 +1406,7 @@ function WgdotYaziContextMenu:actions()
     end
 
     if hovered and hovered.cha.is_dir then
-        return {
+        return WgdotYaziContextActions {
             { label = "Enter folder", shortcut = "Enter / l", action = "smart_open" },
             { label = "Open in new tab", shortcut = "t n", action = "open_new_tab" },
             {
@@ -1352,39 +1435,7 @@ function WgdotYaziContextMenu:actions()
         actions[#actions + 1] = { label = "Extract to folder", shortcut = "e f", action = "extract_folder" }
     end
 
-    return actions
-end
-
-function WgdotYaziContextMenu:footer()
-    if self._kind == "background" then
-        return {
-            "Keys: a create | Ctrl+V/p paste | t e terminal | B bookmark",
-            "Navigate: g b bookmarks | g m drives | Ctrl+F recursive search",
-        }
-    elseif self._kind == "drop" then
-        return {
-            "Release chose this folder as the destination",
-            "Choose Copy or Move; click elsewhere to cancel",
-        }
-    elseif self._selection_count > 1 then
-        return {
-            "Keys: R bulk rename | d g drag out | Ctrl+C/X copy/cut",
-            "More: c z ZIP | d d trash | Shift+D permanent delete",
-        }
-    end
-
-    local hovered = cx.active.current.hovered
-    if hovered and hovered.cha.is_dir then
-        return {
-            "Keys: Enter open | t n new tab | d g drag out | R rename",
-            "More: B bookmark | Ctrl+C/X copy/cut | c c path | Tab info | c z ZIP | d d trash",
-        }
-    end
-
-    return {
-        "Keys: Enter open | d g drag out | R rename | Ctrl+C/X copy/cut",
-        "More: c z ZIP | c c path | Tab info | d d trash | e h/e f extract ZIP",
-    }
+    return WgdotYaziContextActions(actions)
 end
 
 function WgdotYaziContextMenu:new(area)
@@ -1397,9 +1448,9 @@ function WgdotYaziContextMenu:new(area)
 
     local actions = self:actions()
     local width = math.min(56, area.w)
-    local height = math.min(#actions + 4, area.h)
+    local height = math.min(#actions + 2, area.h)
 
-    if width < 28 or height < #actions + 4 then
+    if width < 28 or height < #actions + 2 then
         self._area = ui.Rect {}
         self._list_area = ui.Rect {}
         return self
@@ -1417,12 +1468,6 @@ function WgdotYaziContextMenu:new(area)
         w = width - 2,
         h = #actions,
     }
-    self._footer_area = ui.Rect {
-        x = x + 1,
-        y = y + 1 + #actions,
-        w = width - 2,
-        h = 2,
-    }
 
     return self
 end
@@ -1437,22 +1482,14 @@ function WgdotYaziContextMenu:redraw()
     end
 
     local rows = {}
-    local content_width = self._list_area.w
     for i, action in ipairs(self:actions()) do
-        local gap = math.max(1, content_width - #action.label - #action.shortcut - 2)
-        local row = ui.Line {
-            ui.Span(" " .. action.label):style(th.help.action),
-            ui.Span(string.rep(" ", gap)),
-            ui.Span(action.shortcut):style(th.help.chord),
-            ui.Span(" "),
-        }
+        local row = ui.Line(" " .. action.label .. " "):style(th.help.action)
         if i == self._hovered_row then
             row:style(th.help.hovered)
         end
         rows[#rows + 1] = row
     end
 
-    local footer = self:footer()
     return {
         ui.Clear(self._area),
         ui.Border(ui.Edge.ALL)
@@ -1461,10 +1498,6 @@ function WgdotYaziContextMenu:redraw()
             :style(th.help.border)
             :title(ui.Line(self:title()):align(ui.Align.CENTER)),
         ui.List(rows):area(self._list_area),
-        ui.Text({
-            ui.Line(" " .. footer[1]),
-            ui.Line(" " .. footer[2]),
-        }):area(self._footer_area),
     }
 end
 
@@ -1528,6 +1561,10 @@ function WgdotYaziContextMenu:run(action)
         end
     elseif action == "terminal" then
         ya.emit("shell", { "wt.exe -w new new-tab -d .", orphan = true })
+    elseif action == "explorer_here" then
+        ya.emit("shell", { "explorer.exe .", orphan = true })
+    elseif action == "help" then
+        ya.emit("help", {})
     elseif action == "drop_copy" then
         WgdotYaziDropInto("copy", drop_target, drop_sources)
     elseif action == "drop_move" then
@@ -1571,12 +1608,21 @@ end
 Modal:children_add(WgdotYaziContextMenu, 20)
 
 local WgdotYaziDefaultRootMove = Root.move
+local WgdotYaziDefaultRootScroll = Root.scroll
 
 function Root:move(event)
     if WgdotYaziContextMenu._visible then
         return WgdotYaziContextMenu:move(event)
     end
     return WgdotYaziDefaultRootMove(self, event)
+end
+
+function Root:scroll(event, step)
+    if tostring(cx.layer) == "help" then
+        ya.emit("help:arrow", { step })
+        return
+    end
+    return WgdotYaziDefaultRootScroll(self, event, step)
 end
 
 local WgdotYaziDefaultHeaderCwd = Header.cwd
