@@ -171,7 +171,7 @@ jobs:
           "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" maintenance-self-test
 
 
-  create-v472-yazi-release:
+  verify-cleanup-v472-yazi-release:
     if: >-
       github.event_name == 'pull_request' &&
       github.event.pull_request.title == 'release-bridge: WGDot v4.7.2 Yazi' &&
@@ -189,25 +189,11 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Verify immutable release target
+      - name: Verify published release without mutation
         shell: bash
         run: |
           set -euo pipefail
-          main_sha="$(git ls-remote origin refs/heads/main | awk '{print $1}')"
-          test "$main_sha" = "$TARGET"
-          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            echo "Release $TAG already exists; refusing replacement." >&2
-            exit 1
-          fi
-          if git ls-remote --tags origin "refs/tags/$TAG" | grep -q .; then
-            echo "Tag $TAG already exists; refusing replacement." >&2
-            exit 1
-          fi
-      - name: Create and verify release
-        shell: bash
-        run: |
-          set -euo pipefail
-          cat > release-notes.md <<'EOF'
+          cat > expected.md <<'EOF'
           # WGDot v4.7.2 Yazi
 
           This release improves Yazi tab organization, mouse workflows, context menus, and file-information controls while keeping the implementation native to Yazi.
@@ -234,7 +220,6 @@ jobs:
           - Maintainer runtime testing confirmed the requested Yazi interaction changes on the Windows work environment.
           - The complete **Validate WGDot** workflow passed again on exact release target `f838909a5e63d9e0bc29f0a68cf59d5a09425325` after merge.
           EOF
-          gh release create "$TAG"             --repo "$GITHUB_REPOSITORY"             --target "$TARGET"             --title "$TITLE"             --notes-file release-notes.md
 
           gh release view "$TAG"             --repo "$GITHUB_REPOSITORY"             --json tagName,name,isDraft,isPrerelease,targetCommitish,body,url > published.json
 
@@ -246,11 +231,11 @@ jobs:
             .targetCommitish == $target
           ' published.json >/dev/null
 
-          jq -r '.body' published.json > published-body.md
-          cmp -s release-notes.md published-body.md
+          jq -rj '.body' published.json > published-body.md
+          cmp -s expected.md published-body.md
 
-          git fetch --force origin "refs/tags/$TAG:refs/tags/$TAG"
-          test "$(git rev-list -n 1 "$TAG")" = "$TARGET"
+          tag_sha="$(git ls-remote origin "refs/tags/$TAG" | awk '{print $1}')"
+          test "$tag_sha" = "$TARGET"
       - name: Remove one-use helper branch
         shell: bash
         run: |
