@@ -1157,22 +1157,22 @@ function WgdotYaziExtractZipFolder()
 end
 
 local WgdotYaziFileActions = {
-    { label = "Open", shortcut = "Enter", action = "smart_open" },
-    { label = "Open with...", shortcut = "O", action = "open_with" },
-    { label = "Bookmark / unbookmark", shortcut = "B", action = "bookmark_hovered" },
-    { label = "Rename", shortcut = "R", action = "rename" },
-    { label = "Drag out...", shortcut = "d g", action = "drag_out" },
-    { label = "Copy", shortcut = "Ctrl+C / y", action = "copy" },
-    { label = "Cut", shortcut = "Ctrl+X / Y", action = "cut" },
-    { label = "Copy path", shortcut = "c c", action = "copy_path" },
-    { label = "Compress to ZIP...", shortcut = "c z", action = "compress_zip" },
-    { label = "Details", shortcut = "Tab", action = "details" },
-    { label = "Trash", shortcut = "d d", action = "trash" },
+    { label = "Open", action = "smart_open" },
+    { label = "Open with...", action = "open_with" },
+    { label = "Bookmark / unbookmark", action = "bookmark_hovered" },
+    { label = "Rename", action = "rename" },
+    { label = "Drag out...", action = "drag_out" },
+    { label = "Copy", action = "copy" },
+    { label = "Cut", action = "cut" },
+    { label = "Copy path", action = "copy_path" },
+    { label = "Compress to ZIP...", action = "compress_zip" },
+    { label = "Details", action = "details" },
+    { label = "Trash", action = "trash" },
 }
 
 local WgdotYaziDropActions = {
-    { label = "Copy to folder", shortcut = "copy", action = "drop_copy" },
-    { label = "Move to folder", shortcut = "move", action = "drop_move" },
+    { label = "Copy to folder", action = "drop_copy" },
+    { label = "Move to folder", action = "drop_move" },
 }
 
 local WgdotYaziDragState = nil
@@ -1310,11 +1310,11 @@ function WgdotYaziDragOut()
 end
 
 local WgdotYaziFolderActions = {
-    { label = "New file", shortcut = "a", action = "new_file" },
-    { label = "New folder", shortcut = "a /", action = "new_folder" },
-    { label = "Paste", shortcut = "Ctrl+V / p", action = "paste" },
-    { label = "Terminal here", shortcut = "t e", action = "terminal" },
-    { label = "Bookmark / unbookmark folder", shortcut = "B", action = "bookmark_current" },
+    { label = "New file", action = "new_file" },
+    { label = "New folder", action = "new_folder" },
+    { label = "Paste", action = "paste" },
+    { label = "Terminal here", action = "terminal" },
+    { label = "Bookmark / unbookmark folder", action = "bookmark_current" },
 }
 
 local function WgdotYaziContextActions(actions)
@@ -1394,34 +1394,32 @@ function WgdotYaziContextMenu:actions()
         return WgdotYaziContextActions {
             {
                 label = "Rename " .. tostring(self._selection_count) .. " items...",
-                shortcut = "R",
                 action = "bulk_rename",
             },
-            { label = "Drag out...", shortcut = "d g", action = "drag_out" },
-            { label = "Copy", shortcut = "Ctrl+C / y", action = "copy" },
-            { label = "Cut", shortcut = "Ctrl+X / Y", action = "cut" },
-            { label = "Compress to ZIP...", shortcut = "c z", action = "compress_zip" },
-            { label = "Trash " .. tostring(self._selection_count) .. " items", shortcut = "d d", action = "trash" },
+            { label = "Drag out...", action = "drag_out" },
+            { label = "Copy", action = "copy" },
+            { label = "Cut", action = "cut" },
+            { label = "Compress to ZIP...", action = "compress_zip" },
+            { label = "Trash " .. tostring(self._selection_count) .. " items", action = "trash" },
         }
     end
 
     if hovered and hovered.cha.is_dir then
         return WgdotYaziContextActions {
-            { label = "Enter folder", shortcut = "Enter / l", action = "smart_open" },
-            { label = "Open in new tab", shortcut = "t n", action = "open_new_tab" },
+            { label = "Enter folder", action = "smart_open" },
+            { label = "Open in new tab", action = "open_new_tab" },
             {
                 label = "Bookmark / unbookmark",
-                shortcut = "B",
                 action = "bookmark_hovered",
             },
-            { label = "Rename", shortcut = "R", action = "rename" },
-            { label = "Drag out...", shortcut = "d g", action = "drag_out" },
-            { label = "Copy", shortcut = "Ctrl+C / y", action = "copy" },
-            { label = "Cut", shortcut = "Ctrl+X / Y", action = "cut" },
-            { label = "Copy path", shortcut = "c c", action = "copy_path" },
-            { label = "Compress to ZIP...", shortcut = "c z", action = "compress_zip" },
-            { label = "Details", shortcut = "Tab", action = "details" },
-            { label = "Trash", shortcut = "d d", action = "trash" },
+            { label = "Rename", action = "rename" },
+            { label = "Drag out...", action = "drag_out" },
+            { label = "Copy", action = "copy" },
+            { label = "Cut", action = "cut" },
+            { label = "Copy path", action = "copy_path" },
+            { label = "Compress to ZIP...", action = "compress_zip" },
+            { label = "Details", action = "details" },
+            { label = "Trash", action = "trash" },
         }
     end
 
@@ -1431,8 +1429,8 @@ function WgdotYaziContextMenu:actions()
     end
 
     if hovered and hovered.name:lower():sub(-4) == ".zip" then
-        actions[#actions + 1] = { label = "Extract here", shortcut = "e h", action = "extract_here" }
-        actions[#actions + 1] = { label = "Extract to folder", shortcut = "e f", action = "extract_folder" }
+        actions[#actions + 1] = { label = "Extract here", action = "extract_here" }
+        actions[#actions + 1] = { label = "Extract to folder", action = "extract_folder" }
     end
 
     return WgdotYaziContextActions(actions)
