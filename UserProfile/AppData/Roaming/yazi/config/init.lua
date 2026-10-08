@@ -1192,6 +1192,7 @@ local WgdotYaziDropActions = {
 }
 
 local WgdotYaziDragState = nil
+local WgdotYaziDragPending = nil
 
 local function WgdotYaziDragSources(file)
     local sources = {}
@@ -1876,9 +1877,11 @@ function Current:click(event, up)
     end
 
     if not up and event.is_right then
+        WgdotYaziDragPending = nil
         WgdotYaziPendingClick = nil
         WgdotYaziContextMenu:show("background", event.x, event.y)
     elseif event.is_left then
+        WgdotYaziDragPending = nil
         WgdotYaziPendingClick = nil
         if up then
             WgdotYaziDragState = nil
@@ -1891,20 +1894,12 @@ end
 function Current:drag(event)
     WgdotYaziPendingClick = nil
 
-    if not WgdotYaziDragState then
-        local source = self._folder.hovered
-        if source then
-            local sources = WgdotYaziDragSources(source)
-            if #sources > 0 then
-                if not source:is_selected() then
-                    ya.emit("toggle_all", { state = "off" })
-                    ya.emit("reveal", { source.url })
-                end
-
-                WgdotYaziContextMenu:hide()
-                WgdotYaziDragState = { sources = sources }
-            end
-        end
+    -- Use the selection captured at Mouse1 down, not whichever row is hovered
+    -- after the pointer has already moved. OSC 72 offers are not internal drags.
+    if event.x and event.y and not WgdotYaziDragState and WgdotYaziDragPending then
+        WgdotYaziContextMenu:hide()
+        WgdotYaziDragState = { sources = WgdotYaziDragPending.sources }
+        WgdotYaziDragPending = nil
     end
 
     return WgdotYaziDefaultCurrentDrag(self, event)
@@ -1912,6 +1907,7 @@ end
 
 function Entity:click(event, up)
     if up then
+        WgdotYaziDragPending = nil
         if event.is_left and WgdotYaziDragState then
             local drag = WgdotYaziDragState
             WgdotYaziDragState = nil
@@ -1951,6 +1947,7 @@ function Entity:click(event, up)
     end
 
     if event.is_middle then
+        WgdotYaziDragPending = nil
         WgdotYaziPendingClick = nil
         WgdotYaziContextMenu:hide()
         if WgdotYaziNavigateCollection(self._file, true) then
@@ -1966,6 +1963,7 @@ function Entity:click(event, up)
     local selected_count = #cx.active.selected
 
     if event.is_right then
+        WgdotYaziDragPending = nil
         WgdotYaziPendingClick = nil
         if not was_selected then
             ya.emit("toggle_all", { state = "off" })
@@ -1980,6 +1978,9 @@ function Entity:click(event, up)
     end
 
     WgdotYaziContextMenu:hide()
+    WgdotYaziDragPending = was_selected and {
+        sources = WgdotYaziDragSources(self._file),
+    } or nil
     WgdotYaziPendingClick = {
         path = tostring(self._file.url),
         was_hovered = was_hovered,
