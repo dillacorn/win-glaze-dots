@@ -94,6 +94,7 @@ prepend_keymap = [
 [input]
 prepend_keymap = [
   { on = ["<Esc>"], run = "close", desc = "Cancel input" },
+  { on = ["<C-a>"], run = ["move eol", "visual", "move bol"], desc = "Highlight all input text" },
   { on = ["<C-c>"], run = "yank", desc = "Copy highlighted input text" }
 ]
 
