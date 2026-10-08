@@ -347,10 +347,21 @@ Assert-True ($yaziInitText -match 'WgdotYaziPendingClick = \{') "Yazi defers sec
 Assert-True ($yaziInitText -match 'pending\.was_hovered') "Yazi release opens only an item that was already highlighted on Mouse1 down"
 Assert-True ($yaziInitText -match 'function Current:drag\(event\)') "Yazi handles drag gestures at the current-pane layer"
 Assert-True ($yaziInitText -match 'WgdotYaziPendingClick = nil') "Yazi drag cancels the pending click-open action"
-Assert-True ($yaziInitText -match 'WgdotYaziDragPending = was_selected and') "Yazi Mouse1 press snapshots only explicitly selected sources"
+Assert-True ($yaziInitText -match 'WgdotYaziDragPending = \{ sources = WgdotYaziDragSources\(self\._file\) \}') "Yazi Mouse1 press captures a single unselected file or a selected group without requiring Space"
+Assert-True ($yaziInitText -match 'if file:is_selected\(\) and #cx\.active\.selected > 0 then') "Dragging a selected file captures the entire selected group"
+Assert-True ($yaziInitText -match 'function WgdotYaziEscape\(\)') "Yazi managed Esc handler is defined"
+$escapeBlock = [regex]::Match($yaziInitText, '(?ms)^function WgdotYaziEscape\(\).*?^end').Value
+Assert-True ($escapeBlock -match 'WgdotYaziContextMenu:hide\(\)') "Esc dismisses Copy/Move without running a file task"
+Assert-True ($escapeBlock -match 'return') "Esc consumes dismissal without additionally clearing selection"
+Assert-True ($yaziInitText -match 'WgdotYaziDragGhostRedraw = function\(area\)') "Yazi renders a terminal-native drag ghost near the cursor"
+Assert-True ($yaziInitText -match 'WgdotYaziDragGhostRedraw\(self\._area\)') "Yazi renders the ghost in the current pane without a separate window"
+Assert-True ($yaziInitText -match 'ui\.Text\(ui\.Line\(line\):style\(ui\.Style\(\):fg\("gray"\):bg\("darkgray"\)\)\)') "Yazi drag ghost has subdued terminal styling"
+Assert-True ($yaziInitText -match 'WgdotYaziDragState\.x = event\.x') "Yazi ghost tracks mouse motion"
+
 $currentDragBlock = [regex]::Match($yaziInitText, '(?ms)^function Current:drag\(event\).*?^end').Value
 Assert-True ($currentDragBlock -match 'WgdotYaziDragState = \{ sources = WgdotYaziDragPending\.sources \}') "Yazi file drag uses the Mouse1-down selection, not the hovered destination"
 Assert-True ($currentDragBlock -match 'if event\.x and event\.y') "Yazi internal file dragging excludes OSC 72 external drag offers"
+Assert-True ($currentDragBlock -match 'ui\.render\(\)') "Yazi redraws the drag ghost on mouse movement"
 Assert-True ($yaziInitText -match 'WgdotYaziContextMenu:show_drop\(') "Yazi valid folder drop opens Copy/Move options"
 Assert-True ($yaziInitText -match 'WgdotYaziDragPending = nil') "Yazi clears stale file drag gestures on mouse release"
 Assert-True ($yaziInitText -match 'WgdotYaziOpenFiles\(false, true\)') "Yazi second-click release opens highlighted files and records recents"
