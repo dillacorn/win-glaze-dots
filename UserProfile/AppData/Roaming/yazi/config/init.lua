@@ -969,13 +969,12 @@ local WgdotYaziDefaultCurrentNew = Current.new
 local WgdotYaziDefaultCurrentRedraw = Current.redraw
 local WgdotYaziDefaultParentRedraw = Parent.redraw
 -- Defined below, after the mouse drag state. Keep native pane rendering.
-local WgdotYaziDragGhostRedraw = function() return {} end
+local WgdotYaziDragGhostRedraw = function() return {}, {} end
 
 function Parent:redraw()
-    return ya.list_merge(
-        WgdotYaziDefaultParentRedraw(self) or {},
-        WgdotYaziDragGhostRedraw(self._area)
-    )
+    local cleanup, ghost = WgdotYaziDragGhostRedraw(self._area, "parent")
+    local elements = ya.list_merge(cleanup, WgdotYaziDefaultParentRedraw(self) or {})
+    return ya.list_merge(elements, ghost)
 end
 
 function Current:new(area, tab)
@@ -1006,11 +1005,12 @@ function Current:reflow()
 end
 
 function Current:redraw()
-    local elements = WgdotYaziDefaultCurrentRedraw(self) or {}
+    local cleanup, ghost = WgdotYaziDragGhostRedraw(self._area, "current")
+    local elements = ya.list_merge(cleanup, WgdotYaziDefaultCurrentRedraw(self) or {})
     if self._wgdot_preview_toggle_button then
         elements = ya.list_merge(elements, ui.redraw(self._wgdot_preview_toggle_button))
     end
-    return ya.list_merge(elements, WgdotYaziDragGhostRedraw(self._area))
+    return ya.list_merge(elements, ghost)
 end
 
 local function WgdotYaziArchiveSnapshot()
@@ -1254,35 +1254,43 @@ local WgdotYaziDropActions = {
     { label = "Move to folder", action = "drop_move" },
 }
 
--- Terminal-native ghost: a dim label near the cursor, not an OS drag overlay.
--- Draw within the pane under the mouse; never pin it to the current-pane edge.
--- Use existing pane redraws, not a mouse-intercepting modal or new window.
-WgdotYaziDragGhostRedraw = function(area)
+-- Terminal-native ghost, clipped to the pane under the pointer.
+-- Clear its previous rectangle *before* native rows redraw so a ghost
+-- never remains painted on the list after release, Esc, or leaving the pane.
+local WgdotYaziDragGhostPrevious = {}
+WgdotYaziDragGhostRedraw = function(area, pane)
+    local cleanup = {}
+    local previous = WgdotYaziDragGhostPrevious[pane]
+    if previous then cleanup[1] = ui.Clear(previous) end
+    WgdotYaziDragGhostPrevious[pane] = nil
+
     local drag = WgdotYaziDragState
     if not drag or not drag.x or not drag.y or area.w < 8 or area.h < 2
         or drag.x < area.x or drag.x >= area.x + area.w
         or drag.y < area.y or drag.y >= area.y + area.h
     then
-        return {}
+        return cleanup, {}
     end
 
     local count = #drag.sources
-    if count == 0 then return {} end
+    if count == 0 then return cleanup, {} end
 
     local label = count == 1
         and (" " .. tostring(drag.sources[1].name or "item") .. " ")
         or string.format(" %d items ", count)
     local line = ui.truncate(ui.printable(label), { max = math.min(36, area.w) })
     local width = ui.width(line)
-    if width < 1 then return {} end
+    if width < 1 then return cleanup, {} end
 
     local x = math.max(area.x, math.min(drag.x + 2, area.x + area.w - width))
     local y = drag.y + 1 < area.y + area.h and drag.y + 1 or drag.y - 1
     y = math.max(area.y, math.min(y, area.y + area.h - 1))
+    local rect = ui.Rect { x = x, y = y, w = width, h = 1 }
+    WgdotYaziDragGhostPrevious[pane] = rect
 
-    return {
+    return cleanup, {
         ui.Text(ui.Line(line):style(ui.Style():fg("gray"):bg("darkgray")))
-            :area(ui.Rect { x = x, y = y, w = width, h = 1 }),
+            :area(rect),
     }
 end
 
