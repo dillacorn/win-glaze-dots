@@ -290,14 +290,109 @@ function WgdotYaziLeft()
     end
 end
 
-WgdotYaziShiftRangeActive = false
+-- Shift+Up/Down previews a contiguous range without selecting anything.
+-- Space commits it through Yazi's native visual-selection engine; Esc cancels.
+local WgdotYaziRangePreview = nil
+
+local function WgdotYaziRangeValid()
+    local range = WgdotYaziRangePreview
+    if not range then return false end
+    local folder = cx.active.current
+    return cx.active.mode.is_normal
+        and range.tab == tostring(cx.active.id)
+        and range.cwd == tostring(folder.cwd)
+        and folder.files[range.anchor]
+        and folder.files[range.last]
+        and tostring(folder.files[range.anchor].url) == range.anchor_url
+        and tostring(folder.files[range.last].url) == range.last_url
+end
+
+local function WgdotYaziRangeDiscard()
+    if not WgdotYaziRangePreview then return false end
+    WgdotYaziRangePreview = nil
+    ui.render()
+    return true
+end
+
+local function WgdotYaziRangeRebuild()
+    local range = WgdotYaziRangePreview
+    if not range then return end
+
+    range.paths = {}
+    for i = math.min(range.anchor, range.last), math.max(range.anchor, range.last) do
+        local file = cx.active.current.files[i]
+        if file then range.paths[tostring(file.url)] = true end
+    end
+end
+
+local function WgdotYaziHoveredIndex(folder)
+    local hovered = folder.hovered
+    if not hovered then return nil end
+    local url = tostring(hovered.url)
+
+    -- Cursor is usually zero-based; handle both index conventions.
+    for _, idx in ipairs({ folder.cursor + 1, folder.cursor }) do
+        local file = idx >= 1 and folder.files[idx] or nil
+        if file and tostring(file.url) == url then return idx end
+    end
+
+    -- Fallback for list types whose cursor conventions change upstream.
+    for i = 1, #folder.files do
+        if tostring(folder.files[i].url) == url then return i end
+    end
+    return nil
+end
 
 function WgdotYaziShiftArrow(step)
-    if cx.active.mode.is_normal then
-        ya.emit("visual_mode", {})
+    if not cx.active.mode.is_normal then
+        -- Keep ordinary Yazi visual/unset behavior when already in visual mode.
+        ya.emit("arrow", { step })
+        return
     end
-    WgdotYaziShiftRangeActive = true
-    ya.emit("arrow", { step })
+
+    local folder = cx.active.current
+    if not WgdotYaziRangeValid() then
+        WgdotYaziRangePreview = nil
+        local anchor = WgdotYaziHoveredIndex(folder)
+        if not anchor then return end
+        WgdotYaziRangePreview = {
+            tab = tostring(cx.active.id),
+            cwd = tostring(folder.cwd),
+            anchor = anchor,
+            anchor_url = tostring(folder.files[anchor].url),
+            last = anchor,
+            last_url = tostring(folder.files[anchor].url),
+        }
+    end
+
+    local range = WgdotYaziRangePreview
+    local last = math.max(1, math.min(#folder.files, range.last + step))
+    if last ~= range.last then
+        range.last = last
+        range.last_url = tostring(folder.files[last].url)
+        WgdotYaziRangeRebuild()
+        ya.emit("arrow", { step })
+        ui.render()
+    end
+end
+
+function WgdotYaziSpace()
+    if WgdotYaziRangeValid() then
+        local range = WgdotYaziRangePreview
+        WgdotYaziRangePreview = nil
+        -- The preview did not alter prior selections. A single native visual
+        -- pass selects the inclusive range while preserving earlier picks.
+        ya.emit("reveal", { Url(range.anchor_url) })
+        ya.emit("visual_mode", {})
+        ya.emit("arrow", { range.last - range.anchor })
+        ya.emit("escape", { visual = true })
+        ya.emit("reveal", { Url(range.last_url) })
+        ui.render()
+        return
+    end
+
+    WgdotYaziRangeDiscard()
+    ya.emit("toggle", {})
 end
 
 function WgdotYaziArrow(step)
@@ -312,12 +407,21 @@ function WgdotYaziArrow(step)
         return
     end
 
-    if WgdotYaziShiftRangeActive and not cx.active.mode.is_normal then
-        ya.emit("escape", { visual = true })
-    end
-    WgdotYaziShiftRangeActive = false
+    WgdotYaziRangeDiscard()
     local direction = step < 0 and "prev" or "next"
     ya.emit("arrow", { direction })
+end
+
+local WgdotYaziDefaultEntityStyle = Entity.style
+function Entity:style()
+    local style = WgdotYaziDefaultEntityStyle(self)
+    if self._file.in_current and WgdotYaziRangeValid()
+        and WgdotYaziRangePreview.paths
+        and WgdotYaziRangePreview.paths[tostring(self._file.url)]
+    then
+        return style:patch(ui.Style():reverse():underline())
+    end
+    return style
 end
 
 function WgdotYaziConfirmQuit(no_cwd_file)
@@ -844,6 +948,9 @@ function WgdotYaziEscape()
         return
     end
 
+    -- Esc discards a Shift+arrow preview. Native selected files stay selected.
+    if WgdotYaziRangeDiscard() then return end
+
     if WgdotYaziPreviewMaximized then
         WgdotYaziPreviewMaximized = false
         WgdotYaziApplyRatio(
@@ -1029,6 +1136,10 @@ function Current:reflow()
 end
 
 function Current:redraw()
+    -- Drop a preview whenever tab, directory, sort order, or mode changed.
+    if WgdotYaziRangePreview and not WgdotYaziRangeValid() then
+        WgdotYaziRangePreview = nil
+    end
     local cleanup, ghost = WgdotYaziDragGhostRedraw(self._area, "current")
     local elements = ya.list_merge(cleanup, WgdotYaziDefaultCurrentRedraw(self) or {})
     if self._wgdot_preview_toggle_button then
@@ -2151,6 +2262,7 @@ function Current:drag(event)
 end
 
 function Entity:click(event, up)
+    if not up then WgdotYaziRangeDiscard() end
     if up then
         WgdotYaziDragPending = nil
         if event.is_left and WgdotYaziDragState then
