@@ -278,7 +278,8 @@ Assert-True ($yaziInitText -match 'local WgdotYaziRangePreview = nil') "Yazi Shi
 Assert-True ($yaziInitText -match 'WgdotYaziRangePreview = range') "Yazi snapshots the starting file and tab for a transient Shift range"
 Assert-True ($yaziInitText -match 'range\.tab == cx\.tabs\.idx') "Yazi Shift selection uses the documented tab index, not an unavailable tab id"
 Assert-True ($yaziInitText -match 'for _, file in ipairs\(folder\.files\) do') "Yazi derives ordered file URLs through supported Lua userdata iteration"
-Assert-True ($yaziInitText -notmatch 'cx\.active\.id') "Yazi Shift selection does not depend on undocumented tab id"
+$shiftRangeBlock = [regex]::Match($yaziInitText, '(?ms)^local WgdotYaziRangePreview = nil.*?^function WgdotYaziConfirmQuit').Value
+Assert-True ($shiftRangeBlock -notmatch 'cx\.active\.id') "Yazi Shift selection does not depend on undocumented tab id; existing unrelated tab IDs are unchanged"
 $shiftBlock = [regex]::Match($yaziInitText, '(?ms)^function WgdotYaziShiftArrow\(step\).*?^end').Value
 Assert-True ($shiftBlock -notmatch 'ya\.emit\("visual_mode"') "Yazi Shift+Arrow does not select files before Space is pressed"
 Assert-True ($shiftBlock -match 'WgdotYaziRangeRebuild\(range, files\)') "Yazi Shift+Arrow rebuilds only the temporary highlighted range"
