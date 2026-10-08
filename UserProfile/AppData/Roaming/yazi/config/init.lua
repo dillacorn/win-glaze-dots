@@ -1273,11 +1273,6 @@ local WgdotYaziFileActions = {
     { label = "Trash", action = "trash" },
 }
 
-local WgdotYaziDropActions = {
-    { label = "Copy to folder", action = "drop_copy" },
-    { label = "Move to folder", action = "drop_move" },
-}
-
 -- Terminal-native ghost, clipped to the pane under the pointer.
 -- Clear its previous rectangle *before* native rows redraw so a ghost
 -- never remains painted on the list after release, Esc, or leaving the pane.
@@ -1743,6 +1738,39 @@ function WgdotYaziDropMenuKey(action)
     then
         WgdotYaziContextMenu:run(action == "copy" and "drop_copy" or "drop_move")
     end
+end
+
+function WgdotYaziDropToParent()
+    local target = cx.active.current.cwd.parent
+    if not target then return end
+
+    local sources = {}
+    if #cx.active.selected > 0 then
+        for _, file in pairs(cx.active.selected) do
+            sources[#sources + 1] = {
+                path = tostring(file.path),
+                name = file.name,
+                is_dir = file.cha.is_dir,
+            }
+        end
+    elseif cx.active.current.hovered then
+        sources = WgdotYaziDragSources(cx.active.current.hovered)
+    end
+
+    if #sources == 0 or not WgdotYaziCanDropInto(tostring(target), sources) then
+        ya.notify {
+            title = "Yazi",
+            content = "No files can be sent to the parent folder from here.",
+            level = "warn",
+            timeout = 3,
+        }
+        return
+    end
+
+    local area = WgdotYaziContextMenu._screen
+    local x = area and area.x + math.floor(area.w / 2) or 0
+    local y = area and area.y + math.floor(area.h / 2) or 0
+    WgdotYaziContextMenu:show_drop(target, sources, x, y)
 end
 
 function WgdotYaziContextMenu:move(event)
