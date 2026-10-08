@@ -1454,6 +1454,7 @@ local WgdotYaziFolderActions = {
     { label = "New file", action = "new_file" },
     { label = "New folder", action = "new_folder" },
     { label = "Paste", action = "paste" },
+    { label = "Copy current directory path", action = "copy_dirpath" },
     { label = "Terminal here", action = "terminal" },
     { label = "Bookmark / unbookmark folder", action = "bookmark_current" },
 }
@@ -1676,6 +1677,13 @@ function WgdotYaziContextMenu:run(action)
         end
     elseif action == "bookmark_current" then
         WgdotYaziBookmarkTarget(tostring(cx.active.current.cwd), true)
+    elseif action == "copy_dirpath" then
+        ya.emit("copy", { "dirpath" })
+        ya.notify {
+            title = "Clipboard",
+            content = "Copied current directory path",
+            timeout = 2,
+        }
     elseif action == "copy" then
         ya.emit("yank", {})
         ya.notify { title = "Yazi", content = "Copied " .. tostring(count) .. " item(s)", timeout = 2 }
