@@ -925,6 +925,55 @@ local function WgdotYaziBase64(value)
     end) .. ({ "", "==", "=" })[#value % 3 + 1])
 end
 
+-- Copy the preview target as Windows FileDrop data (file/folder), or copy
+-- text contents. Neither action changes Yazi's own selection or yank state.
+local function WgdotYaziPreviewClipboard(path, as_text)
+    ya.async(function()
+        local script = "$ErrorActionPreference='Stop'; " ..
+            "Add-Type -AssemblyName System.Windows.Forms; " ..
+            "$p=" .. WgdotYaziPowerShellQuote(path) .. "; " ..
+            "if (-not (Test-Path -LiteralPath $p)) { throw 'File not found' }; "
+
+        if as_text then
+            script = script ..
+                "if ((Get-Item -LiteralPath $p).PSIsContainer) { throw 'Not a text file' }; " ..
+                "if ((Get-Item -LiteralPath $p).Length -gt 8388608) {" ..
+                " throw 'Text file exceeds 8 MiB clipboard limit' }; " ..
+                "$value=[System.IO.File]::ReadAllText($p); " ..
+                "if ($value.Length -eq 0) { [System.Windows.Forms.Clipboard]::Clear() }" ..
+                " else { [System.Windows.Forms.Clipboard]::SetText($value) }"
+        else
+            script = script ..
+                "$items=New-Object System.Collections.Specialized.StringCollection; " ..
+                "$null=$items.Add($p); " ..
+                "[System.Windows.Forms.Clipboard]::SetFileDropList($items)"
+        end
+
+        local encoded = WgdotYaziBase64(WgdotYaziUtf16Le(script))
+        local result, err = Command("powershell.exe"):arg({
+            "-NoLogo", "-NoProfile", "-NonInteractive", "-Sta",
+            "-EncodedCommand", encoded,
+        }):output()
+
+        if err or not result or not result.status.success then
+            ya.notify {
+                title = "Preview clipboard",
+                content = "Copy failed. Check file access and Windows clipboard.",
+                level = "error",
+                timeout = 5,
+            }
+            return
+        end
+
+        ya.notify {
+            title = "Preview clipboard",
+            content = as_text and "Copied preview text contents"
+                or "Copied preview item to Windows file clipboard",
+            timeout = 2,
+        }
+    end)
+end
+
 function WgdotYaziSelectPreviewText()
     local hovered = WgdotYaziHoveredTextFile()
     if not hovered then
