@@ -867,7 +867,7 @@ local function WgdotYaziTextFile(file)
         or mime == "application/x-javascript"
         or mime == "application/x-shellscript"
     then
-        return hovered
+        return file
     end
 
     local name = tostring(file.url.name or ""):lower()
@@ -1100,6 +1100,11 @@ end
 -- and reveal a potentially different manager item. The menu snapshots a path.
 local WgdotYaziDefaultPreviewClick = Preview.click
 function Preview:click(event, up)
+    if event.is_left and WgdotYaziContextMenu._visible then
+        -- Mouse1 on preview outside menu dismisses without navigation.
+        if not up then WgdotYaziContextMenu:hide() end
+        return
+    end
     if not event.is_right then
         return WgdotYaziDefaultPreviewClick(self, event, up)
     end
