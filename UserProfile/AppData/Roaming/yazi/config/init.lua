@@ -347,8 +347,18 @@ local function WgdotYaziTabIndexAtX(tabs, x)
     return nil
 end
 
-local function WgdotYaziMoveActiveTabTo(target)
-    local current = cx.tabs.idx
+local WgdotYaziDefaultTabsStyle = Tabs.style
+
+function Tabs:style()
+    local styles = WgdotYaziDefaultTabsStyle(self)
+    if WgdotYaziTabDrag and WgdotYaziTabDrag.moved then
+        -- A single terminal row cannot lift a tab physically; emphasize the dragged block.
+        styles.active = styles.active:patch(ui.Style():bold():underline():reverse())
+    end
+    return styles
+end
+
+local function WgdotYaziMoveActiveTabTo(current, target)
     if not current or not target or current == target then
         return
     end
@@ -380,7 +390,6 @@ function Tabs:click(event, up)
 
     if not up then
         WgdotYaziTabDrag = {
-            source = index,
             target = index,
             moved = false,
         }
@@ -391,19 +400,26 @@ function Tabs:click(event, up)
     local drag = WgdotYaziTabDrag
     WgdotYaziTabDrag = nil
     if drag and drag.moved then
-        WgdotYaziMoveActiveTabTo(WgdotYaziTabIndexAtX(self, event.x) or drag.target)
+        ui.render()
     end
 end
 
 function Tabs:drag(event)
-    if not WgdotYaziTabDrag then
+    local drag = WgdotYaziTabDrag
+    if not drag then
         return
     end
 
+    if not drag.moved then
+        drag.moved = true
+        ui.render()
+    end
+
     local target = WgdotYaziTabIndexAtX(self, event.x)
-    if target then
-        WgdotYaziTabDrag.target = target
-        WgdotYaziTabDrag.moved = true
+    if target and target ~= drag.target then
+        -- Track the last queued position, not cx.tabs.idx: swaps are asynchronous.
+        WgdotYaziMoveActiveTabTo(drag.target, target)
+        drag.target = target
     end
 end
 
