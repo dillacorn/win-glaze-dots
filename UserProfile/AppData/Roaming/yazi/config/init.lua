@@ -765,7 +765,21 @@ function WgdotYaziSelectPreviewText()
     ya.emit("shell", { run = command, block = true })
 end
 
+-- Shared gesture state must be in scope for Esc as well as pane mouse events.
+local WgdotYaziDragState = nil
+local WgdotYaziDragPending = nil
+local WgdotYaziPendingClick = nil
+
 function WgdotYaziEscape()
+    -- Keyboard cancellation must erase the ghost and never start a file task.
+    if WgdotYaziDragState or WgdotYaziDragPending then
+        WgdotYaziDragState = nil
+        WgdotYaziDragPending = nil
+        WgdotYaziPendingClick = nil
+        ui.render()
+        return
+    end
+
     if WgdotYaziDeleteMenu and WgdotYaziDeleteMenu._visible then
         WgdotYaziDeleteMenu:hide()
         return
@@ -924,8 +938,16 @@ end
 
 local WgdotYaziDefaultCurrentNew = Current.new
 local WgdotYaziDefaultCurrentRedraw = Current.redraw
--- Defined below, after the mouse drag state. Keep native Current's rendering.
+local WgdotYaziDefaultParentRedraw = Parent.redraw
+-- Defined below, after the mouse drag state. Keep native pane rendering.
 local WgdotYaziDragGhostRedraw = function() return {} end
+
+function Parent:redraw()
+    return ya.list_merge(
+        WgdotYaziDefaultParentRedraw(self) or {},
+        WgdotYaziDragGhostRedraw(self._area)
+    )
+end
 
 function Current:new(area, tab)
     local reserve_control_row = area.w >= 3 and area.h >= 2
@@ -1203,14 +1225,15 @@ local WgdotYaziDropActions = {
     { label = "Move to folder", action = "drop_move" },
 }
 
-local WgdotYaziDragState = nil
-local WgdotYaziDragPending = nil
-
 -- Terminal-native ghost: a dim label near the cursor, not an OS drag overlay.
--- Rendered as part of Current so it cannot intercept directory mouse releases.
+-- Draw within the pane under the mouse; never pin it to the current-pane edge.
+-- Use existing pane redraws, not a mouse-intercepting modal or new window.
 WgdotYaziDragGhostRedraw = function(area)
     local drag = WgdotYaziDragState
-    if not drag or not drag.x or not drag.y or area.w < 8 or area.h < 2 then
+    if not drag or not drag.x or not drag.y or area.w < 8 or area.h < 2
+        or drag.x < area.x or drag.x >= area.x + area.w
+        or drag.y < area.y or drag.y >= area.y + area.h
+    then
         return {}
     end
 
@@ -1915,8 +1938,39 @@ function Header:click(event, up)
     end
 end
 
-local WgdotYaziPendingClick = nil
 local WgdotYaziDefaultCurrentDrag = Current.drag
+local WgdotYaziDefaultParentClick = Parent.click
+
+local function WgdotYaziParentDropTarget(parent, event)
+    -- The left pane lists the parent directory. A directory row is an
+    -- explicit target; blank space means the parent directory itself.
+    local row = event.y - parent._area.y + 1
+    local folder = parent._folder
+    local file = folder and folder.window[row] or nil
+    if file then
+        return file.cha.is_dir and file.url or nil
+    end
+    return cx.active.current.cwd.parent
+end
+
+function Parent:click(event, up)
+    if up and event.is_left and WgdotYaziDragState then
+        local drag = WgdotYaziDragState
+        WgdotYaziDragState = nil
+        WgdotYaziDragPending = nil
+        WgdotYaziPendingClick = nil
+
+        local target = WgdotYaziParentDropTarget(self, event)
+        if target and WgdotYaziCanDropInto(tostring(target), drag.sources) then
+            WgdotYaziContextMenu:show_drop(target, drag.sources, event.x, event.y)
+        else
+            ui.render()
+        end
+        return
+    end
+
+    return WgdotYaziDefaultParentClick(self, event, up)
+end
 
 function Current:click(event, up)
     local row = event.y - self._area.y + 1
