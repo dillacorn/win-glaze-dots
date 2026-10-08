@@ -408,22 +408,51 @@ function Tabs:click(event, up)
     WgdotYaziFinishTabDrag()
 end
 
+local function WgdotYaziTabMidpoint(tabs, index)
+    local first = tabs._offsets[index]
+    if not first then return nil end
+    local next_offset = tabs._offsets[index + 1]
+    local last = next_offset or (tabs._area.x + tabs._area.w)
+    return math.floor((first + last) / 2)
+end
+
 function Tabs:drag(event)
     local drag = WgdotYaziTabDrag
-    if not drag then
-        return
-    end
+    if not drag or not event.x then return end
 
     if not drag.moved then
         drag.moved = true
         ui.render()
     end
 
-    local target = WgdotYaziTabIndexAtX(self, event.x)
-    if target and target ~= drag.target then
-        -- Track the last queued position, not cx.tabs.idx: swaps are asynchronous.
+    -- Swap only after crossing the adjacent tab's midpoint, rather than
+    -- reacting to its moving edge. Require mouse travel after a swap too,
+    -- preventing a reflow at a stationary cursor from ping-ponging tabs.
+    if drag.last_swap_x and math.abs(event.x - drag.last_swap_x) < 3 then
+        return
+    end
+
+    local target = drag.target
+    local margin = 1
+    if event.x > (drag.last_x or event.x) then
+        while target < #cx.tabs do
+            local midpoint = WgdotYaziTabMidpoint(self, target + 1)
+            if not midpoint or event.x < midpoint + margin then break end
+            target = target + 1
+        end
+    elseif event.x < (drag.last_x or event.x) then
+        while target > 1 do
+            local midpoint = WgdotYaziTabMidpoint(self, target - 1)
+            if not midpoint or event.x > midpoint - margin then break end
+            target = target - 1
+        end
+    end
+
+    drag.last_x = event.x
+    if target ~= drag.target then
         WgdotYaziMoveActiveTabTo(drag.target, target)
         drag.target = target
+        drag.last_swap_x = event.x
     end
 end
 
