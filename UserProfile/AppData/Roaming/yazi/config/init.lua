@@ -1319,7 +1319,12 @@ end
 local function WgdotYaziCanDropInto(target, sources)
     local target_url = Url(target)
     for _, source in ipairs(sources) do
-        if source.is_dir and target_url:starts_with(Url(source.path)) then
+        local source_url = Url(source.path)
+        -- Moving or copying an item into its existing folder is a no-op
+        -- (or a same-path collision); do not offer it as a drop destination.
+        if WgdotYaziNormalizeFsPath(target_url) == WgdotYaziNormalizeFsPath(source_url.parent)
+            or (source.is_dir and target_url:starts_with(source_url))
+        then
             return false
         end
     end
@@ -1985,6 +1990,7 @@ local function WgdotYaziParentDropTarget(parent, event)
     local folder = parent._folder
     local file = folder and folder.window[row] or nil
     if file then
+        if WgdotYaziIsCollectionItemUrl(file.url) then return nil end
         return file.cha.is_dir and file.url or nil
     end
     return cx.active.current.cwd.parent
