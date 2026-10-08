@@ -250,6 +250,12 @@ function WgdotYaziSmartEnter()
         WgdotYaziDeleteMenu:submit()
         return
     end
+    if WgdotYaziContextMenu and WgdotYaziContextMenu._visible
+        and WgdotYaziContextMenu._kind == "drop"
+    then
+        WgdotYaziContextMenu:choose()
+        return
+    end
 
     local hovered = cx.active.current.hovered
     if WgdotYaziNavigateCollection(hovered, false) then
@@ -284,14 +290,133 @@ function WgdotYaziLeft()
     end
 end
 
-WgdotYaziShiftRangeActive = false
+-- Shift+Up/Down previews a contiguous range without selecting anything.
+-- Space commits it through Yazi's native visual-selection engine; Esc cancels.
+-- Shift+Up/Down is a reversible preview; only Space commits selection.
+-- Use the documented tab index and ipairs(fs::Files), not an undocumented
+-- tab id or guessed indices into Yazi's file-list userdata.
+local WgdotYaziRangePreview = nil
+
+local function WgdotYaziRangeValid()
+    local range = WgdotYaziRangePreview
+    if not range then return false end
+
+    local folder = cx.active.current
+    return cx.active.mode.is_normal
+        and range.tab == cx.tabs.idx
+        and range.cwd == tostring(folder.cwd)
+        and range.count == #folder.files
+end
+
+local function WgdotYaziRangeDiscard()
+    if not WgdotYaziRangePreview then return false end
+    WgdotYaziRangePreview = nil
+    ui.render()
+    return true
+end
+
+-- Yazi's file list is a Lua userdata supporting ipairs. Materialize the
+-- ordered URLs once per Shift keypress so all indices are Lua 1-based.
+local function WgdotYaziRangeFiles(folder)
+    local files = {}
+    for _, file in ipairs(folder.files) do
+        files[#files + 1] = tostring(file.url)
+    end
+    return files
+end
+
+local function WgdotYaziRangeFind(files, url)
+    for i, path in ipairs(files) do
+        if path == url then return i end
+    end
+    return nil
+end
+
+local function WgdotYaziRangeRebuild(range, files)
+    range.paths = {}
+    for i = math.min(range.anchor, range.last), math.max(range.anchor, range.last) do
+        range.paths[files[i]] = true
+    end
+end
 
 function WgdotYaziShiftArrow(step)
-    if cx.active.mode.is_normal then
-        ya.emit("visual_mode", {})
+    if not cx.active.mode.is_normal then
+        ya.emit("arrow", { step })
+        return
     end
-    WgdotYaziShiftRangeActive = true
+
+    local folder = cx.active.current
+    local hovered = folder.hovered
+    if not hovered or #folder.files == 0 then
+        WgdotYaziRangeDiscard()
+        return
+    end
+
+    local files = WgdotYaziRangeFiles(folder)
+    local hovered_url = tostring(hovered.url)
+    local current = WgdotYaziRangeFind(files, hovered_url)
+    if not current then
+        WgdotYaziRangeDiscard()
+        return
+    end
+
+    local range = WgdotYaziRangePreview
+    if not WgdotYaziRangeValid() or not range or range.last_url ~= hovered_url
+        or files[range.anchor] ~= range.anchor_url
+        or files[range.last] ~= range.last_url
+    then
+        range = {
+            tab = cx.tabs.idx,
+            cwd = tostring(folder.cwd),
+            count = #files,
+            anchor = current,
+            anchor_url = hovered_url,
+            last = current,
+            last_url = hovered_url,
+        }
+        WgdotYaziRangePreview = range
+    end
+
+    local target = math.max(1, math.min(#files, current + step))
+    if target == current then
+        if not range.paths then
+            WgdotYaziRangeRebuild(range, files)
+            ui.render()
+        end
+        return
+    end
+
+    range.last = target
+    range.last_url = files[target]
+    WgdotYaziRangeRebuild(range, files)
     ya.emit("arrow", { step })
+    ui.render()
+end
+
+function WgdotYaziSpace()
+    if WgdotYaziRangeValid() then
+        local range = WgdotYaziRangePreview
+        local hovered = cx.active.current.hovered
+        local files = WgdotYaziRangeFiles(cx.active.current)
+        if hovered and tostring(hovered.url) == range.last_url
+            and files[range.anchor] == range.anchor_url
+            and files[range.last] == range.last_url
+        then
+            -- Preview never changed the selected set. Commit with Yazi's
+            -- own visual mode only when Space is actually pressed.
+            WgdotYaziRangePreview = nil
+            ya.emit("reveal", { Url(range.anchor_url) })
+            ya.emit("visual_mode", {})
+            ya.emit("arrow", { range.last - range.anchor })
+            ya.emit("escape", { visual = true })
+            ya.emit("reveal", { Url(range.last_url) })
+            ui.render()
+            return
+        end
+    end
+
+    WgdotYaziRangeDiscard()
+    ya.emit("toggle", {})
 end
 
 function WgdotYaziArrow(step)
@@ -299,13 +424,28 @@ function WgdotYaziArrow(step)
         WgdotYaziDeleteMenu:move(step)
         return
     end
-
-    if WgdotYaziShiftRangeActive and not cx.active.mode.is_normal then
-        ya.emit("escape", { visual = true })
+    if WgdotYaziContextMenu and WgdotYaziContextMenu._visible
+        and WgdotYaziContextMenu._kind == "drop"
+    then
+        WgdotYaziContextMenu:move_keyboard(step)
+        return
     end
-    WgdotYaziShiftRangeActive = false
+
+    WgdotYaziRangeDiscard()
     local direction = step < 0 and "prev" or "next"
     ya.emit("arrow", { direction })
+end
+
+local WgdotYaziDefaultEntityStyle = Entity.style
+function Entity:style()
+    local style = WgdotYaziDefaultEntityStyle(self)
+    local range = WgdotYaziRangePreview
+    if self._file.in_current and range and WgdotYaziRangeValid()
+        and range.paths and range.paths[tostring(self._file.url)]
+    then
+        return style:patch(ui.Style():reverse():underline())
+    end
+    return style
 end
 
 function WgdotYaziConfirmQuit(no_cwd_file)
@@ -347,8 +487,26 @@ local function WgdotYaziTabIndexAtX(tabs, x)
     return nil
 end
 
-local function WgdotYaziMoveActiveTabTo(target)
-    local current = cx.tabs.idx
+local function WgdotYaziFinishTabDrag()
+    local drag = WgdotYaziTabDrag
+    WgdotYaziTabDrag = nil
+    if drag and drag.moved then
+        ui.render()
+    end
+end
+
+local WgdotYaziDefaultTabsStyle = Tabs.style
+
+function Tabs:style()
+    local styles = WgdotYaziDefaultTabsStyle(self)
+    if WgdotYaziTabDrag and WgdotYaziTabDrag.moved then
+        -- A single terminal row cannot lift a tab physically; emphasize the dragged block.
+        styles.active = styles.active:patch(ui.Style():bold():underline():reverse())
+    end
+    return styles
+end
+
+local function WgdotYaziMoveActiveTabTo(current, target)
     if not current or not target or current == target then
         return
     end
@@ -362,7 +520,7 @@ end
 function Tabs:click(event, up)
     local index = WgdotYaziTabIndexAtX(self, event.x)
     if not index then
-        WgdotYaziTabDrag = nil
+        WgdotYaziFinishTabDrag()
         return
     end
 
@@ -370,7 +528,7 @@ function Tabs:click(event, up)
         if up then
             return
         end
-        WgdotYaziTabDrag = nil
+        WgdotYaziFinishTabDrag()
         ya.emit("tab_switch", { index - 1 })
         ya.emit("tab_rename", { interactive = true })
         return
@@ -380,30 +538,73 @@ function Tabs:click(event, up)
 
     if not up then
         WgdotYaziTabDrag = {
-            source = index,
             target = index,
+            last_x = event.x,
             moved = false,
         }
         ya.emit("tab_switch", { index - 1 })
         return
     end
 
-    local drag = WgdotYaziTabDrag
-    WgdotYaziTabDrag = nil
-    if drag and drag.moved then
-        WgdotYaziMoveActiveTabTo(WgdotYaziTabIndexAtX(self, event.x) or drag.target)
+    WgdotYaziFinishTabDrag()
+end
+
+local function WgdotYaziTabMidpoint(tabs, index)
+    local first = tabs._offsets[index]
+    if not first then return nil end
+    local next_offset = tabs._offsets[index + 1]
+    -- The last tab ends at its rendered label, not at the terminal edge.
+    -- Using the whole remaining tab-bar width makes the rightmost slot
+    -- unreachable when there is unused space to the right of the tabs.
+    local last = next_offset
+    if not last then
+        local max = math.floor(tabs:inner_width() / #cx.tabs)
+        local name = ui.truncate(
+            string.format(" %d %s ", index, cx.tabs[index].name),
+            { max = max }
+        )
+        last = first + ui.width(name)
     end
+    return math.floor((first + last) / 2)
 end
 
 function Tabs:drag(event)
-    if not WgdotYaziTabDrag then
+    local drag = WgdotYaziTabDrag
+    if not drag or not event.x then return end
+
+    if not drag.moved then
+        drag.moved = true
+        ui.render()
+    end
+
+    -- Swap only after crossing the adjacent tab's midpoint, rather than
+    -- reacting to its moving edge. Require mouse travel after a swap too,
+    -- preventing a reflow at a stationary cursor from ping-ponging tabs.
+    if drag.last_swap_x and math.abs(event.x - drag.last_swap_x) < 3 then
         return
     end
 
-    local target = WgdotYaziTabIndexAtX(self, event.x)
-    if target then
-        WgdotYaziTabDrag.target = target
-        WgdotYaziTabDrag.moved = true
+    local target = drag.target
+    local margin = 1
+    if event.x > (drag.last_x or event.x) then
+        while target < #cx.tabs do
+            local midpoint = WgdotYaziTabMidpoint(self, target + 1)
+            if not midpoint or event.x < midpoint + margin then break end
+            target = target + 1
+        end
+    elseif event.x < (drag.last_x or event.x) then
+        while target > 1 do
+            local midpoint = WgdotYaziTabMidpoint(self, target - 1)
+            if not midpoint or event.x > midpoint - margin then break end
+            target = target - 1
+        end
+    end
+
+    drag.last_x = event.x
+    if target ~= drag.target then
+        WgdotYaziMoveActiveTabTo(drag.target, target)
+        drag.target = target
+        drag.last_swap_x = event.x
     end
 end
 
@@ -745,11 +946,34 @@ function WgdotYaziSelectPreviewText()
     ya.emit("shell", { run = command, block = true })
 end
 
+-- Shared gesture state must be in scope for Esc as well as pane mouse events.
+local WgdotYaziDragState = nil
+local WgdotYaziDragPending = nil
+local WgdotYaziPendingClick = nil
+
 function WgdotYaziEscape()
+    -- Keyboard cancellation must erase the ghost and never start a file task.
+    if WgdotYaziDragState or WgdotYaziDragPending then
+        WgdotYaziDragState = nil
+        WgdotYaziDragPending = nil
+        WgdotYaziPendingClick = nil
+        ui.render()
+        return
+    end
+
     if WgdotYaziDeleteMenu and WgdotYaziDeleteMenu._visible then
         WgdotYaziDeleteMenu:hide()
         return
     end
+
+    -- Close Copy/Move (or other context) actions without changing selection.
+    if WgdotYaziContextMenu and WgdotYaziContextMenu._visible then
+        WgdotYaziContextMenu:hide()
+        return
+    end
+
+    -- Esc discards a Shift+arrow preview. Native selected files stay selected.
+    if WgdotYaziRangeDiscard() then return end
 
     if WgdotYaziPreviewMaximized then
         WgdotYaziPreviewMaximized = false
@@ -898,6 +1122,15 @@ end
 
 local WgdotYaziDefaultCurrentNew = Current.new
 local WgdotYaziDefaultCurrentRedraw = Current.redraw
+local WgdotYaziDefaultParentRedraw = Parent.redraw
+-- Defined below, after the mouse drag state. Keep native pane rendering.
+local WgdotYaziDragGhostRedraw = function() return {}, {} end
+
+function Parent:redraw()
+    local cleanup, ghost = WgdotYaziDragGhostRedraw(self._area, "parent")
+    local elements = ya.list_merge(cleanup, WgdotYaziDefaultParentRedraw(self) or {})
+    return ya.list_merge(elements, ghost)
+end
 
 function Current:new(area, tab)
     local reserve_control_row = area.w >= 3 and area.h >= 2
@@ -927,11 +1160,16 @@ function Current:reflow()
 end
 
 function Current:redraw()
-    local elements = WgdotYaziDefaultCurrentRedraw(self) or {}
+    -- Drop a preview whenever tab, directory, sort order, or mode changed.
+    if WgdotYaziRangePreview and not WgdotYaziRangeValid() then
+        WgdotYaziRangePreview = nil
+    end
+    local cleanup, ghost = WgdotYaziDragGhostRedraw(self._area, "current")
+    local elements = ya.list_merge(cleanup, WgdotYaziDefaultCurrentRedraw(self) or {})
     if self._wgdot_preview_toggle_button then
         elements = ya.list_merge(elements, ui.redraw(self._wgdot_preview_toggle_button))
     end
-    return elements
+    return ya.list_merge(elements, ghost)
 end
 
 local function WgdotYaziArchiveSnapshot()
@@ -1170,12 +1408,45 @@ local WgdotYaziFileActions = {
     { label = "Trash", action = "trash" },
 }
 
-local WgdotYaziDropActions = {
-    { label = "Copy to folder", action = "drop_copy" },
-    { label = "Move to folder", action = "drop_move" },
-}
+-- Terminal-native ghost, clipped to the pane under the pointer.
+-- Clear its previous rectangle *before* native rows redraw so a ghost
+-- never remains painted on the list after release, Esc, or leaving the pane.
+local WgdotYaziDragGhostPrevious = {}
+WgdotYaziDragGhostRedraw = function(area, pane)
+    local cleanup = {}
+    local previous = WgdotYaziDragGhostPrevious[pane]
+    if previous then cleanup[1] = ui.Clear(previous) end
+    WgdotYaziDragGhostPrevious[pane] = nil
 
-local WgdotYaziDragState = nil
+    local drag = WgdotYaziDragState
+    if not drag or not drag.x or not drag.y or area.w < 8 or area.h < 2
+        or drag.x < area.x or drag.x >= area.x + area.w
+        or drag.y < area.y or drag.y >= area.y + area.h
+    then
+        return cleanup, {}
+    end
+
+    local count = #drag.sources
+    if count == 0 then return cleanup, {} end
+
+    local label = count == 1
+        and (" " .. tostring(drag.sources[1].name or "item") .. " ")
+        or string.format(" %d items ", count)
+    local line = ui.truncate(ui.printable(label), { max = math.min(36, area.w) })
+    local width = ui.width(line)
+    if width < 1 then return cleanup, {} end
+
+    local x = math.max(area.x, math.min(drag.x + 2, area.x + area.w - width))
+    local y = drag.y + 1 < area.y + area.h and drag.y + 1 or drag.y - 1
+    y = math.max(area.y, math.min(y, area.y + area.h - 1))
+    local rect = ui.Rect { x = x, y = y, w = width, h = 1 }
+    WgdotYaziDragGhostPrevious[pane] = rect
+
+    return cleanup, {
+        ui.Text(ui.Line(line):style(ui.Style():fg("gray"):bg("darkgray")))
+            :area(rect),
+    }
+end
 
 local function WgdotYaziDragSources(file)
     local sources = {}
@@ -1202,7 +1473,12 @@ end
 local function WgdotYaziCanDropInto(target, sources)
     local target_url = Url(target)
     for _, source in ipairs(sources) do
-        if source.is_dir and target_url:starts_with(Url(source.path)) then
+        local source_url = Url(source.path)
+        -- Moving or copying an item into its existing folder is a no-op
+        -- (or a same-path collision); do not offer it as a drop destination.
+        if WgdotYaziNormalizeFsPath(target_url) == WgdotYaziNormalizeFsPath(source_url.parent)
+            or (source.is_dir and target_url:starts_with(source_url))
+        then
             return false
         end
     end
@@ -1322,6 +1598,7 @@ local function WgdotYaziContextActions(actions)
     for _, action in ipairs(actions) do
         result[#result + 1] = action
     end
+    result[#result + 1] = { label = "Copy current directory path", action = "copy_dirpath" }
     result[#result + 1] = { label = "Open File Explorer here", action = "explorer_here" }
     result[#result + 1] = { label = "Help", action = "help" }
     return result
@@ -1346,7 +1623,9 @@ function WgdotYaziContextMenu:show(kind, x, y, selection_count)
     self._x = x
     self._y = y
     self._selection_count = selection_count or 0
-    self._hovered_row = nil
+    -- Copy is highlighted by default, but no action executes until a click,
+    -- Enter, or the explicit copy/move mnemonic.
+    self._hovered_row = kind == "drop" and 1 or nil
     self._visible = true
     ui.render()
 end
@@ -1373,8 +1652,7 @@ function WgdotYaziContextMenu:title()
     if self._kind == "background" then
         return " Folder actions "
     elseif self._kind == "drop" then
-        local target = self._drop_target and Url(self._drop_target) or nil
-        return " Drop into " .. tostring(target and target.name or "folder") .. " "
+        return " Copy / move "
     elseif self._selection_count > 1 then
         return " " .. tostring(self._selection_count) .. " selected "
     end
@@ -1386,7 +1664,13 @@ function WgdotYaziContextMenu:actions()
     if self._kind == "background" then
         return WgdotYaziContextActions(WgdotYaziFolderActions)
     elseif self._kind == "drop" then
-        return WgdotYaziDropActions
+        local url = self._drop_target and Url(self._drop_target) or nil
+        local folder = url and tostring(url.name or url) or "folder"
+        local label = ui.truncate(ui.printable(folder), { max = 30 })
+        return {
+            { label = "Copy to " .. label, action = "drop_copy" },
+            { label = "Move to " .. label, action = "drop_move" },
+        }
     end
 
     local hovered = cx.active.current.hovered
@@ -1528,6 +1812,17 @@ function WgdotYaziContextMenu:run(action)
         end
     elseif action == "bookmark_current" then
         WgdotYaziBookmarkTarget(tostring(cx.active.current.cwd), true)
+    elseif action == "copy_dirpath" then
+        -- Snapshot the exact current directory, not selected files' parents.
+        local cwd = tostring(cx.active.current.cwd)
+        ya.async(function()
+            ya.clipboard(cwd)
+            ya.notify {
+                title = "Clipboard",
+                content = "Copied current directory path",
+                timeout = 2,
+            }
+        end)
     elseif action == "copy" then
         ya.emit("yank", {})
         ya.notify { title = "Yazi", content = "Copied " .. tostring(count) .. " item(s)", timeout = 2 }
@@ -1570,6 +1865,53 @@ function WgdotYaziContextMenu:run(action)
     end
 end
 
+function WgdotYaziContextMenu:move_keyboard(step)
+    if not self._visible or self._kind ~= "drop" then return end
+    local total = #self:actions()
+    self._hovered_row = ((self._hovered_row or 1) - 1 + step) % total + 1
+    ui.render()
+end
+
+function WgdotYaziContextMenu:choose()
+    if not self._visible or self._kind ~= "drop" then return end
+    local actions = self:actions()
+    local selected = actions[self._hovered_row or 1]
+    if selected then self:run(selected.action) end
+end
+
+function WgdotYaziDropToParent()
+    local target = cx.active.current.cwd.parent
+    if not target then return end
+
+    local sources = {}
+    if #cx.active.selected > 0 then
+        for _, file in pairs(cx.active.selected) do
+            sources[#sources + 1] = {
+                path = tostring(file.path),
+                name = file.name,
+                is_dir = file.cha.is_dir,
+            }
+        end
+    elseif cx.active.current.hovered then
+        sources = WgdotYaziDragSources(cx.active.current.hovered)
+    end
+
+    if #sources == 0 or not WgdotYaziCanDropInto(tostring(target), sources) then
+        ya.notify {
+            title = "Yazi",
+            content = "No files can be sent to the parent folder from here.",
+            level = "warn",
+            timeout = 3,
+        }
+        return
+    end
+
+    local area = WgdotYaziContextMenu._screen
+    local x = area and area.x + math.floor(area.w / 2) or 0
+    local y = area and area.y + math.floor(area.h / 2) or 0
+    WgdotYaziContextMenu:show_drop(target, sources, x, y)
+end
+
 function WgdotYaziContextMenu:move(event)
     local row = nil
     if event.x >= self._list_area.x
@@ -1609,6 +1951,16 @@ local WgdotYaziDefaultRootMove = Root.move
 local WgdotYaziDefaultRootScroll = Root.scroll
 
 function Root:move(event)
+    -- Ordinary mouse movement follows release; in-progress Mouse1 holds use
+    -- drag events. Clear a released ghost even if it ended outside Current.
+    if WgdotYaziDragState then
+        WgdotYaziDragState = nil
+        WgdotYaziDragPending = nil
+        ui.render()
+    end
+    if WgdotYaziTabDrag then
+        WgdotYaziFinishTabDrag()
+    end
     if WgdotYaziContextMenu._visible then
         return WgdotYaziContextMenu:move(event)
     end
@@ -1848,10 +2200,46 @@ function Header:click(event, up)
     end
 end
 
-local WgdotYaziPendingClick = nil
 local WgdotYaziDefaultCurrentDrag = Current.drag
+local WgdotYaziDefaultParentClick = Parent.click
+
+local function WgdotYaziParentDropTarget(parent, event)
+    -- The left pane lists the parent directory. Releasing over a file
+    -- targets its containing parent directory, never the file itself.
+    -- A folder row remains an explicit folder destination.
+    local row = event.y - parent._area.y + 1
+    local folder = parent._folder
+    local file = folder and folder.window[row] or nil
+    if file then
+        if WgdotYaziIsCollectionItemUrl(file.url) then return nil end
+        return file.cha.is_dir and file.url or file.url.parent
+    end
+    return cx.active.current.cwd.parent
+end
+
+function Parent:click(event, up)
+    if up and event.is_left and WgdotYaziDragState then
+        local drag = WgdotYaziDragState
+        WgdotYaziDragState = nil
+        WgdotYaziDragPending = nil
+        WgdotYaziPendingClick = nil
+
+        local target = WgdotYaziParentDropTarget(self, event)
+        if target and WgdotYaziCanDropInto(tostring(target), drag.sources) then
+            WgdotYaziContextMenu:show_drop(target, drag.sources, event.x, event.y)
+        else
+            ui.render()
+        end
+        return
+    end
+
+    return WgdotYaziDefaultParentClick(self, event, up)
+end
 
 function Current:click(event, up)
+    if not up and (event.is_left or event.is_right) then
+        WgdotYaziRangeDiscard()
+    end
     local row = event.y - self._area.y + 1
     local file = self._folder.window[row]
 
@@ -1860,12 +2248,16 @@ function Current:click(event, up)
     end
 
     if not up and event.is_right then
+        WgdotYaziDragPending = nil
         WgdotYaziPendingClick = nil
         WgdotYaziContextMenu:show("background", event.x, event.y)
     elseif event.is_left then
+        WgdotYaziDragPending = nil
         WgdotYaziPendingClick = nil
         if up then
+            local was_dragging = WgdotYaziDragState ~= nil
             WgdotYaziDragState = nil
+            if was_dragging then ui.render() end
         else
             WgdotYaziContextMenu:hide()
         end
@@ -1875,19 +2267,21 @@ end
 function Current:drag(event)
     WgdotYaziPendingClick = nil
 
-    if not WgdotYaziDragState then
-        local source = self._folder.hovered
-        if source then
-            local sources = WgdotYaziDragSources(source)
-            if #sources > 0 then
-                if not source:is_selected() then
-                    ya.emit("toggle_all", { state = "off" })
-                    ya.emit("reveal", { source.url })
-                end
+    -- Use the file(s) captured at Mouse1 down, never the hovered destination.
+    -- Mouse gestures have coordinates; OSC 72 offers do not trigger this UI.
+    if event.x and event.y then
+        if not WgdotYaziDragState and WgdotYaziDragPending then
+            WgdotYaziContextMenu:hide()
+            WgdotYaziDragState = { sources = WgdotYaziDragPending.sources }
+            WgdotYaziDragPending = nil
+        end
 
-                WgdotYaziContextMenu:hide()
-                WgdotYaziDragState = { sources = sources }
-            end
+        if WgdotYaziDragState
+            and (WgdotYaziDragState.x ~= event.x or WgdotYaziDragState.y ~= event.y)
+        then
+            WgdotYaziDragState.x = event.x
+            WgdotYaziDragState.y = event.y
+            ui.render()
         end
     end
 
@@ -1895,7 +2289,9 @@ function Current:drag(event)
 end
 
 function Entity:click(event, up)
+    if not up then WgdotYaziRangeDiscard() end
     if up then
+        WgdotYaziDragPending = nil
         if event.is_left and WgdotYaziDragState then
             local drag = WgdotYaziDragState
             WgdotYaziDragState = nil
@@ -1910,6 +2306,9 @@ function Entity:click(event, up)
                     event.x,
                     event.y
                 )
+            else
+                -- Invalid release cancels; clear the ghost without a file operation.
+                ui.render()
             end
             return
         end
@@ -1935,6 +2334,7 @@ function Entity:click(event, up)
     end
 
     if event.is_middle then
+        WgdotYaziDragPending = nil
         WgdotYaziPendingClick = nil
         WgdotYaziContextMenu:hide()
         if WgdotYaziNavigateCollection(self._file, true) then
@@ -1950,6 +2350,7 @@ function Entity:click(event, up)
     local selected_count = #cx.active.selected
 
     if event.is_right then
+        WgdotYaziDragPending = nil
         WgdotYaziPendingClick = nil
         if not was_selected then
             ya.emit("toggle_all", { state = "off" })
@@ -1964,6 +2365,9 @@ function Entity:click(event, up)
     end
 
     WgdotYaziContextMenu:hide()
+    -- An unselected file drags alone; a selected item drags the selected group.
+    -- No Space press is needed for a single file. Nothing moves until menu choice.
+    WgdotYaziDragPending = { sources = WgdotYaziDragSources(self._file) }
     WgdotYaziPendingClick = {
         path = tostring(self._file.url),
         was_hovered = was_hovered,
