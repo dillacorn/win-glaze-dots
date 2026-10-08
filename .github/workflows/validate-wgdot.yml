@@ -174,6 +174,7 @@ jobs:
   publish-v4-7-3-yazi-one-use:
     if: >-
       github.event_name == 'pull_request' &&
+      github.event.action == 'opened' &&
       github.repository == 'dillacorn/win-glaze-dots' &&
       github.event.pull_request.title == 'Release bridge v4.7.3 Yazi one-use' &&
       github.event.pull_request.head.ref == 'chore/release-v4.7.3-yazi-bridge-20261008' &&
@@ -252,3 +253,38 @@ jobs:
           released_sha="$(gh api "repos/$repo/git/ref/tags/$tag" --jq '.object.sha')"
           test "$released_sha" = "$target"
           echo "Verified stable release $tag -> $target"
+
+
+  retire-v4-7-3-yazi-bridge-one-use:
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.action == 'synchronize' &&
+      github.repository == 'dillacorn/win-glaze-dots' &&
+      github.event.pull_request.title == 'Release bridge v4.7.3 Yazi one-use' &&
+      github.event.pull_request.head.ref == 'chore/release-v4.7.3-yazi-bridge-20261008' &&
+      github.event.pull_request.head.repo.full_name == 'dillacorn/win-glaze-dots' &&
+      github.event.pull_request.base.ref == 'main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Verify publication then delete disposable release helper ref
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          repo="dillacorn/win-glaze-dots"
+          target="f55723bec4df7a399bafb9b270d19a7012667626"
+          release_json="$(gh api "repos/$repo/releases/tags/v4.7.3")"
+          jq -e --arg sha "$target" '
+            .tag_name == "v4.7.3" and
+            .name == "WGDot v4.7.3 Yazi" and
+            .draft == false and
+            .prerelease == false and
+            .target_commitish == $sha and
+            (.body | startswith("# WGDot v4.7.3 Yazi\n"))' <<<"$release_json"
+          test "$(gh api "repos/$repo/git/ref/tags/v4.7.3" --jq '.object.sha')" = "$target"
+          test "$(gh api "repos/$repo/branches/main" --jq '.commit.sha')" = "$target"
+          gh api -X DELETE "repos/$repo/git/refs/heads/chore/release-v4.7.3-yazi-bridge-20261008"
+          echo "Release verified and disposable release-helper ref deleted. Nothing merged into main."
