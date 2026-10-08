@@ -276,6 +276,9 @@ Assert-True ($yaziInitText -match 'WgdotYaziPluginArgs\("record", recent\)') "Ya
 Assert-True ($yaziInitText -match 'function WgdotYaziShiftArrow\(step\)') "Yazi Shift+Arrow previews a contiguous range without immediate selection"
 Assert-True ($yaziInitText -match 'local WgdotYaziRangePreview = nil') "Yazi Shift range preview has independent transient state"
 Assert-True ($yaziInitText -match 'WgdotYaziRangePreview = \{') "Yazi snapshots the starting file and tab for a transient Shift range"
+$shiftBlock = [regex]::Match($yaziInitText, '(?ms)^function WgdotYaziShiftArrow\(step\).*?^end').Value
+Assert-True ($shiftBlock -notmatch 'ya\.emit\("visual_mode"') "Yazi Shift+Arrow does not select files before Space is pressed"
+Assert-True ($shiftBlock -match 'WgdotYaziRangeRebuild\(\)') "Yazi Shift+Arrow rebuilds only the temporary highlighted range"
 Assert-True ($yaziInitText -match 'range\.paths\[tostring\(file\.url\)\] = true') "Yazi marks every file in the transient range for visual highlighting"
 Assert-True ($yaziInitText -match 'function Entity:style\(\)') "Yazi applies the preview highlight without mutating selected files"
 Assert-True ($yaziInitText -match 'WgdotYaziRangePreview\.paths\[tostring\(self\._file\.url\)\]') "Yazi highlights only file rows in the active Shift preview"
@@ -285,6 +288,8 @@ Assert-True ($spaceBlock -match 'ya\.emit\("visual_mode", \{\}\)') "Yazi only en
 Assert-True ($spaceBlock -match 'ya\.emit\("arrow", \{ range\.last - range\.anchor \}\)') "Yazi Space commits the entire contiguous range, including backwards spans"
 Assert-True ($spaceBlock -match 'ya\.emit\("escape", \{ visual = true \}\)') "Yazi exits visual mode after range commit"
 Assert-True ($spaceBlock -match 'ya\.emit\("toggle", \{\}\)') "Yazi Space still toggles one file when no preview exists"
+Assert-True ($spaceBlock -match 'tostring\(hovered\.url\) ~= WgdotYaziRangePreview\.last_url') "Yazi does not commit an obsolete Shift range after mouse or native cursor movement"
+Assert-True ($yaziInitText -match 'if not up and \(event\.is_left or event\.is_right\) then\s*WgdotYaziRangeDiscard\(\)') "Yazi blank-pane click dismisses a stale Shift range"
 Assert-True ($yaziInitText -match 'function WgdotYaziArrow\(step\)') "Yazi normal arrows cancel a pending Shift preview"
 $arrowBlock = [regex]::Match($yaziInitText, '(?ms)^function WgdotYaziArrow\(step\).*?^end').Value
 Assert-True ($arrowBlock -match 'WgdotYaziRangeDiscard\(\)') "Yazi plain arrow cancels the preview instead of implicitly committing"
