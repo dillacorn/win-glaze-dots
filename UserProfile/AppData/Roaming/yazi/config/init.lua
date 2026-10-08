@@ -1678,12 +1678,16 @@ function WgdotYaziContextMenu:run(action)
     elseif action == "bookmark_current" then
         WgdotYaziBookmarkTarget(tostring(cx.active.current.cwd), true)
     elseif action == "copy_dirpath" then
-        ya.emit("copy", { "dirpath" })
-        ya.notify {
-            title = "Clipboard",
-            content = "Copied current directory path",
-            timeout = 2,
-        }
+        -- Snapshot the exact current directory, not selected files' parents.
+        local cwd = tostring(cx.active.current.cwd)
+        ya.async(function()
+            ya.clipboard(cwd)
+            ya.notify {
+                title = "Clipboard",
+                content = "Copied current directory path",
+                timeout = 2,
+            }
+        end)
     elseif action == "copy" then
         ya.emit("yank", {})
         ya.notify { title = "Yazi", content = "Copied " .. tostring(count) .. " item(s)", timeout = 2 }
