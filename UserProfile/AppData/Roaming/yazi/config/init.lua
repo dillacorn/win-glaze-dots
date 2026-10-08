@@ -771,6 +771,12 @@ function WgdotYaziEscape()
         return
     end
 
+    -- Close Copy/Move (or other context) actions without changing selection.
+    if WgdotYaziContextMenu and WgdotYaziContextMenu._visible then
+        WgdotYaziContextMenu:hide()
+        return
+    end
+
     if WgdotYaziPreviewMaximized then
         WgdotYaziPreviewMaximized = false
         WgdotYaziApplyRatio(
@@ -918,6 +924,8 @@ end
 
 local WgdotYaziDefaultCurrentNew = Current.new
 local WgdotYaziDefaultCurrentRedraw = Current.redraw
+-- Defined below, after the mouse drag state. Keep native Current's rendering.
+local WgdotYaziDragGhostRedraw = function() return {} end
 
 function Current:new(area, tab)
     local reserve_control_row = area.w >= 3 and area.h >= 2
@@ -951,7 +959,7 @@ function Current:redraw()
     if self._wgdot_preview_toggle_button then
         elements = ya.list_merge(elements, ui.redraw(self._wgdot_preview_toggle_button))
     end
-    return elements
+    return ya.list_merge(elements, WgdotYaziDragGhostRedraw(self._area))
 end
 
 local function WgdotYaziArchiveSnapshot()
@@ -1197,6 +1205,34 @@ local WgdotYaziDropActions = {
 
 local WgdotYaziDragState = nil
 local WgdotYaziDragPending = nil
+
+-- Terminal-native ghost: a dim label near the cursor, not an OS drag overlay.
+-- Rendered as part of Current so it cannot intercept directory mouse releases.
+WgdotYaziDragGhostRedraw = function(area)
+    local drag = WgdotYaziDragState
+    if not drag or not drag.x or not drag.y or area.w < 8 or area.h < 2 then
+        return {}
+    end
+
+    local count = #drag.sources
+    if count == 0 then return {} end
+
+    local label = count == 1
+        and (" " .. tostring(drag.sources[1].name or "item") .. " ")
+        or string.format(" %d items ", count)
+    local line = ui.truncate(ui.printable(label), { max = math.min(36, area.w) })
+    local width = ui.width(line)
+    if width < 1 then return {} end
+
+    local x = math.max(area.x, math.min(drag.x + 2, area.x + area.w - width))
+    local y = drag.y + 1 < area.y + area.h and drag.y + 1 or drag.y - 1
+    y = math.max(area.y, math.min(y, area.y + area.h - 1))
+
+    return {
+        ui.Text(ui.Line(line):style(ui.Style():fg("gray"):bg("darkgray")))
+            :area(ui.Rect { x = x, y = y, w = width, h = 1 }),
+    }
+end
 
 local function WgdotYaziDragSources(file)
     local sources = {}
@@ -1893,7 +1929,9 @@ function Current:click(event, up)
         WgdotYaziDragPending = nil
         WgdotYaziPendingClick = nil
         if up then
+            local was_dragging = WgdotYaziDragState ~= nil
             WgdotYaziDragState = nil
+            if was_dragging then ui.render() end
         else
             WgdotYaziContextMenu:hide()
         end
@@ -1903,12 +1941,22 @@ end
 function Current:drag(event)
     WgdotYaziPendingClick = nil
 
-    -- Use the selection captured at Mouse1 down, not whichever row is hovered
-    -- after the pointer has already moved. OSC 72 offers are not internal drags.
-    if event.x and event.y and not WgdotYaziDragState and WgdotYaziDragPending then
-        WgdotYaziContextMenu:hide()
-        WgdotYaziDragState = { sources = WgdotYaziDragPending.sources }
-        WgdotYaziDragPending = nil
+    -- Use the file(s) captured at Mouse1 down, never the hovered destination.
+    -- Mouse gestures have coordinates; OSC 72 offers do not trigger this UI.
+    if event.x and event.y then
+        if not WgdotYaziDragState and WgdotYaziDragPending then
+            WgdotYaziContextMenu:hide()
+            WgdotYaziDragState = { sources = WgdotYaziDragPending.sources }
+            WgdotYaziDragPending = nil
+        end
+
+        if WgdotYaziDragState
+            and (WgdotYaziDragState.x ~= event.x or WgdotYaziDragState.y ~= event.y)
+        then
+            WgdotYaziDragState.x = event.x
+            WgdotYaziDragState.y = event.y
+            ui.render()
+        end
     end
 
     return WgdotYaziDefaultCurrentDrag(self, event)
@@ -1931,6 +1979,9 @@ function Entity:click(event, up)
                     event.x,
                     event.y
                 )
+            else
+                -- Invalid release cancels; clear the ghost without a file operation.
+                ui.render()
             end
             return
         end
@@ -1987,9 +2038,9 @@ function Entity:click(event, up)
     end
 
     WgdotYaziContextMenu:hide()
-    WgdotYaziDragPending = was_selected and {
-        sources = WgdotYaziDragSources(self._file),
-    } or nil
+    -- An unselected file drags alone; a selected item drags the selected group.
+    -- No Space press is needed for a single file. Nothing moves until menu choice.
+    WgdotYaziDragPending = { sources = WgdotYaziDragSources(self._file) }
     WgdotYaziPendingClick = {
         path = tostring(self._file.url),
         was_hovered = was_hovered,
