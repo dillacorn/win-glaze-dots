@@ -377,7 +377,14 @@ function WgdotYaziShiftArrow(step)
 end
 
 function WgdotYaziSpace()
+    -- If another gesture moved the cursor, never commit an obsolete range.
     if WgdotYaziRangeValid() then
+        local hovered = cx.active.current.hovered
+        if not hovered or tostring(hovered.url) ~= WgdotYaziRangePreview.last_url then
+            WgdotYaziRangeDiscard()
+            ya.emit("toggle", {})
+            return
+        end
         local range = WgdotYaziRangePreview
         WgdotYaziRangePreview = nil
         -- The preview did not alter prior selections. A single native visual
@@ -2213,6 +2220,9 @@ function Parent:click(event, up)
 end
 
 function Current:click(event, up)
+    if not up and (event.is_left or event.is_right) then
+        WgdotYaziRangeDiscard()
+    end
     local row = event.y - self._area.y + 1
     local file = self._folder.window[row]
 
