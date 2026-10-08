@@ -347,6 +347,14 @@ local function WgdotYaziTabIndexAtX(tabs, x)
     return nil
 end
 
+local function WgdotYaziFinishTabDrag()
+    local drag = WgdotYaziTabDrag
+    WgdotYaziTabDrag = nil
+    if drag and drag.moved then
+        ui.render()
+    end
+end
+
 local WgdotYaziDefaultTabsStyle = Tabs.style
 
 function Tabs:style()
@@ -372,7 +380,7 @@ end
 function Tabs:click(event, up)
     local index = WgdotYaziTabIndexAtX(self, event.x)
     if not index then
-        WgdotYaziTabDrag = nil
+        WgdotYaziFinishTabDrag()
         return
     end
 
@@ -380,7 +388,7 @@ function Tabs:click(event, up)
         if up then
             return
         end
-        WgdotYaziTabDrag = nil
+        WgdotYaziFinishTabDrag()
         ya.emit("tab_switch", { index - 1 })
         ya.emit("tab_rename", { interactive = true })
         return
@@ -397,11 +405,7 @@ function Tabs:click(event, up)
         return
     end
 
-    local drag = WgdotYaziTabDrag
-    WgdotYaziTabDrag = nil
-    if drag and drag.moved then
-        ui.render()
-    end
+    WgdotYaziFinishTabDrag()
 end
 
 function Tabs:drag(event)
@@ -1626,6 +1630,11 @@ local WgdotYaziDefaultRootMove = Root.move
 local WgdotYaziDefaultRootScroll = Root.scroll
 
 function Root:move(event)
+    -- A normal move after a drag indicates that Mouse1 was released off the tabs.
+    -- Root routes the release to the component under the pointer, not the source.
+    if WgdotYaziTabDrag then
+        WgdotYaziFinishTabDrag()
+    end
     if WgdotYaziContextMenu._visible then
         return WgdotYaziContextMenu:move(event)
     end
