@@ -432,7 +432,8 @@ function WgdotYaziArrow(step)
     end
 
     WgdotYaziRangeDiscard()
-    ya.emit("arrow", { step < 0 and "prev" or "next" })
+    local direction = step < 0 and "prev" or "next"
+    ya.emit("arrow", { direction })
 end
 
 local WgdotYaziDefaultEntityStyle = Entity.style
