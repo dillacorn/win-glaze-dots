@@ -1701,12 +1701,16 @@ WgdotYaziContextMenu = {
     _drop_sources = nil,
     _preview_target = nil,
     _preview_is_text = false,
+    _preview_is_dir = false,
+    _preview_details = nil,
 }
 
 function WgdotYaziContextMenu:show(kind, x, y, selection_count)
     if kind ~= "preview" then
         self._preview_target = nil
         self._preview_is_text = false
+        self._preview_is_dir = false
+        self._preview_details = nil
     end
     self._kind = kind
     self._x = x
@@ -1736,7 +1740,17 @@ function WgdotYaziContextMenu:show_preview(file, x, y)
     -- This menu operates only on real filesystem paths, never virtual URLs.
     if path == "" or path:find("://", 1, true) then return end
     self._preview_target = path
+    self._preview_is_dir = file.cha.is_dir
     self._preview_is_text = WgdotYaziTextFile(file) ~= nil
+    local modified = math.floor(file.cha.mtime or 0)
+    local size = file:size()
+    self._preview_details = table.concat({
+        "Name: " .. tostring(file.url.name or ""),
+        "Type: " .. (file.cha.is_dir and "Folder" or "File"),
+        "Path: " .. path,
+        "Size: " .. (size and ya.readable_size(size) or "Unknown"),
+        "Modified: " .. (modified > 0 and os.date("%Y-%m-%d %H:%M", modified) or "Unknown"),
+    }, "\n")
     self:show("preview", x, y, 0)
 end
 
@@ -1751,6 +1765,8 @@ function WgdotYaziContextMenu:hide()
     self._drop_sources = nil
     self._preview_target = nil
     self._preview_is_text = false
+    self._preview_is_dir = false
+    self._preview_details = nil
     ui.render()
 end
 
@@ -1773,9 +1789,16 @@ function WgdotYaziContextMenu:actions()
         local actions = {}
         if self._preview_is_text then
             actions[#actions + 1] = { label = "Open in Micro", action = "preview_micro" }
+            actions[#actions + 1] = { label = "Copy text contents", action = "preview_copy_text" }
         end
+        actions[#actions + 1] = {
+            label = self._preview_is_dir and "Copy folder to clipboard"
+                or "Copy file to clipboard",
+            action = "preview_copy_file",
+        }
         actions[#actions + 1] = { label = "Copy path", action = "preview_copy_path" }
         actions[#actions + 1] = { label = "Reveal in File Explorer", action = "preview_explorer" }
+        actions[#actions + 1] = { label = "Details", action = "preview_details" }
         return actions
     elseif self._kind == "background" then
         return WgdotYaziContextActions(WgdotYaziFolderActions)
@@ -1905,15 +1928,28 @@ function WgdotYaziContextMenu:run(action)
     local drop_sources = self._drop_sources
     local preview_target = self._preview_target
     local preview_is_text = self._preview_is_text
+    local preview_details = self._preview_details
     self._visible = false
     self._hovered_row = nil
     self._drop_target = nil
     self._drop_sources = nil
     self._preview_target = nil
     self._preview_is_text = false
+    self._preview_is_dir = false
+    self._preview_details = nil
     ui.render()
 
-    if action == "preview_copy_path" and preview_target then
+    if action == "preview_copy_file" and preview_target then
+        WgdotYaziPreviewClipboard(preview_target, false)
+    elseif action == "preview_copy_text" and preview_target and preview_is_text then
+        WgdotYaziPreviewClipboard(preview_target, true)
+    elseif action == "preview_details" and preview_target and preview_details then
+        ya.notify {
+            title = "Preview item details",
+            content = preview_details,
+            timeout = 12,
+        }
+    elseif action == "preview_copy_path" and preview_target then
         ya.async(function()
             ya.clipboard(preview_target)
             ya.notify {
