@@ -1454,7 +1454,6 @@ local WgdotYaziFolderActions = {
     { label = "New file", action = "new_file" },
     { label = "New folder", action = "new_folder" },
     { label = "Paste", action = "paste" },
-    { label = "Copy current directory path", action = "copy_dirpath" },
     { label = "Terminal here", action = "terminal" },
     { label = "Bookmark / unbookmark folder", action = "bookmark_current" },
 }
@@ -1464,6 +1463,7 @@ local function WgdotYaziContextActions(actions)
     for _, action in ipairs(actions) do
         result[#result + 1] = action
     end
+    result[#result + 1] = { label = "Copy current directory path", action = "copy_dirpath" }
     result[#result + 1] = { label = "Open File Explorer here", action = "explorer_here" }
     result[#result + 1] = { label = "Help", action = "help" }
     return result
