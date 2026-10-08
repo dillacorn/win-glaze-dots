@@ -413,7 +413,18 @@ local function WgdotYaziTabMidpoint(tabs, index)
     local first = tabs._offsets[index]
     if not first then return nil end
     local next_offset = tabs._offsets[index + 1]
-    local last = next_offset or (tabs._area.x + tabs._area.w)
+    -- The last tab ends at its rendered label, not at the terminal edge.
+    -- Using the whole remaining tab-bar width makes the rightmost slot
+    -- unreachable when there is unused space to the right of the tabs.
+    local last = next_offset
+    if not last then
+        local max = math.floor(tabs:inner_width() / #cx.tabs)
+        local name = ui.truncate(
+            string.format(" %d %s ", index, cx.tabs[index].name),
+            { max = max }
+        )
+        last = first + ui.width(name)
+    end
     return math.floor((first + last) / 2)
 end
 
