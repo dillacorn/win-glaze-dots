@@ -399,6 +399,7 @@ function Tabs:click(event, up)
     if not up then
         WgdotYaziTabDrag = {
             target = index,
+            last_x = event.x,
             moved = false,
         }
         ya.emit("tab_switch", { index - 1 })
