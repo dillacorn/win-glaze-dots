@@ -1740,6 +1740,14 @@ function WgdotYaziDropMenuKey(action)
     end
 end
 
+function WgdotYaziDropMenuCopy()
+    WgdotYaziDropMenuKey("copy")
+end
+
+function WgdotYaziDropMenuMove()
+    WgdotYaziDropMenuKey("move")
+end
+
 function WgdotYaziDropToParent()
     local target = cx.active.current.cwd.parent
     if not target then return end
