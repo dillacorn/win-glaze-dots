@@ -250,6 +250,12 @@ function WgdotYaziSmartEnter()
         WgdotYaziDeleteMenu:submit()
         return
     end
+    if WgdotYaziContextMenu and WgdotYaziContextMenu._visible
+        and WgdotYaziContextMenu._kind == "drop"
+    then
+        WgdotYaziContextMenu:choose()
+        return
+    end
 
     local hovered = cx.active.current.hovered
     if WgdotYaziNavigateCollection(hovered, false) then
@@ -297,6 +303,12 @@ end
 function WgdotYaziArrow(step)
     if WgdotYaziDeleteMenu and WgdotYaziDeleteMenu._visible then
         WgdotYaziDeleteMenu:move(step)
+        return
+    end
+    if WgdotYaziContextMenu and WgdotYaziContextMenu._visible
+        and WgdotYaziContextMenu._kind == "drop"
+    then
+        WgdotYaziContextMenu:move_keyboard(step)
         return
     end
 
@@ -1480,7 +1492,9 @@ function WgdotYaziContextMenu:show(kind, x, y, selection_count)
     self._x = x
     self._y = y
     self._selection_count = selection_count or 0
-    self._hovered_row = nil
+    -- Copy is highlighted by default, but no action executes until a click,
+    -- Enter, or the explicit copy/move mnemonic.
+    self._hovered_row = kind == "drop" and 1 or nil
     self._visible = true
     ui.render()
 end
@@ -1507,8 +1521,7 @@ function WgdotYaziContextMenu:title()
     if self._kind == "background" then
         return " Folder actions "
     elseif self._kind == "drop" then
-        local target = self._drop_target and Url(self._drop_target) or nil
-        return " Drop into " .. tostring(target and target.name or "folder") .. " "
+        return " Copy / move "
     elseif self._selection_count > 1 then
         return " " .. tostring(self._selection_count) .. " selected "
     end
@@ -1520,7 +1533,13 @@ function WgdotYaziContextMenu:actions()
     if self._kind == "background" then
         return WgdotYaziContextActions(WgdotYaziFolderActions)
     elseif self._kind == "drop" then
-        return WgdotYaziDropActions
+        local url = self._drop_target and Url(self._drop_target) or nil
+        local folder = url and tostring(url.name or url) or "folder"
+        local label = ui.truncate(ui.printable(folder), { max = 30 })
+        return {
+            { label = "Copy to " .. label, action = "drop_copy" },
+            { label = "Move to " .. label, action = "drop_move" },
+        }
     end
 
     local hovered = cx.active.current.hovered
@@ -1701,6 +1720,28 @@ function WgdotYaziContextMenu:run(action)
         WgdotYaziDropInto("copy", drop_target, drop_sources)
     elseif action == "drop_move" then
         WgdotYaziDropInto("move", drop_target, drop_sources)
+    end
+end
+
+function WgdotYaziContextMenu:move_keyboard(step)
+    if not self._visible or self._kind ~= "drop" then return end
+    local total = #self:actions()
+    self._hovered_row = ((self._hovered_row or 1) - 1 + step) % total + 1
+    ui.render()
+end
+
+function WgdotYaziContextMenu:choose()
+    if not self._visible or self._kind ~= "drop" then return end
+    local actions = self:actions()
+    local selected = actions[self._hovered_row or 1]
+    if selected then self:run(selected.action) end
+end
+
+function WgdotYaziDropMenuKey(action)
+    if WgdotYaziContextMenu and WgdotYaziContextMenu._visible
+        and WgdotYaziContextMenu._kind == "drop"
+    then
+        WgdotYaziContextMenu:run(action == "copy" and "drop_copy" or "drop_move")
     end
 end
 
@@ -1996,14 +2037,15 @@ local WgdotYaziDefaultCurrentDrag = Current.drag
 local WgdotYaziDefaultParentClick = Parent.click
 
 local function WgdotYaziParentDropTarget(parent, event)
-    -- The left pane lists the parent directory. A directory row is an
-    -- explicit target; blank space means the parent directory itself.
+    -- The left pane lists the parent directory. Releasing over a file
+    -- targets its containing parent directory, never the file itself.
+    -- A folder row remains an explicit folder destination.
     local row = event.y - parent._area.y + 1
     local folder = parent._folder
     local file = folder and folder.window[row] or nil
     if file then
         if WgdotYaziIsCollectionItemUrl(file.url) then return nil end
-        return file.cha.is_dir and file.url or nil
+        return file.cha.is_dir and file.url or file.url.parent
     end
     return cx.active.current.cwd.parent
 end
