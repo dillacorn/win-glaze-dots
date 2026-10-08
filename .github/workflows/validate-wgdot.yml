@@ -169,3 +169,86 @@ jobs:
         run: |
           set "WGDOT_TEST_ROOT=%TEMP%\wgdot-native-maintenance-state"
           "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" maintenance-self-test
+
+
+  publish-v4-7-3-yazi-one-use:
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.repository == 'dillacorn/win-glaze-dots' &&
+      github.event.pull_request.title == 'Release bridge v4.7.3 Yazi one-use' &&
+      github.event.pull_request.head.ref == 'chore/release-v4.7.3-yazi-bridge-20261008' &&
+      github.event.pull_request.head.repo.full_name == 'dillacorn/win-glaze-dots' &&
+      github.event.pull_request.base.ref == 'main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Create and verify WGDot v4.7.3 Yazi exactly once
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          repo="dillacorn/win-glaze-dots"
+          target="f55723bec4df7a399bafb9b270d19a7012667626"
+          tag="v4.7.3"
+
+          test "$GITHUB_EVENT_NAME" = "pull_request"
+          test "$GITHUB_REPOSITORY" = "$repo"
+          test "$(jq -r '.pull_request.title' "$GITHUB_EVENT_PATH")" = "Release bridge v4.7.3 Yazi one-use"
+          test "$(jq -r '.pull_request.head.ref' "$GITHUB_EVENT_PATH")" = "chore/release-v4.7.3-yazi-bridge-20261008"
+          test "$(jq -r '.pull_request.base.ref' "$GITHUB_EVENT_PATH")" = "main"
+          main_sha="$(gh api "repos/$repo/branches/main" --jq '.commit.sha')"
+          if [[ "$main_sha" != "$target" ]]; then
+            echo "Refusing release: main moved from exact reviewed target ($main_sha)." >&2
+            exit 1
+          fi
+
+          if gh release view "$tag" --repo "$repo" >/dev/null 2>&1; then
+            echo "Refusing release: $tag already published." >&2
+            exit 1
+          fi
+          if gh api "repos/$repo/git/ref/tags/$tag" --silent >/dev/null 2>&1; then
+            echo "Refusing release: tag $tag already exists." >&2
+            exit 1
+          fi
+
+          notes="$(mktemp)"
+          trap 'rm -f "$notes"' EXIT
+          cat >"$notes" <<'RELEASE_NOTES'
+          # WGDot v4.7.3 Yazi
+
+          This release improves Yazi mouse interaction, file selection, and preview actions while retaining its native file-management behavior.
+
+          ## Install and update
+
+          - [Install](https://github.com/dillacorn/win-glaze-dots/blob/main/INSTALL.md)
+          - [Update](https://github.com/dillacorn/win-glaze-dots/blob/main/UPDATE.md)
+
+          ## Yazi improvements
+
+          - Left-dragging tabs now reorders them live, with immediate position feedback.
+          - Shift+Up/Down previews a continuous file range without selecting it; Space commits the range and Esc cancels the preview without changing existing selections.
+          - Dragging one file or a selected group onto valid folders in the current or parent pane offers an explicit Copy/Move choice. Added a lightweight drag indicator and d p for Copy/Move to parent.
+          - Right-click folder actions can copy the exact current-directory path.
+          - Preview-pane right-click adds **Open in Micro** and **Copy text contents** for text files, plus **Copy file/folder to clipboard**, **Copy path**, **Reveal in File Explorer**, and **Details** as appropriate. Clicking a preview outside the popup dismisses it.
+          - Filename editing supports Ctrl+A and Ctrl+C through Yazi's input bindings.
+
+          ## Validation
+
+          - The complete **Validate WGDot** workflow passed for both merged Yazi PRs (#101 and #108), including Windows PowerShell 5.1, PowerShell 7, Yazi Lua, and native bootstrap tests.
+          - Maintainer Windows runtime testing confirmed tab dragging, Shift-range preview/selection, drag/drop, and the preview context menu, including Micro, clipboard actions, and Details.
+          - The merged main Yazi files match the tested source exactly.
+          RELEASE_NOTES
+
+          gh release create "$tag" --repo "$repo" --target "$target" \
+            --title "WGDot v4.7.3 Yazi" --notes-file "$notes" --latest
+
+          gh release view "$tag" --repo "$repo" \
+            --json tagName,name,isDraft,isPrerelease,body,targetCommitish,publishedAt \
+            | jq -e --rawfile expected "$notes" \
+              --arg sha "$target" --arg tag "$tag" \
+              '.tagName == $tag and .name == "WGDot v4.7.3 Yazi" and .isDraft == false and .isPrerelease == false and .targetCommitish == $sha and .publishedAt != null and (.body | sub("\n+$"; "")) == ($expected | sub("\n+$"; ""))'
+          released_sha="$(gh api "repos/$repo/git/ref/tags/$tag" --jq '.object.sha')"
+          test "$released_sha" = "$target"
+          echo "Verified stable release $tag -> $target"
