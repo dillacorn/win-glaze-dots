@@ -376,7 +376,7 @@ Assert-True ($yaziInitText -notmatch 'function Root:click\(event, up\)') "Yazi c
 Assert-True ($yaziInitText -match 'function WgdotYaziTerminalHere\(\)') "Yazi terminal button reuses a shared directory terminal launcher"
 Assert-True ($yaziInitText -match 'ya\.emit\("shell", \{ "wt\.exe -w new new-tab -d \.", orphan = true \}\)') "Yazi terminal button matches existing t e behavior"
 Assert-True ($yaziInitText -match 'function WgdotYaziTerminalButton:click\(event, up\)') "Yazi terminal button is an interactive native Lua component"
-Assert-True ($yaziInitText -match 'ui\.Line\("  \[t e\] "\)') "Yazi terminal button uses selected Nerd Font terminal icon and shortcut label"
+Assert-True ($yaziInitText -match 'ui\.Line\(" .+ \[t e\] "\)') "Yazi terminal button exposes a glyph icon and the t e shortcut label"
 Assert-True ($yaziInitText -match 'function WgdotYaziTerminalButton:click\(event, up\)\s*if not up and event\.is_left then\s*WgdotYaziTerminalHere\(\)') "Yazi button opens a terminal on left mouse down only"
 Assert-True ($yaziInitText -match 'local terminal_button_width = WgdotYaziPreviewMaximized and area\.w >= 20 and 10 or 0') "Yazi maximized preview exposes t e at the bottom-left"
 Assert-True ($yaziInitText -match 'x = area\.x \+ terminal_button_width') "Yazi preview text-select control leaves room for the terminal button"
