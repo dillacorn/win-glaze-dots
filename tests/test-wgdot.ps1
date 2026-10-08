@@ -313,6 +313,8 @@ Assert-True ($yaziInitText -match 'Copied to clipboard: ') "Yazi header click re
 Assert-True ($yaziInitText -match 'label = "New file".*action = "new_file"') "Yazi folder context menu exposes New file"
 Assert-True ($yaziInitText -match 'label = "New folder".*action = "new_folder"') "Yazi folder context menu exposes New folder"
 Assert-True ($yaziInitText -match 'label = "Copy current directory path".*action = "copy_dirpath"') "Yazi folder context menu exposes native directory-path copying"
+Assert-True ($yaziInitText -match '(?s)local function WgdotYaziContextActions\(actions\).*?label = "Copy current directory path"') "Yazi adds directory-path copying to both background and item context menus"
+Assert-True (([regex]::Matches($yaziInitText, 'label = "Copy current directory path"')).Count -eq 1) "Yazi context actions add one shared directory-path item without duplicates"
 Assert-True ($yaziInitText -match 'elseif action == "copy_dirpath" then\s*ya\.emit\("copy", \{ "dirpath" \}\)') "Yazi background-menu directory-path copy dispatches the native clipboard action"
 Assert-True ($yaziInitText -match 'label = "Terminal here".*action = "terminal"') "Yazi folder context menu exposes Terminal here"
 Assert-True ($yaziInitText -cmatch 'label = "Rename".*action = "rename"') "Yazi item context menu exposes Rename"
