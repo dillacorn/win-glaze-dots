@@ -96,6 +96,14 @@
             "keys": "ctrl+v"
         },
         {
+            "id": null,
+            "keys": "shift+up"
+        },
+        {
+            "id": null,
+            "keys": "shift+down"
+        },
+        {
             "id": "Terminal.CopyToClipboard",
             "keys": "ctrl+shift+c"
         },
