@@ -1107,10 +1107,19 @@ function Preview:new(area, tab)
     local me = WgdotYaziDefaultPreviewNew(self, preview_area, tab)
     if reserve_control_row then
         local preview_button_width = math.min(10, area.w)
+        -- Current pane disappears when preview is maximized. Display the
+        -- t e control at the left of that preview's existing footer instead.
+        local terminal_button_width = WgdotYaziPreviewMaximized and area.w >= 20 and 10 or 0
+        if terminal_button_width > 0 then
+            me._wgdot_terminal_button = WgdotYaziTerminalButton:new(ui.Rect {
+                x = area.x, y = area.y + area.h - 1,
+                w = terminal_button_width, h = 1,
+            })
+        end
         me._wgdot_text_select_button = WgdotYaziTextSelectButton:new(ui.Rect {
-            x = area.x,
+            x = area.x + terminal_button_width,
             y = area.y + area.h - 1,
-            w = math.min(19, math.max(0, area.w - preview_button_width)),
+            w = math.min(19, math.max(0, area.w - preview_button_width - terminal_button_width)),
             h = 1,
         })
         me._wgdot_preview_button = WgdotYaziPreviewButton:new(ui.Rect {
@@ -1131,6 +1140,9 @@ function Preview:reflow()
     if self._wgdot_preview_button then
         components[#components + 1] = self._wgdot_preview_button
     end
+    if self._wgdot_terminal_button then
+        components[#components + 1] = self._wgdot_terminal_button
+    end
     return components
 end
 
@@ -1141,6 +1153,9 @@ function Preview:redraw()
     end
     if self._wgdot_preview_button then
         elements = ya.list_merge(elements, ui.redraw(self._wgdot_preview_button))
+    end
+    if self._wgdot_terminal_button then
+        elements = ya.list_merge(elements, ui.redraw(self._wgdot_terminal_button))
     end
     return elements
 end
@@ -1174,6 +1189,36 @@ function Preview:click(event, up)
     end
 
     WgdotYaziContextMenu:show_preview(target, event.x, event.y)
+end
+
+
+-- The [t e] terminal button launches in the active Yazi directory.
+function WgdotYaziTerminalHere()
+    ya.emit("shell", { "wt.exe -w new new-tab -d .", orphan = true })
+end
+
+WgdotYaziTerminalButton = { _id = "wgdot-yazi-terminal-button" }
+
+function WgdotYaziTerminalButton:new(area)
+    return setmetatable({ _area = area }, { __index = self })
+end
+
+function WgdotYaziTerminalButton:reflow()
+    return { self }
+end
+
+function WgdotYaziTerminalButton:redraw()
+    return {
+        ui.Text(ui.Line("  [t e] "):style(ui.Style():reverse()))
+            :area(self._area)
+            :align(ui.Align.CENTER),
+    }
+end
+
+function WgdotYaziTerminalButton:click(event, up)
+    if not up and event.is_left then
+        WgdotYaziTerminalHere()
+    end
 end
 
 WgdotYaziPreviewToggleButton = { _id = "wgdot-yazi-preview-toggle-button" }
@@ -1230,6 +1275,12 @@ function Current:new(area, tab)
             w = preview_toggle_width,
             h = 1,
         })
+        if area.w >= 20 then
+            me._wgdot_terminal_button = WgdotYaziTerminalButton:new(ui.Rect {
+                x = area.x, y = area.y + area.h - 1,
+                w = 10, h = 1,
+            })
+        end
     end
     return me
 end
@@ -1238,6 +1289,9 @@ function Current:reflow()
     local components = { self }
     if self._wgdot_preview_toggle_button then
         components[#components + 1] = self._wgdot_preview_toggle_button
+    end
+    if self._wgdot_terminal_button then
+        components[#components + 1] = self._wgdot_terminal_button
     end
     return components
 end
@@ -1251,6 +1305,9 @@ function Current:redraw()
     local elements = ya.list_merge(cleanup, WgdotYaziDefaultCurrentRedraw(self) or {})
     if self._wgdot_preview_toggle_button then
         elements = ya.list_merge(elements, ui.redraw(self._wgdot_preview_toggle_button))
+    end
+    if self._wgdot_terminal_button then
+        elements = ya.list_merge(elements, ui.redraw(self._wgdot_terminal_button))
     end
     return ya.list_merge(elements, ghost)
 end
@@ -1798,6 +1855,9 @@ function WgdotYaziContextMenu:actions()
         }
         actions[#actions + 1] = { label = "Copy path", action = "preview_copy_path" }
         actions[#actions + 1] = { label = "Reveal in File Explorer", action = "preview_explorer" }
+        if self._preview_is_dir then
+            actions[#actions + 1] = { label = "Open terminal here", action = "preview_terminal" }
+        end
         actions[#actions + 1] = { label = "Details", action = "preview_details" }
         return actions
     elseif self._kind == "background" then
@@ -1929,6 +1989,7 @@ function WgdotYaziContextMenu:run(action)
     local preview_target = self._preview_target
     local preview_is_text = self._preview_is_text
     local preview_details = self._preview_details
+    local preview_is_dir = self._preview_is_dir
     self._visible = false
     self._hovered_row = nil
     self._drop_target = nil
@@ -1939,7 +2000,17 @@ function WgdotYaziContextMenu:run(action)
     self._preview_details = nil
     ui.render()
 
-    if action == "preview_copy_file" and preview_target then
+    if action == "preview_terminal" and preview_target and preview_is_dir then
+        -- The preview menu snapshots the right-clicked folder independently
+        -- of Yazi's current directory or multi-selection.
+        local script = "$p=" .. WgdotYaziPowerShellQuote(preview_target) ..
+            "; & wt.exe -w new new-tab -d $p"
+        local encoded = WgdotYaziBase64(WgdotYaziUtf16Le(script))
+        ya.emit("shell", {
+            run = "powershell.exe -NoLogo -NoProfile -EncodedCommand " .. encoded,
+            orphan = true,
+        })
+    elseif action == "preview_copy_file" and preview_target then
         WgdotYaziPreviewClipboard(preview_target, false)
     elseif action == "preview_copy_text" and preview_target and preview_is_text then
         WgdotYaziPreviewClipboard(preview_target, true)
@@ -2037,7 +2108,7 @@ function WgdotYaziContextMenu:run(action)
             ya.notify { title = "Yazi", content = "Pasting " .. tostring(yanked) .. " item(s)...", timeout = 2 }
         end
     elseif action == "terminal" then
-        ya.emit("shell", { "wt.exe -w new new-tab -d .", orphan = true })
+        WgdotYaziTerminalHere()
     elseif action == "explorer_here" then
         ya.emit("shell", { "explorer.exe .", orphan = true })
     elseif action == "help" then
