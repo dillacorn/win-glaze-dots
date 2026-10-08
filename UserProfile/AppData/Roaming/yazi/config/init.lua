@@ -1732,22 +1732,6 @@ function WgdotYaziContextMenu:choose()
     if selected then self:run(selected.action) end
 end
 
-function WgdotYaziDropMenuKey(action)
-    if WgdotYaziContextMenu and WgdotYaziContextMenu._visible
-        and WgdotYaziContextMenu._kind == "drop"
-    then
-        WgdotYaziContextMenu:run(action == "copy" and "drop_copy" or "drop_move")
-    end
-end
-
-function WgdotYaziDropMenuCopy()
-    WgdotYaziDropMenuKey("copy")
-end
-
-function WgdotYaziDropMenuMove()
-    WgdotYaziDropMenuKey("move")
-end
-
 function WgdotYaziDropToParent()
     local target = cx.active.current.cwd.parent
     if not target then return end
