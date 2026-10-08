@@ -1666,8 +1666,13 @@ local WgdotYaziDefaultRootMove = Root.move
 local WgdotYaziDefaultRootScroll = Root.scroll
 
 function Root:move(event)
-    -- A normal move after a drag indicates that Mouse1 was released off the tabs.
-    -- Root routes the release to the component under the pointer, not the source.
+    -- Ordinary mouse movement follows release; in-progress Mouse1 holds use
+    -- drag events. Clear a released ghost even if it ended outside Current.
+    if WgdotYaziDragState then
+        WgdotYaziDragState = nil
+        WgdotYaziDragPending = nil
+        ui.render()
+    end
     if WgdotYaziTabDrag then
         WgdotYaziFinishTabDrag()
     end
