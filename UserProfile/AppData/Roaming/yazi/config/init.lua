@@ -856,11 +856,10 @@ local WgdotYaziTextNames = {
     [".editorconfig"] = true,
 }
 
-local function WgdotYaziHoveredTextFile()
-    local hovered = cx.active.current.hovered
-    if not hovered or hovered.cha.is_dir then return nil end
+local function WgdotYaziTextFile(file)
+    if not file or file.cha.is_dir then return nil end
 
-    local mime = hovered:mime() or ""
+    local mime = file:mime() or ""
     if mime:match("^text/")
         or mime == "application/json"
         or mime == "application/xml"
@@ -868,15 +867,19 @@ local function WgdotYaziHoveredTextFile()
         or mime == "application/x-javascript"
         or mime == "application/x-shellscript"
     then
-        return hovered
+        return file
     end
 
-    local name = tostring(hovered.url.name or ""):lower()
-    if WgdotYaziTextNames[name] then return hovered end
+    local name = tostring(file.url.name or ""):lower()
+    if WgdotYaziTextNames[name] then return file end
 
     local ext = name:match("%.([^%.]+)$")
-    if ext and WgdotYaziTextExtensions[ext] then return hovered end
+    if ext and WgdotYaziTextExtensions[ext] then return file end
     return nil
+end
+
+local function WgdotYaziHoveredTextFile()
+    return WgdotYaziTextFile(cx.active.current.hovered)
 end
 
 local function WgdotYaziPreviewTextSelectable()
@@ -920,6 +923,55 @@ local function WgdotYaziBase64(value)
         end
         return alphabet:sub(value6 + 1, value6 + 1)
     end) .. ({ "", "==", "=" })[#value % 3 + 1])
+end
+
+-- Copy the preview target as Windows FileDrop data (file/folder), or copy
+-- text contents. Neither action changes Yazi's own selection or yank state.
+local function WgdotYaziPreviewClipboard(path, as_text)
+    ya.async(function()
+        local script = "$ErrorActionPreference='Stop'; " ..
+            "Add-Type -AssemblyName System.Windows.Forms; " ..
+            "$p=" .. WgdotYaziPowerShellQuote(path) .. "; " ..
+            "if (-not (Test-Path -LiteralPath $p)) { throw 'File not found' }; "
+
+        if as_text then
+            script = script ..
+                "if ((Get-Item -LiteralPath $p).PSIsContainer) { throw 'Not a text file' }; " ..
+                "if ((Get-Item -LiteralPath $p).Length -gt 8388608) {" ..
+                " throw 'Text file exceeds 8 MiB clipboard limit' }; " ..
+                "$value=[System.IO.File]::ReadAllText($p); " ..
+                "if ($value.Length -eq 0) { [System.Windows.Forms.Clipboard]::Clear() }" ..
+                " else { [System.Windows.Forms.Clipboard]::SetText($value) }"
+        else
+            script = script ..
+                "$items=New-Object System.Collections.Specialized.StringCollection; " ..
+                "$null=$items.Add($p); " ..
+                "[System.Windows.Forms.Clipboard]::SetFileDropList($items)"
+        end
+
+        local encoded = WgdotYaziBase64(WgdotYaziUtf16Le(script))
+        local result, err = Command("powershell.exe"):arg({
+            "-NoLogo", "-NoProfile", "-NonInteractive", "-Sta",
+            "-EncodedCommand", encoded,
+        }):output()
+
+        if err or not result or not result.status.success then
+            ya.notify {
+                title = "Preview clipboard",
+                content = "Copy failed. Check file access and Windows clipboard.",
+                level = "error",
+                timeout = 5,
+            }
+            return
+        end
+
+        ya.notify {
+            title = "Preview clipboard",
+            content = as_text and "Copied preview text contents"
+                or "Copied preview item to Windows file clipboard",
+            timeout = 2,
+        }
+    end)
 end
 
 function WgdotYaziSelectPreviewText()
@@ -1091,6 +1143,37 @@ function Preview:redraw()
         elements = ya.list_merge(elements, ui.redraw(self._wgdot_preview_button))
     end
     return elements
+end
+
+-- Preview right-click never calls Entity:click, which would mutate selection
+-- and reveal a potentially different manager item. The menu snapshots a path.
+local WgdotYaziDefaultPreviewClick = Preview.click
+function Preview:click(event, up)
+    if event.is_left and WgdotYaziContextMenu._visible then
+        -- Mouse1 on preview outside menu dismisses without navigation.
+        if not up then WgdotYaziContextMenu:hide() end
+        return
+    end
+    if not event.is_right then
+        return WgdotYaziDefaultPreviewClick(self, event, up)
+    end
+    if up then return end
+
+    WgdotYaziRangeDiscard()
+    local hovered = cx.active.current.hovered
+    if not hovered then return end
+
+    local target = hovered
+    if hovered.cha.is_dir and self._folder
+        and tostring(self._folder.cwd) == tostring(hovered.url)
+    then
+        local row = event.y - self._area.y + 1
+        if row >= 1 and self._folder.window[row] then
+            target = self._folder.window[row]
+        end
+    end
+
+    WgdotYaziContextMenu:show_preview(target, event.x, event.y)
 end
 
 WgdotYaziPreviewToggleButton = { _id = "wgdot-yazi-preview-toggle-button" }
@@ -1616,9 +1699,19 @@ WgdotYaziContextMenu = {
     _selection_count = 0,
     _drop_target = nil,
     _drop_sources = nil,
+    _preview_target = nil,
+    _preview_is_text = false,
+    _preview_is_dir = false,
+    _preview_details = nil,
 }
 
 function WgdotYaziContextMenu:show(kind, x, y, selection_count)
+    if kind ~= "preview" then
+        self._preview_target = nil
+        self._preview_is_text = false
+        self._preview_is_dir = false
+        self._preview_details = nil
+    end
     self._kind = kind
     self._x = x
     self._y = y
@@ -1636,6 +1729,31 @@ function WgdotYaziContextMenu:show_drop(target, sources, x, y)
     self:show("drop", x, y, #sources)
 end
 
+function WgdotYaziContextMenu:show_preview(file, x, y)
+    if not file or not file.url or WgdotYaziIsCollectionItemUrl(file.url)
+        or WgdotYaziCollectionKind(file.url)
+    then
+        return
+    end
+
+    local path = tostring(file.url)
+    -- This menu operates only on real filesystem paths, never virtual URLs.
+    if path == "" or path:find("://", 1, true) then return end
+    self._preview_target = path
+    self._preview_is_dir = file.cha.is_dir
+    self._preview_is_text = WgdotYaziTextFile(file) ~= nil
+    local modified = math.floor(file.cha.mtime or 0)
+    local size = file:size()
+    self._preview_details = table.concat({
+        "Name: " .. tostring(file.url.name or ""),
+        "Type: " .. (file.cha.is_dir and "Folder" or "File"),
+        "Path: " .. path,
+        "Size: " .. (size and ya.readable_size(size) or "Unknown"),
+        "Modified: " .. (modified > 0 and os.date("%Y-%m-%d %H:%M", modified) or "Unknown"),
+    }, "\n")
+    self:show("preview", x, y, 0)
+end
+
 function WgdotYaziContextMenu:hide()
     if not self._visible then
         return
@@ -1645,11 +1763,17 @@ function WgdotYaziContextMenu:hide()
     self._hovered_row = nil
     self._drop_target = nil
     self._drop_sources = nil
+    self._preview_target = nil
+    self._preview_is_text = false
+    self._preview_is_dir = false
+    self._preview_details = nil
     ui.render()
 end
 
 function WgdotYaziContextMenu:title()
-    if self._kind == "background" then
+    if self._kind == "preview" then
+        return " Preview actions "
+    elseif self._kind == "background" then
         return " Folder actions "
     elseif self._kind == "drop" then
         return " Copy / move "
@@ -1661,7 +1785,22 @@ function WgdotYaziContextMenu:title()
 end
 
 function WgdotYaziContextMenu:actions()
-    if self._kind == "background" then
+    if self._kind == "preview" then
+        local actions = {}
+        if self._preview_is_text then
+            actions[#actions + 1] = { label = "Open in Micro", action = "preview_micro" }
+            actions[#actions + 1] = { label = "Copy text contents", action = "preview_copy_text" }
+        end
+        actions[#actions + 1] = {
+            label = self._preview_is_dir and "Copy folder to clipboard"
+                or "Copy file to clipboard",
+            action = "preview_copy_file",
+        }
+        actions[#actions + 1] = { label = "Copy path", action = "preview_copy_path" }
+        actions[#actions + 1] = { label = "Reveal in File Explorer", action = "preview_explorer" }
+        actions[#actions + 1] = { label = "Details", action = "preview_details" }
+        return actions
+    elseif self._kind == "background" then
         return WgdotYaziContextActions(WgdotYaziFolderActions)
     elseif self._kind == "drop" then
         local url = self._drop_target and Url(self._drop_target) or nil
@@ -1787,13 +1926,58 @@ function WgdotYaziContextMenu:run(action)
     local count = self._selection_count > 0 and self._selection_count or 1
     local drop_target = self._drop_target
     local drop_sources = self._drop_sources
+    local preview_target = self._preview_target
+    local preview_is_text = self._preview_is_text
+    local preview_details = self._preview_details
     self._visible = false
     self._hovered_row = nil
     self._drop_target = nil
     self._drop_sources = nil
+    self._preview_target = nil
+    self._preview_is_text = false
+    self._preview_is_dir = false
+    self._preview_details = nil
     ui.render()
 
-    if action == "smart_open" then
+    if action == "preview_copy_file" and preview_target then
+        WgdotYaziPreviewClipboard(preview_target, false)
+    elseif action == "preview_copy_text" and preview_target and preview_is_text then
+        WgdotYaziPreviewClipboard(preview_target, true)
+    elseif action == "preview_details" and preview_target and preview_details then
+        ya.notify {
+            title = "Preview item details",
+            content = preview_details,
+            timeout = 12,
+        }
+    elseif action == "preview_copy_path" and preview_target then
+        ya.async(function()
+            ya.clipboard(preview_target)
+            ya.notify {
+                title = "Clipboard",
+                content = "Copied preview item path",
+                timeout = 2,
+            }
+        end)
+    elseif action == "preview_micro" and preview_target and preview_is_text then
+        -- Reuse the existing UTF-16/EncodedCommand shell bridge to handle
+        -- spaces and PowerShell metacharacters in a snapped Windows path.
+        local script = "$p=" .. WgdotYaziPowerShellQuote(preview_target) ..
+            "; if (-not (Get-Command micro.exe -ErrorAction SilentlyContinue)) {" ..
+            " Write-Host 'Micro editor not available'; exit 1 }; & micro.exe $p"
+        local encoded = WgdotYaziBase64(WgdotYaziUtf16Le(script))
+        ya.emit("shell", {
+            run = "powershell.exe -NoLogo -NoProfile -EncodedCommand " .. encoded,
+            block = true,
+        })
+    elseif action == "preview_explorer" and preview_target then
+        local script = "$p=" .. WgdotYaziPowerShellQuote(preview_target) ..
+            "; Start-Process -FilePath explorer.exe -ArgumentList ('/select,\"' + $p + '\"')"
+        local encoded = WgdotYaziBase64(WgdotYaziUtf16Le(script))
+        ya.emit("shell", {
+            run = "powershell.exe -NoLogo -NoProfile -EncodedCommand " .. encoded,
+            orphan = true,
+        })
+    elseif action == "smart_open" then
         WgdotYaziSmartEnter()
     elseif action == "open_new_tab" then
         WgdotYaziOpenHoveredTab()
