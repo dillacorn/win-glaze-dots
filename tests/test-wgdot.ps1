@@ -287,6 +287,7 @@ Assert-True ($tabDragBlock -match 'WgdotYaziMoveActiveTabTo\(drag\.target, targe
 Assert-True ($tabDragBlock -match 'drag\.target = target') "Yazi tab drag remembers last queued index to avoid duplicate swaps"
 Assert-True ($yaziInitText -match 'local function WgdotYaziTabMidpoint\(tabs, index\)') "Yazi calculates neighboring tab midpoints for smoother reordering"
 Assert-True ($tabDragBlock -match 'math\.abs\(event\.x - drag\.last_swap_x\) < 3') "Yazi dampens repeated swaps until the pointer moves at least three columns"
+Assert-True ($yaziInitText -match 'last_x = event\.x') "Yazi remembers pointer position from Mouse1 down to process the first drag movement"
 Assert-True ($tabDragBlock -match 'WgdotYaziTabMidpoint\(self, target \+ 1\)') "Yazi swaps right only after crossing the next tab center"
 Assert-True ($tabDragBlock -match 'WgdotYaziTabMidpoint\(self, target - 1\)') "Yazi swaps left only after crossing the previous tab center"
 Assert-True ($tabClickBlock -notmatch 'WgdotYaziMoveActiveTabTo') "Yazi tab release does not reorder a second time"
