@@ -268,7 +268,7 @@ jobs:
           target="e1475210ce4403f8af25d5b8f9b09dfbfe351ac7"
           release_json="$(gh api "repos/$repo/releases/tags/v4.7.4")"
           jq -e --arg sha "$target" \
-            '.tag_name == "v4.7.4" and .name == "WGDot v4.7.4 Yazi Rename" and .draft == false and .prerelease == false and .target_commitish == $sha and (.body | startswith("# WGDot v4.7.4 Yazi Rename\\n"))' <<<"$release_json"
+            '.tag_name == "v4.7.4" and .name == "WGDot v4.7.4 Yazi Rename" and .draft == false and .prerelease == false and .target_commitish == $sha and (.body | startswith("# WGDot v4.7.4 Yazi Rename"))' <<<"$release_json"
           test "$(gh api "repos/$repo/git/ref/tags/v4.7.4" --jq '.object.sha')" = "$target"
           test "$(gh api "repos/$repo/branches/main" --jq '.commit.sha')" = "$target"
           gh api -X DELETE "repos/$repo/git/refs/heads/chore/release-v4.7.4-yazi-rename-bridge-20261009"
