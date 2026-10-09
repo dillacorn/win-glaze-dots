@@ -475,6 +475,61 @@ function WgdotYaziCloseTab()
     end
 end
 
+-- Experimental terminal-native selection for the *single-item* Rename input.
+-- Yazi ignores mouse events in its input layer, but its terminal mouse-capture
+-- modes prevent Windows Terminal from selecting the displayed filename.
+-- Releasing capture changes only terminal pointer routing; the rename itself
+-- remains Yazi's native manager action, including its overwrite checks.
+local WgdotYaziRenameMouseReleased = false
+
+local function WgdotYaziRenameMouseMode(sequence)
+    if not io or not io.stdout then return false end
+    local ok, wrote = pcall(function()
+        -- Lua's file writes can return nil instead of throwing on failure.
+        -- Do not assume terminal mouse capture changed unless both succeed.
+        return io.stdout:write(sequence) and io.stdout:flush() ~= nil
+    end)
+    return ok and wrote == true
+end
+
+function WgdotYaziRenameRestoreMouse()
+    if not WgdotYaziRenameMouseReleased then return end
+    -- Restore exactly the modes enabled by Yazi's EnableMouseCapture:
+    -- X10, button motion, urxvt, and SGR coordinates.
+    if WgdotYaziRenameMouseMode("\27[?1000h\27[?1002h\27[?1015h\27[?1006h") then
+        WgdotYaziRenameMouseReleased = false
+    else
+        ya.notify {
+            title = "Yazi Rename",
+            content = "Could not restore terminal mouse capture. Restart Yazi if mouse input is unavailable.",
+            level = "error",
+            timeout = 6,
+        }
+    end
+end
+
+function WgdotYaziRename(hovered_only)
+    local current = cx.active and cx.active.current
+    if not current or not current.hovered then return end
+
+    -- Native rename launches the separate bulk-editor workflow when there is
+    -- a selection, so never interfere with that workflow's terminal state.
+    if not hovered_only and #cx.active.selected > 0 then
+        ya.emit("rename", {})
+        return
+    end
+
+    -- Disable mouse reporting only for this one input. Without reporting,
+    -- drag selects actual terminal text and Ctrl+Shift+C copies it; Windows
+    -- Terminal Ctrl+Shift+V continues pasting into Yazi's input as usual.
+    WgdotYaziRenameRestoreMouse()
+    WgdotYaziRenameMouseReleased = WgdotYaziRenameMouseMode(
+        "\27[?1000l\27[?1002l\27[?1015l\27[?1006l"
+    )
+
+    ya.emit("rename", hovered_only and { hovered = true } or {})
+end
+
 local WgdotYaziTabDrag = nil
 
 local function WgdotYaziTabIndexAtX(tabs, x)
@@ -2055,7 +2110,7 @@ function WgdotYaziContextMenu:run(action)
     elseif action == "open_with" then
         WgdotYaziOpenFiles(true, true)
     elseif action == "rename" then
-        ya.emit("rename", { hovered = true })
+        WgdotYaziRename(true)
     elseif action == "bulk_rename" then
         ya.emit("rename", {})
     elseif action == "drag_out" then
