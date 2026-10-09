@@ -93,9 +93,12 @@ prepend_keymap = [
 
 [input]
 prepend_keymap = [
-  { on = ["<Esc>"], run = ['lua "WgdotYaziRenameRestoreMouse()"', "close"], desc = "Cancel input" },
-  { on = ["<Enter>"], run = ['lua "WgdotYaziRenameRestoreMouse()"', "close --submit"], desc = "Submit input" },
-  { on = ["<C-[>"], run = ['lua "WgdotYaziRenameRestoreMouse()"', "escape"], desc = "Input mode escape" },
+  # Plain "lua" is ignored by Yazi while the input is in Insert mode.
+  # Use application-layer Lua explicitly so terminal mouse capture is
+  # restored before closing the native input, regardless of edit mode.
+  { on = ["<Esc>"], run = ['app:lua "WgdotYaziRenameRestoreMouse()"', "close"], desc = "Cancel input" },
+  { on = ["<Enter>"], run = ['app:lua "WgdotYaziRenameRestoreMouse()"', "close --submit"], desc = "Submit input" },
+  { on = ["<C-[>"], run = ['app:lua "WgdotYaziRenameRestoreMouse()"', "escape"], desc = "Input mode escape" },
   { on = ["<C-a>"], run = ["move eol", "visual", "move bol"], desc = "Highlight all input text" },
   # Visual selection leaves input in normal mode. Return to insert mode
   # before cursor navigation; terminal Ctrl+Shift+V then feeds text normally.
