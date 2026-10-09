@@ -169,3 +169,78 @@ jobs:
         run: |
           set "WGDOT_TEST_ROOT=%TEMP%\wgdot-native-maintenance-state"
           "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" maintenance-self-test
+
+  publish-v4-7-5-word-selection-one-use:
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.action == 'opened' &&
+      github.repository == 'dillacorn/win-glaze-dots' &&
+      github.event.pull_request.title == 'Release bridge v4.7.5 Yazi word selection one-use' &&
+      github.event.pull_request.head.ref == 'chore/release-v4.7.5-word-selection-one-use-20261009' &&
+      github.event.pull_request.head.repo.full_name == 'dillacorn/win-glaze-dots' &&
+      github.event.pull_request.base.ref == 'main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Publish and verify WGDot word selection maintenance release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          repo="dillacorn/win-glaze-dots"
+          target="7fc845dee12e3e1717bb34ae7999dab5b4553696"
+          tag="v4.7.5"
+          helper="chore/release-v4.7.5-word-selection-one-use-20261009"
+          test "$GITHUB_EVENT_NAME" = "pull_request"
+          test "$GITHUB_REPOSITORY" = "$repo"
+          test "$(jq -r '.action' "$GITHUB_EVENT_PATH")" = "opened"
+          test "$(jq -r '.pull_request.title' "$GITHUB_EVENT_PATH")" = "Release bridge v4.7.5 Yazi word selection one-use"
+          test "$(jq -r '.pull_request.head.ref' "$GITHUB_EVENT_PATH")" = "$helper"
+          test "$(jq -r '.pull_request.head.repo.full_name' "$GITHUB_EVENT_PATH")" = "$repo"
+          test "$(jq -r '.pull_request.base.ref' "$GITHUB_EVENT_PATH")" = "main"
+          test "$(gh api "repos/$repo/branches/main" --jq '.commit.sha')" = "$target"
+          if gh release view "$tag" --repo "$repo" >/dev/null 2>&1; then
+            echo "Release $tag already exists. Refusing to overwrite." >&2
+            exit 1
+          fi
+          if gh api "repos/$repo/git/ref/tags/$tag" --silent >/dev/null 2>&1; then
+            echo "Tag $tag already exists. Refusing to overwrite." >&2
+            exit 1
+          fi
+          notes="$(mktemp)"
+          trap 'rm -f "$notes"' EXIT
+          cat >"$notes" <<'RELEASE_NOTES'
+          # WGDot v4.7.5 Yazi Word Selection
+          
+          This maintenance release corrects Ctrl+Shift+Arrow filename selection in Yazi Rename to advance one word at a time rather than selecting the entire filename.
+          
+          ## Install and update
+          
+          - [Install](https://github.com/dillacorn/win-glaze-dots/blob/main/INSTALL.md)
+          - [Update](https://github.com/dillacorn/win-glaze-dots/blob/main/UPDATE.md)
+          
+          ## Yazi improvement
+          
+          - Ctrl+Shift+Left highlights one adjacent word to the left, using Yazi's native backward-lean motion.
+          - Ctrl+Shift+Right highlights one adjacent word to the right, using native forward-lean motion and preserving the insertion-caret alignment.
+          - Repeated presses extend the same selection. Shift+Arrow still selects individual characters; Ctrl+Arrow moves without selecting.
+          - Terminal mouse drag, Ctrl+Shift+C/V clipboard operations, Esc/Enter mouse restoration, and Yazi's native rename handling remain unchanged.
+          
+          ## Validation
+          
+          - All four WGDot validation jobs passed on PR #113, including Windows PowerShell 5.1, PowerShell 7, Yazi Lua/TOML and native bootstrap.
+          - Existing Windows rename/mouse/clipboard behavior was runtime-tested previously; this wordwise shortcut correction still requires an individual runtime confirmation.
+          RELEASE_NOTES
+          gh release create "$tag" --repo "$repo" --target "$target" \
+            --title "WGDot v4.7.5 Yazi Word Selection" --notes-file "$notes" --latest
+          gh release view "$tag" --repo "$repo" \
+            --json tagName,name,isDraft,isPrerelease,body,targetCommitish,publishedAt \
+            | jq -e --rawfile expected "$notes" --arg sha "$target" --arg tag "$tag" \
+              '.tagName == $tag and .name == "WGDot v4.7.5 Yazi Word Selection" and .isDraft == false and .isPrerelease == false and .targetCommitish == $sha and .publishedAt != null and (.body | sub("\\n+$"; "")) == ($expected | sub("\\n+$"; ""))'
+          test "$(gh api "repos/$repo/git/ref/tags/$tag" --jq '.object.sha')" = "$target"
+          test "$(gh api "repos/$repo/branches/main" --jq '.commit.sha')" = "$target"
+          echo "Published and verified stable $tag at $target"
+          gh api -X DELETE "repos/$repo/git/refs/heads/$helper"
+          echo "Deleted disposable release branch without merging"
