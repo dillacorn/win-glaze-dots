@@ -111,11 +111,11 @@ prepend_keymap = [
   { on = ["<End>"], run = ["insert", "move eol"], desc = "Input end and resume editing" },
   { on = ["<S-Left>"], run = ["visual", "move -1"], desc = "Extend input text selection left" },
   { on = ["<S-Right>"], run = ["visual", "move 1"], desc = "Extend input text selection right" },
-  # Select everything from the insertion caret to the requested edge.
-  # In Insert mode, visual steps one character left on entry; advancing
-  # first on the right keeps the character before the caret unselected.
-  { on = ["<C-S-Left>"], run = ["visual", "move bol"], desc = "Select input text to beginning" },
-  { on = ["<C-S-Right>"], run = ["move 1", "visual", "move eol"], desc = "Select input text to end" },
+  # Match native Ctrl+Arrow word boundaries but extend the visual selection.
+  # Entering Visual mode from Insert steps back a character; moving right
+  # once first preserves the insertion caret. Repeated presses keep the anchor.
+  { on = ["<C-S-Left>"], run = ["visual", "backward lean"], desc = "Extend input selection one word left" },
+  { on = ["<C-S-Right>"], run = ["move 1", "visual", "forward lean --end-of-word"], desc = "Extend input selection one word right" },
   { on = ["<C-c>"], run = ["yank", "insert"], desc = "Copy highlighted input text and resume editing" },
   { on = ["<C-v>"], run = ["paste", "insert"], desc = "Paste highlighted input text and resume editing" }
 ]
