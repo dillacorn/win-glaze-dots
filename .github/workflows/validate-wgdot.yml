@@ -169,3 +169,107 @@ jobs:
         run: |
           set "WGDOT_TEST_ROOT=%TEMP%\wgdot-native-maintenance-state"
           "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" maintenance-self-test
+
+  publish-v4-7-4-yazi-rename-one-use:
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.action == 'opened' &&
+      github.repository == 'dillacorn/win-glaze-dots' &&
+      github.event.pull_request.title == 'Release bridge v4.7.4 Yazi Rename one-use' &&
+      github.event.pull_request.head.ref == 'chore/release-v4.7.4-yazi-rename-bridge-20261009' &&
+      github.event.pull_request.head.repo.full_name == 'dillacorn/win-glaze-dots' &&
+      github.event.pull_request.base.ref == 'main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Create and verify WGDot v4.7.4 Yazi Rename
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          repo="dillacorn/win-glaze-dots"
+          target="e1475210ce4403f8af25d5b8f9b09dfbfe351ac7"
+          tag="v4.7.4"
+          test "$GITHUB_EVENT_NAME" = "pull_request"
+          test "$GITHUB_REPOSITORY" = "$repo"
+          test "$(jq -r '.pull_request.title' "$GITHUB_EVENT_PATH")" = "Release bridge v4.7.4 Yazi Rename one-use"
+          test "$(jq -r '.pull_request.head.ref' "$GITHUB_EVENT_PATH")" = "chore/release-v4.7.4-yazi-rename-bridge-20261009"
+          test "$(jq -r '.pull_request.head.repo.full_name' "$GITHUB_EVENT_PATH")" = "$repo"
+          test "$(jq -r '.pull_request.base.ref' "$GITHUB_EVENT_PATH")" = "main"
+          main_sha="$(gh api "repos/$repo/branches/main" --jq '.commit.sha')"
+          test "$main_sha" = "$target" || { echo "Main SHA has changed: $main_sha" >&2; exit 1; }
+          if gh release view "$tag" --repo "$repo" >/dev/null 2>&1; then
+            echo "Release $tag already exists; refusing to overwrite." >&2
+            exit 1
+          fi
+          if gh api "repos/$repo/git/ref/tags/$tag" --silent >/dev/null 2>&1; then
+            echo "Tag $tag already exists; refusing to overwrite." >&2
+            exit 1
+          fi
+          notes="$(mktemp)"
+          trap 'rm -f "$notes"' EXIT
+          cat >"$notes" <<'RELEASE_NOTES'
+          # WGDot v4.7.4 Yazi Rename
+          
+          This release makes Yazi filename editing more like Windows Explorer while keeping Yazi's native rename and file operations.
+          
+          ## Install and update
+          
+          - [Install](https://github.com/dillacorn/win-glaze-dots/blob/main/INSTALL.md)
+          - [Update](https://github.com/dillacorn/win-glaze-dots/blob/main/UPDATE.md)
+          
+          ## Yazi improvements
+          
+          - Single-file Rename now permits native Windows Terminal mouse-drag text selection for copying with Ctrl+Shift+C and pasting with Ctrl+Shift+V.
+          - Shift+Left/Right selects filename characters; Ctrl+Shift+Left/Right extends selection to the beginning/end of the input.
+          - Ctrl+C copies Yazi-selected text, while Ctrl+V supports native input clipboard actions.
+          - Cursor navigation automatically returns the rename field to insert mode so Ctrl+Shift+V works after text selection without closing and reopening Rename.
+          - Exiting Rename through Esc or Enter restores terminal mouse capture, preserving clickable Yazi files. Native rename collision checks, bulk rename, and normal manager mouse actions remain intact.
+          
+          ## Validation
+          
+          - All four Validate WGDot jobs passed on PR #111 (Windows PowerShell 5.1, PowerShell 7, Yazi Lua/schema, and native bootstrap).
+          - Maintainer Windows Terminal testing confirmed rename selection, copying/pasting in the same input, Ctrl+Shift+Arrow selection, and mouse interaction after cancelling with Esc.
+          RELEASE_NOTES
+
+          gh release create "$tag" --repo "$repo" --target "$target" \
+            --title "WGDot v4.7.4 Yazi Rename" --notes-file "$notes" --latest
+
+          gh release view "$tag" --repo "$repo" \
+            --json tagName,name,isDraft,isPrerelease,body,targetCommitish,publishedAt \
+            | jq -e --rawfile expected "$notes" --arg sha "$target" --arg tag "$tag" \
+              '.tagName == $tag and .name == "WGDot v4.7.4 Yazi Rename" and .isDraft == false and .isPrerelease == false and .targetCommitish == $sha and .publishedAt != null and (.body | sub("\\n+$"; "")) == ($expected | sub("\\n+$"; ""))'
+          released_sha="$(gh api "repos/$repo/git/ref/tags/$tag" --jq '.object.sha')"
+          test "$released_sha" = "$target"
+          echo "Verified published stable release $tag at $target"
+
+  retire-v4-7-4-yazi-rename-one-use:
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.action == 'synchronize' &&
+      github.repository == 'dillacorn/win-glaze-dots' &&
+      github.event.pull_request.title == 'Release bridge v4.7.4 Yazi Rename one-use' &&
+      github.event.pull_request.head.ref == 'chore/release-v4.7.4-yazi-rename-bridge-20261009' &&
+      github.event.pull_request.head.repo.full_name == 'dillacorn/win-glaze-dots' &&
+      github.event.pull_request.base.ref == 'main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Verify release then delete disposable helper branch
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          repo="dillacorn/win-glaze-dots"
+          target="e1475210ce4403f8af25d5b8f9b09dfbfe351ac7"
+          release_json="$(gh api "repos/$repo/releases/tags/v4.7.4")"
+          jq -e --arg sha "$target" \
+            '.tag_name == "v4.7.4" and .name == "WGDot v4.7.4 Yazi Rename" and .draft == false and .prerelease == false and .target_commitish == $sha and (.body | startswith("# WGDot v4.7.4 Yazi Rename\\n"))' <<<"$release_json"
+          test "$(gh api "repos/$repo/git/ref/tags/v4.7.4" --jq '.object.sha')" = "$target"
+          test "$(gh api "repos/$repo/branches/main" --jq '.commit.sha')" = "$target"
+          gh api -X DELETE "repos/$repo/git/refs/heads/chore/release-v4.7.4-yazi-rename-bridge-20261009"
+          echo "Release verified and disposable helper branch deleted without merging"
