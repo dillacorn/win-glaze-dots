@@ -114,8 +114,8 @@ prepend_keymap = [
   # Match native Ctrl+Arrow word boundaries but extend the visual selection.
   # Entering Visual mode from Insert steps back a character; moving right
   # once first preserves the insertion caret. Repeated presses keep the anchor.
-  { on = ["<C-S-Left>"], run = ["visual", "backward lean"], desc = "Extend input selection one word left" }
-  { on = ["<C-S-Right>"], run = ["move 1", "visual", "forward lean --end-of-word"], desc = "Extend input selection one word right" }
+  { on = ["<C-S-Left>"], run = ["visual", "backward lean"], desc = "Extend input selection one word left" },
+  { on = ["<C-S-Right>"], run = ["move 1", "visual", "forward lean --end-of-word"], desc = "Extend input selection one word right" },
   { on = ["<C-c>"], run = ["yank", "insert"], desc = "Copy highlighted input text and resume editing" },
   { on = ["<C-v>"], run = ["paste", "insert"], desc = "Paste highlighted input text and resume editing" }
 ]
