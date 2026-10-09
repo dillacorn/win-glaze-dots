@@ -73,8 +73,8 @@ prepend_keymap = [
   { on = ["<S-Enter>"], run = 'lua "WgdotYaziOpen(true)"', desc = "Open selected files interactively" },
   { on = ["d", "g"], run = 'lua "WgdotYaziDragOut()"', desc = "Drag selected file(s) out" },
   { on = ["d", "p"], run = 'lua "WgdotYaziDropToParent()"', desc = "Copy or move selection to parent directory" },
-  { on = ["R"],       run = "rename",               desc = "Rename" },
-  { on = ["<F2>"],    run = "rename",               desc = "Rename" },
+  { on = ["R"],       run = 'lua "WgdotYaziRename(false)"', desc = "Rename (native terminal text selection)" },
+  { on = ["<F2>"],    run = 'lua "WgdotYaziRename(false)"', desc = "Rename (native terminal text selection)" },
   { on = ["d", "d"], run = 'lua "WgdotYaziRemoveMenu()"', desc = "Trash or permanently delete selection" },
   { on = ["<Delete>"], run = 'lua "WgdotYaziRemoveMenu()"', desc = "Trash or permanently delete selection" },
   { on = ["t", "e"], run = "shell --orphan -- wt.exe -w new new-tab -d .", desc = "Open terminal here" },
@@ -93,7 +93,9 @@ prepend_keymap = [
 
 [input]
 prepend_keymap = [
-  { on = ["<Esc>"], run = "close", desc = "Cancel input" },
+  { on = ["<Esc>"], run = ['lua "WgdotYaziRenameRestoreMouse()"', "close"], desc = "Cancel input" },
+  { on = ["<Enter>"], run = ['lua "WgdotYaziRenameRestoreMouse()"', "close --submit"], desc = "Submit input" },
+  { on = ["<C-[>"], run = ['lua "WgdotYaziRenameRestoreMouse()"', "escape"], desc = "Input mode escape" },
   { on = ["<C-a>"], run = ["move eol", "visual", "move bol"], desc = "Highlight all input text" },
   { on = ["<C-c>"], run = "yank", desc = "Copy highlighted input text" }
 ]
