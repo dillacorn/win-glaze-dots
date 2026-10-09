@@ -484,10 +484,12 @@ local WgdotYaziRenameMouseReleased = false
 
 local function WgdotYaziRenameMouseMode(sequence)
     if not io or not io.stdout then return false end
-    return pcall(function()
-        io.stdout:write(sequence)
-        io.stdout:flush()
+    local ok, wrote = pcall(function()
+        -- Lua's file writes can return nil instead of throwing on failure.
+        -- Do not assume terminal mouse capture changed unless both succeed.
+        return io.stdout:write(sequence) and io.stdout:flush() ~= nil
     end)
+    return ok and wrote == true
 end
 
 function WgdotYaziRenameRestoreMouse()
