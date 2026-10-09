@@ -108,6 +108,11 @@ prepend_keymap = [
   { on = ["<End>"], run = ["insert", "move eol"], desc = "Input end and resume editing" },
   { on = ["<S-Left>"], run = ["visual", "move -1"], desc = "Extend input text selection left" },
   { on = ["<S-Right>"], run = ["visual", "move 1"], desc = "Extend input text selection right" },
+  # Select everything from the insertion caret to the requested edge.
+  # In Insert mode, visual steps one character left on entry; advancing
+  # first on the right keeps the character before the caret unselected.
+  { on = ["<C-S-Left>"], run = ["visual", "move bol"], desc = "Select input text to beginning" },
+  { on = ["<C-S-Right>"], run = ["move 1", "visual", "move eol"], desc = "Select input text to end" },
   { on = ["<C-c>"], run = ["yank", "insert"], desc = "Copy highlighted input text and resume editing" },
   { on = ["<C-v>"], run = ["paste", "insert"], desc = "Paste highlighted input text and resume editing" }
 ]
