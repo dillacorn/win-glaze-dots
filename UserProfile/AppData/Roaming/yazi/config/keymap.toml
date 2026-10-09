@@ -97,7 +97,10 @@ prepend_keymap = [
   { on = ["<Enter>"], run = ['lua "WgdotYaziRenameRestoreMouse()"', "close --submit"], desc = "Submit input" },
   { on = ["<C-[>"], run = ['lua "WgdotYaziRenameRestoreMouse()"', "escape"], desc = "Input mode escape" },
   { on = ["<C-a>"], run = ["move eol", "visual", "move bol"], desc = "Highlight all input text" },
-  { on = ["<C-c>"], run = "yank", desc = "Copy highlighted input text" }
+  { on = ["<S-Left>"], run = ["visual", "move -1"], desc = "Extend input text selection left" },
+  { on = ["<S-Right>"], run = ["visual", "move 1"], desc = "Extend input text selection right" },
+  { on = ["<C-c>"], run = "yank", desc = "Copy highlighted input text" },
+  { on = ["<C-v>"], run = "paste", desc = "Replace highlighted input text from clipboard" }
 ]
 
 [confirm]
