@@ -273,3 +273,4 @@ jobs:
           test "$(gh api "repos/$repo/branches/main" --jq '.commit.sha')" = "$target"
           gh api -X DELETE "repos/$repo/git/refs/heads/chore/release-v4.7.4-yazi-rename-bridge-20261009"
           echo "Release verified and disposable helper branch deleted without merging"
+# One-use release verified; synchronize event retires this helper branch.
