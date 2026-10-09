@@ -97,10 +97,19 @@ prepend_keymap = [
   { on = ["<Enter>"], run = ['lua "WgdotYaziRenameRestoreMouse()"', "close --submit"], desc = "Submit input" },
   { on = ["<C-[>"], run = ['lua "WgdotYaziRenameRestoreMouse()"', "escape"], desc = "Input mode escape" },
   { on = ["<C-a>"], run = ["move eol", "visual", "move bol"], desc = "Highlight all input text" },
+  # Visual selection leaves input in normal mode. Return to insert mode
+  # before cursor navigation; terminal Ctrl+Shift+V then feeds text normally.
+  # Shift+Arrow itself must NOT re-enter insert mode (it clears selection).
+  { on = ["<Left>"], run = ["insert", "move -1"], desc = "Input left and resume editing" },
+  { on = ["<Right>"], run = ["insert", "move 1"], desc = "Input right and resume editing" },
+  { on = ["<C-Left>"], run = ["insert", "backward lean"], desc = "Input previous word and resume editing" },
+  { on = ["<C-Right>"], run = ["insert", "forward lean --end-of-word"], desc = "Input next word and resume editing" },
+  { on = ["<Home>"], run = ["insert", "move bol"], desc = "Input start and resume editing" },
+  { on = ["<End>"], run = ["insert", "move eol"], desc = "Input end and resume editing" },
   { on = ["<S-Left>"], run = ["visual", "move -1"], desc = "Extend input text selection left" },
   { on = ["<S-Right>"], run = ["visual", "move 1"], desc = "Extend input text selection right" },
-  { on = ["<C-c>"], run = "yank", desc = "Copy highlighted input text" },
-  { on = ["<C-v>"], run = "paste", desc = "Replace highlighted input text from clipboard" }
+  { on = ["<C-c>"], run = ["yank", "insert"], desc = "Copy highlighted input text and resume editing" },
+  { on = ["<C-v>"], run = ["paste", "insert"], desc = "Paste highlighted input text and resume editing" }
 ]
 
 [confirm]
