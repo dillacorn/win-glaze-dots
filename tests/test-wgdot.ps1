@@ -1555,7 +1555,7 @@ Assert-True ($nativeSourceText -match '_scrollOffset \+= distance \* 0\.35;') "l
 Assert-True ($nativeSourceText -match 'new System\.Drawing\.SolidBrush\(_fieldColor\)') "launcher scrollbar track follows the active YASB surface color"
 Assert-True ($nativeSourceText -match '_scrollThumbHover \|\| _draggingScrollThumb\s*\? _focusColor\s*:\s*_foregroundColor') "launcher scrollbar thumb follows the same foreground/focus theme treatment as YASB sliders"
 Assert-True ($nativeSourceText -match 'LauncherCachePath = Path\.Combine\(CacheRoot, "launcher-apps\.json"\)') "launcher maintains a persistent app index cache"
-Assert-True ($nativeSourceText -match 'List<LauncherApp> apps = ReadLauncherAppCache\(\);') "launcher reads the persistent app index before showing"
+Assert-True ($nativeSourceText -match 'List<LauncherApp> apps = ReadLauncherAppCache\(out refreshRequired\);') "launcher reads the persistent app index before showing"
 Assert-True ($nativeSourceText -match 'WriteLauncherAppCache\(loadedApps\)') "launcher refreshes the persistent app index asynchronously"
 Assert-True ($nativeSourceText -match 'RefreshLauncherAppCache\(\);') "runtime installation prewarms the launcher app index"
 Assert-True ($nativeSourceText -match 'QueueLauncherIconLoads\(form, results, filtered\);') "launcher queues visible icon extraction away from first paint"
