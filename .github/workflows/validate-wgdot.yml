@@ -169,3 +169,120 @@ jobs:
         run: |
           set "WGDOT_TEST_ROOT=%TEMP%\wgdot-native-maintenance-state"
           "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" maintenance-self-test
+
+  one-use-wgdot-v480-pause-replacement:
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.title == 'ONE-USE WGDot v4.8.0 Pause Replacement Publisher' &&
+      github.event.pull_request.head.ref == 'release-bridge/wgdot-v4.8.0-pause-replace' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.base.ref == 'main' &&
+      github.event.pull_request.base.sha == 'fcc2c09242ff7213e4dd0657613a8713087b2e6d'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Guard exact approved old and new release targets
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected_main='fcc2c09242ff7213e4dd0657613a8713087b2e6d'
+          expected_old='59b244bc5d8c874241575624e6441bc758b564d7'
+          actual_main="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq '.object.sha')"
+          if [ "$actual_main" != "$expected_main" ]; then
+            echo "Main advanced unexpectedly: $actual_main" >&2
+            exit 1
+          fi
+          old_release_target="$(gh release view v4.8.0 --json targetCommitish --jq '.targetCommitish')"
+          old_tag_sha="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/v4.8.0" --jq '.object.sha')"
+          if [ "$old_release_target" != "$expected_old" ] || [ "$old_tag_sha" != "$expected_old" ]; then
+            echo "Existing v4.8.0 has changed; refusing to delete or replace it" >&2
+            exit 1
+          fi
+
+      - name: Delete old v4.8.0 and publish tested pause replacement
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag='v4.8.0'
+          target='fcc2c09242ff7213e4dd0657613a8713087b2e6d'
+          title='WGDot v4.8.0 Yazi Editing and GlazeWM Pause'
+          notes="$RUNNER_TEMP/wgdot-v480-pause-notes.md"
+          cat > "$notes" <<'NOTES'
+          # WGDot v4.8.0 Yazi Editing and GlazeWM Pause
+
+          This minor release improves Yazi text editing and gives GlazeWM pause a visible, clickable indicator in YASB.
+
+          ## Install and update
+
+          - [Install](https://github.com/dillacorn/win-glaze-dots/blob/main/INSTALL.md)
+          - [Update](https://github.com/dillacorn/win-glaze-dots/blob/main/UPDATE.md)
+
+          ## Yazi
+
+          - Ctrl+A selects the complete input field. Backspace or Delete removes the current selection in one press.
+          - Plain Left/Right, Ctrl+Left/Right, and Home/End cancel any previous selection before moving the caret.
+          - Ctrl+Z restores accidentally deleted text in an open rename, tab-name, or creation prompt.
+          - Ctrl+T creates a new tab using its folder's automatic name instead of copying the source tab's custom name.
+
+          ## GlazeWM and YASB
+
+          - Both Normal and Work bar profiles show an icon and **Paused** text beside the tiling-direction indicator only while GlazeWM reports its actual pause state.
+          - Click **Paused** to resume GlazeWM via its native `wm-toggle-pause` command. The existing Super+Alt+P shortcut remains available.
+          - YASB uses the native GlazeWM CLI, without a resident WGDot pause helper or PowerShell script.
+
+          ## Known limitation
+
+          - Reversing Ctrl+Shift+Left/Right during word selection may include one adjacent character; see [issue #118](https://github.com/dillacorn/win-glaze-dots/issues/118).
+
+          ## Validation
+
+          - All four WGDot validation jobs passed for Yazi PR #120 and the GlazeWM pause-indicator PR #117, covering YASB stable schemas, Windows PowerShell 5.1/7, and native bootstrap.
+          - The maintainer confirmed Yazi Ctrl+Z text undo on Windows. The new YASB pause-indicator visibility and click action still require an interactive Windows check.
+          NOTES
+          gh release delete "$tag" --yes --cleanup-tag
+          for i in $(seq 1 15); do
+            if ! gh release view "$tag" >/dev/null 2>&1 &&
+               ! gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$tag" >/dev/null 2>&1; then
+              break
+            fi
+            sleep 2
+          done
+          if gh release view "$tag" >/dev/null 2>&1 ||
+             gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$tag" >/dev/null 2>&1; then
+            echo "Old release or tag still present; not replacing until deletion settles" >&2
+            exit 1
+          fi
+          gh release create "$tag" --target "$target" --title "$title" --notes-file "$notes" --latest
+          released="$(gh release view "$tag" --json tagName,name,isDraft,isPrerelease,targetCommitish,body,url)"
+          if [ "$(printf '%s' "$released" | jq -r '.isDraft')" = true ]; then
+            release_id="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$tag" --jq '.id')"
+            gh api -X PATCH "repos/$GITHUB_REPOSITORY/releases/$release_id" -F draft=false >/dev/null
+            released="$(gh release view "$tag" --json tagName,name,isDraft,isPrerelease,targetCommitish,body,url)"
+          fi
+          printf '%s' "$released" | jq -e --arg tag "$tag" --arg title "$title" --arg target "$target" '
+            .tagName == $tag and .name == $title and
+            .isDraft == false and .isPrerelease == false and .targetCommitish == $target
+          '
+          test "$(printf '%s' "$released" | jq -r '.body')" = "$(cat "$notes")"
+          obj_sha="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$tag" --jq '.object.sha')"
+          obj_type="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$tag" --jq '.object.type')"
+          if [ "$obj_type" = tag ]; then
+            obj_sha="$(gh api "repos/$GITHUB_REPOSITORY/git/tags/$obj_sha" --jq '.object.sha')"
+          fi
+          if [ "$obj_sha" != "$target" ]; then
+            echo "Replacement release tag points to wrong commit: $obj_sha" >&2
+            exit 1
+          fi
+          printf 'VERIFIED REPLACEMENT: %s\n' "$(printf '%s' "$released" | jq -r '.url')"
+
+      - name: Remove one-use publishing branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api -X DELETE "repos/$GITHUB_REPOSITORY/git/refs/heads/release-bridge/wgdot-v4.8.0-pause-replace"
+          echo "Temporary release bridge branch deleted; main unchanged."
+
