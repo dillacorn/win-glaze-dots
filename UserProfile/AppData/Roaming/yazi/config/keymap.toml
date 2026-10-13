@@ -109,6 +109,10 @@ prepend_keymap = [
   # later typing cannot unexpectedly delete an older text range.
   { on = ["<Backspace>"], run = ["backspace", "delete --insert", "insert"], desc = "Delete selection or previous character" },
   { on = ["<Delete>"], run = ["backspace --under", "delete --insert", "insert"], desc = "Delete selection or next character" },
+  # Yazi's native input undo is available only in Normal mode. Temporarily
+  # leave Insert mode, undo one edit, then return to an editable caret.
+  # This is input text undo only; it does not undo committed file operations.
+  { on = ["<C-z>"], run = ["escape", "undo", "insert --append"], desc = "Undo last input text edit" },
   # Visual selection leaves input in normal mode. Return to insert mode
   # before cursor navigation; terminal Ctrl+Shift+V then feeds text normally.
   # Shift+Arrow itself must NOT re-enter insert mode (it clears selection).
