@@ -342,7 +342,9 @@ try {
             Require ($text -match 'glazewm\.exe command move-workspace --direction left') ('Workspace mover arrows missing: ' + $relative)
             Require ($text -notmatch 'border_color:\s*None') ('Invalid null popup border_color returned: ' + $relative)
             Require ($text -notmatch 'cmd\.exe /c start ms-settings') ('YASB settings callback spawns cmd.exe: ' + $relative)
-            Require ($text -notmatch 'glazewm-pause-status|glazewm-pause-toggle') ('Retired pause helper reference returned: ' + $relative)
+            Require ($text -notmatch 'wgdotw\.exe\s+glazewm-pause|glazewm-pause-toggle') ('Retired WGDot pause helper returned: ' + $relative)
+            Require ($text -match 'glazewm\.exe query paused') ('Native GlazeWM pause query missing: ' + $relative)
+            Require ($text -match 'glazewm\.exe command wm-toggle-pause') ('Native GlazeWM resume action missing: ' + $relative)
         }
     }
 
