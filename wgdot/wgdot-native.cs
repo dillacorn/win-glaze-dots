@@ -63,6 +63,10 @@ internal static class WgdotNative
     const string RnnoiseRepo = "werman/noise-suppression-for-voice";
     const string RnnoiseAssetRegex = "^win-rnnoise\\.zip$";
     static readonly string LauncherCachePath = Path.Combine(CacheRoot, "launcher-apps.json");
+    static readonly string LauncherIconCacheRoot = Path.Combine(CacheRoot, "launcher-icons-v1");
+    const int LauncherCacheSchemaVersion = 2;
+    const int LauncherCacheRefreshSeconds = 120;
+    const string LauncherAppsFolderPrefix = @"shell:AppsFolder\";
     static readonly JavaScriptSerializer Json = new JavaScriptSerializer { MaxJsonLength = int.MaxValue, RecursionLimit = 100 };
 
     static readonly IntPtr HwndBroadcast = new IntPtr(0xffff);
@@ -385,6 +389,33 @@ internal static class WgdotNative
         out SHFILEINFO fileInfo,
         uint fileInfoSize,
         uint flags);
+
+    const uint ShgfiPidl = 0x000000008;
+    const uint ClsctxLocalServer = 0x00000004;
+
+    [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
+    static extern int SHParseDisplayName(
+        string name, IntPtr bindContext, out IntPtr pidl, uint attributesIn, out uint attributesOut);
+
+    [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
+    static extern IntPtr SHGetFileInfo(
+        IntPtr pidl, uint fileAttributes, out SHFILEINFO fileInfo, uint fileInfoSize, uint flags);
+
+    [ComImport, Guid("2e941141-7f97-4756-ba1d-9decde894a3d"),
+     InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    interface IApplicationActivationManager
+    {
+        [PreserveSig]
+        int ActivateApplication(
+            [In, MarshalAs(UnmanagedType.LPWStr)] string appUserModelId,
+            [In, MarshalAs(UnmanagedType.LPWStr)] string arguments,
+            uint options, out uint processId);
+    }
+
+    [DllImport("ole32.dll")]
+    static extern int CoCreateInstance(
+        ref Guid classId, IntPtr outer, uint classContext, ref Guid interfaceId,
+        [MarshalAs(UnmanagedType.Interface)] out IApplicationActivationManager manager);
 
     [DllImport("user32.dll", SetLastError = true)]
     static extern bool DestroyIcon(IntPtr icon);
@@ -1172,7 +1203,8 @@ internal static class WgdotNative
                 // Icon loads are queued off the UI thread whenever results change.
                 System.Drawing.Image icon =
                     app != null && app.IconLoaded ? app.IconImage : null;
-                int textLeft = row.Left + 12;
+                // Stable text placement even on the first cache miss.
+                int textLeft = row.Left + 44;
 
                 if (icon != null)
                 {
@@ -1186,7 +1218,6 @@ internal static class WgdotNative
                             iconY,
                             iconSize,
                             iconSize));
-                    textLeft = row.Left + 44;
                 }
 
                 System.Drawing.Rectangle textBounds =
@@ -1355,8 +1386,13 @@ internal static class WgdotNative
 
         try
         {
-            ServicePointManager.SecurityProtocol |= SecurityProtocolType.Tls12;
-            EnsureStateDirectories();
+            // Launcher hotkeys are local, short-lived UI actions. Avoid the
+            // network and directory-initialization paths on every cold open.
+            if (command != "launcher")
+            {
+                ServicePointManager.SecurityProtocol |= SecurityProtocolType.Tls12;
+                EnsureStateDirectories();
+            }
             stagedRuntime = IsStagedRuntimeProcess() && !IsRuntimeSwapInternalCommand(command);
 
             if (ShouldAutoRefreshRuntime(command) &&
@@ -2022,6 +2058,22 @@ internal static class WgdotNative
         state.Remove("runtimeSyncPendingRevision");
         state.Remove("runtimeSyncScheduledAt");
         WriteJson(BootstrapStatePath, state);
+
+        // mark-runtime runs from the newly swapped executable during both
+        // regular runtime refresh and Git-testing updates. Prewarm its icon
+        // catalog here, before the first interactive launcher invocation.
+        // This is a one-shot operation, not a resident desktop worker.
+        if (String.IsNullOrWhiteSpace(TestRootOverride))
+        {
+            try
+            {
+                RefreshLauncherAppCache();
+            }
+            catch
+            {
+                // An icon-cache failure must not roll back an installed runtime.
+            }
+        }
         return 0;
     }
 
@@ -2856,6 +2908,72 @@ class WgdotHidden
         return manifest;
     }
 
+    static void LauncherIconCacheSelfTest(string root)
+    {
+        // Called only with WGDOT_TEST_ROOT. The test must not touch the
+        // normal user's persistent icon cache or application shortcuts.
+        string shortcut = Path.Combine(root, "launcher-icon-test.lnk");
+        File.WriteAllText(shortcut, "test icon identity", Encoding.ASCII);
+        var app = new LauncherApp
+        {
+            Name = "Launcher Icon Test",
+            Path = shortcut,
+            IconPath = shortcut
+        };
+
+        string cacheFile = LauncherIconCacheFile(app);
+        using (var icon = new System.Drawing.Bitmap(24, 24))
+        {
+            icon.SetPixel(0, 0, System.Drawing.Color.Magenta);
+            SaveLauncherCachedIcon(app, icon);
+        }
+
+        if (!File.Exists(cacheFile))
+            throw new Exception("Launcher icon disk-cache creation self-test failed.");
+
+        var restored = new LauncherApp
+        {
+            Name = app.Name,
+            Path = shortcut,
+            IconPath = shortcut
+        };
+        if (!TryLoadLauncherCachedIcon(restored))
+            throw new Exception("Launcher icon disk-cache restore self-test failed.");
+
+        try
+        {
+            using (var restoredBitmap = new System.Drawing.Bitmap(restored.IconImage))
+            {
+                if (restoredBitmap.Width != 24 || restoredBitmap.Height != 24 ||
+                    restoredBitmap.GetPixel(0, 0).ToArgb() !=
+                        System.Drawing.Color.Magenta.ToArgb())
+                    throw new Exception("Launcher icon PNG round-trip self-test failed.");
+            }
+        }
+        finally
+        {
+            if (restored.IconImage != null)
+                restored.IconImage.Dispose();
+        }
+
+        File.WriteAllText(cacheFile, "corrupted PNG", Encoding.ASCII);
+        var corrupt = new LauncherApp
+        {
+            Name = app.Name,
+            Path = shortcut,
+            IconPath = shortcut
+        };
+        if (TryLoadLauncherCachedIcon(corrupt) || File.Exists(cacheFile))
+            throw new Exception("Launcher icon corrupt-cache recovery self-test failed.");
+
+        string previousKey = LauncherIconCacheFile(app);
+        File.SetLastWriteTimeUtc(shortcut, DateTime.UtcNow.AddSeconds(-10));
+        if (String.Equals(
+                previousKey, LauncherIconCacheFile(app),
+                StringComparison.OrdinalIgnoreCase))
+            throw new Exception("Launcher icon shortcut-update invalidation self-test failed.");
+    }
+
     static int MaintenanceSelfTest()
     {
         if (String.IsNullOrWhiteSpace(TestRootOverride))
@@ -2872,6 +2990,7 @@ class WgdotHidden
             string liveRoot = Path.Combine(root, "live");
             Directory.CreateDirectory(sourceRoot);
             Directory.CreateDirectory(liveRoot);
+            LauncherIconCacheSelfTest(root);
 
             string verifiedJsonPath = Path.Combine(root, "verified-plan.json");
             byte[] verifiedJsonBytes = new UTF8Encoding(false).GetBytes("{\"value\":\"original\"}");
@@ -12696,20 +12815,142 @@ class WgdotHidden
             {
                 Name = name.Trim(),
                 Path = path,
-                IconPath = ResolveLauncherShortcutIconPath(path)
+                // Resolve shortcut target/icon metadata only for visible results.
+                IconPath = path
             };
         }
     }
 
-    static List<LauncherApp> ReadLauncherAppCache()
+    static bool IsLauncherPackagedPath(string path)
+    {
+        if (String.IsNullOrWhiteSpace(path) ||
+            !path.StartsWith(LauncherAppsFolderPrefix, StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        string appId = path.Substring(LauncherAppsFolderPrefix.Length);
+        return Regex.IsMatch(appId, @"\A[A-Za-z0-9._~-]+![A-Za-z0-9._-]+\z");
+    }
+
+    static void ReleaseLauncherComObject(object value)
+    {
+        if (value != null && Marshal.IsComObject(value))
+        {
+            try { Marshal.FinalReleaseComObject(value); } catch { }
+        }
+    }
+
+    static void AddLauncherAppsFromShell(
+        Dictionary<string, LauncherApp> byName)
+    {
+        // The AppsFolder shell namespace includes MSIX/Store apps without .lnk
+        // shortcuts. This runs on an STA thread, never on the launcher UI thread.
+        object shell = null;
+        object folder = null;
+        object items = null;
+        try
+        {
+            Type shellType = Type.GetTypeFromProgID("Shell.Application");
+            if (shellType == null)
+                return;
+
+            shell = Activator.CreateInstance(shellType);
+            folder = shellType.InvokeMember(
+                "NameSpace",
+                System.Reflection.BindingFlags.InvokeMethod,
+                null, shell,
+                new object[] { "shell:::{4234d49b-0245-4df3-b780-3893943456e1}" });
+            if (folder == null)
+                return;
+
+            items = folder.GetType().InvokeMember(
+                "Items", System.Reflection.BindingFlags.InvokeMethod,
+                null, folder, null);
+            if (items == null)
+                return;
+
+            Type itemsType = items.GetType();
+            int count = Convert.ToInt32(itemsType.InvokeMember(
+                "Count", System.Reflection.BindingFlags.GetProperty,
+                null, items, null));
+
+            for (int i = 0; i < count; i++)
+            {
+                object item = null;
+                try
+                {
+                    item = itemsType.InvokeMember(
+                        "Item", System.Reflection.BindingFlags.InvokeMethod,
+                        null, items, new object[] { i });
+                    if (item == null)
+                        continue;
+
+                    Type itemType = item.GetType();
+                    string name = Convert.ToString(itemType.InvokeMember(
+                        "Name", System.Reflection.BindingFlags.GetProperty,
+                        null, item, null));
+                    string appId = Convert.ToString(itemType.InvokeMember(
+                        "Path", System.Reflection.BindingFlags.GetProperty,
+                        null, item, null));
+                    if (String.IsNullOrWhiteSpace(name) ||
+                        String.IsNullOrWhiteSpace(appId))
+                        continue;
+
+                    string shellPath = LauncherAppsFolderPrefix + appId.Trim();
+                    if (!IsLauncherPackagedPath(shellPath))
+                        continue;
+
+                    name = name.Trim();
+                    if (!byName.ContainsKey(name))
+                    {
+                        byName[name] = new LauncherApp
+                        {
+                            Name = name,
+                            Path = shellPath,
+                            IconPath = shellPath
+                        };
+                    }
+                }
+                catch
+                {
+                    // An inaccessible/stale shell entry must not hide other apps.
+                }
+                finally
+                {
+                    ReleaseLauncherComObject(item);
+                }
+            }
+        }
+        catch
+        {
+            // Classic shortcuts remain available when AppsFolder is unavailable.
+        }
+        finally
+        {
+            ReleaseLauncherComObject(items);
+            ReleaseLauncherComObject(folder);
+            ReleaseLauncherComObject(shell);
+        }
+    }
+
+    static List<LauncherApp> ReadLauncherAppCache(out bool refreshRequired)
     {
         var result = new List<LauncherApp>();
+        refreshRequired = true;
 
         try
         {
             Dictionary<string, object> root = ReadJson(LauncherCachePath);
-            if (root == null || GetInt(root, "schemaVersion") != 1)
+            if (root == null)
                 return result;
+
+            int schema = GetInt(root, "schemaVersion");
+            if (schema != 1 && schema != LauncherCacheSchemaVersion)
+                return result;
+
+            refreshRequired =
+                schema != LauncherCacheSchemaVersion ||
+                (DateTime.UtcNow - File.GetLastWriteTimeUtc(LauncherCachePath))
+                    >= TimeSpan.FromSeconds(LauncherCacheRefreshSeconds);
 
             foreach (object raw in GetList(root, "apps"))
             {
@@ -12737,6 +12978,9 @@ class WgdotHidden
             return new List<LauncherApp>();
         }
 
+        if (result.Count == 0)
+            refreshRequired = true;
+
         return result
             .OrderBy(x => x.Name, StringComparer.OrdinalIgnoreCase)
             .ToList();
@@ -12762,7 +13006,7 @@ class WgdotHidden
         }
 
         var root = new Dictionary<string, object>();
-        root["schemaVersion"] = 1;
+        root["schemaVersion"] = LauncherCacheSchemaVersion;
         root["updatedAt"] = DateTime.UtcNow.ToString("o");
         root["apps"] = rows;
         WriteJson(LauncherCachePath, root);
@@ -12807,6 +13051,7 @@ class WgdotHidden
     {
         List<LauncherApp> apps = GetLauncherApps();
         WriteLauncherAppCache(apps);
+        PrewarmLauncherIcons(apps);
         return apps;
     }
 
@@ -12820,6 +13065,7 @@ class WgdotHidden
         AddLauncherAppsFromFolder(
             Environment.GetFolderPath(Environment.SpecialFolder.CommonPrograms),
             byName);
+        AddLauncherAppsFromShell(byName);
 
         return byName.Values
             .OrderBy(x => x.Name, StringComparer.OrdinalIgnoreCase)
@@ -12871,10 +13117,157 @@ class WgdotHidden
             .ToList();
     }
 
+    static string LauncherIconCacheFile(LauncherApp app)
+    {
+        if (app == null || String.IsNullOrWhiteSpace(app.Path))
+            return null;
+
+        string identity = app.Path.ToLowerInvariant();
+        if (!IsLauncherPackagedPath(app.Path))
+        {
+            // Changing a shortcut naturally invalidates its cached icon key.
+            try
+            {
+                identity += "|" + File.GetLastWriteTimeUtc(app.Path)
+                    .Ticks.ToString(CultureInfo.InvariantCulture);
+            }
+            catch
+            {
+            }
+        }
+
+        using (SHA256 hash = SHA256.Create())
+        {
+            byte[] bytes = hash.ComputeHash(Encoding.UTF8.GetBytes(identity));
+            return Path.Combine(
+                LauncherIconCacheRoot,
+                BitConverter.ToString(bytes).Replace("-", "").ToLowerInvariant() + ".png");
+        }
+    }
+
+    static bool TryLoadLauncherCachedIcon(LauncherApp app)
+    {
+        if (app == null)
+            return false;
+
+        lock (app)
+        {
+            if (app.IconLoaded)
+                return app.IconImage != null;
+            if (app.IconLoading)
+                return false;
+        }
+
+        try
+        {
+            string path = LauncherIconCacheFile(app);
+            if (String.IsNullOrWhiteSpace(path) || !File.Exists(path))
+                return false;
+
+            System.Drawing.Image image;
+            using (System.Drawing.Image cached = System.Drawing.Image.FromFile(path))
+                image = new System.Drawing.Bitmap(cached);
+
+            lock (app)
+            {
+                if (!app.IconLoaded && !app.IconLoading)
+                {
+                    app.IconImage = image;
+                    app.IconLoaded = true;
+                    return true;
+                }
+            }
+
+            image.Dispose();
+        }
+        catch
+        {
+            // A corrupt cache entry must not poison future launches.
+            // Only its own hashed PNG is affected, never application files.
+            try
+            {
+                string path = LauncherIconCacheFile(app);
+                if (!String.IsNullOrWhiteSpace(path) && File.Exists(path))
+                    File.Delete(path);
+            }
+            catch
+            {
+            }
+        }
+
+        return app.IconLoaded && app.IconImage != null;
+    }
+
+    static void SaveLauncherCachedIcon(LauncherApp app, System.Drawing.Image image)
+    {
+        if (app == null || image == null)
+            return;
+
+        string temporary = null;
+        try
+        {
+            string destination = LauncherIconCacheFile(app);
+            if (String.IsNullOrWhiteSpace(destination) || File.Exists(destination))
+                return;
+
+            Directory.CreateDirectory(LauncherIconCacheRoot);
+            temporary = Path.Combine(
+                LauncherIconCacheRoot, Guid.NewGuid().ToString("N") + ".tmp");
+            image.Save(temporary, System.Drawing.Imaging.ImageFormat.Png);
+            // Publish only complete images. Concurrent workers may win the
+            // same immutable key; an existing cache entry remains intact.
+            if (!File.Exists(destination))
+                File.Move(temporary, destination);
+        }
+        catch
+        {
+            // Cache failures must never prevent launching.
+        }
+        finally
+        {
+            if (!String.IsNullOrEmpty(temporary))
+            {
+                try { if (File.Exists(temporary)) File.Delete(temporary); }
+                catch { }
+            }
+        }
+    }
+
+    static void PrewarmLauncherIcons(List<LauncherApp> apps)
+    {
+        foreach (LauncherApp app in apps ?? new List<LauncherApp>())
+        {
+            if (app == null)
+                continue;
+
+            // Existing PNGs need no decoding during the background index scan.
+            // Prepare only missing images, keeping the UI's working set small.
+            string path = LauncherIconCacheFile(app);
+            if (!String.IsNullOrWhiteSpace(path) && File.Exists(path))
+                continue;
+
+            System.Drawing.Image image = GetLauncherAppIcon(app);
+            if (image != null)
+            {
+                // The disk PNG is the persistent cache; the launcher only
+                // decodes the few icons matching its current search.
+                lock (app)
+                {
+                    app.IconImage = null;
+                    app.IconLoaded = false;
+                }
+                image.Dispose();
+            }
+        }
+    }
+
     static System.Drawing.Image GetLauncherAppIcon(LauncherApp app)
     {
         if (app == null)
             return null;
+
+        if (TryLoadLauncherCachedIcon(app))
+            return app.IconImage;
 
         lock (app)
         {
@@ -12889,15 +13282,42 @@ class WgdotHidden
         try
         {
             SHFILEINFO info;
-            string iconPath = String.IsNullOrWhiteSpace(app.IconPath)
-                ? app.Path
-                : app.IconPath;
-            IntPtr result = SHGetFileInfo(
-                iconPath,
-                0,
-                out info,
-                (uint)Marshal.SizeOf(typeof(SHFILEINFO)),
-                ShgfiIcon);
+            IntPtr result = IntPtr.Zero;
+            if (IsLauncherPackagedPath(app.Path))
+            {
+                IntPtr pidl = IntPtr.Zero;
+                uint attributes;
+                try
+                {
+                    if (SHParseDisplayName(
+                            app.Path, IntPtr.Zero, out pidl, 0, out attributes) == 0 &&
+                        pidl != IntPtr.Zero)
+                    {
+                        result = SHGetFileInfo(
+                            pidl, 0, out info,
+                            (uint)Marshal.SizeOf(typeof(SHFILEINFO)),
+                            ShgfiIcon | ShgfiPidl);
+                    }
+                    else
+                    {
+                        info = new SHFILEINFO();
+                    }
+                }
+                finally
+                {
+                    if (pidl != IntPtr.Zero)
+                        Marshal.FreeCoTaskMem(pidl);
+                }
+            }
+            else
+            {
+                string iconPath = ResolveLauncherShortcutIconPath(
+                    String.IsNullOrWhiteSpace(app.IconPath) ? app.Path : app.IconPath);
+                result = SHGetFileInfo(
+                    iconPath, 0, out info,
+                    (uint)Marshal.SizeOf(typeof(SHFILEINFO)),
+                    ShgfiIcon);
+            }
 
             if (result != IntPtr.Zero && info.hIcon != IntPtr.Zero)
             {
@@ -12915,8 +13335,15 @@ class WgdotHidden
                 }
             }
         }
+        catch
+        {
+            // A broken shell icon must not crash the process or block results.
+        }
         finally
         {
+            if (loadedImage != null)
+                SaveLauncherCachedIcon(app, loadedImage);
+
             lock (app)
             {
                 app.IconImage = loadedImage;
@@ -12937,7 +13364,7 @@ class WgdotHidden
             return;
 
         List<LauncherApp> pending = apps
-            .Where(x => x != null && !x.IconLoaded)
+            .Where(x => x != null && !x.IconLoaded && !x.IconLoading)
             .ToList();
         if (pending.Count == 0)
             return;
@@ -13074,12 +13501,44 @@ class WgdotHidden
         if (app == null || String.IsNullOrWhiteSpace(app.Path))
             return;
 
-        var psi = new ProcessStartInfo();
-        psi.FileName = app.Path;
-        psi.UseShellExecute = true;
-        psi.ErrorDialog = false;
+        if (IsLauncherPackagedPath(app.Path))
+        {
+            // Explorer command-line activation can open Documents instead of
+            // the app. Activate the app directly through the Windows shell.
+            Guid classId = new Guid("45BA127D-10A8-46EA-8AB7-56EA9078943C");
+            Guid interfaceId = typeof(IApplicationActivationManager).GUID;
+            IApplicationActivationManager manager = null;
+            try
+            {
+                int result = CoCreateInstance(
+                    ref classId, IntPtr.Zero, ClsctxLocalServer,
+                    ref interfaceId, out manager);
+                if (result < 0)
+                    Marshal.ThrowExceptionForHR(result);
+                if (manager == null)
+                    throw new Exception("Windows application activation is unavailable.");
 
-        Process.Start(psi);
+                uint processId;
+                result = manager.ActivateApplication(
+                    app.Path.Substring(LauncherAppsFolderPrefix.Length),
+                    null, 0, out processId);
+                if (result < 0)
+                    Marshal.ThrowExceptionForHR(result);
+            }
+            finally
+            {
+                ReleaseLauncherComObject(manager);
+            }
+        }
+        else
+        {
+            var psi = new ProcessStartInfo();
+            psi.FileName = app.Path;
+            psi.UseShellExecute = true;
+            psi.ErrorDialog = false;
+            Process.Start(psi);
+        }
+
         form.Close();
     }
 
@@ -13093,7 +13552,8 @@ class WgdotHidden
             return 0;
         }
 
-        List<LauncherApp> apps = ReadLauncherAppCache();
+        bool refreshRequired;
+        List<LauncherApp> apps = ReadLauncherAppCache(out refreshRequired);
 
         IntPtr foreground = GetForegroundWindow();
         POINT cursor;
@@ -13183,8 +13643,62 @@ class WgdotHidden
         {
             List<LauncherApp> filtered =
                 FilterLauncherApps(apps, search.Text, 12);
+            // Decode local PNGs before painting; only exceptional cache
+            // misses need asynchronous Windows shell icon extraction.
+            foreach (LauncherApp app in filtered)
+                TryLoadLauncherCachedIcon(app);
             results.SetItems(filtered);
             QueueLauncherIconLoads(form, results, filtered);
+        };
+
+        bool refreshInFlight = false;
+        Action refreshAppsAsync = delegate
+        {
+            if (refreshInFlight)
+                return;
+
+            refreshInFlight = true;
+            List<LauncherApp> cachedApps = new List<LauncherApp>(apps);
+            var worker = new System.Threading.Thread(delegate()
+            {
+                List<LauncherApp> loadedApps = null;
+                bool changed = false;
+                try
+                {
+                    loadedApps = GetLauncherApps();
+                    changed = !LauncherAppsEquivalent(cachedApps, loadedApps);
+                    // New results must have icons ready before the UI swap.
+                    PrewarmLauncherIcons(loadedApps);
+                    // Refresh timestamp even if no apps changed.
+                    WriteLauncherAppCache(loadedApps);
+                }
+                catch
+                {
+                    // Retain the last working index if the scan fails.
+                }
+
+                if (form.IsDisposed || !form.IsHandleCreated)
+                    return;
+
+                try
+                {
+                    form.BeginInvoke((Action)delegate
+                    {
+                        refreshInFlight = false;
+                        if (loadedApps != null && (changed || apps.Count == 0))
+                        {
+                            apps = loadedApps;
+                            refresh();
+                        }
+                    });
+                }
+                catch
+                {
+                }
+            });
+            worker.IsBackground = true;
+            worker.SetApartmentState(System.Threading.ApartmentState.STA);
+            worker.Start();
         };
 
         Action launchSelected = delegate
@@ -13216,7 +13730,13 @@ class WgdotHidden
             object sender,
             System.Windows.Forms.KeyEventArgs e)
         {
-            if (e.KeyCode == System.Windows.Forms.Keys.Down)
+            if (e.Control && e.KeyCode == System.Windows.Forms.Keys.R)
+            {
+                refreshAppsAsync();
+                e.Handled = true;
+                e.SuppressKeyPress = true;
+            }
+            else if (e.KeyCode == System.Windows.Forms.Keys.Down)
             {
                 results.MoveSelection(1);
                 e.Handled = true;
@@ -13292,44 +13812,8 @@ class WgdotHidden
                     delegate { superDFocusRecoveryPending = false; });
             }
 
-            List<LauncherApp> cachedApps =
-                new List<LauncherApp>(apps);
-
-            System.Threading.ThreadPool.QueueUserWorkItem(delegate
-            {
-                List<LauncherApp> loadedApps = GetLauncherApps();
-                bool changed =
-                    !LauncherAppsEquivalent(cachedApps, loadedApps);
-
-                if (changed)
-                {
-                    try
-                    {
-                        WriteLauncherAppCache(loadedApps);
-                    }
-                    catch
-                    {
-                    }
-                }
-
-                if (form.IsDisposed)
-                    return;
-
-                try
-                {
-                    form.BeginInvoke((Action)delegate
-                    {
-                        if (changed || apps.Count == 0)
-                        {
-                            apps = loadedApps;
-                            refresh();
-                        }
-                    });
-                }
-                catch
-                {
-                }
-            });
+            if (refreshRequired)
+                refreshAppsAsync();
         };
 
         System.Windows.Forms.Application.Run(form);
