@@ -97,7 +97,7 @@ Assert-Contains $config "binding_modes_to_cycle_through: [`"none`", `"noalt`", `
 Assert-NotContains $config "glazewm_pause:" "pause is owned directly by GlazeWM instead of a helper widget"
 Assert-Contains $glazeNormal "bindings: [`"lwin+alt+p`", `"rwin+alt+p`"]" "GlazeWM owns the real Alt+Super+P pause chord"
 Assert-Contains $glazeNormal "commands: [`"wm-toggle-pause`"]" "pause uses GlazeWM's native command"
-Assert-NotContains $config "glazewm-pause-status" "YASB no longer polls WGDot pause state"
+Assert-Contains $config "glazewm-pause-status" "YASB reports native GlazeWM pause, without the retired WGDot state helper"
 Assert-Contains $config "yasb.control_center.ControlCenterWidget" "native YASB Control Center provides Awtarchy-style quick settings"
 foreach ($profileEntry in @(
     @{ Name = "Normal"; Text = $config },
