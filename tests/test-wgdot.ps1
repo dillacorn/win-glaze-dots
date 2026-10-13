@@ -2096,6 +2096,7 @@ Assert-True ($nativeSourceText -match 'PrewarmLauncherIcons\(loadedApps\);') "as
 Assert-True ($nativeSourceText -match 'TryLoadLauncherCachedIcon\(app\);\s*results.SetItems\(filtered\)') "launcher hydrates cached search icons before painting"
 Assert-True ($nativeSourceText -match 'SaveLauncherCachedIcon\(app, loadedImage\);') "shell extraction persists successful icons"
 Assert-True ($nativeSourceText -match 'LauncherIconCacheSelfTest\(root\);') "isolated native maintenance self-test exercises icon-cache roundtrip"
+Assert-True ($nativeSourceText -match '(?s)static int MarkRuntimeFromArgs\(string\[\] args\).*?RefreshLauncherAppCache\(\);.*?static void CompileNativeSource') "runtime swaps prewarm launcher icons before first use"
 Assert-True ($nativeSourceText -match 'if \(command != "launcher"\)') "launcher hotkeys bypass maintenance-only initialization"
 Assert-True ($nativeSourceText -match 'int textLeft = row.Left \+ 44;') "row text never moves when deferred icons arrive"
 Assert-True ($nativeSourceText -notmatch 'psi\.FileName = "explorer\.exe";\s*psi\.Arguments = "shell:AppsFolder') "launcher must not use the Explorer AppsFolder/Documents-prone activation path"
