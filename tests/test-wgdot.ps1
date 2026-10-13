@@ -88,7 +88,8 @@ Assert-True ($yaziKeymapText -match 'on = \["\?"\],\s+run = "help"') "Yazi custo
 Assert-True ($yaziKeymapText -match 'on = \["r"\].*WgdotYaziToggleRecents') "Yazi r toggles recent files and return"
 Assert-True ($yaziKeymapText -match 'on = \["g", "r"\].*WgdotYaziGoRecents') "Yazi g r explicitly opens recently opened files"
 Assert-True ($yaziKeymapText -match 'on = \["g", "r"\].*Go to recently opened folder') "Yazi g r help describes the recent-files destination"
-Assert-True ($yaziKeymapText -match 'on = \["<C-t>"\].*tab_create --current') "Yazi Ctrl+T creates a tab in the current directory"
+Assert-True ($yaziKeymapText -match 'on = \["<C-t>"\].*WgdotYaziCreateCurrentTab') "Yazi Ctrl+T uses explicit current directory to avoid copying manual tab names"
+Assert-True ($yaziKeymapText -notmatch 'on = \["<C-t>"\].*tab_create --current') "Yazi Ctrl+T must not copy manually renamed tab preferences"
 Assert-True ($yaziKeymapText -match 'on = \["<C-1>"\].*tab_switch 0') "Yazi Ctrl+1 switches to tab 1"
 Assert-True ($yaziKeymapText -match 'on = \["<C-9>"\].*tab_switch 8') "Yazi Ctrl+9 switches to tab 9"
 Assert-True ($yaziKeymapText -match 'on = \["<C-a>"\].*run = "toggle_all".*Select all / invert selection') "Yazi Ctrl+A selects all from empty and inverts an existing selection"
@@ -116,7 +117,21 @@ Assert-True ($yaziKeymapText -match 'on = \["<C-c>"\].*\["yank".*"plugin system-
 Assert-True ($yaziKeymapText -match 'on = \["c", "y"\].*\["yank".*"plugin system-clipboard"') "Yazi c y uses the same proven Windows file-clipboard path"
 Assert-True ($yaziKeymapText -match 'on = \["<Space>"\].*WgdotYaziSpace') "Yazi Space confirms a previewed range, or natively toggles a single file"
 Assert-True ($yaziKeymapText -match 'on = \["<C-Space>"\].*run = "toggle"') "Yazi Ctrl+Space toggles individual selection"
-Assert-True ($yaziKeymapText -match 'on = \["<C-a>"\].*run = \["move eol", "visual", "move bol"\]') "Yazi rename input Ctrl+A selects the full filename without changing it"
+Assert-True ($yaziKeymapText -match 'on = \["<C-a>"\].*run = \["insert", "move eol", "visual", "move bol"\]') "Yazi input Ctrl+A resets any stale selection anchor before selecting the entire field"
+$yaziInputBindings = [regex]::Match($yaziKeymapText, '(?s)\[input\]\s*prepend_keymap = \[(.*?)\]\s*\[confirm\]').Groups[1].Value
+Assert-True ($yaziInputBindings -match 'on = \["<Backspace>"\].*run = \["backspace", "delete --insert", "insert"\]') "Yazi Backspace removes only the current visual selection or one Insert-mode character and resets pending delete"
+Assert-True ($yaziInputBindings -match 'on = \["<Delete>"\].*run = \["backspace --under", "delete --insert", "insert"\]') "Yazi Delete removes only the current visual selection or one Insert-mode character and resets pending delete"
+Assert-True ($yaziInputBindings -match 'on = \["<C-z>"\].*run = \["escape", "undo", "insert --append"\]') "Yazi input Ctrl+Z invokes native text undo through Normal mode and restores editing"
+$yaziManagerBindings = [regex]::Match($yaziKeymapText, '(?s)\[mgr\]\s*prepend_keymap = \[(.*?)\]\s*\[input\]').Groups[1].Value
+Assert-True ($yaziManagerBindings -notmatch 'on = \["<C-z>"\]') "Yazi Ctrl+Z text undo must stay in the input layer, not manager file operations"
+foreach ($inputNav in @(
+    '<Left>', '<Right>', '<C-Left>', '<C-Right>', '<Home>', '<End>'
+)) {
+    $escapedNav = [regex]::Escape($inputNav)
+    Assert-True ($yaziInputBindings -match ('on = \["' + $escapedNav + '"\].*run = \["insert", ')) "Yazi input $inputNav must cancel a previous Ctrl+A or word selection before moving the caret"
+}
+Assert-True ($yaziInputBindings -notmatch 'on = \["<S-(Left|Right)>"\].*run = \["insert"') "Yazi Shift+Arrow extends rather than clears the selection"
+Assert-True ($yaziInputBindings -notmatch 'on = \["<C-S-(Left|Right)>"\].*run = \["insert"') "Yazi Ctrl+Shift+Arrow extends rather than clears the selection"
 Assert-True ($yaziKeymapText -match 'on = \["<C-c>"\].*run = \["yank", "insert"\].*Copy highlighted input text') "Yazi input Ctrl+C copies selection and resumes editing"
 Assert-True ($yaziKeymapText -match 'on = \["<S-Left>"\].*run = \["visual", "move -1"\]') "Yazi input Shift+Left extends the same native text selection to the left"
 Assert-True ($yaziKeymapText -match 'on = \["<S-Right>"\].*run = \["visual", "move 1"\]') "Yazi input Shift+Right extends the same native text selection to the right"
@@ -165,6 +180,9 @@ Assert-True ($yaziConfigText -match '(?m)^sort_dir_first = true\r?$') "Yazi keep
 Assert-True ($yaziConfigText -match '(?m)^mouse_events = \["click", "scroll", "drag", "move"\]\r?$') "Yazi enables event-driven mouse move for menu hover"
 $yaziInitPath = Join-Path $repoRoot "UserProfile\AppData\Roaming\yazi\config\init.lua"
 $yaziInitText = Get-Content -LiteralPath $yaziInitPath -Raw
+$yaziCreateTabBlock = [regex]::Match($yaziInitText, '(?ms)^function WgdotYaziCreateCurrentTab\(\).*?^end').Value
+Assert-True ($yaziCreateTabBlock -match 'ya\.emit\("tab_create", \{ tostring\(current\.cwd\), raw = true \}\)') "Yazi new tab uses explicit current folder rather than inherited preference"
+Assert-True ($yaziCreateTabBlock -notmatch 'tab_rename|pref\.name|os\.execute|Command\(') "Yazi new tab must not rename another tab or launch an external helper"
 $yaziArrowBlock = [regex]::Match($yaziInitText, '(?ms)function WgdotYaziArrow\(step\).*?^end').Value
 Assert-True ($yaziArrowBlock -match 'step < 0 and "prev" or "next"') "Yazi Up/Down wrapper converts numeric direction to native wraparound prev/next"
 Assert-True ($yaziArrowBlock -match 'ya\.emit\("arrow", \{ direction \}\)') "Yazi Up/Down wrapper dispatches native wraparound movement"
