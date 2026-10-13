@@ -53,6 +53,7 @@ bars:
           "taskbar",
           "glazewm_binding_mode",
           "glazewm_tiling_direction",
+          "glazewm_pause_status",
         ]
       center: ["active_window"]
       right:
@@ -133,6 +134,30 @@ widgets:
     options:
       horizontal_label: "↔"
       vertical_label: "↕"
+
+  # GlazeWM pause is independent of binding modes. Keep it next to the
+  # tiling-direction icon and show it only while window management is paused.
+  # Native GlazeWM CLI owns both state and toggle; no WGDot worker or external desktop script.
+  glazewm_pause_status:
+    type: "yasb.custom.CustomWidget"
+    options:
+      class_name: "glazewm-pause-status"
+      label: "<span></span> Paused"
+      tooltip: true
+      tooltip_label: "GlazeWM paused - click to resume (Super+Alt+P)"
+      exec_options:
+        # GlazeWM's JSON has data:true only while paused. Reject false
+        # even if a compact JSON response also includes success:true.
+        run_cmd: 'glazewm.exe query paused | findstr /R /I /C:"data.*true" | findstr /V /I /C:"false"'
+        run_once: false
+        run_interval: 2000
+        return_format: "string"
+        hide_empty: true
+        use_shell: true
+      callbacks:
+        on_left: "exec glazewm.exe command wm-toggle-pause"
+        on_middle: "do_nothing"
+        on_right: "do_nothing"
 
   taskbar:
     type: "yasb.taskbar.TaskbarWidget"

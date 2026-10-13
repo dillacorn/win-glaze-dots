@@ -55,6 +55,24 @@ Assert-NotContains $config "keys: `"f24`"" "launcher does not use a synthetic F2
 Assert-NotContains $config "keys: `"win+alt+d`"" "YASB does not globally capture Win+Alt+D"
 Assert-Contains $config "wgdotw.exe power-menu" "normal YASB uses the compiled Awtarchy-style power surface"
 Assert-Contains $config "glazewm.workspaces.GlazewmWorkspacesWidget" "native GlazeWM workspace widget is used"
+
+# GlazeWM's actual pause state is independent of YASB binding-mode state.
+# Verify both profiles present a directly clickable native pause indicator.
+foreach ($profile in @($config, $workConfig)) {
+    Assert-Contains $profile '"glazewm_tiling_direction",' "tiling-direction widget remains present"
+    Assert-Contains $profile '"glazewm_pause_status",' "GlazeWM pause status is shown after tiling direction"
+    Assert-Contains $profile 'class_name: "glazewm-pause-status"' "pause status uses a dedicated themeable class"
+    Assert-Contains $profile 'label: "<span></span> Paused"' "pause status displays icon and readable label"
+    Assert-Contains $profile 'glazewm.exe query paused' "pause status derives from actual GlazeWM paused state"
+    Assert-Contains $profile 'findstr /R /I /C:"data.*true" | findstr /V /I /C:"false"' "pause indicator never shows solely because success is true"
+    Assert-Contains $profile 'run_interval: 2000' "pause status updates without a resident helper"
+    Assert-Contains $profile 'hide_empty: true' "pause status hides when not paused or disconnected"
+    Assert-Contains $profile 'on_left: "exec glazewm.exe command wm-toggle-pause"' "clicking Paused resumes GlazeWM natively"
+    Assert-NotContains $profile 'wgdotw.exe glazewm-pause' "pause stays outside WGDot runtime"
+}
+Assert-Contains $style '.glazewm-pause-status {' "pause status receives a themed YASB style"
+Assert-Contains $style '.glazewm-pause-status:hover {' "pause button receives hover feedback"
+
 Assert-Contains $config 'populated_label: "{display_name}"' "YASB workspace buttons render GlazeWM display_name values"
 foreach ($workspaceIndex in 1..10) {
     Assert-Contains $glazeNormal ('display_name: "' + $workspaceIndex + '"') "Normal workspace $workspaceIndex defaults to numbers only"
@@ -79,7 +97,7 @@ Assert-Contains $config "binding_modes_to_cycle_through: [`"none`", `"noalt`", `
 Assert-NotContains $config "glazewm_pause:" "pause is owned directly by GlazeWM instead of a helper widget"
 Assert-Contains $glazeNormal "bindings: [`"lwin+alt+p`", `"rwin+alt+p`"]" "GlazeWM owns the real Alt+Super+P pause chord"
 Assert-Contains $glazeNormal "commands: [`"wm-toggle-pause`"]" "pause uses GlazeWM's native command"
-Assert-NotContains $config "glazewm-pause-status" "YASB no longer polls WGDot pause state"
+Assert-Contains $config "glazewm-pause-status" "YASB reports native GlazeWM pause, without the retired WGDot state helper"
 Assert-Contains $config "yasb.control_center.ControlCenterWidget" "native YASB Control Center provides Awtarchy-style quick settings"
 foreach ($profileEntry in @(
     @{ Name = "Normal"; Text = $config },

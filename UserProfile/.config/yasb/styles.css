@@ -288,6 +288,25 @@ QToolTip,
     color: var(--foreground);
 }
 
+/* Only visible while GlazeWM's native paused state is true. The widget
+   uses the same palette as the existing binding-mode status. */
+.glazewm-pause-status {
+    background-color: var(--active);
+    border: none;
+    border-radius: 0;
+    margin: 0;
+    padding: 0 8px;
+}
+
+.glazewm-pause-status .label,
+.glazewm-pause-status .icon {
+    color: var(--foreground);
+}
+
+.glazewm-pause-status:hover {
+    background-color: var(--subtle-hover);
+}
+
 /* Centered active-window title. */
 .active-window-widget {
     background-color: transparent;
