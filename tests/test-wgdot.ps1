@@ -121,6 +121,9 @@ Assert-True ($yaziKeymapText -match 'on = \["<C-a>"\].*run = \["insert", "move e
 $yaziInputBindings = [regex]::Match($yaziKeymapText, '(?s)\[input\]\s*prepend_keymap = \[(.*?)\]\s*\[confirm\]').Groups[1].Value
 Assert-True ($yaziInputBindings -match 'on = \["<Backspace>"\].*run = \["backspace", "delete --insert", "insert"\]') "Yazi Backspace removes only the current visual selection or one Insert-mode character and resets pending delete"
 Assert-True ($yaziInputBindings -match 'on = \["<Delete>"\].*run = \["backspace --under", "delete --insert", "insert"\]') "Yazi Delete removes only the current visual selection or one Insert-mode character and resets pending delete"
+Assert-True ($yaziInputBindings -match 'on = \["<C-z>"\].*run = \["escape", "undo", "insert --append"\]') "Yazi input Ctrl+Z invokes native text undo through Normal mode and restores editing"
+$yaziManagerBindings = [regex]::Match($yaziKeymapText, '(?s)\[mgr\]\s*prepend_keymap = \[(.*?)\]\s*\[input\]').Groups[1].Value
+Assert-True ($yaziManagerBindings -notmatch 'on = \["<C-z>"\]') "Yazi Ctrl+Z text undo must stay in the input layer, not manager file operations"
 foreach ($inputNav in @(
     '<Left>', '<Right>', '<C-Left>', '<C-Right>', '<Home>', '<End>'
 )) {
