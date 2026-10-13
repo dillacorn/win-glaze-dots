@@ -169,3 +169,97 @@ jobs:
         run: |
           set "WGDOT_TEST_ROOT=%TEMP%\wgdot-native-maintenance-state"
           "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" maintenance-self-test
+
+  one-use-wgdot-v480-release:
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.title == 'ONE-USE WGDot v4.8.0 Yazi Release Bridge' &&
+      github.event.pull_request.head.ref == 'release-bridge/wgdot-v4.8.0-yazi' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.base.ref == 'main' &&
+      github.event.pull_request.base.sha == '59b244bc5d8c874241575624e6441bc758b564d7'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Verify target and absence of version
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected='59b244bc5d8c874241575624e6441bc758b564d7'
+          actual="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq '.object.sha')"
+          if [ "$actual" != "$expected" ]; then
+            echo "main advanced from approved target: $actual" >&2
+            exit 1
+          fi
+          if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/v4.8.0" >/dev/null 2>&1; then
+            echo "v4.8.0 tag already exists; will not overwrite" >&2
+            exit 1
+          fi
+          if gh release view v4.8.0 >/dev/null 2>&1; then
+            echo "v4.8.0 release already exists; will not overwrite" >&2
+            exit 1
+          fi
+
+      - name: Publish WGDot v4.8.0 and verify exact metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          target='59b244bc5d8c874241575624e6441bc758b564d7'
+          tag='v4.8.0'
+          title='WGDot v4.8.0 Yazi Input Editing and Tabs'
+          notes="$RUNNER_TEMP/wgdot-v4.8.0-notes.md"
+          cat > "$notes" <<'NOTES'
+          # WGDot v4.8.0 Yazi Input Editing and Tabs
+
+          This minor release improves Yazi text-input safety and new-tab naming.
+
+          ## Install and update
+
+          - [Install](https://github.com/dillacorn/win-glaze-dots/blob/main/INSTALL.md)
+          - [Update](https://github.com/dillacorn/win-glaze-dots/blob/main/UPDATE.md)
+
+          ## Yazi improvements
+
+          - Ctrl+A selects the entire current input field. Backspace or Delete removes the selected text in one press.
+          - Moving the caret with an unmodified arrow key, Ctrl+Arrow, Home, or End cancels the previous selection before editing.
+          - Ctrl+Z restores accidentally deleted text inside Yazi rename, tab-name, and creation inputs while the prompt is still open.
+          - Ctrl+T now creates a new tab with automatic folder-based naming rather than inheriting the source tab's custom title.
+
+          ## Known limitation
+
+          - Reversing Ctrl+Shift+Left/Right while selecting words may include a neighboring character. This upstream-dependent limitation remains tracked in [issue #118](https://github.com/dillacorn/win-glaze-dots/issues/118).
+
+          ## Validation
+
+          - All four WGDot validation jobs passed on Yazi PR #120, including Windows PowerShell 5.1/7, Yazi syntax, and Windows native bootstrap.
+          - The maintainer confirmed the new Ctrl+Z text-editing behavior on the Windows work PC. The reverse-direction selection limitation was separately reproduced and deliberately left unchanged.
+          NOTES
+          gh release create "$tag" --target "$target" --title "$title" --notes-file "$notes" --latest
+          released="$(gh release view "$tag" --json tagName,name,isDraft,isPrerelease,targetCommitish,body,url)"
+          printf '%s' "$released" | jq -e --arg tag "$tag" --arg title "$title" --arg target "$target" '
+            .tagName == $tag and .name == $title and .isDraft == false and
+            .isPrerelease == false and .targetCommitish == $target
+          '
+          body="$(printf '%s' "$released" | jq -r '.body')"
+          test "$body" = "$(cat "$notes")"
+          type="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$tag" --jq '.object.type')"
+          sha="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$tag" --jq '.object.sha')"
+          if [ "$type" = 'tag' ]; then
+            sha="$(gh api "repos/$GITHUB_REPOSITORY/git/tags/$sha" --jq '.object.sha')"
+          fi
+          if [ "$sha" != "$target" ]; then
+            echo "Release tag does not point to approved merge commit" >&2
+            exit 1
+          fi
+          printf 'VERIFIED RELEASE: %s\n' "$(printf '%s' "$released" | jq -r '.url')"
+
+      - name: Remove one-use helper branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api -X DELETE "repos/$GITHUB_REPOSITORY/git/refs/heads/release-bridge/wgdot-v4.8.0-yazi"
+          echo "One-use release workflow removed from branch; main unchanged."
+
