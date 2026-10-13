@@ -2058,6 +2058,22 @@ internal static class WgdotNative
         state.Remove("runtimeSyncPendingRevision");
         state.Remove("runtimeSyncScheduledAt");
         WriteJson(BootstrapStatePath, state);
+
+        // mark-runtime runs from the newly swapped executable during both
+        // regular runtime refresh and Git-testing updates. Prewarm its icon
+        // catalog here, before the first interactive launcher invocation.
+        // This is a one-shot operation, not a resident desktop worker.
+        if (String.IsNullOrWhiteSpace(TestRootOverride))
+        {
+            try
+            {
+                RefreshLauncherAppCache();
+            }
+            catch
+            {
+                // An icon-cache failure must not roll back an installed runtime.
+            }
+        }
         return 0;
     }
 
