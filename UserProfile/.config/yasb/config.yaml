@@ -137,7 +137,7 @@ widgets:
 
   # GlazeWM pause is independent of binding modes. Keep it next to the
   # tiling-direction icon and show it only while window management is paused.
-  # Native GlazeWM CLI owns both state and toggle; no WGDot worker or .ps1.
+  # Native GlazeWM CLI owns both state and toggle; no WGDot worker or external desktop script.
   glazewm_pause_status:
     type: "yasb.custom.CustomWidget"
     options:
