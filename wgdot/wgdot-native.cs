@@ -2892,6 +2892,72 @@ class WgdotHidden
         return manifest;
     }
 
+    static void LauncherIconCacheSelfTest(string root)
+    {
+        // Called only with WGDOT_TEST_ROOT. The test must not touch the
+        // normal user's persistent icon cache or application shortcuts.
+        string shortcut = Path.Combine(root, "launcher-icon-test.lnk");
+        File.WriteAllText(shortcut, "test icon identity", Encoding.ASCII);
+        var app = new LauncherApp
+        {
+            Name = "Launcher Icon Test",
+            Path = shortcut,
+            IconPath = shortcut
+        };
+
+        string cacheFile = LauncherIconCacheFile(app);
+        using (var icon = new System.Drawing.Bitmap(24, 24))
+        {
+            icon.SetPixel(0, 0, System.Drawing.Color.Magenta);
+            SaveLauncherCachedIcon(app, icon);
+        }
+
+        if (!File.Exists(cacheFile))
+            throw new Exception("Launcher icon disk-cache creation self-test failed.");
+
+        var restored = new LauncherApp
+        {
+            Name = app.Name,
+            Path = shortcut,
+            IconPath = shortcut
+        };
+        if (!TryLoadLauncherCachedIcon(restored))
+            throw new Exception("Launcher icon disk-cache restore self-test failed.");
+
+        try
+        {
+            using (var restoredBitmap = new System.Drawing.Bitmap(restored.IconImage))
+            {
+                if (restoredBitmap.Width != 24 || restoredBitmap.Height != 24 ||
+                    restoredBitmap.GetPixel(0, 0).ToArgb() !=
+                        System.Drawing.Color.Magenta.ToArgb())
+                    throw new Exception("Launcher icon PNG round-trip self-test failed.");
+            }
+        }
+        finally
+        {
+            if (restored.IconImage != null)
+                restored.IconImage.Dispose();
+        }
+
+        File.WriteAllText(cacheFile, "corrupted PNG", Encoding.ASCII);
+        var corrupt = new LauncherApp
+        {
+            Name = app.Name,
+            Path = shortcut,
+            IconPath = shortcut
+        };
+        if (TryLoadLauncherCachedIcon(corrupt) || File.Exists(cacheFile))
+            throw new Exception("Launcher icon corrupt-cache recovery self-test failed.");
+
+        string previousKey = LauncherIconCacheFile(app);
+        File.SetLastWriteTimeUtc(shortcut, DateTime.UtcNow.AddSeconds(-10));
+        if (String.Equals(
+                previousKey, LauncherIconCacheFile(app),
+                StringComparison.OrdinalIgnoreCase))
+            throw new Exception("Launcher icon shortcut-update invalidation self-test failed.");
+    }
+
     static int MaintenanceSelfTest()
     {
         if (String.IsNullOrWhiteSpace(TestRootOverride))
@@ -2908,6 +2974,7 @@ class WgdotHidden
             string liveRoot = Path.Combine(root, "live");
             Directory.CreateDirectory(sourceRoot);
             Directory.CreateDirectory(liveRoot);
+            LauncherIconCacheSelfTest(root);
 
             string verifiedJsonPath = Path.Combine(root, "verified-plan.json");
             byte[] verifiedJsonBytes = new UTF8Encoding(false).GetBytes("{\"value\":\"original\"}");
