@@ -13099,7 +13099,17 @@ class WgdotHidden
         }
         catch
         {
-            // Fall back to shell extraction for missing/invalid icon files.
+            // A corrupt cache entry must not poison future launches.
+            // Only its own hashed PNG is affected, never application files.
+            try
+            {
+                string path = LauncherIconCacheFile(app);
+                if (!String.IsNullOrWhiteSpace(path) && File.Exists(path))
+                    File.Delete(path);
+            }
+            catch
+            {
+            }
         }
 
         return app.IconLoaded && app.IconImage != null;
@@ -13144,8 +13154,27 @@ class WgdotHidden
     {
         foreach (LauncherApp app in apps ?? new List<LauncherApp>())
         {
-            if (app != null && !TryLoadLauncherCachedIcon(app))
-                GetLauncherAppIcon(app);
+            if (app == null)
+                continue;
+
+            // Existing PNGs need no decoding during the background index scan.
+            // Prepare only missing images, keeping the UI's working set small.
+            string path = LauncherIconCacheFile(app);
+            if (!String.IsNullOrWhiteSpace(path) && File.Exists(path))
+                continue;
+
+            System.Drawing.Image image = GetLauncherAppIcon(app);
+            if (image != null)
+            {
+                // The disk PNG is the persistent cache; the launcher only
+                // decodes the few icons matching its current search.
+                lock (app)
+                {
+                    app.IconImage = null;
+                    app.IconLoaded = false;
+                }
+                image.Dispose();
+            }
         }
     }
 
