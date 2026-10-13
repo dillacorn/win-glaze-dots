@@ -117,10 +117,18 @@ Assert-True ($yaziKeymapText -match 'on = \["<C-c>"\].*\["yank".*"plugin system-
 Assert-True ($yaziKeymapText -match 'on = \["c", "y"\].*\["yank".*"plugin system-clipboard"') "Yazi c y uses the same proven Windows file-clipboard path"
 Assert-True ($yaziKeymapText -match 'on = \["<Space>"\].*WgdotYaziSpace') "Yazi Space confirms a previewed range, or natively toggles a single file"
 Assert-True ($yaziKeymapText -match 'on = \["<C-Space>"\].*run = "toggle"') "Yazi Ctrl+Space toggles individual selection"
-Assert-True ($yaziKeymapText -match 'on = \["<C-a>"\].*run = \["move eol", "visual", "move bol"\]') "Yazi rename input Ctrl+A selects the full filename without changing it"
+Assert-True ($yaziKeymapText -match 'on = \["<C-a>"\].*run = \["insert", "move eol", "visual", "move bol"\]') "Yazi input Ctrl+A resets any stale selection anchor before selecting the entire field"
 $yaziInputBindings = [regex]::Match($yaziKeymapText, '(?s)\[input\]\s*prepend_keymap = \[(.*?)\]\s*\[confirm\]').Groups[1].Value
-Assert-True ($yaziInputBindings -match 'on = \["<Backspace>"\].*run = \["backspace", "delete --insert"\]') "Yazi Backspace removes highlighted input text in one press and still deletes one character in Insert mode"
-Assert-True ($yaziInputBindings -match 'on = \["<Delete>"\].*run = \["backspace --under", "delete --insert"\]') "Yazi Delete removes highlighted input text in one press and still deletes one character in Insert mode"
+Assert-True ($yaziInputBindings -match 'on = \["<Backspace>"\].*run = \["backspace", "delete --insert", "insert"\]') "Yazi Backspace removes only the current visual selection or one Insert-mode character and resets pending delete"
+Assert-True ($yaziInputBindings -match 'on = \["<Delete>"\].*run = \["backspace --under", "delete --insert", "insert"\]') "Yazi Delete removes only the current visual selection or one Insert-mode character and resets pending delete"
+foreach ($inputNav in @(
+    '<Left>', '<Right>', '<C-Left>', '<C-Right>', '<Home>', '<End>'
+)) {
+    $escapedNav = [regex]::Escape($inputNav)
+    Assert-True ($yaziInputBindings -match ('on = \["' + $escapedNav + '"\].*run = \["insert", ')) "Yazi input $inputNav must cancel a previous Ctrl+A or word selection before moving the caret"
+}
+Assert-True ($yaziInputBindings -notmatch 'on = \["<S-(Left|Right)>"\].*run = \["insert"') "Yazi Shift+Arrow extends rather than clears the selection"
+Assert-True ($yaziInputBindings -notmatch 'on = \["<C-S-(Left|Right)>"\].*run = \["insert"') "Yazi Ctrl+Shift+Arrow extends rather than clears the selection"
 Assert-True ($yaziKeymapText -match 'on = \["<C-c>"\].*run = \["yank", "insert"\].*Copy highlighted input text') "Yazi input Ctrl+C copies selection and resumes editing"
 Assert-True ($yaziKeymapText -match 'on = \["<S-Left>"\].*run = \["visual", "move -1"\]') "Yazi input Shift+Left extends the same native text selection to the left"
 Assert-True ($yaziKeymapText -match 'on = \["<S-Right>"\].*run = \["visual", "move 1"\]') "Yazi input Shift+Right extends the same native text selection to the right"
