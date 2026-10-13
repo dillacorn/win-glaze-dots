@@ -20,7 +20,7 @@ prepend_keymap = [
   { on = ["q"],       run = 'lua "WgdotYaziConfirmQuit(false)"', desc = "Quit with confirmation" },
   { on = ["Q"],       run = 'lua "WgdotYaziConfirmQuit(true)"', desc = "Quit without cwd file (confirm)" },
   { on = ["<C-w>"],   run = 'lua "WgdotYaziCloseTab()"', desc = "Close tab (confirm if last)" },
-  { on = ["<C-t>"],   run = "tab_create --current", desc = "Create tab in current directory" },
+  { on = ["<C-t>"],   run = 'lua "WgdotYaziCreateCurrentTab()"', desc = "Create tab in current directory" },
   { on = ["<C-1>"],   run = "tab_switch 0", desc = "Switch to tab 1" },
   { on = ["<C-2>"],   run = "tab_switch 1", desc = "Switch to tab 2" },
   { on = ["<C-3>"],   run = "tab_switch 2", desc = "Switch to tab 3" },
@@ -100,6 +100,11 @@ prepend_keymap = [
   { on = ["<Enter>"], run = ['app:lua "WgdotYaziRenameRestoreMouse()"', "close --submit"], desc = "Submit input" },
   { on = ["<C-[>"], run = ['app:lua "WgdotYaziRenameRestoreMouse()"', "escape"], desc = "Input mode escape" },
   { on = ["<C-a>"], run = ["move eol", "visual", "move bol"], desc = "Highlight all input text" },
+  # Yazi handles Backspace only in Insert mode and delete only in Normal mode.
+  # Dispatch both native actions: the unsupported action is a no-op in each
+  # mode, while delete --insert removes a visual selection and resumes typing.
+  { on = ["<Backspace>"], run = ["backspace", "delete --insert"], desc = "Delete selection or previous character" },
+  { on = ["<Delete>"], run = ["backspace --under", "delete --insert"], desc = "Delete selection or next character" },
   # Visual selection leaves input in normal mode. Return to insert mode
   # before cursor navigation; terminal Ctrl+Shift+V then feeds text normally.
   # Shift+Arrow itself must NOT re-enter insert mode (it clears selection).
