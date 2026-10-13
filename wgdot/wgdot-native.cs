@@ -63,6 +63,7 @@ internal static class WgdotNative
     const string RnnoiseRepo = "werman/noise-suppression-for-voice";
     const string RnnoiseAssetRegex = "^win-rnnoise\\.zip$";
     static readonly string LauncherCachePath = Path.Combine(CacheRoot, "launcher-apps.json");
+    static readonly string LauncherIconCacheRoot = Path.Combine(CacheRoot, "launcher-icons-v1");
     const int LauncherCacheSchemaVersion = 2;
     const int LauncherCacheRefreshSeconds = 120;
     const string LauncherAppsFolderPrefix = @"shell:AppsFolder\";
@@ -1202,7 +1203,8 @@ internal static class WgdotNative
                 // Icon loads are queued off the UI thread whenever results change.
                 System.Drawing.Image icon =
                     app != null && app.IconLoaded ? app.IconImage : null;
-                int textLeft = row.Left + 12;
+                // Stable text placement even on the first cache miss.
+                int textLeft = row.Left + 44;
 
                 if (icon != null)
                 {
@@ -1216,7 +1218,6 @@ internal static class WgdotNative
                             iconY,
                             iconSize,
                             iconSize));
-                    textLeft = row.Left + 44;
                 }
 
                 System.Drawing.Rectangle textBounds =
@@ -1385,8 +1386,13 @@ internal static class WgdotNative
 
         try
         {
-            ServicePointManager.SecurityProtocol |= SecurityProtocolType.Tls12;
-            EnsureStateDirectories();
+            // Launcher hotkeys are local, short-lived UI actions. Avoid the
+            // network and directory-initialization paths on every cold open.
+            if (command != "launcher")
+            {
+                ServicePointManager.SecurityProtocol |= SecurityProtocolType.Tls12;
+                EnsureStateDirectories();
+            }
             stagedRuntime = IsStagedRuntimeProcess() && !IsRuntimeSwapInternalCommand(command);
 
             if (ShouldAutoRefreshRuntime(command) &&
@@ -12962,6 +12968,7 @@ class WgdotHidden
     {
         List<LauncherApp> apps = GetLauncherApps();
         WriteLauncherAppCache(apps);
+        PrewarmLauncherIcons(apps);
         return apps;
     }
 
@@ -13027,10 +13034,128 @@ class WgdotHidden
             .ToList();
     }
 
+    static string LauncherIconCacheFile(LauncherApp app)
+    {
+        if (app == null || String.IsNullOrWhiteSpace(app.Path))
+            return null;
+
+        string identity = app.Path.ToLowerInvariant();
+        if (!IsLauncherPackagedPath(app.Path))
+        {
+            // Changing a shortcut naturally invalidates its cached icon key.
+            try
+            {
+                identity += "|" + File.GetLastWriteTimeUtc(app.Path)
+                    .Ticks.ToString(CultureInfo.InvariantCulture);
+            }
+            catch
+            {
+            }
+        }
+
+        using (SHA256 hash = SHA256.Create())
+        {
+            byte[] bytes = hash.ComputeHash(Encoding.UTF8.GetBytes(identity));
+            return Path.Combine(
+                LauncherIconCacheRoot,
+                BitConverter.ToString(bytes).Replace("-", "").ToLowerInvariant() + ".png");
+        }
+    }
+
+    static bool TryLoadLauncherCachedIcon(LauncherApp app)
+    {
+        if (app == null)
+            return false;
+
+        lock (app)
+        {
+            if (app.IconLoaded)
+                return app.IconImage != null;
+            if (app.IconLoading)
+                return false;
+        }
+
+        try
+        {
+            string path = LauncherIconCacheFile(app);
+            if (String.IsNullOrWhiteSpace(path) || !File.Exists(path))
+                return false;
+
+            System.Drawing.Image image;
+            using (System.Drawing.Image cached = System.Drawing.Image.FromFile(path))
+                image = new System.Drawing.Bitmap(cached);
+
+            lock (app)
+            {
+                if (!app.IconLoaded && !app.IconLoading)
+                {
+                    app.IconImage = image;
+                    app.IconLoaded = true;
+                    return true;
+                }
+            }
+
+            image.Dispose();
+        }
+        catch
+        {
+            // Fall back to shell extraction for missing/invalid icon files.
+        }
+
+        return app.IconLoaded && app.IconImage != null;
+    }
+
+    static void SaveLauncherCachedIcon(LauncherApp app, System.Drawing.Image image)
+    {
+        if (app == null || image == null)
+            return;
+
+        string temporary = null;
+        try
+        {
+            string destination = LauncherIconCacheFile(app);
+            if (String.IsNullOrWhiteSpace(destination) || File.Exists(destination))
+                return;
+
+            Directory.CreateDirectory(LauncherIconCacheRoot);
+            temporary = Path.Combine(
+                LauncherIconCacheRoot, Guid.NewGuid().ToString("N") + ".tmp");
+            image.Save(temporary, System.Drawing.Imaging.ImageFormat.Png);
+            // Publish only complete images. Concurrent workers may win the
+            // same immutable key; an existing cache entry remains intact.
+            if (!File.Exists(destination))
+                File.Move(temporary, destination);
+        }
+        catch
+        {
+            // Cache failures must never prevent launching.
+        }
+        finally
+        {
+            if (!String.IsNullOrEmpty(temporary))
+            {
+                try { if (File.Exists(temporary)) File.Delete(temporary); }
+                catch { }
+            }
+        }
+    }
+
+    static void PrewarmLauncherIcons(List<LauncherApp> apps)
+    {
+        foreach (LauncherApp app in apps ?? new List<LauncherApp>())
+        {
+            if (app != null && !TryLoadLauncherCachedIcon(app))
+                GetLauncherAppIcon(app);
+        }
+    }
+
     static System.Drawing.Image GetLauncherAppIcon(LauncherApp app)
     {
         if (app == null)
             return null;
+
+        if (TryLoadLauncherCachedIcon(app))
+            return app.IconImage;
 
         lock (app)
         {
@@ -13104,6 +13229,9 @@ class WgdotHidden
         }
         finally
         {
+            if (loadedImage != null)
+                SaveLauncherCachedIcon(app, loadedImage);
+
             lock (app)
             {
                 app.IconImage = loadedImage;
@@ -13403,6 +13531,10 @@ class WgdotHidden
         {
             List<LauncherApp> filtered =
                 FilterLauncherApps(apps, search.Text, 12);
+            // Decode local PNGs before painting; only exceptional cache
+            // misses need asynchronous Windows shell icon extraction.
+            foreach (LauncherApp app in filtered)
+                TryLoadLauncherCachedIcon(app);
             results.SetItems(filtered);
             QueueLauncherIconLoads(form, results, filtered);
         };
@@ -13423,6 +13555,8 @@ class WgdotHidden
                 {
                     loadedApps = GetLauncherApps();
                     changed = !LauncherAppsEquivalent(cachedApps, loadedApps);
+                    // New results must have icons ready before the UI swap.
+                    PrewarmLauncherIcons(loadedApps);
                     // Refresh timestamp even if no apps changed.
                     WriteLauncherAppCache(loadedApps);
                 }
