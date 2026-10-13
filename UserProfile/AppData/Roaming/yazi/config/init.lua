@@ -475,6 +475,15 @@ function WgdotYaziCloseTab()
     end
 end
 
+function WgdotYaziCreateCurrentTab()
+    local current = cx.active and cx.active.current
+    if not current or not current.cwd then return end
+
+    -- Supplying an explicit target leaves the new tab's native preference
+    -- name empty; --current copies the source tab's custom name as well.
+    ya.emit("tab_create", { tostring(current.cwd), raw = true })
+end
+
 -- Experimental terminal-native selection for the *single-item* Rename input.
 -- Yazi ignores mouse events in its input layer, but its terminal mouse-capture
 -- modes prevent Windows Terminal from selecting the displayed filename.
