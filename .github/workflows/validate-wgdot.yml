@@ -169,3 +169,80 @@ jobs:
         run: |
           set "WGDOT_TEST_ROOT=%TEMP%\wgdot-native-maintenance-state"
           "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" maintenance-self-test
+
+  publish-wgdot-v4-7-6-once:
+    name: Publish WGDot v4.7.6 exactly once
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.action == 'opened' &&
+      github.event.pull_request.title == 'ONE-USE WGDot v4.7.6 release bridge (DO NOT MERGE)' &&
+      github.event.pull_request.head.ref == 'release-bridge/wgdot-v4.7.6-4568107' &&
+      github.event.pull_request.base.ref == 'main' &&
+      github.event.pull_request.head.repo.full_name == 'dillacorn/win-glaze-dots'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Verify target and publish immutable patch release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_SHA: '4568107102f1057fe3017cc390f2ccb174a1fd2b'
+          RELEASE_NOTES: |
+            # WGDot v4.7.6 Application Launcher Improvements
+            
+            This patch release makes the WGDot application launcher more responsive and improves installed application discovery.
+            
+            ## Install and update
+            
+            - [Install](https://github.com/dillacorn/win-glaze-dots/blob/main/INSTALL.md)
+            - [Update](https://github.com/dillacorn/win-glaze-dots/blob/main/UPDATE.md)
+            
+            ## Application launcher
+            
+            - Include Microsoft Store/MSIX applications such as ChatGPT alongside classic Start Menu shortcuts.
+            - Cache application icons locally and preload them before results appear, preventing distracting late icon pop-in.
+            - Improve cold-launch responsiveness by skipping maintenance-only initialization and avoid rescanning the installed-app catalog on every open.
+            - Refresh the installed-app index asynchronously, with Ctrl+R available for an immediate refresh.
+            
+            ## Validation
+            
+            - All four WGDot CI jobs passed for launcher PR #115, including Windows native compilation/bootstrap, PowerShell 5.1/7, desktop integration, and native icon-cache tests.
+            - The application launcher was tested on Windows, with ChatGPT discovery and improved responsiveness confirmed.
+        run: |
+          set -euo pipefail
+          repository="$GITHUB_REPOSITORY"
+          target="$(gh api "repos/$repository/branches/main" --jq '.commit.sha')"
+          if [[ "$target" != "$EXPECTED_SHA" ]]; then
+            echo 'The main branch moved; refusing to publish from the wrong revision.' >&2
+            false
+          fi
+          if gh api "repos/$repository/git/ref/tags/v4.7.6" >/dev/null 2>&1; then
+            echo 'Release tag v4.7.6 already exists; refusing to replace it.' >&2
+            false
+          fi
+          if gh release view v4.7.6 --repo "$repository" >/dev/null 2>&1; then
+            echo 'Release v4.7.6 already exists; refusing to replace it.' >&2
+            false
+          fi
+          gh api "repos/$repository/contents/wgdot/manifest.json?ref=$EXPECTED_SHA" --jq '.content' | base64 -d | jq -e '.project == "win-glaze-dots"' >/dev/null
+          notes_file="$RUNNER_TEMP/wgdot-v4.7.6-notes.md"
+          printf '%s\n' "$RELEASE_NOTES" > "$notes_file"
+          gh release create v4.7.6 --repo "$repository" --target "$EXPECTED_SHA" --title 'WGDot v4.7.6 Application Launcher Improvements' --notes-file "$notes_file" --latest
+          release_json="$RUNNER_TEMP/wgdot-v4.7.6-release.json"
+          gh api "repos/$repository/releases/tags/v4.7.6" > "$release_json"
+          test "$(jq -r '.tag_name' "$release_json")" = 'v4.7.6'
+          test "$(jq -r '.name' "$release_json")" = 'WGDot v4.7.6 Application Launcher Improvements'
+          test "$(jq -r '.draft' "$release_json")" = 'false'
+          test "$(jq -r '.prerelease' "$release_json")" = 'false'
+          test "$(jq -r '.target_commitish' "$release_json")" = "$EXPECTED_SHA"
+          test "$(jq -r '.body' "$release_json")" = "$(<"$notes_file")"
+          tag_json="$RUNNER_TEMP/wgdot-v4.7.6-ref.json"
+          gh api "repos/$repository/git/ref/tags/v4.7.6" > "$tag_json"
+          tag_type="$(jq -r '.object.type' "$tag_json")"
+          tag_sha="$(jq -r '.object.sha' "$tag_json")"
+          if [[ "$tag_type" == 'tag' ]]; then
+            tag_sha="$(gh api "repos/$repository/git/tags/$tag_sha" --jq '.object.sha')"
+          fi
+          test "$tag_sha" = "$EXPECTED_SHA"
+          echo "Verified WGDot v4.7.6 at $EXPECTED_SHA"
