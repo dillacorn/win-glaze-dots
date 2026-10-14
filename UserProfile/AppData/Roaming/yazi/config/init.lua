@@ -51,7 +51,7 @@ end
 local WgdotYaziCollectionReturns = {}
 
 local function WgdotYaziCollectionReturnState()
-    local tab_key = tostring(cx.active.id)
+    local tab_key = tostring(cx.active.id.value)
     local state = WgdotYaziCollectionReturns[tab_key]
     if not state then
         state = {}
@@ -156,7 +156,7 @@ function WgdotYaziToggleQuickMark()
         return
     end
     local current = tostring(cx.active.current.cwd)
-    local key = tostring(cx.active.id)
+    local key = tostring(cx.active.id.value)
     local returning = current == WgdotYaziQuickMark
     local destination = returning and WgdotYaziQuickReturns[key] or WgdotYaziQuickMark
     if not destination or destination == current then
@@ -590,14 +590,14 @@ function WgdotYaziCloseTab()
         WgdotYaziConfirmQuit(false)
         return
     end
-    if not WgdotYaziPinnedTabIds[tostring(cx.active.id)] then
+    if not WgdotYaziPinnedTabIds[tostring(cx.active.id.value)] then
         ya.emit("close", {})
         return
     end
     -- Distinguish closing the visible tab from unpinning its persistent
     -- definition. Esc cancels without changing either.
     ya.async(function()
-        local tab_id = tostring(cx.active.id)
+        local tab_id = tostring(cx.active.id.value)
         local choice = ya.which {
             cands = {
                 { on = "c", desc = "Close this tab (keep pin for future sessions)" },
@@ -747,7 +747,7 @@ local function WgdotYaziTabLabel(index, max_width)
     -- Always reserve the right-hand pin symbol before truncating names.
     -- A standard Unicode emoji also works in Windows Terminal without a
     -- particular Nerd Font glyph being present.
-    local suffix = WgdotYaziPinnedTabIds[tostring(tab.id)] and " 📌 " or " "
+    local suffix = WgdotYaziPinnedTabIds[tostring(tab.id.value)] and " 📌 " or " "
     if not max_width then return prefix .. tab.name .. suffix end
 
     local available = max_width - ui.width(prefix) - ui.width(suffix)
