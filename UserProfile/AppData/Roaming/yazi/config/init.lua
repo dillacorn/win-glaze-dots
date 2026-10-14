@@ -106,7 +106,8 @@ function WgdotYaziToggleRecents()
 end
 
 function WgdotYaziGoTabGroups()
-    WgdotYaziOpenCollection("groups")
+    -- Both t g and T are two-way collection toggles.
+    WgdotYaziToggleCollection("groups")
 end
 
 function WgdotYaziToggleTabGroups()
@@ -138,9 +139,20 @@ function WgdotYaziSetQuickMark()
     ya.notify { title = "Quick Mark", content = "Marked: " .. WgdotYaziQuickMark, timeout = 2 }
 end
 
+function WgdotYaziGoQuickMark()
+    if not WgdotYaziQuickMark then
+        ya.notify { title = "Quick Mark", content = "No directory marked. Press q then q.", level = "warn", timeout = 3 }
+        return
+    end
+    if tostring(cx.active.current.cwd) ~= WgdotYaziQuickMark then
+        -- A one-way jump remains reversible through Q.
+        WgdotYaziToggleQuickMark()
+    end
+end
+
 function WgdotYaziToggleQuickMark()
     if not WgdotYaziQuickMark then
-        ya.notify { title = "Quick Mark", content = "No directory marked. Use g q.", level = "warn", timeout = 3 }
+        ya.notify { title = "Quick Mark", content = "No directory marked. Press q then q.", level = "warn", timeout = 3 }
         return
     end
     local current = tostring(cx.active.current.cwd)
@@ -528,6 +540,30 @@ function Entity:style()
     return style
 end
 
+function WgdotYaziQuitOrQuickMark()
+    -- Preserve the existing quit-with-confirmation model while giving q q
+    -- a short, deterministic action. This chooser is scoped to quitting:
+    -- other Yazi confirmation dialogs never bind q to marking a folder.
+    ya.async(function()
+        local choice = ya.which {
+            cands = {
+                { on = "q", desc = "Quick Mark current directory" },
+                { on = "y", desc = "Yes, quit Yazi" },
+                { on = "Y", desc = "Yes, quit Yazi" },
+                { on = "<Enter>", desc = "Yes, quit Yazi" },
+                { on = "<Space>", desc = "Yes, quit Yazi" },
+                { on = "n", desc = "No, cancel" },
+                { on = "N", desc = "No, cancel" },
+            },
+        }
+        if choice == 1 then
+            WgdotYaziSetQuickMark()
+        elseif choice and choice >= 2 and choice <= 5 then
+            ya.emit("quit", { no_cwd_file = false })
+        end
+    end)
+end
+
 function WgdotYaziConfirmQuit(no_cwd_file)
     ya.async(function()
         local confirmed = ya.confirm {
@@ -678,15 +714,25 @@ end
 
 -- DDS pin updates run in the same UI state as init.lua. Keep native tab
 -- redraw geometry intact so reordering and click hit-testing still agree.
-ps.sub("@wgdot-yazi-pins", function(ids)
+ps.sub("wgdot-yazi-pins", function(ids)
     WgdotYaziPinnedTabIds = type(ids) == "table" and ids or {}
     ui.render()
 end)
 
-local function WgdotYaziTabLabel(index)
+local function WgdotYaziTabLabel(index, max_width)
     local tab = cx.tabs[index]
-    local pin = WgdotYaziPinnedTabIds[tostring(tab.id)] and " 󰐃" or ""
-    return string.format(" %d %s%s ", index, tab.name, pin)
+    local prefix = string.format(" %d ", index)
+    -- Always reserve the right-hand pin symbol before truncating names.
+    -- A standard Unicode emoji also works in Windows Terminal without a
+    -- particular Nerd Font glyph being present.
+    local suffix = WgdotYaziPinnedTabIds[tostring(tab.id)] and " 📌 " or " "
+    if not max_width then return prefix .. tab.name .. suffix end
+
+    local available = max_width - ui.width(prefix) - ui.width(suffix)
+    if available < 0 then
+        return ui.truncate(prefix .. suffix, { max = max_width })
+    end
+    return prefix .. ui.truncate(tab.name, { max = available }) .. suffix
 end
 
 function Tabs:redraw()
@@ -696,7 +742,7 @@ function Tabs:redraw()
     local pos = lines[1]:width()
     local max = math.floor(self:inner_width() / #cx.tabs)
     for i = 1, #cx.tabs do
-        local name = ui.truncate(WgdotYaziTabLabel(i), { max = max })
+        local name = WgdotYaziTabLabel(i, max)
         if i == cx.tabs.idx then
             lines[#lines + 1] = ui.Line {
                 ui.Span(th.tabs.sep_inner.open):fg(style.active:bg()):bg(style.inactive:bg()),
@@ -776,10 +822,7 @@ local function WgdotYaziTabMidpoint(tabs, index)
     local last = next_offset
     if not last then
         local max = math.floor(tabs:inner_width() / #cx.tabs)
-        local name = ui.truncate(
-            WgdotYaziTabLabel(index),
-            { max = max }
-        )
+        local name = WgdotYaziTabLabel(index, max)
         last = first + ui.width(name)
     end
     return math.floor((first + last) / 2)
