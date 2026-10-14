@@ -347,5 +347,25 @@ for _, is_pin in pairs(published["wgdot-yazi-pins"] or {}) do
 end
 assert_eq(restored_pin_count, 2, "Fresh session reattaches saved pin identities")
 
+-- If the startup directory itself was pinned, reuse its existing tab
+-- rather than creating a duplicate. Still restore the other saved pins.
+set_tabs({ { [[C:\Safe]], "Reused Startup" } })
+module:entry { args = { "pin" } }
+local saved_pin_count = 0
+for path in pairs(FS_FILES) do
+    if parent(path) == PIN_DIR and path:match("%.pin$") then
+        saved_pin_count = saved_pin_count + 1
+    end
+end
+assert_eq(saved_pin_count, 3, "A startup-directory pin is saved independently")
+set_tabs({ { [[C:\Safe]], "Reused Startup" } })
+local opening_id = tostring(cx.tabs[1].id)
+module:entry { args = { "restore" } }
+drain()
+assert_eq(#cx.tabs, 3, "Reusing the launch tab avoids a fourth duplicate")
+assert_eq(tostring(cx.tabs[1].id), opening_id, "Pin restoration did not rebuild the opening tab")
+local current_pins = published["wgdot-yazi-pins"] or {}
+assert_true(current_pins[opening_id], "The reused opening tab displays as pinned")
+
 io.open = native_open
 print("Yazi tab-workspaces behavioral smoke test passed")
