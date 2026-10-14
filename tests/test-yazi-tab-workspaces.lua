@@ -278,7 +278,7 @@ for path, data in pairs(FS_FILES) do
 end
 assert_true(marker ~= nil, "Pinned marker materialized")
 module:entry { args = { "unpin-markers", marker } }
-assert_true(FS_DIRS[[C:\Safe]] and FS_DIRS[[C:\Drafting]], "Unpin did not delete real dirs")
+assert_true(FS_DIRS["C:\\Safe"] and FS_DIRS["C:\\Drafting"], "Unpin did not delete real dirs")
 
 -- Eight group tabs take precedence over three pins; overflow pins must
 -- survive exclusively in state, with no more than nine live native tabs.
