@@ -2,7 +2,7 @@
 -- Files live under the user's Yazi state directory, never in managed config.
 local M = {}
 local MAX_TABS = 9
-local PIN_EVENT = "@wgdot-yazi-pins"
+local PIN_EVENT = "wgdot-yazi-pins"
 
 local function decode_arg(value)
     if type(value) ~= "string" then return value end
