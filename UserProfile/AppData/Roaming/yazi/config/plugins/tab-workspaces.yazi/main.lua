@@ -460,6 +460,92 @@ local finish_pin_activation = ya.sync(function(st, pin)
     return false
 end)
 
+-- Startup pin restore must never rebuild or close the user's opening tab.
+-- Associate already-matching tabs first; create only the missing pins.
+-- Kept separate from named group restoration, which intentionally replaces tabs.
+local attach_pin_to_tab = ya.sync(function(st, pin, wanted_id)
+    local key = tostring(wanted_id or "")
+    if st.live[key] then return false end
+    for _, tab in ipairs(cx.tabs) do
+        if tostring(tab.id) == key and
+            tostring(tab.current.cwd):gsub("\\", "/"):lower() ==
+                pin.cwd:gsub("\\", "/"):lower() and
+            tostring(tab.pref and tab.pref.name or "") == pin.name then
+            st.live[key] = pin.id
+            ps.pub(PIN_EVENT, pin_ids(st))
+            ui.render()
+            return true
+        end
+    end
+    return false
+end)
+
+local pin_ids_current = ya.sync(function(st)
+    return pin_ids(st)
+end)
+
+local function restore_startup_pins(pins)
+    local current = inspect_tabs()
+    if #current.tabs ~= 1 then return true end
+
+    local function find_matching_unpinned(pin)
+        local now = inspect_tabs()
+        local linked = pin_ids_current()
+        for _, tab in ipairs(now.tabs) do
+            if not linked[tab.id] and tab.cwd == pin.cwd:gsub("\\", "/"):lower()
+                and tab.name == pin.name then
+                return tab.id
+            end
+        end
+        return nil
+    end
+
+    for _, pin in ipairs(pins) do
+        local existing = find_matching_unpinned(pin)
+        if existing then
+            if not attach_pin_to_tab(pin, existing) then
+                return false, "Could not attach existing tab for " .. pin.cwd
+            end
+        else
+            local before = inspect_tabs()
+            if #before.tabs >= MAX_TABS then break end
+
+            ya.emit("tab_create", { pin.cwd, raw = true })
+            local new_id
+            local path = pin.cwd:gsub("\\", "/"):lower()
+            if not settled(function(now)
+                if #now.tabs ~= #before.tabs + 1 then return false end
+                local active = now.tabs[now.active]
+                if not active or active.cwd ~= path then return false end
+                local was_present = false
+                for _, old in ipairs(before.tabs) do
+                    if old.id == active.id then was_present = true; break end
+                end
+                if was_present then return false end
+                new_id = active.id
+                return true
+            end) then
+                return false, "Native tab creation did not settle for " .. pin.cwd
+            end
+
+            if pin.name ~= "" then
+                ya.emit("tab_rename", { pin.name })
+                if not settled(function(now)
+                    local active = now.tabs[now.active]
+                    return active and active.id == new_id and active.name == pin.name
+                end) then
+                    return false, "Native tab name did not settle for " .. pin.cwd
+                end
+            end
+
+            if not attach_pin_to_tab(pin, new_id) then
+                return false, "Created tab identity did not match " .. pin.cwd
+            end
+        end
+    end
+    return true
+end
+
 local function materialize_pins()
     local root = pinned_dir()
     local ok, err = ensure_dir(root)
@@ -709,17 +795,12 @@ function M:entry(job)
             if info and info.is_dir then valid[#valid + 1] = pin end
         end
         if #valid == 0 then return end
-        local is_fresh = fresh_session()
-        if is_fresh then
-            -- Retain the directory used to launch Yazi when capacity permits.
-            -- At nine saved pins, pinned locations take priority instead.
-            local initial = initial_session_tab()
-            local project = { tabs = {}, active = 1 }
-            if #valid < MAX_TABS then
-                project.tabs = { initial }
-            end
-            if not rebuild_and_wait(project, valid) then
-                notify("Could not verify pinned tabs on startup", "error")
+        if fresh_session() then
+            local ok, reason = restore_startup_pins(valid)
+            if not ok then
+                -- Saved pin files were not modified; all missing tabs can be
+                -- restored at the next launch or from the Pinned Tabs view.
+                notify("Saved pins retained; startup restore incomplete: " .. tostring(reason), "warn")
             end
         end
         return
