@@ -280,5 +280,44 @@ assert_true(marker ~= nil, "Pinned marker materialized")
 module:entry { args = { "unpin-markers", marker } }
 assert_true(FS_DIRS[[C:\Safe]] and FS_DIRS[[C:\Drafting]], "Unpin did not delete real dirs")
 
+-- Eight group tabs take precedence over three pins; overflow pins must
+-- survive exclusively in state, with no more than nine live native tabs.
+local big = {}
+for i = 1, 8 do
+    local folder = "C:\\Group" .. tostring(i)
+    create_dir(folder)
+    big[#big + 1] = { folder, i == 4 and "Custom" or "" }
+end
+set_tabs(big, 4)
+inputs[#inputs + 1] = "Eight Tabs"
+module:entry { args = { "save" } }
+assert_true(FS_FILES[GROUPS .. [[\Eight Tabs\.wgdot-tabs]]] ~= nil, "Eight-tab group saved")
+
+set_tabs({ { [[C:\Other]], "Pinned Other" }, { [[C:\Extra]], "Pinned Extra" } })
+module:entry { args = { "pin" } }
+module:entry { args = { "pin", "2" } }
+
+local pin_records = 0
+for path in pairs(FS_FILES) do
+    if parent(path) == PIN_DIR and path:match("%.pin$") then pin_records = pin_records + 1 end
+end
+assert_eq(pin_records, 3, "Independent pins are all persisted")
+module:entry { args = { "load", GROUPS .. [[\Eight Tabs]] } }
+drain()
+assert_eq(#cx.tabs, 9, "Nine-tab capacity respected with group priority")
+assert_eq(tostring(cx.tabs[1].current.cwd), [[C:\Group1]], "Group occupies first tab")
+assert_eq(cx.tabs[4].pref.name, "Custom", "Saved group custom name survived overflow")
+assert_eq(cx.tabs.idx, 4, "Active tab restored in full group")
+local live_pin_count = 0
+for _, is_pin in pairs(published["@wgdot-yazi-pins"] or {}) do
+    if is_pin then live_pin_count = live_pin_count + 1 end
+end
+assert_eq(live_pin_count, 1, "Only one pinned tab fits after eight group tabs")
+pin_records = 0
+for path in pairs(FS_FILES) do
+    if parent(path) == PIN_DIR and path:match("%.pin$") then pin_records = pin_records + 1 end
+end
+assert_eq(pin_records, 3, "Suspended pin state survived tab capacity pressure")
+
 io.open = native_open
 print("Yazi tab-workspaces behavioral smoke test passed")
