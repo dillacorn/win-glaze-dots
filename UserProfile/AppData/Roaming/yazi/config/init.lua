@@ -547,12 +547,35 @@ function WgdotYaziConfirmQuit(no_cwd_file)
     end)
 end
 
+-- The pin UI state is populated by the tab-workspaces subscription below.
+local WgdotYaziPinnedTabIds = {}
+
 function WgdotYaziCloseTab()
-    if #cx.tabs > 1 then
-        ya.emit("close", {})
-    else
+    if #cx.tabs <= 1 then
         WgdotYaziConfirmQuit(false)
+        return
     end
+    if not WgdotYaziPinnedTabIds[tostring(cx.active.id)] then
+        ya.emit("close", {})
+        return
+    end
+    -- Distinguish closing the visible tab from unpinning its persistent
+    -- definition. Esc cancels without changing either.
+    ya.async(function()
+        local tab_id = tostring(cx.active.id)
+        local choice = ya.which {
+            cands = {
+                { on = "c", desc = "Close this tab (keep pin for future sessions)" },
+                { on = "u", desc = "Unpin and close this tab" },
+            },
+            title = "Close pinned tab?",
+        }
+        if choice == 1 then
+            ya.emit("close", {})
+        elseif choice == 2 then
+            ya.emit("plugin", { "tab-workspaces", "unpin-and-close", tab_id })
+        end
+    end)
 end
 
 function WgdotYaziCreateCurrentTab()
@@ -655,7 +678,6 @@ end
 
 -- DDS pin updates run in the same UI state as init.lua. Keep native tab
 -- redraw geometry intact so reordering and click hit-testing still agree.
-local WgdotYaziPinnedTabIds = {}
 ps.sub("@wgdot-yazi-pins", function(ids)
     WgdotYaziPinnedTabIds = type(ids) == "table" and ids or {}
     ui.render()
