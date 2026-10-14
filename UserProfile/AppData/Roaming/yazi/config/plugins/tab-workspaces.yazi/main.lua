@@ -208,20 +208,34 @@ local publish_pins = ya.sync(function(st)
     ui.render()
 end)
 
-local toggle_pin = ya.sync(function(st, index)
-    local tab = cx.tabs[index or cx.tabs.idx]
+local toggle_pin = ya.sync(function(st, requested_id)
+    -- A right-click passes the stable ID of the tab underneath the pointer.
+    -- Keyboard t p passes no ID and still targets the currently focused tab.
+    -- Resolve on execution, since tab indices can shift between input and
+    -- plugin dispatch when tabs are dragged or reordered.
+    local tab
+    if requested_id and requested_id ~= "" then
+        for _, candidate in ipairs(cx.tabs) do
+            if tostring(candidate.id.value) == tostring(requested_id) then
+                tab = candidate
+                break
+            end
+        end
+    else
+        tab = cx.active
+    end
     if not tab then return nil end
     local tabid = tostring(tab.id.value)
     local id = st.live[tabid]
     if id then
         st.live[tabid] = nil
-        return { remove = true, pin = { id = id } }
+        return { remove = true, pin = { id = id }, tab_id = tabid }
     end
     st.serial = (st.serial or 0) + 1
     local pin = tab_data(tab)
     pin.id = tostring(os.time()) .. "-" .. tostring(math.random(100000, 999999)) .. "-" .. tostring(st.serial)
     st.live[tabid] = pin.id
-    return { remove = false, pin = pin }
+    return { remove = false, pin = pin, tab_id = tabid }
 end)
 
 local function capture_pinned_tab(st, tab)
@@ -258,10 +272,11 @@ local current_tab_name = ya.sync(function()
     return tostring(cx.active.pref and cx.active.pref.name or "")
 end)
 
-local restore_failed_pin_toggle = ya.sync(function(st, changed, index)
-    local tab = cx.tabs[index or cx.tabs.idx]
-    if tab then
-        st.live[tostring(tab.id.value)] = changed.remove and changed.pin.id or nil
+local restore_failed_pin_toggle = ya.sync(function(st, changed)
+    -- Roll back the same tab that was targeted before the disk failure,
+    -- regardless of focus or index changes during the async write.
+    if changed and changed.tab_id then
+        st.live[changed.tab_id] = changed.remove and changed.pin.id or nil
     end
 end)
 
@@ -775,12 +790,13 @@ function M:entry(job)
     end
 
     if command == "pin" then
-        local changed = toggle_pin(tonumber(job.args[2]))
-        if not changed then return end
+        local changed = toggle_pin(job.args[2])
+        if not changed then return notify("Clicked tab is no longer available.", "warn") end
         local ok, err = merge_pin(changed.pin, changed.remove)
         if not ok then
-            -- Revert the in-memory change after a persistence failure.
-            restore_failed_pin_toggle(changed, tonumber(job.args[2]))
+            -- Revert the same tab's in-memory state, not the currently
+            -- focused tab, even if mouse focus changed during the write.
+            restore_failed_pin_toggle(changed)
             return notify("Could not persist pin: " .. tostring(err), "error")
         end
         publish_pins()
