@@ -71,6 +71,7 @@ jobs:
         run: |
           python tests/test-yazi-config.py
           find UserProfile/AppData/Roaming/yazi/config -type f -name '*.lua' -print0 | xargs -0 -n1 luac -p
+          lua5.4 tests/test-yazi-tab-workspaces.lua
       - name: Validate desktop launcher ownership
         run: python tests/test-desktop-bindings.py
 
