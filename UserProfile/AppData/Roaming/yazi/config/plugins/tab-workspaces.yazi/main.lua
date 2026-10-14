@@ -39,8 +39,10 @@ local function safe_name(value)
     value = tostring(value or ""):gsub("^%s+", ""):gsub("%s+$", "")
     if #value == 0 or #value > 80 or value == "." or value == ".." or value:lower() == "pinned tabs" then return nil end
     if value:find('[<>:"/\\|%?%*%c]') or value:find("[%. ]$") then return nil end
-    if value:upper():match("^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])%.?") or
-        value:upper():match("^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])$") then return nil end
+    local basename = value:upper():match("^([^.]+)")
+    if basename == "CON" or basename == "PRN" or basename == "AUX" or basename == "NUL"
+        or (basename and basename:match("^COM[1-9]$"))
+        or (basename and basename:match("^LPT[1-9]$")) then return nil end
     return value
 end
 
@@ -55,7 +57,6 @@ local function pin_marker_id(path)
     local normalized = tostring(path or ""):gsub("/", "\\")
     local parent = normalized:match("^(.*)\\[^\\]+$")
     if not parent or parent:lower() ~= pinned_dir():lower() then return nil end
-    local id = read_text -- resolved below in entry handler
     return normalized
 end
 
@@ -433,6 +434,8 @@ function M:entry(job)
     if command == "open" then
         local ok, err = ensure_dir(groups_dir())
         if not ok then return notify("Cannot create groups directory: " .. tostring(err), "error") end
+        ok, err = ensure_dir(pinned_dir())
+        if not ok then return notify("Cannot create pinned-tabs folder: " .. tostring(err), "error") end
         ya.emit("cd", { Url(groups_dir()), raw = true })
         return
     end
