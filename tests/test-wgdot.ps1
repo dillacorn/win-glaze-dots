@@ -232,6 +232,12 @@ Assert-True ($yaziWorkspacesText -match 'local function read_pins\(\)') "Yazi pi
 Assert-True ($yaziWorkspacesText -match 'local function merge_pin\(pin, remove\)') "Yazi per-pin changes preserve other saved pins"
 Assert-True ($yaziWorkspacesText -match 'function M:entry\(job\)') "Yazi group/pin plugin dispatch exists"
 Assert-True ($yaziWorkspacesText -match 'command == "restore"') "Yazi pins are restored on startup"
+Assert-True ($yaziWorkspacesText -match 'local function pin_dir\(\)') "Yazi stores pins in individual user-state records"
+Assert-True ($yaziWorkspacesText -match 'pin\.id \.\. "\.pin"') "Yazi saves each pin independently rather than rewriting other sessions' pins"
+Assert-True ($yaziWorkspacesText -match 'local function rebuild_and_wait\(project, pins\)') "Yazi awaits native tab actions before pin association"
+Assert-True ($yaziWorkspacesText -match 'local finish_rebuild = ya\.sync') "Yazi verifies restored tab identity in a synchronized state callback"
+Assert-True ($yaziWorkspacesText -notmatch 'st\.live\[tostring\(cx\.active\.id\)\]') "Yazi never assumes native tab_create has completed before assignment"
+
 Assert-True ($yaziWorkspacesText -match 'command == "open-pins"') "Yazi suspended pins are browsable"
 Assert-True ($yaziWorkspacesText -match 'command == "unpin-markers"') "Yazi suspended pins can be unpinned"
 Assert-True ($yaziWorkspacesText -match 'command == "load"') "Yazi saved groups can be loaded"
