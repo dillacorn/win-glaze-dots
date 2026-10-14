@@ -18,6 +18,10 @@ local function groups_dir()
     return state_dir() .. "\\collections\\Tab Groups"
 end
 
+local function pinned_dir()
+    return groups_dir() .. "\\Pinned Tabs"
+end
+
 local function pin_file()
     return state_dir() .. "\\wgdot-pinned-tabs.txt"
 end
@@ -33,7 +37,7 @@ end
 
 local function safe_name(value)
     value = tostring(value or ""):gsub("^%s+", ""):gsub("%s+$", "")
-    if #value == 0 or #value > 80 or value == "." or value == ".." then return nil end
+    if #value == 0 or #value > 80 or value == "." or value == ".." or value:lower() == "pinned tabs" then return nil end
     if value:find('[<>:"/\\|%?%*%c]') or value:find("[%. ]$") then return nil end
     if value:upper():match("^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])%.?") or
         value:upper():match("^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])$") then return nil end
@@ -45,6 +49,14 @@ local function marker_name(path)
     local parent, name = normalized:match("^(.*)\\([^\\]+)$")
     if not parent or parent:lower() ~= groups_dir():lower() then return nil end
     return safe_name(name)
+end
+
+local function pin_marker_id(path)
+    local normalized = tostring(path or ""):gsub("/", "\\")
+    local parent = normalized:match("^(.*)\\[^\\]+$")
+    if not parent or parent:lower() ~= pinned_dir():lower() then return nil end
+    local id = read_text -- resolved below in entry handler
+    return normalized
 end
 
 local function marker_path(name)
@@ -306,6 +318,63 @@ local rebuild = ya.sync(function(st, project, pins)
     return true
 end)
 
+local clear_live_pin = ya.sync(function(st, id)
+    for tabid, linked in pairs(st.live) do
+        if linked == id then st.live[tabid] = nil end
+    end
+    ps.pub(PIN_EVENT, pin_ids(st))
+    ui.render()
+end)
+
+local activate_pin = ya.sync(function(st, pin)
+    for index, tab in ipairs(cx.tabs) do
+        if st.live[tostring(tab.id)] == pin.id then
+            ya.emit("tab_switch", { index - 1 })
+            return true
+        end
+    end
+    if #cx.tabs >= MAX_TABS then return false end
+    ya.emit("tab_create", { pin.cwd, raw = true })
+    if pin.name ~= "" then ya.emit("tab_rename", { pin.name }) end
+    st.live[tostring(cx.active.id)] = pin.id
+    ps.pub(PIN_EVENT, pin_ids(st))
+    ui.render()
+    return true
+end)
+
+local function materialize_pins()
+    local root = pinned_dir()
+    local ok, err = ensure_dir(root)
+    if not ok then return false, err end
+    local files, read_err = fs.read_dir(Url(root), { resolve = true })
+    if not files then return false, read_err end
+    for _, file in ipairs(files) do
+        if not file.cha.is_dir then
+            ok, err = fs.remove("file", file.url)
+            if not ok then return false, err end
+        end
+    end
+    for index, pin in ipairs(read_pins()) do
+        local title = (pin.name ~= "" and pin.name or pin.cwd):gsub("[<>:\"/\\|%?%*%c]", "_")
+        title = title:gsub("[%. ]+$", ""):sub(1, 65)
+        local filename = string.format("%04d--%s", index, title ~= "" and title or "Pinned")
+        ok, err = fs.write(Url(root .. "\\" .. filename), pin.id)
+        if not ok then return false, err end
+    end
+    return true
+end
+
+local function pin_from_marker(path)
+    local marker = pin_marker_id(path)
+    if not marker then return nil end
+    local id = read_text(marker)
+    if not id or not id:match("^[%w%-]+$") then return nil end
+    for _, pin in ipairs(read_pins()) do
+        if pin.id == id then return pin end
+    end
+    return nil
+end
+
 local function require_group_marker(value)
     local name = marker_name(value)
     if not name then notify("Invalid saved group target", "warn") end
@@ -329,6 +398,37 @@ end
 
 function M:entry(job)
     local command = job.args[1]
+
+    if command == "open-pins" then
+        local ok, err = materialize_pins()
+        if not ok then return notify("Could not display pinned tabs: " .. tostring(err), "error") end
+        ya.emit("cd", { Url(pinned_dir()), raw = true })
+        return
+    end
+
+    if command == "activate-pin" then
+        local pin = pin_from_marker(decode_arg(job.args[2]))
+        if not pin then return notify("Pinned tab marker is invalid", "warn") end
+        local info = fs.cha(Url(pin.cwd), true)
+        if not info or not info.is_dir then return notify("Pinned directory no longer exists", "warn") end
+        if not activate_pin(pin) then return notify("Nine tabs are already open; close one to activate this pin.", "warn") end
+        return
+    end
+
+    if command == "unpin-markers" then
+        for i = 2, #job.args do
+            local pin = pin_from_marker(decode_arg(job.args[i]))
+            if pin then
+                local ok, err = merge_pin(pin, true)
+                if not ok then return notify("Could not unpin: " .. tostring(err), "error") end
+                clear_live_pin(pin.id)
+            end
+        end
+        local ok, err = materialize_pins()
+        if not ok then return notify("Pins saved but list refresh failed: " .. tostring(err), "warn") end
+        ya.emit("refresh", {})
+        return notify("Selected tab pin(s) removed")
+    end
 
     if command == "open" then
         local ok, err = ensure_dir(groups_dir())
