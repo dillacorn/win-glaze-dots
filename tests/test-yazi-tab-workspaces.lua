@@ -218,14 +218,7 @@ module:setup()
 set_tabs({ { [[C:\Safe]], "Survey" }, { [[C:\Drafting]], "" } }, 2)
 inputs[#inputs + 1] = "Survey Group"
 module:entry { args = { "save" } }
-local saved = GROUPS .. [[\Survey Group\.wgdot-tabs]]
--- Group state belongs inside the browsable marker folder.
-saved = GROUPS .. [[\Survey Group\.wgdot-tabs]]
-assert_true(FS_FILES[saved] == nil, "Should not save a group next to a marker folder")
-saved = GROUPS .. [[\Survey Group\.wgdot-tabs]]
 local real_group_file = GROUPS .. [[\Survey Group\.wgdot-tabs]]
--- Lua's long-bracket paths above are literal; use the real nested path:
-real_group_file = GROUPS .. [[\Survey Group]] .. [[\.wgdot-tabs]]
 assert_true(FS_FILES[real_group_file] ~= nil, "Group persisted to user state")
 assert_true(FS_FILES[real_group_file]:find("WGDTABS1", 1, true) ~= nil, "Group format header present")
 
