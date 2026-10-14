@@ -163,11 +163,8 @@ function WgdotYaziToggleQuickMark()
         ya.notify { title = "Quick Mark", content = "No other directory to return to.", timeout = 2 }
         return
     end
-    local info = fs.cha(Url(destination), true)
-    if not info or not info.is_dir then
-        ya.notify { title = "Quick Mark", content = "Target directory is no longer available.", level = "warn", timeout = 3 }
-        return
-    end
+    -- Filesystem checks are async-only in Yazi. Let the native cd action
+    -- validate the destination instead of calling fs.cha in init.lua.
     if returning then
         WgdotYaziQuickReturns[key] = nil
     else
