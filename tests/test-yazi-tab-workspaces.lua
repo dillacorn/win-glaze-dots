@@ -284,6 +284,15 @@ assert_true(FS_FILES[real_group_file] == nil, "Removed saved group configuration
 assert_eq(FS_FILES[GROUPS .. [[\Survey Group\user-note.txt]]], "preserve", "Preserved unrelated group-directory file")
 assert_true(FS_DIRS[GROUPS .. [[\Survey Group]]], "Preserved nonempty group directory")
 
+-- This matches Yazi's plugin action contract: the plugin name is the
+-- first action argument, while all command words must be encoded in the
+-- *single* second argument. Hex payloads survive shell tokenization.
+local function encoded_plugin_arg(value)
+    return "hex:" .. tostring(value):gsub(".", function(char)
+        return string.format("%02x", string.byte(char))
+    end)
+end
+
 -- Pin records are separate files so other pins cannot be overwritten.
 set_tabs({ { [[C:\Safe]], "Persistent" }, { [[C:\Drafting]], "" } })
 module:entry { args = { "pin" } }
@@ -296,7 +305,7 @@ assert_eq(pinned_count, 1, "First pin persisted")
 local focused_before = cx.tabs.idx
 local inactive_id = tostring(cx.tabs[2].id.value)
 local focused_id = tostring(cx.tabs[1].id.value)
-module:entry { args = { "pin", inactive_id } }
+module:entry { args = { "pin", encoded_plugin_arg(inactive_id) } }
 assert_eq(cx.tabs.idx, focused_before, "Pinning another tab does not change focus")
 assert_true(published["wgdot-yazi-pins"][inactive_id], "Inactive hovered tab is now pinned")
 assert_true(published["wgdot-yazi-pins"][focused_id], "Previously focused pin remains intact")
@@ -306,14 +315,14 @@ for path in pairs(FS_FILES) do
 end
 assert_eq(pinned_count, 2, "Second pin is independent")
 -- Repeating right-click on the same inactive tab must unpin that tab only.
-module:entry { args = { "pin", inactive_id } }
+module:entry { args = { "pin", encoded_plugin_arg(inactive_id) } }
 assert_eq(cx.tabs.idx, focused_before, "Unpinning another tab also preserves focus")
 assert_true(not published["wgdot-yazi-pins"][inactive_id], "Inactive tab unpinned")
 assert_true(published["wgdot-yazi-pins"][focused_id], "Focused tab pin unaffected")
-module:entry { args = { "pin", inactive_id } }
+module:entry { args = { "pin", encoded_plugin_arg(inactive_id) } }
 assert_true(published["wgdot-yazi-pins"][inactive_id], "Inactive tab re-pinned after second toggle")
 -- A stale mouse target must not silently fall back to the focused tab.
-module:entry { args = { "pin", "999999999" } }
+module:entry { args = { "pin", encoded_plugin_arg("999999999") } }
 assert_true(published["wgdot-yazi-pins"][focused_id], "Unknown hovered tab never toggles focused pin")
 assert_true(published["wgdot-yazi-pins"][inactive_id], "Unknown hovered tab never toggles another pin")
 
@@ -346,7 +355,7 @@ assert_true(FS_FILES[GROUPS .. [[\Eight Tabs\.wgdot-tabs]]] ~= nil, "Eight-tab g
 set_tabs({ { [[C:\Other]], "Pinned Other" }, { [[C:\Extra]], "Pinned Extra" } })
 module:entry { args = { "pin" } }
 local second_pin_id = tostring(cx.tabs[2].id.value)
-module:entry { args = { "pin", second_pin_id } }
+module:entry { args = { "pin", encoded_plugin_arg(second_pin_id) } }
 assert_eq(cx.tabs.idx, 1, "Pinning second tab by mouse does not focus it")
 
 local pin_records = 0
@@ -377,7 +386,7 @@ for tabid in pairs(published["wgdot-yazi-pins"] or {}) do
     visible_pin_id = tabid
 end
 assert_true(visible_pin_id ~= nil, "Visible pin has a stable tab ID")
-module:entry { args = { "unpin-and-close", visible_pin_id } }
+module:entry { args = { "unpin-and-close", encoded_plugin_arg(visible_pin_id) } }
 drain()
 assert_eq(#cx.tabs, 8, "Pinned tab closes only after unpin succeeds")
 local retained_pins = 0
