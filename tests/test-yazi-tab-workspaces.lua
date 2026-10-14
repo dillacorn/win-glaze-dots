@@ -270,27 +270,11 @@ assert_eq(pinned_count, 2, "Second pin is independent")
 
 -- Suspended pin inventory can always be opened and unpinned without
 -- removing the directory referenced by the pin.
-for _, child in ipairs(fs.read_dir(Url(PIN_DIR))) do
-    local text = FS_FILES[tostring(child.url)]
-    local id = tostring(child.url.name or ""):match("^([%w%-]+)%.pin$")
-    local a, b = text and text:match("^([%da-fA-F]+)\t([%da-fA-F]*)%s*$")
-    print("PIN_TEST_PARSE", tostring(child.url.name), tostring(id), tostring(a), tostring(b), tostring(text))
-end
 module:entry { args = { "open-pins" } }
 drain()
 local marker
 for path, data in pairs(FS_FILES) do
     if parent(path) == PINS and data:find("%-") then marker = path; break end
-end
-if marker == nil then
-    for path, data in pairs(FS_FILES) do
-        if path:find("pin", 1, true) or path:find("Pin", 1, true) then
-            print("PIN_TEST_DIAGNOSTIC", path, tostring(data))
-        end
-    end
-    for _, msg in ipairs(notifications) do
-        print("PIN_TEST_NOTIFICATION", msg.content)
-    end
 end
 assert_true(marker ~= nil, "Pinned marker materialized")
 module:entry { args = { "unpin-markers", marker } }
