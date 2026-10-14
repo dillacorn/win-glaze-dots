@@ -150,7 +150,10 @@ local function read_pins()
             local id = tostring(file.url.name or ""):match("^([%w%-]+)%.pin$")
             if id and not seen[id] then
                 local data = read_text(tostring(file.url))
-                local a, b = data and data:match("^([%da-fA-F]+)\t([%da-fA-F]*)%s*$")
+                -- Lua logical operators collapse multi-return functions to
+                -- one value. Keep both captures; the second is the tab name.
+                local a, b
+                if data then a, b = data:match("^([%da-fA-F]+)\t([%da-fA-F]*)%s*$") end
                 local cwd, name = a and unhex(a), b and unhex(b)
                 if cwd and cwd ~= "" and name then
                     pins[#pins + 1] = { id = id, cwd = cwd, name = name }
