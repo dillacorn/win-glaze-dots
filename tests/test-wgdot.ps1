@@ -246,7 +246,11 @@ Assert-True ($yaziWorkspacesText -match 'local function merge_pin\(pin, remove\)
 Assert-True ($yaziWorkspacesText -match 'function M:entry\(job\)') "Yazi group/pin plugin dispatch exists"
 Assert-True ($yaziWorkspacesText -match 'command == "restore"') "Yazi pins are restored on startup"
 Assert-True ($yaziWorkspacesText -match 'local function restore_startup_pins\(pins\)') "Yazi restores only missing startup pinned tabs"
-Assert-True ($yaziWorkspacesText -match 'if not attach_pin_to_tab\(pin, existing\) then') "Yazi reuses a matching startup tab without creating a duplicate"
+Assert-True ($yaziWorkspacesText -match 'local attached, reason = attach_pin_to_tab\(pin, existing\)') "Yazi reuses a matching startup tab without creating a duplicate"
+Assert-True ($yaziWorkspacesText -match 'local attached, reason = attach_pin_to_tab\(pin, new_id\)') "Yazi startup pins use verified native tab IDs"
+Assert-True ($yaziWorkspacesText -match 'Tab .* disappeared before pin identity was attached') "Yazi restore errors identify vanished native tabs"
+$pinAttachBlock = [regex]::Match($yaziWorkspacesText, '(?ms)^local attach_pin_to_tab = ya\.sync.*?^end\)').Value
+Assert-True ($pinAttachBlock -notmatch 'tab\.current\.cwd|tab\.pref\.name') "Yazi avoids racy duplicate path/name validation after native creation"
 $yaziRestoreBlock = [regex]::Match($yaziWorkspacesText, '(?ms)^    if command == "restore" then.*?^    end').Value
 Assert-True ($yaziRestoreBlock -match 'restore_startup_pins\(valid\)') "Yazi startup uses non-destructive pin restore"
 Assert-True ($yaziRestoreBlock -notmatch 'rebuild_and_wait|tab_close') "Yazi startup never destructively rebuilds the entire session"
