@@ -189,7 +189,7 @@ end)
 local snapshot_group = ya.sync(function(st)
     local tabs, active = {}, 1
     for i, tab in ipairs(cx.tabs) do
-        if not st.live[tostring(tab.id)] then
+        if not st.live[tostring(tab.id.value)] then
             tabs[#tabs + 1] = tab_data(tab)
             if i == cx.tabs.idx then active = #tabs end
         end
@@ -211,7 +211,7 @@ end)
 local toggle_pin = ya.sync(function(st, index)
     local tab = cx.tabs[index or cx.tabs.idx]
     if not tab then return nil end
-    local tabid = tostring(tab.id)
+    local tabid = tostring(tab.id.value)
     local id = st.live[tabid]
     if id then
         st.live[tabid] = nil
@@ -225,7 +225,7 @@ local toggle_pin = ya.sync(function(st, index)
 end)
 
 local function capture_pinned_tab(st, tab)
-    local id = st.live[tostring(tab.id)]
+    local id = st.live[tostring(tab.id.value)]
     if not id then return nil end
     local result = tab_data(tab)
     result.id = id
@@ -261,13 +261,13 @@ end)
 local restore_failed_pin_toggle = ya.sync(function(st, changed, index)
     local tab = cx.tabs[index or cx.tabs.idx]
     if tab then
-        st.live[tostring(tab.id)] = changed.remove and changed.pin.id or nil
+        st.live[tostring(tab.id.value)] = changed.remove and changed.pin.id or nil
     end
 end)
 
 local rename_active_tab = ya.sync(function(st, name)
     local tab = cx.active
-    local id = st.live[tostring(tab.id)]
+    local id = st.live[tostring(tab.id.value)]
     ya.emit("tab_rename", { name })
     if not id then return nil end
     return { id = id, cwd = tostring(tab.current.cwd), name = name }
@@ -313,7 +313,7 @@ local inspect_tabs = ya.sync(function()
     local result = { active = cx.tabs.idx, tabs = {} }
     for _, tab in ipairs(cx.tabs) do
         result.tabs[#result.tabs + 1] = {
-            id = tostring(tab.id),
+            id = tostring(tab.id.value),
             cwd = tostring(tab.current.cwd):gsub("\\", "/"):lower(),
             name = tostring(tab.pref and tab.pref.name or ""),
         }
@@ -339,7 +339,7 @@ local finish_rebuild = ya.sync(function(st, entries)
     end
     st.live = {}
     for index, entry in ipairs(entries) do
-        if entry.pin_id then st.live[tostring(cx.tabs[index].id)] = entry.pin_id end
+        if entry.pin_id then st.live[tostring(cx.tabs[index].id.value)] = entry.pin_id end
     end
     st.restoring = false
     ps.pub(PIN_EVENT, pin_ids(st))
@@ -415,7 +415,7 @@ end
 
 local find_live_pin_tab = ya.sync(function(st, wanted_id)
     for index, tab in ipairs(cx.tabs) do
-        if tostring(tab.id) == wanted_id then
+        if tostring(tab.id.value) == wanted_id then
             local pin_id = st.live[wanted_id]
             if not pin_id then return nil end
             return { index = index, pin_id = pin_id }
@@ -434,7 +434,7 @@ end)
 
 local activate_pin = ya.sync(function(st, pin)
     for index, tab in ipairs(cx.tabs) do
-        if st.live[tostring(tab.id)] == pin.id then
+        if st.live[tostring(tab.id.value)] == pin.id then
             ya.emit("tab_switch", { index - 1 })
             return "existing"
         end
@@ -447,7 +447,7 @@ end)
 
 local finish_pin_activation = ya.sync(function(st, pin)
     for _, tab in ipairs(cx.tabs) do
-        local tabid = tostring(tab.id)
+        local tabid = tostring(tab.id.value)
         if not st.live[tabid] and tostring(tab.current.cwd):gsub("\\", "/"):lower() ==
             pin.cwd:gsub("\\", "/"):lower() and
             tostring(tab.pref and tab.pref.name or "") == pin.name then
@@ -480,7 +480,7 @@ local attach_pin_to_tab = ya.sync(function(st, pin, wanted_id)
         return false, "Tab " .. key .. " already belongs to another saved pin"
     end
     for _, tab in ipairs(cx.tabs) do
-        if tostring(tab.id) == key then
+        if tostring(tab.id.value) == key then
             st.live[key] = pin.id
             ps.pub(PIN_EVENT, pin_ids(st))
             ui.render()
