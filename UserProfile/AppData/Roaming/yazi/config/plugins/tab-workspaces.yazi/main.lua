@@ -318,8 +318,8 @@ local finish_rebuild = ya.sync(function(st, entries)
     if not cx or #cx.tabs ~= #entries then return false end
     for index, entry in ipairs(entries) do
         local tab = cx.tabs[index]
-        if not tab or tostring(tab.current.cwd):gsub("\\\\", "/"):lower() ~=
-            entry.cwd:gsub("\\\\", "/"):lower() then return false end
+        if not tab or tostring(tab.current.cwd):gsub("\\", "/"):lower() ~=
+            entry.cwd:gsub("\\", "/"):lower() then return false end
         if tostring(tab.pref and tab.pref.name or "") ~= entry.name then return false end
     end
     st.live = {}
