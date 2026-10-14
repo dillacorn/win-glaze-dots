@@ -282,47 +282,55 @@ local function valid_tabs(tabs)
     return true
 end
 
-local rebuild = ya.sync(function(st, project, pins)
-    if not cx or not cx.tabs then return false end
-    st.restoring = true
-    st.live = {}
-
-    -- First restore the group, then fill any spare slots with saved pins.
-    -- Extra pins stay exclusively on disk; they are not discarded.
+-- Native tab commands are queued. Restore one tab at a time and verify each
+-- transition before issuing another command. The original browsing tab must
+-- be closed, not left behind as an extra empty tab.
+local prepare_rebuild = ya.sync(function(st, project, pins)
+    if st.restoring then return nil end
     local entries = {}
     for _, tab in ipairs(project.tabs) do
         entries[#entries + 1] = { cwd = tab.cwd, name = tab.name }
     end
     for _, pin in ipairs(pins) do
-        local duplicate = false
+        local found = false
         for _, entry in ipairs(entries) do
             if entry.cwd:lower() == pin.cwd:lower() and entry.name == pin.name then
-                duplicate = true
                 entry.pin_id = pin.id
+                found = true
                 break
             end
         end
-        if not duplicate and #entries < MAX_TABS then
+        if not found and #entries < MAX_TABS then
             entries[#entries + 1] = { cwd = pin.cwd, name = pin.name, pin_id = pin.id }
         end
     end
-    if #entries == 0 then st.restoring = false; return false end
-
-    for _ = 1, #cx.tabs - 1 do ya.emit("tab_close", { 0 }) end
-    for index, entry in ipairs(entries) do
-        ya.emit("tab_create", { entry.cwd, raw = true })
-        if entry.name ~= "" then ya.emit("tab_rename", { entry.name }) end
-        if index == 1 then ya.emit("tab_close", { 0 }) end
-    end
-    local selected = #project.tabs > 0 and math.min(project.active, #project.tabs) or 1
-    ya.emit("tab_switch", { selected - 1 })
-    -- These actions are queued. Never read cx.active.id here to attribute
-    -- newly created tabs; wait until the native tab actions have settled.
+    if #entries == 0 then return nil end
+    st.restoring = true
     return entries
 end)
 
+local inspect_tabs = ya.sync(function()
+    local result = { active = cx.tabs.idx, tabs = {} }
+    for _, tab in ipairs(cx.tabs) do
+        result.tabs[#result.tabs + 1] = {
+            id = tostring(tab.id),
+            cwd = tostring(tab.current.cwd):gsub("\\", "/"):lower(),
+            name = tostring(tab.pref and tab.pref.name or ""),
+        }
+    end
+    return result
+end)
+
+local function settled(check)
+    for _ = 1, 60 do
+        if check(inspect_tabs()) then return true end
+        ya.sleep(0.05)  -- Yazi uses seconds, not milliseconds.
+    end
+    return false
+end
+
 local finish_rebuild = ya.sync(function(st, entries)
-    if not cx or #cx.tabs ~= #entries then return false end
+    if #cx.tabs ~= #entries then return false end
     for index, entry in ipairs(entries) do
         local tab = cx.tabs[index]
         if not tab or tostring(tab.current.cwd):gsub("\\", "/"):lower() ~=
@@ -344,26 +352,66 @@ local cancel_restore_state = ya.sync(function(st)
 end)
 
 local function rebuild_and_wait(project, pins)
-    local entries = rebuild(project, pins)
+    local entries = prepare_rebuild(project, pins)
     if not entries then return false end
-    for _ = 1, 60 do
-        ya.sleep(50)
-        if finish_rebuild(entries) then return true end
-    end
-    cancel_restore_state()
-    return false
-end
 
-local find_live_pin_tab = ya.sync(function(st, wanted_id)
-    for index, tab in ipairs(cx.tabs) do
-        if tostring(tab.id) == wanted_id then
-            local pin_id = st.live[wanted_id]
-            if not pin_id then return nil end
-            return { index = index, pin_id = pin_id }
+    local function fail()
+        cancel_restore_state()
+        return false
+    end
+
+    -- Reduce the old session to one placeholder. A close is not a promise:
+    -- verify the count before sending the next close.
+    local before = inspect_tabs()
+    while #before.tabs > 1 do
+        ya.emit("tab_close", { 0 })
+        if not settled(function(now) return #now.tabs == #before.tabs - 1 end) then return fail() end
+        before = inspect_tabs()
+    end
+    local original_id = before.tabs[1] and before.tabs[1].id
+    if not original_id then return fail() end
+
+    for index, entry in ipairs(entries) do
+        local previous = inspect_tabs()
+        local prev_count = #previous.tabs
+        if prev_count >= MAX_TABS then return fail() end
+        ya.emit("tab_create", { entry.cwd, raw = true })
+        local normalized = entry.cwd:gsub("\\", "/"):lower()
+        if not settled(function(now)
+            local tab = now.tabs[now.active]
+            return #now.tabs == prev_count + 1 and tab and
+                tab.id ~= previous.tabs[previous.active].id and tab.cwd == normalized
+        end) then return fail() end
+        if entry.name ~= "" then
+            ya.emit("tab_rename", { entry.name })
+            if not settled(function(now)
+                local tab = now.tabs[now.active]
+                return tab and tab.cwd == normalized and tab.name == entry.name
+            end) then return fail() end
+        end
+        if index == 1 then
+            -- The placeholder now precedes the first restored tab.
+            local snapshot = inspect_tabs()
+            local old_index = nil
+            for i, tab in ipairs(snapshot.tabs) do
+                if tab.id == original_id then old_index = i - 1; break end
+            end
+            if old_index == nil then return fail() end
+            ya.emit("tab_close", { old_index })
+            if not settled(function(now)
+                if #now.tabs ~= 1 then return false end
+                return now.tabs[1].id ~= original_id and now.tabs[1].cwd == normalized
+            end) then return fail() end
         end
     end
-    return nil
-end)
+
+    local selected = #project.tabs > 0 and math.min(project.active, #project.tabs) or 1
+    ya.emit("tab_switch", { selected - 1 })
+    if not settled(function(now)
+        return now.active == selected and #now.tabs == #entries
+    end) then return fail() end
+    return finish_rebuild(entries)
+end
 
 local clear_live_pin = ya.sync(function(st, id)
     for tabid, linked in pairs(st.live) do
