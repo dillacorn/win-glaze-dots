@@ -150,6 +150,12 @@
           "merge": true
         },
         {
+          "id": "yazi-tab-workspaces",
+          "source": "UserProfile/AppData/Roaming/yazi/config/plugins/tab-workspaces.yazi/main.lua",
+          "destination": "%APPDATA%\\yazi\\config\\plugins\\tab-workspaces.yazi\\main.lua",
+          "merge": true
+        },
+        {
           "id": "yazi-preview-refit",
           "source": "UserProfile/AppData/Roaming/yazi/config/plugins/preview-refit.yazi/main.lua",
           "destination": "%APPDATA%\\yazi\\config\\plugins\\preview-refit.yazi\\main.lua",
