@@ -270,6 +270,12 @@ assert_eq(pinned_count, 2, "Second pin is independent")
 
 -- Suspended pin inventory can always be opened and unpinned without
 -- removing the directory referenced by the pin.
+for _, child in ipairs(fs.read_dir(Url(PIN_DIR))) do
+    local text = FS_FILES[tostring(child.url)]
+    local id = tostring(child.url.name or ""):match("^([%w%-]+)%.pin$")
+    local a, b = text and text:match("^([%da-fA-F]+)\t([%da-fA-F]*)%s*$")
+    print("PIN_TEST_PARSE", tostring(child.url.name), tostring(id), tostring(a), tostring(b), tostring(text))
+end
 module:entry { args = { "open-pins" } }
 drain()
 local marker
