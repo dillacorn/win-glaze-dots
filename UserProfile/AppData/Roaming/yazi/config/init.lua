@@ -608,7 +608,7 @@ function WgdotYaziCloseTab()
         if choice == 1 then
             ya.emit("close", {})
         elseif choice == 2 then
-            ya.emit("plugin", { "tab-workspaces", "unpin-and-close", tab_id })
+            ya.emit("plugin", { "tab-workspaces", WgdotYaziPluginArgs("unpin-and-close", { tab_id }) })
         end
     end)
 end
@@ -819,7 +819,7 @@ function Tabs:click(event, up)
         -- Do not switch focus just to pin an inactive tab.
         local tab = cx.tabs[index]
         if tab then
-            ya.emit("plugin", { "tab-workspaces", "pin", tostring(tab.id.value) })
+            ya.emit("plugin", { "tab-workspaces", WgdotYaziPluginArgs("pin", { tostring(tab.id.value) }) })
         end
         return
     elseif not event.is_left then
