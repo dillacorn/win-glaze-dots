@@ -200,7 +200,7 @@ jobs:
           if gh api "repos/$REPO/git/ref/tags/$TAG" >/dev/null 2>&1; then
             echo "Tag already exists; refusing to move it"; exit 1
           fi
-printf '%s\n' \
+          printf '%s\n' \
             '# WGDot v4.8.1 Yazi Tab Groups and Pinning' \
             '' \
             'This patch release introduces saved Yazi tab sessions, persistent pins, session-only Quick Mark navigation, and streamlined shortcuts.' \
@@ -221,8 +221,7 @@ printf '%s\n' \
             '## Validation' \
             '' \
             '- All four WGDot validation jobs passed on Yazi PR #127, including Lua syntax/behavior, Windows PowerShell 5.1/7, and native bootstrap.' \
-            '- The maintainer confirmed working Windows Yazi behavior, including inactive-tab right-click pin/unpin and the tested feature checklist. Issues #118 and #119 remain separate where applicable.'
-            > "$RUNNER_TEMP/wgdot-v4.8.1.md"
+            '- The maintainer confirmed working Windows Yazi behavior, including inactive-tab right-click pin/unpin and the tested feature checklist. Issues #118 and #119 remain separate where applicable.' > "$RUNNER_TEMP/wgdot-v4.8.1.md"
           gh release create "$TAG" --repo "$REPO" --target "$TARGET_SHA" \
             --title 'WGDot v4.8.1 Yazi Tab Groups and Pinning' \
             --notes-file "$RUNNER_TEMP/wgdot-v4.8.1.md" --latest
