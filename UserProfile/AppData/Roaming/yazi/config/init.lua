@@ -715,7 +715,13 @@ end
 -- redraw geometry intact so reordering and click hit-testing still agree.
 ps.sub("wgdot-yazi-pins", function(ids)
     local had_pin = next(WgdotYaziPinnedTabIds) ~= nil
-    WgdotYaziPinnedTabIds = type(ids) == "table" and ids or {}
+    local normalized = {}
+    if type(ids) == "table" then
+        for id, active in pairs(ids) do
+            if active then normalized[tostring(id)] = true end
+        end
+    end
+    WgdotYaziPinnedTabIds = normalized
     local has_pin = next(WgdotYaziPinnedTabIds) ~= nil
 
     -- Native Yazi hides the tab bar for one tab. Reflow when the only
