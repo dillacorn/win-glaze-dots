@@ -20,6 +20,7 @@ local WgdotYaziCollectionRoots = {
     bookmarks = WgdotYaziNormalizeFsPath(WgdotYaziStateDir() .. "\\collections\\Bookmarks"),
     recents = WgdotYaziNormalizeFsPath(WgdotYaziStateDir() .. "\\collections\\Recently Opened"),
     groups = WgdotYaziNormalizeFsPath(WgdotYaziStateDir() .. "\\collections\\Tab Groups"),
+    pins = WgdotYaziNormalizeFsPath(WgdotYaziStateDir() .. "\\collections\\Tab Groups\\Pinned Tabs"),
 }
 
 local function WgdotYaziCollectionKind(value)
@@ -27,6 +28,7 @@ local function WgdotYaziCollectionKind(value)
     if path == WgdotYaziCollectionRoots.bookmarks then return "bookmarks" end
     if path == WgdotYaziCollectionRoots.recents then return "recents" end
     if path == WgdotYaziCollectionRoots.groups then return "groups" end
+    if path == WgdotYaziCollectionRoots.pins then return "pins" end
     return nil
 end
 
@@ -63,7 +65,7 @@ local function WgdotYaziOpenCollection(kind)
         or (kind == "groups" and "tab-workspaces" or "recent-files")
     local state = WgdotYaziCollectionReturnState()
 
-    if WgdotYaziCollectionCwd() ~= kind then
+    if WgdotYaziCollectionCwd() ~= kind and not (kind == "groups" and WgdotYaziCollectionCwd() == "pins") then
         state[kind] = tostring(cx.active.current.cwd)
     end
 
@@ -73,7 +75,7 @@ end
 local function WgdotYaziToggleCollection(kind)
     local state = WgdotYaziCollectionReturnState()
 
-    if WgdotYaziCollectionCwd() == kind then
+    if WgdotYaziCollectionCwd() == kind or (kind == "groups" and WgdotYaziCollectionCwd() == "pins") then
         local target = state[kind]
         state[kind] = nil
         if target and target ~= "" then
@@ -230,10 +232,14 @@ local function WgdotYaziNavigateCollection(file, new_tab)
     local kind = WgdotYaziCollectionCwd()
     if not kind or not file or not WgdotYaziIsCollectionItemUrl(file.url) then return false end
 
-    if kind == "groups" then
+    if kind == "groups" and tostring(file.url):gsub("/", "\\"):lower() ==
+        (WgdotYaziStateDir() .. "\\collections\\Tab Groups\\Pinned Tabs"):lower() then
+        ya.emit("plugin", { "tab-workspaces", "open-pins" })
+        return true
+    elseif kind == "groups" or kind == "pins" then
         ya.emit("plugin", {
             "tab-workspaces",
-            WgdotYaziPluginArgs("load", { tostring(file.url) }),
+            WgdotYaziPluginArgs(kind == "pins" and "activate-pin" or "load", { tostring(file.url) }),
         })
         return true
     end
@@ -268,16 +274,17 @@ local function WgdotYaziDeleteCollectionSelection()
     if not kind or #markers == 0 then return false end
 
     local plugin = kind == "bookmarks" and "bookmarks"
-        or (kind == "groups" and "tab-workspaces" or "recent-files")
+        or ((kind == "groups" or kind == "pins") and "tab-workspaces" or "recent-files")
     ya.emit("plugin", {
         plugin,
-        WgdotYaziPluginArgs(kind == "groups" and "delete-groups" or "delete", markers),
+        WgdotYaziPluginArgs(kind == "groups" and "delete-groups"
+            or (kind == "pins" and "unpin-markers" or "delete"), markers),
     })
     return true
 end
 
 local function WgdotYaziOpenFiles(interactive, hovered_only)
-    if WgdotYaziCollectionCwd() == "groups" and
+    if (WgdotYaziCollectionCwd() == "groups" or WgdotYaziCollectionCwd() == "pins") and
         WgdotYaziNavigateCollection(cx.active.current.hovered, false) then return end
     local tab = cx.active
     local recent = {}
@@ -593,7 +600,10 @@ end
 function WgdotYaziRename(hovered_only)
     local current = cx.active and cx.active.current
     if not current or not current.hovered then return end
-    if WgdotYaziCollectionCwd() == "groups" then
+    if WgdotYaziCollectionCwd() == "pins" then
+        ya.notify { title = "Pinned Tabs", content = "Activate the tab before renaming it with t r.", timeout = 3 }
+        return
+    elseif WgdotYaziCollectionCwd() == "groups" then
         if #cx.active.selected > 1 then
             ya.notify { title = "Tab Groups", content = "Rename one group at a time.", level = "warn", timeout = 3 }
         elseif WgdotYaziIsCollectionItemUrl(current.hovered.url) then
