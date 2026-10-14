@@ -99,6 +99,45 @@ function WgdotYaziToggleRecents()
     WgdotYaziToggleCollection("recents")
 end
 
+-- Quick Mark is deliberately session-local, unlike bookmarks and saved groups.
+-- Each tab has its own return directory so switching tabs cannot corrupt it.
+local WgdotYaziQuickMark = nil
+local WgdotYaziQuickReturns = {}
+
+function WgdotYaziSetQuickMark()
+    local current = cx.active and cx.active.current
+    if not current then return end
+    WgdotYaziQuickMark = tostring(current.cwd)
+    WgdotYaziQuickReturns = {}
+    ya.notify { title = "Quick Mark", content = "Marked: " .. WgdotYaziQuickMark, timeout = 2 }
+end
+
+function WgdotYaziToggleQuickMark()
+    if not WgdotYaziQuickMark then
+        ya.notify { title = "Quick Mark", content = "No directory marked. Use g q.", level = "warn", timeout = 3 }
+        return
+    end
+    local current = tostring(cx.active.current.cwd)
+    local key = tostring(cx.active.id)
+    local returning = current == WgdotYaziQuickMark
+    local destination = returning and WgdotYaziQuickReturns[key] or WgdotYaziQuickMark
+    if not destination or destination == current then
+        ya.notify { title = "Quick Mark", content = "No other directory to return to.", timeout = 2 }
+        return
+    end
+    local info = fs.cha(Url(destination), true)
+    if not info or not info.is_dir then
+        ya.notify { title = "Quick Mark", content = "Target directory is no longer available.", level = "warn", timeout = 3 }
+        return
+    end
+    if returning then
+        WgdotYaziQuickReturns[key] = nil
+    else
+        WgdotYaziQuickReturns[key] = current
+    end
+    ya.emit("cd", { Url(destination), raw = true })
+end
+
 local WgdotYaziDefaultEntityHighlights = Entity.highlights
 local WgdotYaziDefaultEntitySymlink = Entity.symlink
 
