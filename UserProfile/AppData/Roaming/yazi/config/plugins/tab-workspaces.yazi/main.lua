@@ -4,6 +4,12 @@ local M = {}
 local MAX_TABS = 9
 local PIN_EVENT = "@wgdot-yazi-pins"
 
+local function decode_arg(value)
+    if type(value) ~= "string" then return value end
+    local encoded = value:match("^hex:([%da-fA-F]*)$")
+    return encoded and (encoded:gsub("..", function(pair) return string.char(tonumber(pair, 16)) end)) or value
+end
+
 local function state_dir()
     return (os.getenv("APPDATA") or os.getenv("LOCALAPPDATA") or ".") .. "\\yazi\\state"
 end
@@ -162,6 +168,11 @@ local function tab_data(tab)
     return { cwd = tostring(tab.current.cwd), name = tostring(tab.pref and tab.pref.name or "") }
 end
 
+local initialize = ya.sync(function(st)
+    st.live = st.live or {}
+    st.restoring = false
+end)
+
 local snapshot_group = ya.sync(function(st)
     local tabs, active = {}, 1
     for i, tab in ipairs(cx.tabs) do
@@ -222,6 +233,21 @@ local capture_all_pins = ya.sync(function(st)
     return changed
 end)
 
+local fresh_session = ya.sync(function()
+    return cx and #cx.tabs == 1
+end)
+
+local current_tab_name = ya.sync(function()
+    return tostring(cx.active.pref and cx.active.pref.name or "")
+end)
+
+local restore_failed_pin_toggle = ya.sync(function(st, changed, index)
+    local tab = cx.tabs[index or cx.tabs.idx]
+    if tab then
+        st.live[tostring(tab.id)] = changed.remove and changed.pin.id or nil
+    end
+end)
+
 local rename_active_tab = ya.sync(function(st, name)
     local tab = cx.active
     local id = st.live[tostring(tab.id)]
@@ -272,7 +298,8 @@ local rebuild = ya.sync(function(st, project, pins)
         if index == 1 then ya.emit("tab_close", { 0 }) end
         if entry.pin_id then st.live[tostring(cx.active.id)] = entry.pin_id end
     end
-    ya.emit("tab_switch", { math.min(project.active, #project.tabs) - 1 })
+    local selected = #project.tabs > 0 and math.min(project.active, #project.tabs) or 1
+    ya.emit("tab_switch", { selected - 1 })
     st.restoring = false
     ps.pub(PIN_EVENT, pin_ids(st))
     ui.render()
@@ -286,6 +313,7 @@ local function require_group_marker(value)
 end
 
 function M:setup()
+    initialize()
     -- Yazi emits cd for native navigation; refresh only the active pinned tab.
     -- The pinned state itself survives ordinary tab closes and group changes.
     ps.sub("cd", function()
@@ -335,7 +363,7 @@ function M:entry(job)
     end
 
     if command == "load" then
-        local name = require_group_marker(job.args[2])
+        local name = require_group_marker(decode_arg(job.args[2]))
         if not name then return end
         local project, err = decode_tabs(read_text(group_file(name)))
         if not project then return notify(err, "error") end
@@ -360,7 +388,7 @@ function M:entry(job)
     end
 
     if command == "rename-group" then
-        local old = require_group_marker(job.args[2])
+        local old = require_group_marker(decode_arg(job.args[2]))
         if not old then return end
         local value, event = ya.input { pos = { "center", w = 48 }, title = "Rename Tab Group:", value = old }
         if event ~= 1 then return end
@@ -376,8 +404,11 @@ function M:entry(job)
 
     if command == "delete-groups" then
         for i = 2, #job.args do
-            local name = marker_name(job.args[i])
+            local name = marker_name(decode_arg(job.args[i]))
             if name then
+                -- Only remove directories that contain a valid saved group.
+                local project = decode_tabs(read_text(group_file(name)))
+                if not project then return notify("Invalid group entry: " .. name, "warn") end
                 local ok, err = fs.remove("dir_all", Url(marker_path(name)))
                 if not ok then return notify("Delete failed: " .. tostring(err), "error") end
             end
@@ -392,7 +423,7 @@ function M:entry(job)
         local ok, err = merge_pin(changed.pin, changed.remove)
         if not ok then
             -- Revert the in-memory change after a persistence failure.
-            toggle_pin(tonumber(job.args[2]))
+            restore_failed_pin_toggle(changed, tonumber(job.args[2]))
             return notify("Could not persist pin: " .. tostring(err), "error")
         end
         publish_pins()
@@ -400,7 +431,7 @@ function M:entry(job)
     end
 
     if command == "rename-tab" then
-        local current = ya.sync(function() return tostring(cx.active.pref and cx.active.pref.name or "") end)()
+        local current = current_tab_name()
         local value, event = ya.input { pos = { "center", w = 48 }, title = "Rename Tab (empty = automatic):", value = current }
         if event ~= 1 then return end
         local pin = rename_active_tab(value)
@@ -419,7 +450,7 @@ function M:entry(job)
             if info and info.is_dir then valid[#valid + 1] = pin end
         end
         if #valid == 0 then return end
-        local is_fresh = ya.sync(function() return cx and #cx.tabs == 1 end)()
+        local is_fresh = fresh_session()
         if is_fresh then rebuild({ tabs = {}, active = 1 }, valid) end
         return
     end
