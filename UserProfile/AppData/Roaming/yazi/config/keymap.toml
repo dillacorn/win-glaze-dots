@@ -85,6 +85,7 @@ prepend_keymap = [
   { on = ["t", "g"], run = 'lua "WgdotYaziGoTabGroups()"', desc = "Go to saved tab groups" },
   { on = ["t", "s"], run = 'lua "WgdotYaziSaveTabGroup()"', desc = "Save named tab group" },
   { on = ["t", "p"], run = 'lua "WgdotYaziToggleTabPin()"', desc = "Pin/unpin active tab" },
+  { on = ["t", "r"], run = 'lua "WgdotYaziRenameTab()"', desc = "Rename current tab (persistent for pins)" },
   { on = ["t", "n"], run = 'lua "WgdotYaziOpenHoveredTab()"', desc = "Open hovered folder in new tab" },
 
   # Display
