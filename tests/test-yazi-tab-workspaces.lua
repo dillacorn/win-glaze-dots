@@ -309,7 +309,7 @@ assert_eq(tostring(cx.tabs[1].current.cwd), [[C:\Group1]], "Group occupies first
 assert_eq(cx.tabs[4].pref.name, "Custom", "Saved group custom name survived overflow")
 assert_eq(cx.tabs.idx, 4, "Active tab restored in full group")
 local live_pin_count = 0
-for _, is_pin in pairs(published["@wgdot-yazi-pins"] or {}) do
+for _, is_pin in pairs(published["wgdot-yazi-pins"] or {}) do
     if is_pin then live_pin_count = live_pin_count + 1 end
 end
 assert_eq(live_pin_count, 1, "Only one pinned tab fits after eight group tabs")
@@ -321,7 +321,7 @@ assert_eq(pin_records, 3, "Suspended pin state survived tab capacity pressure")
 
 -- Unpin-and-close must persist removal before closing the specific tab.
 local visible_pin_id
-for tabid in pairs(published["@wgdot-yazi-pins"] or {}) do
+for tabid in pairs(published["wgdot-yazi-pins"] or {}) do
     visible_pin_id = tabid
 end
 assert_true(visible_pin_id ~= nil, "Visible pin has a stable tab ID")
@@ -342,7 +342,7 @@ drain()
 assert_eq(#cx.tabs, 3, "Fresh session retains launch tab and both saved pins")
 assert_eq(tostring(cx.tabs[1].current.cwd), [[C:\Downloads]], "Launch directory preserved")
 local restored_pin_count = 0
-for _, is_pin in pairs(published["@wgdot-yazi-pins"] or {}) do
+for _, is_pin in pairs(published["wgdot-yazi-pins"] or {}) do
     if is_pin then restored_pin_count = restored_pin_count + 1 end
 end
 assert_eq(restored_pin_count, 2, "Fresh session reattaches saved pin identities")
