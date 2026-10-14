@@ -306,15 +306,46 @@ local rebuild = ya.sync(function(st, project, pins)
         ya.emit("tab_create", { entry.cwd, raw = true })
         if entry.name ~= "" then ya.emit("tab_rename", { entry.name }) end
         if index == 1 then ya.emit("tab_close", { 0 }) end
-        if entry.pin_id then st.live[tostring(cx.active.id)] = entry.pin_id end
     end
     local selected = #project.tabs > 0 and math.min(project.active, #project.tabs) or 1
     ya.emit("tab_switch", { selected - 1 })
+    -- These actions are queued. Never read cx.active.id here to attribute
+    -- newly created tabs; wait until the native tab actions have settled.
+    return entries
+end)
+
+local finish_rebuild = ya.sync(function(st, entries)
+    if not cx or #cx.tabs ~= #entries then return false end
+    for index, entry in ipairs(entries) do
+        local tab = cx.tabs[index]
+        if not tab or tostring(tab.current.cwd):gsub("\\\\", "/"):lower() ~=
+            entry.cwd:gsub("\\\\", "/"):lower() then return false end
+        if tostring(tab.pref and tab.pref.name or "") ~= entry.name then return false end
+    end
+    st.live = {}
+    for index, entry in ipairs(entries) do
+        if entry.pin_id then st.live[tostring(cx.tabs[index].id)] = entry.pin_id end
+    end
     st.restoring = false
     ps.pub(PIN_EVENT, pin_ids(st))
     ui.render()
     return true
 end)
+
+local cancel_restore_state = ya.sync(function(st)
+    st.restoring = false
+end)
+
+local function rebuild_and_wait(project, pins)
+    local entries = rebuild(project, pins)
+    if not entries then return false end
+    for _ = 1, 12 do
+        ya.sleep(25)
+        if finish_rebuild(entries) then return true end
+    end
+    cancel_restore_state()
+    return false
+end
 
 local clear_live_pin = ya.sync(function(st, id)
     for tabid, linked in pairs(st.live) do
@@ -328,16 +359,28 @@ local activate_pin = ya.sync(function(st, pin)
     for index, tab in ipairs(cx.tabs) do
         if st.live[tostring(tab.id)] == pin.id then
             ya.emit("tab_switch", { index - 1 })
+            return "existing"
+        end
+    end
+    if #cx.tabs >= MAX_TABS then return "full" end
+    ya.emit("tab_create", { pin.cwd, raw = true })
+    if pin.name ~= "" then ya.emit("tab_rename", { pin.name }) end
+    return "queued"
+end)
+
+local finish_pin_activation = ya.sync(function(st, pin)
+    for _, tab in ipairs(cx.tabs) do
+        local tabid = tostring(tab.id)
+        if not st.live[tabid] and tostring(tab.current.cwd):gsub("\\", "/"):lower() ==
+            pin.cwd:gsub("\\", "/"):lower() and
+            tostring(tab.pref and tab.pref.name or "") == pin.name then
+            st.live[tabid] = pin.id
+            ps.pub(PIN_EVENT, pin_ids(st))
+            ui.render()
             return true
         end
     end
-    if #cx.tabs >= MAX_TABS then return false end
-    ya.emit("tab_create", { pin.cwd, raw = true })
-    if pin.name ~= "" then ya.emit("tab_rename", { pin.name }) end
-    st.live[tostring(cx.active.id)] = pin.id
-    ps.pub(PIN_EVENT, pin_ids(st))
-    ui.render()
-    return true
+    return false
 end)
 
 local function materialize_pins()
@@ -412,7 +455,16 @@ function M:entry(job)
         if not pin then return notify("Pinned tab marker is invalid", "warn") end
         local info = fs.cha(Url(pin.cwd), true)
         if not info or not info.is_dir then return notify("Pinned directory no longer exists", "warn") end
-        if not activate_pin(pin) then return notify("Nine tabs are already open; close one to activate this pin.", "warn") end
+        local result = activate_pin(pin)
+        if result == "full" then return notify("Nine tabs are already open; close one to activate this pin.", "warn") end
+        if result == "queued" then
+            local applied = false
+            for _ = 1, 12 do
+                ya.sleep(25)
+                if finish_pin_activation(pin) then applied = true; break end
+            end
+            if not applied then return notify("Pin was opened but its identity could not be confirmed.", "error") end
+        end
         return
     end
 
@@ -485,7 +537,7 @@ function M:entry(job)
             local info = fs.cha(Url(pin.cwd), true)
             if info and info.is_dir then valid_pins[#valid_pins + 1] = pin end
         end
-        if not rebuild(project, valid_pins) then return notify("Unable to restore group", "error") end
+        if not rebuild_and_wait(project, valid_pins) then return notify("Unable to verify restored group tabs", "error") end
         notify("Loaded: " .. name)
         return
     end
@@ -554,7 +606,9 @@ function M:entry(job)
         end
         if #valid == 0 then return end
         local is_fresh = fresh_session()
-        if is_fresh then rebuild({ tabs = {}, active = 1 }, valid) end
+        if is_fresh and not rebuild_and_wait({ tabs = {}, active = 1 }, valid) then
+            notify("Could not verify pinned tabs on startup", "error")
+        end
         return
     end
 end
