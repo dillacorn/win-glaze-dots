@@ -292,12 +292,31 @@ for path in pairs(FS_FILES) do
     if parent(path) == PIN_DIR and path:match("%.pin$") then pinned_count = pinned_count + 1 end
 end
 assert_eq(pinned_count, 1, "First pin persisted")
-module:entry { args = { "pin", "2" } }
+-- Mouse right-click must pin the hovered nonfocused tab by stable ID.
+local focused_before = cx.tabs.idx
+local inactive_id = tostring(cx.tabs[2].id.value)
+local focused_id = tostring(cx.tabs[1].id.value)
+module:entry { args = { "pin", inactive_id } }
+assert_eq(cx.tabs.idx, focused_before, "Pinning another tab does not change focus")
+assert_true(published["wgdot-yazi-pins"][inactive_id], "Inactive hovered tab is now pinned")
+assert_true(published["wgdot-yazi-pins"][focused_id], "Previously focused pin remains intact")
 pinned_count = 0
 for path in pairs(FS_FILES) do
     if parent(path) == PIN_DIR and path:match("%.pin$") then pinned_count = pinned_count + 1 end
 end
 assert_eq(pinned_count, 2, "Second pin is independent")
+-- Repeating right-click on the same inactive tab must unpin that tab only.
+module:entry { args = { "pin", inactive_id } }
+assert_eq(cx.tabs.idx, focused_before, "Unpinning another tab also preserves focus")
+assert_true(not published["wgdot-yazi-pins"][inactive_id], "Inactive tab unpinned")
+assert_true(published["wgdot-yazi-pins"][focused_id], "Focused tab pin unaffected")
+module:entry { args = { "pin", inactive_id } }
+assert_true(published["wgdot-yazi-pins"][inactive_id], "Inactive tab re-pinned after second toggle")
+-- A stale mouse target must not silently fall back to the focused tab.
+module:entry { args = { "pin", "999999999" } }
+assert_true(published["wgdot-yazi-pins"][focused_id], "Unknown hovered tab never toggles focused pin")
+assert_true(published["wgdot-yazi-pins"][inactive_id], "Unknown hovered tab never toggles another pin")
+
 
 -- Suspended pin inventory can always be opened and unpinned without
 -- removing the directory referenced by the pin.
@@ -326,7 +345,9 @@ assert_true(FS_FILES[GROUPS .. [[\Eight Tabs\.wgdot-tabs]]] ~= nil, "Eight-tab g
 
 set_tabs({ { [[C:\Other]], "Pinned Other" }, { [[C:\Extra]], "Pinned Extra" } })
 module:entry { args = { "pin" } }
-module:entry { args = { "pin", "2" } }
+local second_pin_id = tostring(cx.tabs[2].id.value)
+module:entry { args = { "pin", second_pin_id } }
+assert_eq(cx.tabs.idx, 1, "Pinning second tab by mouse does not focus it")
 
 local pin_records = 0
 for path in pairs(FS_FILES) do
