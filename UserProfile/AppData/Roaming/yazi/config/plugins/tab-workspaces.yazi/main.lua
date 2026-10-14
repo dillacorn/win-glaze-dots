@@ -22,8 +22,8 @@ local function pinned_dir()
     return groups_dir() .. "\\Pinned Tabs"
 end
 
-local function pin_file()
-    return state_dir() .. "\\wgdot-pinned-tabs.txt"
+local function pin_dir()
+    return state_dir() .. "\\pins"
 end
 
 local function hex(value)
@@ -139,42 +139,39 @@ local function decode_tabs(data)
     return { tabs = tabs, active = active }
 end
 
+-- One file per pin prevents separate Yazi windows from overwriting other
+-- pins while changing a single entry. Pin IDs are stable across sessions.
 local function read_pins()
-    local data = read_text(pin_file()) or ""
     local pins, seen = {}, {}
-    for line in data:gmatch("[^\r\n]+") do
-        local id, a, b = line:match("^([%w%-]+)\t([%da-fA-F]+)\t([%da-fA-F]*)$")
-        local cwd, name = a and unhex(a), b and unhex(b)
-        if id and cwd and cwd ~= "" and name and not seen[id] then
-            pins[#pins + 1] = { id = id, cwd = cwd, name = name }
-            seen[id] = true
+    local files = fs.read_dir(Url(pin_dir()), { resolve = true })
+    if not files then return pins end
+    for _, file in ipairs(files) do
+        if not file.cha.is_dir then
+            local id = tostring(file.url.name or ""):match("^([%w%-]+)%.pin$")
+            if id and not seen[id] then
+                local data = read_text(tostring(file.url))
+                local a, b = data and data:match("^([%da-fA-F]+)\t([%da-fA-F]*)%s*$")
+                local cwd, name = a and unhex(a), b and unhex(b)
+                if cwd and cwd ~= "" and name then
+                    pins[#pins + 1] = { id = id, cwd = cwd, name = name }
+                    seen[id] = true
+                end
+            end
         end
     end
+    table.sort(pins, function(a, b) return a.id < b.id end)
     return pins
 end
 
-local function write_pins(pins)
-    local ok, err = ensure_dir(state_dir())
-    if not ok then return false, err end
-    local rows = {}
-    for _, pin in ipairs(pins) do
-        rows[#rows + 1] = pin.id .. "\t" .. hex(pin.cwd) .. "\t" .. hex(pin.name or "")
-    end
-    return replace_file(pin_file(), table.concat(rows, "\n") .. "\n")
-end
-
 local function merge_pin(pin, remove)
-    -- Read current disk state on every mutation to preserve unrelated edits
-    -- made by another Yazi session since this one started.
-    local pins, found = read_pins(), false
-    for i = #pins, 1, -1 do
-        if pins[i].id == pin.id then
-            found = true
-            if remove then table.remove(pins, i) else pins[i] = pin end
-        end
+    local ok, err = ensure_dir(pin_dir())
+    if not ok then return false, err end
+    local path = pin_dir() .. "\\" .. pin.id .. ".pin"
+    if remove then
+        if not fs.cha(Url(path), false) then return true end
+        return fs.remove("file", Url(path))
     end
-    if not found and not remove then pins[#pins + 1] = pin end
-    return write_pins(pins)
+    return replace_file(path, hex(pin.cwd) .. "\t" .. hex(pin.name or "") .. "\n")
 end
 
 local function tab_data(tab)
@@ -350,7 +347,10 @@ local function materialize_pins()
     local files, read_err = fs.read_dir(Url(root), { resolve = true })
     if not files then return false, read_err end
     for _, file in ipairs(files) do
-        if not file.cha.is_dir then
+        -- Only remove generated markers, never unrelated files a user may
+        -- have placed in the browsable collection.
+        if not file.cha.is_dir and
+            tostring(file.url.name or ""):match("^%d%d%d%d%-%-") then
             ok, err = fs.remove("file", file.url)
             if not ok then return false, err end
         end
