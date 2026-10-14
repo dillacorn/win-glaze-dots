@@ -500,7 +500,18 @@ function M:entry(job)
         name = safe_name(name)
         if not name then return notify("Use a valid folder name (maximum 80 characters).", "warn") end
         local path = group_file(name)
-        if fs.cha(Url(path), false) then
+        local existing_dir = fs.cha(Url(marker_path(name)), false)
+        local existing_state = fs.cha(Url(path), false)
+        -- A directory without the exact managed state file is not a group.
+        -- Never adopt or alter an arbitrary folder merely because its name
+        -- matches the requested saved-group name.
+        if existing_dir and not existing_state then
+            return notify("A folder already exists with this name; it is not a saved group.", "warn")
+        end
+        if existing_state and not decode_tabs(read_text(path)) then
+            return notify("Existing group data is invalid. Refusing to overwrite it.", "warn")
+        end
+        if existing_state then
             local yes = ya.confirm {
                 pos = { "center", w = 46, h = 7 },
                 title = "Replace Tab Group?",
@@ -564,8 +575,14 @@ function M:entry(job)
                 -- Only remove directories that contain a valid saved group.
                 local project = decode_tabs(read_text(group_file(name)))
                 if not project then return notify("Invalid group entry: " .. name, "warn") end
-                local ok, err = fs.remove("dir_all", Url(marker_path(name)))
+                -- Never recursively delete a browsable collection directory:
+                -- it might also contain real files the user placed there.
+                local ok, err = fs.remove("file", Url(group_file(name)))
                 if not ok then return notify("Delete failed: " .. tostring(err), "error") end
+                ok, err = fs.remove("dir", Url(marker_path(name)))
+                if not ok then
+                    notify("Group removed, but the directory contains other files and was preserved: " .. name, "warn")
+                end
             end
         end
         ya.emit("refresh", {})
