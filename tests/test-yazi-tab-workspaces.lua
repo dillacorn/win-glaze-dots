@@ -131,10 +131,28 @@ io.open = function(path, mode)
         close = function() end }
 end
 
+-- Native Yazi exposes tab IDs as userdata objects with a stable .value,
+-- but tostring(tab.id) shows a fresh userdata pointer. Simulate that hazard:
+-- each field access returns a new wrapper with a different string address.
+local pointer_seq = 0
 local function make_tab(path, custom_name)
     local id = next_id
     next_id = next_id + 1
-    return { id = id, current = { cwd = url(path) }, pref = { name = custom_name or "" } }
+    return setmetatable({
+        native_id = id,
+        current = { cwd = url(path) },
+        pref = { name = custom_name or "" },
+    }, {
+        __index = function(tab, key)
+            if key ~= "id" then return nil end
+            pointer_seq = pointer_seq + 1
+            return setmetatable({ value = tab.native_id }, {
+                __tostring = function()
+                    return string.format("%016X", 0x210573EF568 + pointer_seq)
+                end,
+            })
+        end,
+    })
 end
 cx = { tabs = {} }
 local function focus(index)
@@ -375,12 +393,14 @@ for path in pairs(FS_FILES) do
 end
 assert_eq(saved_pin_count, 3, "A startup-directory pin is saved independently")
 set_tabs({ { [[C:\Safe]], "Reused Startup" } })
-local opening_id = tostring(cx.tabs[1].id)
+local opening_id = tostring(cx.tabs[1].id.value)
+assert_true(tostring(cx.tabs[1].id) ~= tostring(cx.tabs[1].id),
+    "Opaque Yazi tab.id string addresses differ between reads")
 state.live = {}
 module:entry { args = { "restore" } }
 drain()
 assert_eq(#cx.tabs, 3, "Reusing the launch tab avoids a fourth duplicate")
-assert_eq(tostring(cx.tabs[1].id), opening_id, "Pin restoration did not rebuild the opening tab")
+assert_eq(tostring(cx.tabs[1].id.value), opening_id, "Pin restoration did not rebuild the opening tab")
 local current_pins = published["wgdot-yazi-pins"] or {}
 assert_true(current_pins[opening_id], "The reused opening tab displays as pinned")
 
