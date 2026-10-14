@@ -413,6 +413,17 @@ local function rebuild_and_wait(project, pins)
     return finish_rebuild(entries)
 end
 
+local find_live_pin_tab = ya.sync(function(st, wanted_id)
+    for index, tab in ipairs(cx.tabs) do
+        if tostring(tab.id) == wanted_id then
+            local pin_id = st.live[wanted_id]
+            if not pin_id then return nil end
+            return { index = index, pin_id = pin_id }
+        end
+    end
+    return nil
+end)
+
 local clear_live_pin = ya.sync(function(st, id)
     for tabid, linked in pairs(st.live) do
         if linked == id then st.live[tabid] = nil end
