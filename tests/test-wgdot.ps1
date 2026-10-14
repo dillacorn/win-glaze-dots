@@ -231,6 +231,8 @@ Assert-True ($yaziInitText -match 'WgdotYaziToggleCollection\("groups"\)') "Yazi
 Assert-True ($yaziInitText -match 'local suffix = WgdotYaziPinnedTabIds\[tostring\(tab\.id\)\].*📌') "Yazi reserves a visible right-hand pin emoji"
 Assert-True ($yaziInitText -match 'ui\.truncate\(tab\.name, \{ max = available \}\) \.\. suffix') "Yazi pin suffix survives name truncation"
 Assert-True ($yaziInitText -match 'function WgdotYaziToggleQuickMark\(\)') "Yazi session quick mark toggle exists"
+$quickMarkBlock = [regex]::Match($yaziInitText, '(?ms)^function WgdotYaziToggleQuickMark\(\).*?^end').Value
+Assert-True ($quickMarkBlock -notmatch 'fs\.cha\(') "Yazi init.lua Quick Mark does not call async-only fs.cha"
 Assert-True ($yaziInitText -match 'WgdotYaziQuickReturns\[key\] = current') "Yazi quick mark return state is per tab"
 Assert-True ($yaziInitText -match 'function Tabs:redraw\(\)') "Yazi tab bar draws pin indicator"
 Assert-True ($yaziInitText -match 'WgdotYaziTabLabel\(index, max\)') "Yazi drag hit testing uses pin-aware tab labels"
