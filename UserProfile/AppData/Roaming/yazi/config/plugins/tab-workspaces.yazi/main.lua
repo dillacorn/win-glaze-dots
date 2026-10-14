@@ -1,0 +1,838 @@
+-- WGDot Yazi saved tab groups and persistent pins.
+-- Files live under the user's Yazi state directory, never in managed config.
+local M = {}
+local MAX_TABS = 9
+local PIN_EVENT = "wgdot-yazi-pins"
+
+local function decode_arg(value)
+    if type(value) ~= "string" then return value end
+    local encoded = value:match("^hex:([%da-fA-F]*)$")
+    return encoded and (encoded:gsub("..", function(pair) return string.char(tonumber(pair, 16)) end)) or value
+end
+
+local function state_dir()
+    return (os.getenv("APPDATA") or os.getenv("LOCALAPPDATA") or ".") .. "\\yazi\\state"
+end
+
+local function groups_dir()
+    return state_dir() .. "\\collections\\Tab Groups"
+end
+
+local function pinned_dir()
+    return groups_dir() .. "\\Pinned Tabs"
+end
+
+local function pin_dir()
+    return state_dir() .. "\\pins"
+end
+
+local function hex(value)
+    return tostring(value or ""):gsub(".", function(c) return string.format("%02x", c:byte()) end)
+end
+
+local function unhex(value)
+    if type(value) ~= "string" or #value % 2 ~= 0 or value:find("[^%da-fA-F]") then return nil end
+    return (value:gsub("..", function(pair) return string.char(tonumber(pair, 16)) end))
+end
+
+local function safe_name(value)
+    value = tostring(value or ""):gsub("^%s+", ""):gsub("%s+$", "")
+    if #value == 0 or #value > 80 or value == "." or value == ".." or value:lower() == "pinned tabs" then return nil end
+    if value:find('[<>:"/\\|%?%*%c]') or value:find("[%. ]$") then return nil end
+    local basename = value:upper():match("^([^.]+)")
+    if basename == "CON" or basename == "PRN" or basename == "AUX" or basename == "NUL"
+        or (basename and basename:match("^COM[1-9]$"))
+        or (basename and basename:match("^LPT[1-9]$")) then return nil end
+    return value
+end
+
+local function marker_name(path)
+    local normalized = tostring(path or ""):gsub("/", "\\")
+    local parent, name = normalized:match("^(.*)\\([^\\]+)$")
+    if not parent or parent:lower() ~= groups_dir():lower() then return nil end
+    return safe_name(name)
+end
+
+local function pin_marker_id(path)
+    local normalized = tostring(path or ""):gsub("/", "\\")
+    local parent = normalized:match("^(.*)\\[^\\]+$")
+    if not parent or parent:lower() ~= pinned_dir():lower() then return nil end
+    return normalized
+end
+
+local function marker_path(name)
+    return groups_dir() .. "\\" .. name
+end
+
+local function group_file(name)
+    return marker_path(name) .. "\\.wgdot-tabs"
+end
+
+local function notify(message, level)
+    ya.notify { title = "Yazi Tab Groups", content = message, timeout = 4, level = level or "info" }
+end
+
+local function ensure_dir(path)
+    return fs.create("dir_all", Url(path))
+end
+
+-- Write staged data on the same volume; retain the old file until the stage
+-- is complete. A failure to replace rolls back the old file if possible.
+local function replace_file(path, data)
+    local stage = path .. ".new-" .. tostring(os.time()) .. "-" .. tostring(math.random(100000, 999999))
+    local backup = stage .. ".old"
+    local ok, err = fs.write(Url(stage), data)
+    if not ok then return false, err end
+    local had_old = fs.cha(Url(path), false) ~= nil
+    if had_old then
+        ok, err = fs.rename(Url(path), Url(backup))
+        if not ok then
+            fs.remove("file", Url(stage))
+            return false, err
+        end
+    end
+    ok, err = fs.rename(Url(stage), Url(path))
+    if not ok then
+        if had_old then
+            local restored = fs.rename(Url(backup), Url(path))
+            if not restored then
+                return false, "Replacement failed, old data retained at " .. backup .. ": " .. tostring(err)
+            end
+        end
+        fs.remove("file", Url(stage))
+        return false, err
+    end
+    if had_old then fs.remove("file", Url(backup)) end
+    return true
+end
+
+local function read_text(path)
+    local f = io.open(path, "rb")
+    if not f then return nil end
+    local data = f:read("*a")
+    f:close()
+    return data
+end
+
+local function encode_tabs(tabs, active)
+    local out = { "WGDTABS1\t" .. tostring(active or 1) }
+    for _, tab in ipairs(tabs) do
+        out[#out + 1] = hex(tab.cwd) .. "\t" .. hex(tab.name or "")
+    end
+    return table.concat(out, "\n") .. "\n"
+end
+
+local function decode_tabs(data)
+    if type(data) ~= "string" then return nil, "No saved group data" end
+    local lines = {}
+    for line in data:gmatch("[^\r\n]+") do lines[#lines + 1] = line end
+    local active = tonumber((lines[1] or ""):match("^WGDTABS1\t(%d+)$"))
+    if not active or #lines < 2 or #lines > MAX_TABS + 1 then return nil, "Invalid group header or tab count" end
+    local tabs = {}
+    for index = 2, #lines do
+        local a, b = lines[index]:match("^([%da-fA-F]+)\t([%da-fA-F]*)$")
+        local cwd, name = a and unhex(a), b and unhex(b)
+        if not cwd or cwd == "" or not name then return nil, "Invalid saved tab path or name" end
+        tabs[#tabs + 1] = { cwd = cwd, name = name }
+    end
+    if active < 1 or active > #tabs then return nil, "Invalid active tab" end
+    return { tabs = tabs, active = active }
+end
+
+-- One file per pin prevents separate Yazi windows from overwriting other
+-- pins while changing a single entry. Pin IDs are stable across sessions.
+local function read_pins()
+    local pins, seen = {}, {}
+    local files = fs.read_dir(Url(pin_dir()), { resolve = true })
+    if not files then return pins end
+    for _, file in ipairs(files) do
+        if not file.cha.is_dir then
+            local id = tostring(file.url.name or ""):match("^([%w%-]+)%.pin$")
+            if id and not seen[id] then
+                local data = read_text(tostring(file.url))
+                -- Lua logical operators collapse multi-return functions to
+                -- one value. Keep both captures; the second is the tab name.
+                local a, b
+                if data then a, b = data:match("^([%da-fA-F]+)\t([%da-fA-F]*)%s*$") end
+                local cwd, name = a and unhex(a), b and unhex(b)
+                if cwd and cwd ~= "" and name then
+                    pins[#pins + 1] = { id = id, cwd = cwd, name = name }
+                    seen[id] = true
+                end
+            end
+        end
+    end
+    table.sort(pins, function(a, b) return a.id < b.id end)
+    return pins
+end
+
+local function merge_pin(pin, remove)
+    local ok, err = ensure_dir(pin_dir())
+    if not ok then return false, err end
+    local path = pin_dir() .. "\\" .. pin.id .. ".pin"
+    if remove then
+        if not fs.cha(Url(path), false) then return true end
+        return fs.remove("file", Url(path))
+    end
+    return replace_file(path, hex(pin.cwd) .. "\t" .. hex(pin.name or "") .. "\n")
+end
+
+local function tab_data(tab)
+    return { cwd = tostring(tab.current.cwd), name = tostring(tab.pref and tab.pref.name or "") }
+end
+
+local initialize = ya.sync(function(st)
+    st.live = st.live or {}
+    st.restoring = false
+end)
+
+local snapshot_group = ya.sync(function(st)
+    local tabs, active = {}, 1
+    for i, tab in ipairs(cx.tabs) do
+        if not st.live[tostring(tab.id.value)] then
+            tabs[#tabs + 1] = tab_data(tab)
+            if i == cx.tabs.idx then active = #tabs end
+        end
+    end
+    return { tabs = tabs, active = active }
+end)
+
+local function pin_ids(st)
+    local ids = {}
+    for tabid in pairs(st.live) do ids[tabid] = true end
+    return ids
+end
+
+local publish_pins = ya.sync(function(st)
+    ps.pub(PIN_EVENT, pin_ids(st))
+    ui.render()
+end)
+
+local toggle_pin = ya.sync(function(st, requested_id)
+    -- A right-click passes the stable ID of the tab underneath the pointer.
+    -- Keyboard t p passes no ID and still targets the currently focused tab.
+    -- Resolve on execution, since tab indices can shift between input and
+    -- plugin dispatch when tabs are dragged or reordered.
+    local tab
+    if requested_id and requested_id ~= "" then
+        for _, candidate in ipairs(cx.tabs) do
+            if tostring(candidate.id.value) == tostring(requested_id) then
+                tab = candidate
+                break
+            end
+        end
+    else
+        tab = cx.active
+    end
+    if not tab then return nil end
+    local tabid = tostring(tab.id.value)
+    local id = st.live[tabid]
+    if id then
+        st.live[tabid] = nil
+        return { remove = true, pin = { id = id }, tab_id = tabid }
+    end
+    st.serial = (st.serial or 0) + 1
+    local pin = tab_data(tab)
+    pin.id = tostring(os.time()) .. "-" .. tostring(math.random(100000, 999999)) .. "-" .. tostring(st.serial)
+    st.live[tabid] = pin.id
+    return { remove = false, pin = pin, tab_id = tabid }
+end)
+
+local function capture_pinned_tab(st, tab)
+    local id = st.live[tostring(tab.id.value)]
+    if not id then return nil end
+    local result = tab_data(tab)
+    result.id = id
+    return result
+end
+
+local capture_active_pin = ya.sync(function(st)
+    if st.restoring then return nil end
+    return capture_pinned_tab(st, cx.active)
+end)
+
+local capture_all_pins = ya.sync(function(st)
+    local changed = {}
+    for _, tab in ipairs(cx.tabs) do
+        local pin = capture_pinned_tab(st, tab)
+        if pin then changed[#changed + 1] = pin end
+    end
+    return changed
+end)
+
+local fresh_session = ya.sync(function()
+    return cx and #cx.tabs == 1
+end)
+
+local initial_session_tab = ya.sync(function()
+    return tab_data(cx.active)
+end)
+
+local current_tab_name = ya.sync(function()
+    return tostring(cx.active.pref and cx.active.pref.name or "")
+end)
+
+local restore_failed_pin_toggle = ya.sync(function(st, changed)
+    -- Roll back the same tab that was targeted before the disk failure,
+    -- regardless of focus or index changes during the async write.
+    if changed and changed.tab_id then
+        st.live[changed.tab_id] = changed.remove and changed.pin.id or nil
+    end
+end)
+
+local rename_active_tab = ya.sync(function(st, name)
+    local tab = cx.active
+    local id = st.live[tostring(tab.id.value)]
+    ya.emit("tab_rename", { name })
+    if not id then return nil end
+    return { id = id, cwd = tostring(tab.current.cwd), name = name }
+end)
+
+local function valid_tabs(tabs)
+    if #tabs == 0 or #tabs > MAX_TABS then return false, "Group exceeds the 9-tab limit or is empty" end
+    for _, tab in ipairs(tabs) do
+        local info = fs.cha(Url(tab.cwd), true)
+        if not info or not info.is_dir then return false, "Missing directory: " .. tab.cwd end
+    end
+    return true
+end
+
+-- Native tab commands are queued. Restore one tab at a time and verify each
+-- transition before issuing another command. The original browsing tab must
+-- be closed, not left behind as an extra empty tab.
+local prepare_rebuild = ya.sync(function(st, project, pins)
+    if st.restoring then return nil end
+    local entries = {}
+    for _, tab in ipairs(project.tabs) do
+        entries[#entries + 1] = { cwd = tab.cwd, name = tab.name }
+    end
+    for _, pin in ipairs(pins) do
+        local found = false
+        for _, entry in ipairs(entries) do
+            if entry.cwd:lower() == pin.cwd:lower() and entry.name == pin.name then
+                entry.pin_id = pin.id
+                found = true
+                break
+            end
+        end
+        if not found and #entries < MAX_TABS then
+            entries[#entries + 1] = { cwd = pin.cwd, name = pin.name, pin_id = pin.id }
+        end
+    end
+    if #entries == 0 then return nil end
+    st.restoring = true
+    return entries
+end)
+
+local inspect_tabs = ya.sync(function()
+    local result = { active = cx.tabs.idx, tabs = {} }
+    for _, tab in ipairs(cx.tabs) do
+        result.tabs[#result.tabs + 1] = {
+            id = tostring(tab.id.value),
+            cwd = tostring(tab.current.cwd):gsub("\\", "/"):lower(),
+            name = tostring(tab.pref and tab.pref.name or ""),
+        }
+    end
+    return result
+end)
+
+local function settled(check)
+    for _ = 1, 60 do
+        if check(inspect_tabs()) then return true end
+        ya.sleep(0.05)  -- Yazi uses seconds, not milliseconds.
+    end
+    return false
+end
+
+local finish_rebuild = ya.sync(function(st, entries)
+    if #cx.tabs ~= #entries then return false end
+    for index, entry in ipairs(entries) do
+        local tab = cx.tabs[index]
+        if not tab or tostring(tab.current.cwd):gsub("\\", "/"):lower() ~=
+            entry.cwd:gsub("\\", "/"):lower() then return false end
+        if tostring(tab.pref and tab.pref.name or "") ~= entry.name then return false end
+    end
+    st.live = {}
+    for index, entry in ipairs(entries) do
+        if entry.pin_id then st.live[tostring(cx.tabs[index].id.value)] = entry.pin_id end
+    end
+    st.restoring = false
+    ps.pub(PIN_EVENT, pin_ids(st))
+    ui.render()
+    return true
+end)
+
+local cancel_restore_state = ya.sync(function(st)
+    st.restoring = false
+end)
+
+local function rebuild_and_wait(project, pins)
+    local entries = prepare_rebuild(project, pins)
+    if not entries then return false end
+
+    local function fail()
+        cancel_restore_state()
+        return false
+    end
+
+    -- Reduce the old session to one placeholder. A close is not a promise:
+    -- verify the count before sending the next close.
+    local before = inspect_tabs()
+    while #before.tabs > 1 do
+        ya.emit("tab_close", { 0 })
+        if not settled(function(now) return #now.tabs == #before.tabs - 1 end) then return fail() end
+        before = inspect_tabs()
+    end
+    local original_id = before.tabs[1] and before.tabs[1].id
+    if not original_id then return fail() end
+
+    for index, entry in ipairs(entries) do
+        local previous = inspect_tabs()
+        local prev_count = #previous.tabs
+        if prev_count >= MAX_TABS then return fail() end
+        ya.emit("tab_create", { entry.cwd, raw = true })
+        local normalized = entry.cwd:gsub("\\", "/"):lower()
+        if not settled(function(now)
+            local tab = now.tabs[now.active]
+            return #now.tabs == prev_count + 1 and tab and
+                tab.id ~= previous.tabs[previous.active].id and tab.cwd == normalized
+        end) then return fail() end
+        if entry.name ~= "" then
+            ya.emit("tab_rename", { entry.name })
+            if not settled(function(now)
+                local tab = now.tabs[now.active]
+                return tab and tab.cwd == normalized and tab.name == entry.name
+            end) then return fail() end
+        end
+        if index == 1 then
+            -- The placeholder now precedes the first restored tab.
+            local snapshot = inspect_tabs()
+            local old_index = nil
+            for i, tab in ipairs(snapshot.tabs) do
+                if tab.id == original_id then old_index = i - 1; break end
+            end
+            if old_index == nil then return fail() end
+            ya.emit("tab_close", { old_index })
+            if not settled(function(now)
+                if #now.tabs ~= 1 then return false end
+                return now.tabs[1].id ~= original_id and now.tabs[1].cwd == normalized
+            end) then return fail() end
+        end
+    end
+
+    local selected = #project.tabs > 0 and math.min(project.active, #project.tabs) or 1
+    ya.emit("tab_switch", { selected - 1 })
+    if not settled(function(now)
+        return now.active == selected and #now.tabs == #entries
+    end) then return fail() end
+    return finish_rebuild(entries)
+end
+
+local find_live_pin_tab = ya.sync(function(st, wanted_id)
+    for index, tab in ipairs(cx.tabs) do
+        if tostring(tab.id.value) == wanted_id then
+            local pin_id = st.live[wanted_id]
+            if not pin_id then return nil end
+            return { index = index, pin_id = pin_id }
+        end
+    end
+    return nil
+end)
+
+local clear_live_pin = ya.sync(function(st, id)
+    for tabid, linked in pairs(st.live) do
+        if linked == id then st.live[tabid] = nil end
+    end
+    ps.pub(PIN_EVENT, pin_ids(st))
+    ui.render()
+end)
+
+local activate_pin = ya.sync(function(st, pin)
+    for index, tab in ipairs(cx.tabs) do
+        if st.live[tostring(tab.id.value)] == pin.id then
+            ya.emit("tab_switch", { index - 1 })
+            return "existing"
+        end
+    end
+    if #cx.tabs >= MAX_TABS then return "full" end
+    ya.emit("tab_create", { pin.cwd, raw = true })
+    if pin.name ~= "" then ya.emit("tab_rename", { pin.name }) end
+    return "queued"
+end)
+
+local finish_pin_activation = ya.sync(function(st, pin)
+    for _, tab in ipairs(cx.tabs) do
+        local tabid = tostring(tab.id.value)
+        if not st.live[tabid] and tostring(tab.current.cwd):gsub("\\", "/"):lower() ==
+            pin.cwd:gsub("\\", "/"):lower() and
+            tostring(tab.pref and tab.pref.name or "") == pin.name then
+            st.live[tabid] = pin.id
+            ps.pub(PIN_EVENT, pin_ids(st))
+            ui.render()
+            return true
+        end
+    end
+    return false
+end)
+
+-- Startup pin restore must never rebuild or close the user's opening tab.
+-- Associate already-matching tabs first; create only the missing pins.
+-- Kept separate from named group restoration, which intentionally replaces tabs.
+-- The caller already verified the newly created tab's path and name
+-- through inspect_tabs(). Attach by its stable native ID, not by a second
+-- path/name snapshot: Yazi can update cwd/display names asynchronously
+-- between those two independent sync calls.
+local attach_pin_to_tab = ya.sync(function(st, pin, wanted_id)
+    local key = tostring(wanted_id or "")
+    if key == "" then return false, "Missing native tab ID" end
+    local linked = st.live[key]
+    if linked then
+        if linked == pin.id then
+            ps.pub(PIN_EVENT, pin_ids(st))
+            ui.render()
+            return true
+        end
+        return false, "Tab " .. key .. " already belongs to another saved pin"
+    end
+    for _, tab in ipairs(cx.tabs) do
+        if tostring(tab.id.value) == key then
+            st.live[key] = pin.id
+            ps.pub(PIN_EVENT, pin_ids(st))
+            ui.render()
+            return true
+        end
+    end
+    return false, "Tab " .. key .. " disappeared before pin identity was attached"
+end)
+
+local pin_ids_current = ya.sync(function(st)
+    return pin_ids(st)
+end)
+
+local function restore_startup_pins(pins)
+    local current = inspect_tabs()
+    if #current.tabs ~= 1 then return true end
+
+    local function find_matching_unpinned(pin)
+        local now = inspect_tabs()
+        local linked = pin_ids_current()
+        for _, tab in ipairs(now.tabs) do
+            if not linked[tab.id] and tab.cwd == pin.cwd:gsub("\\", "/"):lower()
+                and tab.name == pin.name then
+                return tab.id
+            end
+        end
+        return nil
+    end
+
+    for _, pin in ipairs(pins) do
+        local existing = find_matching_unpinned(pin)
+        if existing then
+            local attached, reason = attach_pin_to_tab(pin, existing)
+            if not attached then
+                return false, "Could not attach existing tab for " .. pin.cwd .. ": " .. tostring(reason)
+            end
+        else
+            local before = inspect_tabs()
+            if #before.tabs >= MAX_TABS then break end
+
+            ya.emit("tab_create", { pin.cwd, raw = true })
+            local new_id
+            local path = pin.cwd:gsub("\\", "/"):lower()
+            if not settled(function(now)
+                if #now.tabs ~= #before.tabs + 1 then return false end
+                local active = now.tabs[now.active]
+                if not active or active.cwd ~= path then return false end
+                local was_present = false
+                for _, old in ipairs(before.tabs) do
+                    if old.id == active.id then was_present = true; break end
+                end
+                if was_present then return false end
+                new_id = active.id
+                return true
+            end) then
+                return false, "Native tab creation did not settle for " .. pin.cwd
+            end
+
+            if pin.name ~= "" then
+                ya.emit("tab_rename", { pin.name })
+                if not settled(function(now)
+                    local active = now.tabs[now.active]
+                    return active and active.id == new_id and active.name == pin.name
+                end) then
+                    return false, "Native tab name did not settle for " .. pin.cwd
+                end
+            end
+
+            local attached, reason = attach_pin_to_tab(pin, new_id)
+            if not attached then
+                return false, "Created tab for " .. pin.cwd .. " but pin attachment failed: " .. tostring(reason)
+            end
+        end
+    end
+    return true
+end
+
+local function materialize_pins()
+    local root = pinned_dir()
+    local ok, err = ensure_dir(root)
+    if not ok then return false, err end
+    local files, read_err = fs.read_dir(Url(root), { resolve = true })
+    if not files then return false, read_err end
+    for _, file in ipairs(files) do
+        -- Only remove generated markers, never unrelated files a user may
+        -- have placed in the browsable collection.
+        if not file.cha.is_dir and
+            tostring(file.url.name or ""):match("^%d%d%d%d%-%-") then
+            ok, err = fs.remove("file", file.url)
+            if not ok then return false, err end
+        end
+    end
+    for index, pin in ipairs(read_pins()) do
+        local title = (pin.name ~= "" and pin.name or pin.cwd):gsub("[<>:\"/\\|%?%*%c]", "_")
+        title = title:gsub("[%. ]+$", ""):sub(1, 65)
+        local filename = string.format("%04d--%s", index, title ~= "" and title or "Pinned")
+        ok, err = fs.write(Url(root .. "\\" .. filename), pin.id)
+        if not ok then return false, err end
+    end
+    return true
+end
+
+local function pin_from_marker(path)
+    local marker = pin_marker_id(path)
+    if not marker then return nil end
+    local id = read_text(marker)
+    if not id or not id:match("^[%w%-]+$") then return nil end
+    for _, pin in ipairs(read_pins()) do
+        if pin.id == id then return pin end
+    end
+    return nil
+end
+
+local function require_group_marker(value)
+    local name = marker_name(value)
+    if not name then notify("Invalid saved group target", "warn") end
+    return name
+end
+
+function M:setup()
+    initialize()
+    -- Yazi emits cd for native navigation; refresh only the active pinned tab.
+    -- The pinned state itself survives ordinary tab closes and group changes.
+    ps.sub("cd", function()
+        local pin = capture_active_pin()
+        if pin then
+            ya.async(function()
+                local ok, err = merge_pin(pin, false)
+                if not ok then notify("Could not update pin: " .. tostring(err), "error") end
+            end)
+        end
+    end)
+end
+
+function M:entry(job)
+    local command = job.args[1]
+
+    if command == "open-pins" then
+        local ok, err = materialize_pins()
+        if not ok then return notify("Could not display pinned tabs: " .. tostring(err), "error") end
+        ya.emit("cd", { Url(pinned_dir()), raw = true })
+        return
+    end
+
+    if command == "activate-pin" then
+        local pin = pin_from_marker(decode_arg(job.args[2]))
+        if not pin then return notify("Pinned tab marker is invalid", "warn") end
+        local info = fs.cha(Url(pin.cwd), true)
+        if not info or not info.is_dir then return notify("Pinned directory no longer exists", "warn") end
+        local result = activate_pin(pin)
+        if result == "full" then return notify("Nine tabs are already open; close one to activate this pin.", "warn") end
+        if result == "queued" then
+            local applied = false
+            for _ = 1, 60 do
+                ya.sleep(0.05)
+                if finish_pin_activation(pin) then applied = true; break end
+            end
+            if not applied then return notify("Pin was opened but its identity could not be confirmed.", "error") end
+        end
+        return
+    end
+
+    if command == "unpin-and-close" then
+        local tab = find_live_pin_tab(tostring(decode_arg(job.args[2]) or ""))
+        if not tab then return notify("Pinned tab has changed; close cancelled.", "warn") end
+        local ok, err = merge_pin({ id = tab.pin_id }, true)
+        if not ok then return notify("Could not unpin; tab left open: " .. tostring(err), "error") end
+        clear_live_pin(tab.pin_id)
+        ya.emit("tab_close", { tab.index - 1 })
+        return
+    end
+
+    if command == "unpin-markers" then
+        for i = 2, #job.args do
+            local pin = pin_from_marker(decode_arg(job.args[i]))
+            if pin then
+                local ok, err = merge_pin(pin, true)
+                if not ok then return notify("Could not unpin: " .. tostring(err), "error") end
+                clear_live_pin(pin.id)
+            end
+        end
+        local ok, err = materialize_pins()
+        if not ok then return notify("Pins saved but list refresh failed: " .. tostring(err), "warn") end
+        ya.emit("refresh", {})
+        return notify("Selected tab pin(s) removed")
+    end
+
+    if command == "open" then
+        local ok, err = ensure_dir(groups_dir())
+        if not ok then return notify("Cannot create groups directory: " .. tostring(err), "error") end
+        ok, err = ensure_dir(pinned_dir())
+        if not ok then return notify("Cannot create pinned-tabs folder: " .. tostring(err), "error") end
+        ya.emit("cd", { Url(groups_dir()), raw = true })
+        return
+    end
+
+    if command == "save" then
+        local project = snapshot_group()
+        if #project.tabs == 0 then return notify("All tabs are pinned. No unpinned tabs to save.", "warn") end
+        local name, event = ya.input { pos = { "center", w = 48 }, title = "Save Tab Group as:" }
+        if event ~= 1 then return end
+        name = safe_name(name)
+        if not name then return notify("Use a valid folder name (maximum 80 characters).", "warn") end
+        local path = group_file(name)
+        local existing_dir = fs.cha(Url(marker_path(name)), false)
+        local existing_state = fs.cha(Url(path), false)
+        -- A directory without the exact managed state file is not a group.
+        -- Never adopt or alter an arbitrary folder merely because its name
+        -- matches the requested saved-group name.
+        if existing_dir and not existing_state then
+            return notify("A folder already exists with this name; it is not a saved group.", "warn")
+        end
+        if existing_state and not decode_tabs(read_text(path)) then
+            return notify("Existing group data is invalid. Refusing to overwrite it.", "warn")
+        end
+        if existing_state then
+            local yes = ya.confirm {
+                pos = { "center", w = 46, h = 7 },
+                title = "Replace Tab Group?",
+                body = ui.Text("Overwrite saved group '" .. name .. "'?"),
+            }
+            if not yes then return end
+        end
+        local ok, err = ensure_dir(marker_path(name))
+        if not ok then return notify("Cannot create group: " .. tostring(err), "error") end
+        ok, err = replace_file(path, encode_tabs(project.tabs, project.active))
+        if not ok then return notify("Save failed: " .. tostring(err), "error") end
+        notify("Saved: " .. name)
+        ya.emit("refresh", {})
+        return
+    end
+
+    if command == "load" then
+        local name = require_group_marker(decode_arg(job.args[2]))
+        if not name then return end
+        local project, err = decode_tabs(read_text(group_file(name)))
+        if not project then return notify(err, "error") end
+        local ok
+        ok, err = valid_tabs(project.tabs)
+        if not ok then return notify(err, "warn") end
+        local updated = capture_all_pins()
+        for _, pin in ipairs(updated) do
+            ok, err = merge_pin(pin, false)
+            if not ok then return notify("Cannot preserve pinned tab before load: " .. tostring(err), "error") end
+        end
+        local pins = read_pins()
+        -- Stale pin destinations remain in saved state; skip them for this load.
+        local valid_pins = {}
+        for _, pin in ipairs(pins) do
+            local info = fs.cha(Url(pin.cwd), true)
+            if info and info.is_dir then valid_pins[#valid_pins + 1] = pin end
+        end
+        if not rebuild_and_wait(project, valid_pins) then return notify("Unable to verify restored group tabs", "error") end
+        notify("Loaded: " .. name)
+        return
+    end
+
+    if command == "rename-group" then
+        local old = require_group_marker(decode_arg(job.args[2]))
+        if not old then return end
+        local value, event = ya.input { pos = { "center", w = 48 }, title = "Rename Tab Group:", value = old }
+        if event ~= 1 then return end
+        local name = safe_name(value)
+        if not name then return notify("Invalid group name", "warn") end
+        if name == old then return end
+        if fs.cha(Url(marker_path(name)), false) then return notify("That group already exists", "warn") end
+        local ok, err = fs.rename(Url(marker_path(old)), Url(marker_path(name)))
+        if not ok then return notify("Rename failed: " .. tostring(err), "error") end
+        ya.emit("refresh", {})
+        return notify("Renamed to: " .. name)
+    end
+
+    if command == "delete-groups" then
+        for i = 2, #job.args do
+            local name = marker_name(decode_arg(job.args[i]))
+            if name then
+                -- Only remove directories that contain a valid saved group.
+                local project = decode_tabs(read_text(group_file(name)))
+                if not project then return notify("Invalid group entry: " .. name, "warn") end
+                -- Never recursively delete a browsable collection directory:
+                -- it might also contain real files the user placed there.
+                local ok, err = fs.remove("file", Url(group_file(name)))
+                if not ok then return notify("Delete failed: " .. tostring(err), "error") end
+                ok, err = fs.remove("dir", Url(marker_path(name)))
+                if not ok then
+                    notify("Group removed, but the directory contains other files and was preserved: " .. name, "warn")
+                end
+            end
+        end
+        ya.emit("refresh", {})
+        return notify("Removed saved group configuration(s)")
+    end
+
+    if command == "pin" then
+        local changed = toggle_pin(decode_arg(job.args[2]))
+        if not changed then return notify("Clicked tab is no longer available.", "warn") end
+        local ok, err = merge_pin(changed.pin, changed.remove)
+        if not ok then
+            -- Revert the same tab's in-memory state, not the currently
+            -- focused tab, even if mouse focus changed during the write.
+            restore_failed_pin_toggle(changed)
+            return notify("Could not persist pin: " .. tostring(err), "error")
+        end
+        publish_pins()
+        return notify(changed.remove and "Tab unpinned" or "Tab pinned")
+    end
+
+    if command == "rename-tab" then
+        local current = current_tab_name()
+        local value, event = ya.input { pos = { "top-center", y = 2, w = 50 }, title = "Rename tab:", value = current }
+        if event ~= 1 then return end
+        local pin = rename_active_tab(value)
+        if pin then
+            local ok, err = merge_pin(pin, false)
+            if not ok then notify("Tab renamed, but pin update failed: " .. tostring(err), "error") end
+        end
+        return
+    end
+
+    if command == "restore" then
+        local pins = read_pins()
+        local valid = {}
+        for _, pin in ipairs(pins) do
+            local info = fs.cha(Url(pin.cwd), true)
+            if info and info.is_dir then valid[#valid + 1] = pin end
+        end
+        if #valid == 0 then return end
+        if fresh_session() then
+            local ok, reason = restore_startup_pins(valid)
+            if not ok then
+                -- Saved pin files were not modified; all missing tabs can be
+                -- restored at the next launch or from the Pinned Tabs view.
+                notify("Saved pins retained; startup restore incomplete: " .. tostring(reason), "warn")
+            end
+        end
+        return
+    end
+end
+
+return M
