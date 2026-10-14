@@ -319,5 +319,33 @@ for path in pairs(FS_FILES) do
 end
 assert_eq(pin_records, 3, "Suspended pin state survived tab capacity pressure")
 
+-- Unpin-and-close must persist removal before closing the specific tab.
+local visible_pin_id
+for tabid in pairs(published["@wgdot-yazi-pins"] or {}) do
+    visible_pin_id = tabid
+end
+assert_true(visible_pin_id ~= nil, "Visible pin has a stable tab ID")
+module:entry { args = { "unpin-and-close", visible_pin_id } }
+drain()
+assert_eq(#cx.tabs, 8, "Pinned tab closes only after unpin succeeds")
+local retained_pins = 0
+for path in pairs(FS_FILES) do
+    if parent(path) == PIN_DIR and path:match("%.pin$") then retained_pins = retained_pins + 1 end
+end
+assert_eq(retained_pins, 2, "Only targeted pin was removed")
+
+-- A fresh Yazi window starts in its requested directory while restoring
+-- the remaining saved pins in available slots.
+set_tabs({ { [[C:\Downloads]], "" } })
+module:entry { args = { "restore" } }
+drain()
+assert_eq(#cx.tabs, 3, "Fresh session retains launch tab and both saved pins")
+assert_eq(tostring(cx.tabs[1].current.cwd), [[C:\Downloads]], "Launch directory preserved")
+local restored_pin_count = 0
+for _, is_pin in pairs(published["@wgdot-yazi-pins"] or {}) do
+    if is_pin then restored_pin_count = restored_pin_count + 1 end
+end
+assert_eq(restored_pin_count, 2, "Fresh session reattaches saved pin identities")
+
 io.open = native_open
 print("Yazi tab-workspaces behavioral smoke test passed")
