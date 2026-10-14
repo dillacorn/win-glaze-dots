@@ -744,10 +744,10 @@ end
 local function WgdotYaziTabLabel(index, max_width)
     local tab = cx.tabs[index]
     local prefix = string.format(" %d ", index)
-    -- Always reserve the right-hand pin symbol before truncating names.
-    -- A standard Unicode emoji also works in Windows Terminal without a
-    -- particular Nerd Font glyph being present.
-    local suffix = WgdotYaziPinnedTabIds[tostring(tab.id.value)] and " 📌 " or " "
+    -- Use a monochrome Nerd Font pin, not a color emoji. The entire label
+    -- shares the normal active/inactive tab text style.
+    -- Reserve the pin's width before truncating the name.
+    local suffix = WgdotYaziPinnedTabIds[tostring(tab.id.value)] and " 󰐃 " or " "
     if not max_width then return prefix .. tab.name .. suffix end
 
     local available = max_width - ui.width(prefix) - ui.width(suffix)
@@ -814,8 +814,13 @@ function Tabs:click(event, up)
             return
         end
         WgdotYaziFinishTabDrag()
-        -- Right-click pins the clicked tab, without changing active tab.
-        ya.emit("plugin", { "tab-workspaces", "pin", tostring(index) })
+        -- Capture the hovered tab's stable native identity *before*
+        -- dispatching the async plugin; its index/focus may change later.
+        -- Do not switch focus just to pin an inactive tab.
+        local tab = cx.tabs[index]
+        if tab then
+            ya.emit("plugin", { "tab-workspaces", "pin", tostring(tab.id.value) })
+        end
         return
     elseif not event.is_left then
         return
