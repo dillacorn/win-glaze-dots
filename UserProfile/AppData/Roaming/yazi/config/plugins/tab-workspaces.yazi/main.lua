@@ -526,7 +526,7 @@ function M:entry(job)
         if result == "queued" then
             local applied = false
             for _ = 1, 60 do
-                ya.sleep(50)
+                ya.sleep(0.05)
                 if finish_pin_activation(pin) then applied = true; break end
             end
             if not applied then return notify("Pin was opened but its identity could not be confirmed.", "error") end
@@ -680,7 +680,7 @@ function M:entry(job)
 
     if command == "rename-tab" then
         local current = current_tab_name()
-        local value, event = ya.input { pos = { "center", w = 48 }, title = "Rename Tab (empty = automatic):", value = current }
+        local value, event = ya.input { pos = { "top-center", y = 2, w = 50 }, title = "Rename tab:", value = current }
         if event ~= 1 then return end
         local pin = rename_active_tab(value)
         if pin then
