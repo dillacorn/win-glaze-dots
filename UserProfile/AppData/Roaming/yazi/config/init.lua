@@ -3,6 +3,7 @@
 
 require("recent-files"):setup()
 require("bookmarks"):setup()
+require("tab-workspaces"):setup()
 require("git"):setup { order = 1500 }
 
 local function WgdotYaziNormalizeFsPath(value)
@@ -18,12 +19,14 @@ end
 local WgdotYaziCollectionRoots = {
     bookmarks = WgdotYaziNormalizeFsPath(WgdotYaziStateDir() .. "\\collections\\Bookmarks"),
     recents = WgdotYaziNormalizeFsPath(WgdotYaziStateDir() .. "\\collections\\Recently Opened"),
+    groups = WgdotYaziNormalizeFsPath(WgdotYaziStateDir() .. "\\collections\\Tab Groups"),
 }
 
 local function WgdotYaziCollectionKind(value)
     local path = WgdotYaziNormalizeFsPath(value)
     if path == WgdotYaziCollectionRoots.bookmarks then return "bookmarks" end
     if path == WgdotYaziCollectionRoots.recents then return "recents" end
+    if path == WgdotYaziCollectionRoots.groups then return "groups" end
     return nil
 end
 
@@ -56,14 +59,15 @@ local function WgdotYaziCollectionReturnState()
 end
 
 local function WgdotYaziOpenCollection(kind)
-    local plugin = kind == "bookmarks" and "bookmarks" or "recent-files"
+    local plugin = kind == "bookmarks" and "bookmarks"
+        or (kind == "groups" and "tab-workspaces" or "recent-files")
     local state = WgdotYaziCollectionReturnState()
 
     if WgdotYaziCollectionCwd() ~= kind then
         state[kind] = tostring(cx.active.current.cwd)
     end
 
-    ya.emit("plugin", { plugin })
+    ya.emit("plugin", kind == "groups" and { plugin, "open" } or { plugin })
 end
 
 local function WgdotYaziToggleCollection(kind)
@@ -97,6 +101,26 @@ end
 
 function WgdotYaziToggleRecents()
     WgdotYaziToggleCollection("recents")
+end
+
+function WgdotYaziGoTabGroups()
+    WgdotYaziOpenCollection("groups")
+end
+
+function WgdotYaziToggleTabGroups()
+    WgdotYaziToggleCollection("groups")
+end
+
+function WgdotYaziSaveTabGroup()
+    ya.emit("plugin", { "tab-workspaces", "save" })
+end
+
+function WgdotYaziToggleTabPin()
+    ya.emit("plugin", { "tab-workspaces", "pin" })
+end
+
+function WgdotYaziRenameTab()
+    ya.emit("plugin", { "tab-workspaces", "rename-tab" })
 end
 
 -- Quick Mark is deliberately session-local, unlike bookmarks and saved groups.
@@ -206,6 +230,13 @@ local function WgdotYaziNavigateCollection(file, new_tab)
     local kind = WgdotYaziCollectionCwd()
     if not kind or not file or not WgdotYaziIsCollectionItemUrl(file.url) then return false end
 
+    if kind == "groups" then
+        ya.emit("plugin", {
+            "tab-workspaces",
+            WgdotYaziPluginArgs("load", { tostring(file.url) }),
+        })
+        return true
+    end
     local plugin = kind == "bookmarks" and "bookmarks" or "recent-files"
     ya.emit("plugin", {
         plugin,
@@ -236,15 +267,18 @@ local function WgdotYaziDeleteCollectionSelection()
     local kind, markers = WgdotYaziCollectionSelection()
     if not kind or #markers == 0 then return false end
 
-    local plugin = kind == "bookmarks" and "bookmarks" or "recent-files"
+    local plugin = kind == "bookmarks" and "bookmarks"
+        or (kind == "groups" and "tab-workspaces" or "recent-files")
     ya.emit("plugin", {
         plugin,
-        WgdotYaziPluginArgs("delete", markers),
+        WgdotYaziPluginArgs(kind == "groups" and "delete-groups" or "delete", markers),
     })
     return true
 end
 
 local function WgdotYaziOpenFiles(interactive, hovered_only)
+    if WgdotYaziCollectionCwd() == "groups" and
+        WgdotYaziNavigateCollection(cx.active.current.hovered, false) then return end
     local tab = cx.active
     local recent = {}
 
@@ -559,6 +593,17 @@ end
 function WgdotYaziRename(hovered_only)
     local current = cx.active and cx.active.current
     if not current or not current.hovered then return end
+    if WgdotYaziCollectionCwd() == "groups" then
+        if #cx.active.selected > 1 then
+            ya.notify { title = "Tab Groups", content = "Rename one group at a time.", level = "warn", timeout = 3 }
+        elseif WgdotYaziIsCollectionItemUrl(current.hovered.url) then
+            ya.emit("plugin", {
+                "tab-workspaces",
+                WgdotYaziPluginArgs("rename-group", { tostring(current.hovered.url) }),
+            })
+        end
+        return
+    end
 
     -- Native rename launches the separate bulk-editor workflow when there is
     -- a selection, so never interfere with that workflow's terminal state.
@@ -598,6 +643,43 @@ local function WgdotYaziFinishTabDrag()
     end
 end
 
+-- DDS pin updates run in the same UI state as init.lua. Keep native tab
+-- redraw geometry intact so reordering and click hit-testing still agree.
+local WgdotYaziPinnedTabIds = {}
+ps.sub("@wgdot-yazi-pins", function(ids)
+    WgdotYaziPinnedTabIds = type(ids) == "table" and ids or {}
+    ui.render()
+end)
+
+local function WgdotYaziTabLabel(index)
+    local tab = cx.tabs[index]
+    local pin = WgdotYaziPinnedTabIds[tostring(tab.id)] and " 󰐃" or ""
+    return string.format(" %d %s%s ", index, tab.name, pin)
+end
+
+function Tabs:redraw()
+    if self.height() < 1 then return {} end
+    local style = self:style()
+    local lines = { ui.Line(th.tabs.sep_outer.open):fg(style.inactive:bg()) }
+    local pos = lines[1]:width()
+    local max = math.floor(self:inner_width() / #cx.tabs)
+    for i = 1, #cx.tabs do
+        local name = ui.truncate(WgdotYaziTabLabel(i), { max = max })
+        if i == cx.tabs.idx then
+            lines[#lines + 1] = ui.Line {
+                ui.Span(th.tabs.sep_inner.open):fg(style.active:bg()):bg(style.inactive:bg()),
+                ui.Span(name):style(style.active),
+                ui.Span(th.tabs.sep_inner.close):fg(style.active:bg()):bg(style.inactive:bg()),
+            }
+        else
+            lines[#lines + 1] = ui.Line(name):style(style.inactive)
+        end
+        self._offsets[i], pos = pos, pos + lines[#lines]:width()
+    end
+    lines[#lines + 1] = ui.Line(th.tabs.sep_outer.close):fg(style.inactive:bg())
+    return ui.Line(lines):area(self._area)
+end
+
 local WgdotYaziDefaultTabsStyle = Tabs.style
 
 function Tabs:style()
@@ -632,8 +714,8 @@ function Tabs:click(event, up)
             return
         end
         WgdotYaziFinishTabDrag()
-        ya.emit("tab_switch", { index - 1 })
-        ya.emit("tab_rename", { interactive = true })
+        -- Right-click pins the clicked tab, without changing active tab.
+        ya.emit("plugin", { "tab-workspaces", "pin", tostring(index) })
         return
     elseif not event.is_left then
         return
@@ -663,7 +745,7 @@ local function WgdotYaziTabMidpoint(tabs, index)
     if not last then
         local max = math.floor(tabs:inner_width() / #cx.tabs)
         local name = ui.truncate(
-            string.format(" %d %s ", index, cx.tabs[index].name),
+            WgdotYaziTabLabel(index),
             { max = max }
         )
         last = first + ui.width(name)
@@ -2732,6 +2814,12 @@ function Entity:click(event, up)
     }
     ya.emit("reveal", { self._file.url })
 end
+
+-- Startup pins are restored after configuration registration. The plugin
+-- validates each saved path and respects Yazi's native 9-tab maximum.
+ya.async(function()
+    ya.emit("plugin", { "tab-workspaces", "restore" })
+end)
 
 WgdotYaziTimeFormat = "24h"
 
