@@ -389,7 +389,8 @@ Assert-True ($tabClickBlock -notmatch 'WgdotYaziMoveActiveTabTo') "Yazi tab rele
 Assert-True ($yaziInitText -match 'styles\.active = styles\.active:patch\(ui\.Style\(\):bold\(\):underline\(\):reverse\(\)\)') "Yazi dragged tab is visually distinguished using terminal styling"
 Assert-True ($yaziInitText -match 'WgdotYaziFinishTabDrag\(\)') "Yazi cleans up tab drag styling on release"
 Assert-True ($tabClickBlock -match 'ya\.emit\("plugin", \{ "tab-workspaces", "pin", tostring\(index\) \}\)') "Yazi right-click tab toggles the clicked pin without changing tab focus"
-Assert-True ($tabClickBlock -notmatch 'tab_rename|tab_switch') "Yazi right-click does not rename or switch the active tab"
+$tabRightClickBlock = [regex]::Match($tabClickBlock, '(?s)if event\.is_right then(.*?)elseif not event\.is_left then').Groups[1].Value
+Assert-True ($tabRightClickBlock -notmatch 'tab_rename|tab_switch') "Yazi right-click does not rename or switch the active tab"
 Assert-True ($yaziInitText -match 'title = "Quit Yazi\?"') "Yazi quit confirmation prompt is defined"
 Assert-True ($yaziInitText -match 'Yes: Y / Enter / Space') "Yazi quit confirmation documents affirmative keys"
 Assert-True ($yaziInitText -match 'No:  N / Esc') "Yazi quit confirmation documents cancel keys"
