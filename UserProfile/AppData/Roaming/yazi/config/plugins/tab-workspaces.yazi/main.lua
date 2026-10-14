@@ -463,21 +463,31 @@ end)
 -- Startup pin restore must never rebuild or close the user's opening tab.
 -- Associate already-matching tabs first; create only the missing pins.
 -- Kept separate from named group restoration, which intentionally replaces tabs.
+-- The caller already verified the newly created tab's path and name
+-- through inspect_tabs(). Attach by its stable native ID, not by a second
+-- path/name snapshot: Yazi can update cwd/display names asynchronously
+-- between those two independent sync calls.
 local attach_pin_to_tab = ya.sync(function(st, pin, wanted_id)
     local key = tostring(wanted_id or "")
-    if st.live[key] then return false end
+    if key == "" then return false, "Missing native tab ID" end
+    local linked = st.live[key]
+    if linked then
+        if linked == pin.id then
+            ps.pub(PIN_EVENT, pin_ids(st))
+            ui.render()
+            return true
+        end
+        return false, "Tab " .. key .. " already belongs to another saved pin"
+    end
     for _, tab in ipairs(cx.tabs) do
-        if tostring(tab.id) == key and
-            tostring(tab.current.cwd):gsub("\\", "/"):lower() ==
-                pin.cwd:gsub("\\", "/"):lower() and
-            tostring(tab.pref and tab.pref.name or "") == pin.name then
+        if tostring(tab.id) == key then
             st.live[key] = pin.id
             ps.pub(PIN_EVENT, pin_ids(st))
             ui.render()
             return true
         end
     end
-    return false
+    return false, "Tab " .. key .. " disappeared before pin identity was attached"
 end)
 
 local pin_ids_current = ya.sync(function(st)
@@ -503,8 +513,9 @@ local function restore_startup_pins(pins)
     for _, pin in ipairs(pins) do
         local existing = find_matching_unpinned(pin)
         if existing then
-            if not attach_pin_to_tab(pin, existing) then
-                return false, "Could not attach existing tab for " .. pin.cwd
+            local attached, reason = attach_pin_to_tab(pin, existing)
+            if not attached then
+                return false, "Could not attach existing tab for " .. pin.cwd .. ": " .. tostring(reason)
             end
         else
             local before = inspect_tabs()
@@ -538,8 +549,9 @@ local function restore_startup_pins(pins)
                 end
             end
 
-            if not attach_pin_to_tab(pin, new_id) then
-                return false, "Created tab identity did not match " .. pin.cwd
+            local attached, reason = attach_pin_to_tab(pin, new_id)
+            if not attached then
+                return false, "Created tab for " .. pin.cwd .. " but pin attachment failed: " .. tostring(reason)
             end
         end
     end
