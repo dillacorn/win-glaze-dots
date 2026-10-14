@@ -250,6 +250,10 @@ local fresh_session = ya.sync(function()
     return cx and #cx.tabs == 1
 end)
 
+local initial_session_tab = ya.sync(function()
+    return tab_data(cx.active)
+end)
+
 local current_tab_name = ya.sync(function()
     return tostring(cx.active.pref and cx.active.pref.name or "")
 end)
@@ -349,6 +353,17 @@ local function rebuild_and_wait(project, pins)
     cancel_restore_state()
     return false
 end
+
+local find_live_pin_tab = ya.sync(function(st, wanted_id)
+    for index, tab in ipairs(cx.tabs) do
+        if tostring(tab.id) == wanted_id then
+            local pin_id = st.live[wanted_id]
+            if not pin_id then return nil end
+            return { index = index, pin_id = pin_id }
+        end
+    end
+    return nil
+end)
 
 local clear_live_pin = ya.sync(function(st, id)
     for tabid, linked in pairs(st.live) do
@@ -468,6 +483,16 @@ function M:entry(job)
             end
             if not applied then return notify("Pin was opened but its identity could not be confirmed.", "error") end
         end
+        return
+    end
+
+    if command == "unpin-and-close" then
+        local tab = find_live_pin_tab(tostring(job.args[2] or ""))
+        if not tab then return notify("Pinned tab has changed; close cancelled.", "warn") end
+        local ok, err = merge_pin({ id = tab.pin_id }, true)
+        if not ok then return notify("Could not unpin; tab left open: " .. tostring(err), "error") end
+        clear_live_pin(tab.pin_id)
+        ya.emit("tab_close", { tab.index - 1 })
         return
     end
 
@@ -626,8 +651,17 @@ function M:entry(job)
         end
         if #valid == 0 then return end
         local is_fresh = fresh_session()
-        if is_fresh and not rebuild_and_wait({ tabs = {}, active = 1 }, valid) then
-            notify("Could not verify pinned tabs on startup", "error")
+        if is_fresh then
+            -- Retain the directory used to launch Yazi when capacity permits.
+            -- At nine saved pins, pinned locations take priority instead.
+            local initial = initial_session_tab()
+            local project = { tabs = {}, active = 1 }
+            if #valid < MAX_TABS then
+                project.tabs = { initial }
+            end
+            if not rebuild_and_wait(project, valid) then
+                notify("Could not verify pinned tabs on startup", "error")
+            end
         end
         return
     end
