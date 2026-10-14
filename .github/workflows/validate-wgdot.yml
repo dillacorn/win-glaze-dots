@@ -170,3 +170,70 @@ jobs:
         run: |
           set "WGDOT_TEST_ROOT=%TEMP%\wgdot-native-maintenance-state"
           "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" maintenance-self-test
+
+  publish-wgdot-v4-8-1-once:
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.title == 'chore: publish WGDot v4.8.1 (one-use bridge)' &&
+      github.event.pull_request.head.ref == 'release-bridge-v4-8-1-4e444050' &&
+      github.event.pull_request.base.ref == 'main' &&
+      github.event.pull_request.head.repo.full_name == 'dillacorn/win-glaze-dots'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: 'dillacorn/win-glaze-dots'
+      TAG: 'v4.8.1'
+      TARGET_SHA: '4e444050a667395673efaf1643c513574c093c83'
+      BRIDGE_BRANCH: 'release-bridge-v4-8-1-4e444050'
+    steps:
+      - name: Verify target and publish immutable-versioned WGDot release
+        shell: bash
+        run: |
+          set -euo pipefail
+          current="$(gh api "repos/$REPO/git/ref/heads/main" --jq '.object.sha')"
+          test "$current" = "$TARGET_SHA" || { echo "main SHA changed; refusing publication"; exit 1; }
+          if gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1; then
+            echo "Release already exists; refusing to overwrite"; exit 1
+          fi
+          if gh api "repos/$REPO/git/ref/tags/$TAG" >/dev/null 2>&1; then
+            echo "Tag already exists; refusing to move it"; exit 1
+          fi
+printf '%s\n' \
+            '# WGDot v4.8.1 Yazi Tab Groups and Pinning' \
+            '' \
+            'This patch release introduces saved Yazi tab sessions, persistent pins, session-only Quick Mark navigation, and streamlined shortcuts.' \
+            '' \
+            '## Install and update' \
+            '' \
+            '- [Install](https://github.com/dillacorn/win-glaze-dots/blob/main/INSTALL.md)' \
+            '- [Update](https://github.com/dillacorn/win-glaze-dots/blob/main/UPDATE.md)' \
+            '' \
+            '## Yazi' \
+            '' \
+            '- Save named tab groups with `t s`; browse or toggle Saved Tab Groups and return to the previous directory with `t g` or `T`. Loading a group restores tab directories, order, custom names, and active tab without adding a blank tab.' \
+            '- Pin or unpin the focused tab with `t p` or any hovered tab with right-click, without changing focus. A monochrome pin symbol inherits the tab-title text color. Pins persist across Yazi restarts; suspended pins remain saved when a loaded group fills the nine-tab limit.' \
+            '- Rename tabs with `t r` near the tab bar. Closing a pinned tab offers a choice to retain its pin for future sessions or unpin it.' \
+            '- Press `q q` to mark a temporary directory; `Q` toggles between it and the previous location; `g q` jumps to it. Quit confirmation remains under `q`, and quit without cwd file under `g Q`.' \
+            '- `r` renames the highlighted item, `R` toggles Recents, `b` bookmarks/unbookmarks the highlighted item, and `B` toggles Bookmarks. `F2` remains available for rename.' \
+            '' \
+            '## Validation' \
+            '' \
+            '- All four WGDot validation jobs passed on Yazi PR #127, including Lua syntax/behavior, Windows PowerShell 5.1/7, and native bootstrap.' \
+            '- The maintainer confirmed working Windows Yazi behavior, including inactive-tab right-click pin/unpin and the tested feature checklist. Issues #118 and #119 remain separate where applicable.'
+            > "$RUNNER_TEMP/wgdot-v4.8.1.md"
+          gh release create "$TAG" --repo "$REPO" --target "$TARGET_SHA" \
+            --title 'WGDot v4.8.1 Yazi Tab Groups and Pinning' \
+            --notes-file "$RUNNER_TEMP/wgdot-v4.8.1.md" --latest
+          gh api "repos/$REPO/releases/tags/$TAG" > "$RUNNER_TEMP/published-release.json"
+          python3 -c 'import json,os,pathlib; r=json.load(open(os.environ["RUNNER_TEMP"]+"/published-release.json",encoding="utf-8")); notes=pathlib.Path(os.environ["RUNNER_TEMP"]+"/wgdot-v4.8.1.md").read_text(encoding="utf-8"); assert r["tag_name"]=="v4.8.1"; assert r["name"]=="WGDot v4.8.1 Yazi Tab Groups and Pinning"; assert r["target_commitish"]==os.environ["TARGET_SHA"]; assert r["draft"] is False and r["prerelease"] is False; assert r["body"].rstrip("\n")==notes.rstrip("\n"), "release body mismatch"; print("Verified release title, notes, SHA, draft and prerelease state")'
+          tag_sha="$(gh api "repos/$REPO/git/ref/tags/$TAG" --jq '.object.sha')"
+          test "$tag_sha" = "$TARGET_SHA" || { echo "Tag points at incorrect commit: $tag_sha"; exit 1; }
+          echo "Confirmed $TAG points at $TARGET_SHA"
+      - name: Remove temporary one-use workflow branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api -X DELETE "repos/$REPO/git/refs/heads/$BRIDGE_BRANCH"
+          echo 'Temporary publishing branch removed'
