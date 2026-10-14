@@ -714,9 +714,26 @@ end
 -- DDS pin updates run in the same UI state as init.lua. Keep native tab
 -- redraw geometry intact so reordering and click hit-testing still agree.
 ps.sub("wgdot-yazi-pins", function(ids)
+    local had_pin = next(WgdotYaziPinnedTabIds) ~= nil
     WgdotYaziPinnedTabIds = type(ids) == "table" and ids or {}
-    ui.render()
+    local has_pin = next(WgdotYaziPinnedTabIds) ~= nil
+
+    -- Native Yazi hides the tab bar for one tab. Reflow when the only
+    -- tab becomes pinned/unpinned so its label and pin icon can be seen.
+    if #cx.tabs == 1 and had_pin ~= has_pin then
+        ya.emit("app:resize", {})
+    else
+        ui.render()
+    end
 end)
+
+local WgdotYaziNativeTabsHeight = Tabs.height
+function Tabs.height()
+    if #cx.tabs == 1 and next(WgdotYaziPinnedTabIds) ~= nil then
+        return 1
+    end
+    return WgdotYaziNativeTabsHeight()
+end
 
 local function WgdotYaziTabLabel(index, max_width)
     local tab = cx.tabs[index]
