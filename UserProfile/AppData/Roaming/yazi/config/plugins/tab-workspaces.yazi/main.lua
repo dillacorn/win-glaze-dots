@@ -659,7 +659,7 @@ function M:entry(job)
     end
 
     if command == "unpin-and-close" then
-        local tab = find_live_pin_tab(tostring(job.args[2] or ""))
+        local tab = find_live_pin_tab(tostring(decode_arg(job.args[2]) or ""))
         if not tab then return notify("Pinned tab has changed; close cancelled.", "warn") end
         local ok, err = merge_pin({ id = tab.pin_id }, true)
         if not ok then return notify("Could not unpin; tab left open: " .. tostring(err), "error") end
@@ -790,7 +790,7 @@ function M:entry(job)
     end
 
     if command == "pin" then
-        local changed = toggle_pin(job.args[2])
+        local changed = toggle_pin(decode_arg(job.args[2]))
         if not changed then return notify("Clicked tab is no longer available.", "warn") end
         local ok, err = merge_pin(changed.pin, changed.remove)
         if not ok then
