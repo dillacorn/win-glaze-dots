@@ -15,6 +15,7 @@ local subscriptions = {}
 local published = {}
 local state = {}
 local next_id = 1
+local inject_pin_attach_navigation = false
 
 local function assert_true(value, message)
     if not value then error(message, 2) end
@@ -178,7 +179,19 @@ end
 
 ya = {
     sync = function(fn)
-        return function(...) return fn(state, ...) end
+        return function(...)
+            local args = { ... }
+            -- Simulate Yazi changing a new tab's cwd/name between the
+            -- successful create verification and the pin-ID association.
+            if inject_pin_attach_navigation and #args == 2
+                and type(args[1]) == "table" and type(args[1].id) == "string"
+                and type(args[2]) == "string" then
+                inject_pin_attach_navigation = false
+                cx.active.current.cwd = url([[C:\Other]])
+                cx.active.pref.name = "Navigation while restoring"
+            end
+            return fn(state, ...)
+        end
     end,
     emit = function(command, args)
         events[#events + 1] = {command, args}
@@ -366,6 +379,20 @@ assert_eq(#cx.tabs, 3, "Reusing the launch tab avoids a fourth duplicate")
 assert_eq(tostring(cx.tabs[1].id), opening_id, "Pin restoration did not rebuild the opening tab")
 local current_pins = published["wgdot-yazi-pins"] or {}
 assert_true(current_pins[opening_id], "The reused opening tab displays as pinned")
+
+-- Regression: pin identity must be attached by native tab ID even if
+-- cwd/name change after native tab_create is already confirmed.
+set_tabs({ { [[C:\Downloads]], "" } })
+inject_pin_attach_navigation = true
+module:entry { args = { "restore" } }
+drain()
+assert_true(not inject_pin_attach_navigation, "Navigation race was exercised")
+local live_after_race = published["wgdot-yazi-pins"] or {}
+local race_link_count = 0
+for _, is_pin in pairs(live_after_race) do
+    if is_pin then race_link_count = race_link_count + 1 end
+end
+assert_eq(race_link_count, 3, "Restored pin IDs survive a concurrent cwd/name change")
 
 io.open = native_open
 print("Yazi tab-workspaces behavioral smoke test passed")
