@@ -350,6 +350,9 @@ assert_eq(retained_pins, 2, "Only targeted pin was removed")
 -- A fresh Yazi window starts in its requested directory while restoring
 -- the remaining saved pins in available slots.
 set_tabs({ { [[C:\Downloads]], "" } })
+-- A new Yazi process has new in-memory mappings, but reuses the same
+-- persistent disk records.
+state.live = {}
 module:entry { args = { "restore" } }
 drain()
 assert_eq(#cx.tabs, 3, "Fresh session retains launch tab and both saved pins")
@@ -373,6 +376,7 @@ end
 assert_eq(saved_pin_count, 3, "A startup-directory pin is saved independently")
 set_tabs({ { [[C:\Safe]], "Reused Startup" } })
 local opening_id = tostring(cx.tabs[1].id)
+state.live = {}
 module:entry { args = { "restore" } }
 drain()
 assert_eq(#cx.tabs, 3, "Reusing the launch tab avoids a fourth duplicate")
@@ -383,6 +387,7 @@ assert_true(current_pins[opening_id], "The reused opening tab displays as pinned
 -- Regression: pin identity must be attached by native tab ID even if
 -- cwd/name change after native tab_create is already confirmed.
 set_tabs({ { [[C:\Downloads]], "" } })
+state.live = {}
 inject_pin_attach_navigation = true
 module:entry { args = { "restore" } }
 drain()
