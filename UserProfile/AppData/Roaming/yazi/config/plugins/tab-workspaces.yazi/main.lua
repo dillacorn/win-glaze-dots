@@ -339,8 +339,8 @@ end)
 local function rebuild_and_wait(project, pins)
     local entries = rebuild(project, pins)
     if not entries then return false end
-    for _ = 1, 12 do
-        ya.sleep(25)
+    for _ = 1, 60 do
+        ya.sleep(50)
         if finish_rebuild(entries) then return true end
     end
     cancel_restore_state()
@@ -459,8 +459,8 @@ function M:entry(job)
         if result == "full" then return notify("Nine tabs are already open; close one to activate this pin.", "warn") end
         if result == "queued" then
             local applied = false
-            for _ = 1, 12 do
-                ya.sleep(25)
+            for _ = 1, 60 do
+                ya.sleep(50)
                 if finish_pin_activation(pin) then applied = true; break end
             end
             if not applied then return notify("Pin was opened but its identity could not be confirmed.", "error") end
