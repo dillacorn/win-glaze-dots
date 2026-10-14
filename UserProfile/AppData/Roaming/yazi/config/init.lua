@@ -540,10 +540,6 @@ function Entity:style()
     return style
 end
 
-local WgdotYaziApplyQuickMark = ya.sync(function()
-    WgdotYaziSetQuickMark()
-end)
-
 function WgdotYaziQuitOrQuickMark()
     -- Preserve the existing quit-with-confirmation model while giving q q
     -- a short, deterministic action. This chooser is scoped to quitting:
@@ -563,7 +559,7 @@ function WgdotYaziQuitOrQuickMark()
         if choice == 1 then
             -- ya.which resumes in an async context. Access manager state only
             -- through the Yazi sync bridge, not directly from that callback.
-            WgdotYaziApplyQuickMark()
+            ya.emit("app:lua", { "WgdotYaziSetQuickMark()" })
         elseif choice and choice >= 2 and choice <= 5 then
             ya.emit("quit", { no_cwd_file = false })
         end
