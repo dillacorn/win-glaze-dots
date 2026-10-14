@@ -276,6 +276,16 @@ local marker
 for path, data in pairs(FS_FILES) do
     if parent(path) == PINS and data:find("%-") then marker = path; break end
 end
+if marker == nil then
+    for path, data in pairs(FS_FILES) do
+        if path:find("pin", 1, true) or path:find("Pin", 1, true) then
+            print("PIN_TEST_DIAGNOSTIC", path, tostring(data))
+        end
+    end
+    for _, msg in ipairs(notifications) do
+        print("PIN_TEST_NOTIFICATION", msg.content)
+    end
+end
 assert_true(marker ~= nil, "Pinned marker materialized")
 module:entry { args = { "unpin-markers", marker } }
 assert_true(FS_DIRS[[C:\Safe]] and FS_DIRS[[C:\Drafting]], "Unpin did not delete real dirs")
