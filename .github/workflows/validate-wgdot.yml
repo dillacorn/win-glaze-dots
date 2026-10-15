@@ -171,7 +171,7 @@ jobs:
           set "WGDOT_TEST_ROOT=%TEMP%\wgdot-native-maintenance-state"
           "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" maintenance-self-test
 
-release-v4-8-2-once:
+  release-v4-8-2-once:
     if: >-
       ${{
         github.event_name == 'pull_request' &&
@@ -221,12 +221,12 @@ release-v4-8-2-once:
 
           - Middle-click any tab to pin or unpin it without changing the focused tab.
           - Right-click any tab, including an inactive tab, to rename it in the existing tab-name prompt.
-          - Preserve normal left-click switching, left-drag reordering, keyboard \`t p\` pinning, stable tab identities, persistent pin state, and monochrome pin icon.
+          - Preserve normal left-click switching, left-drag reordering, keyboard `t p` pinning, stable tab identities, persistent pin state, and monochrome pin icon.
 
           ## Validation
 
           - Maintainer confirmed middle-click pinning and right-click tab renaming on Windows.
-          - All four Validate WGDot jobs passed on feature commit \`f0cb5d6abe5030d684045ea12ef8e3493cb6b323\`, merged through PR #129.
+          - All four Validate WGDot jobs passed on feature commit `f0cb5d6abe5030d684045ea12ef8e3493cb6b323`, merged through PR #129.
           WGDOT_RELEASE_NOTES
           gh release create "$release" --repo "$GH_REPO" --target "$RELEASE_SHA" --title "$title" --notes-file "$notes" --latest
           actual_release="$(gh api "repos/$GH_REPO/releases/tags/$release")"
