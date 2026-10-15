@@ -182,7 +182,18 @@ local function drain()
             table.insert(cx.tabs, cx.tabs.idx + 1, make_tab(target))
             focus(cx.tabs.idx + 1)
         elseif command == "tab_rename" then
-            cx.active.pref.name = args[1]
+            -- Native Yazi routes actions with a 'tab' field to that stable ID,
+            -- rather than whichever tab happens to be active on dispatch.
+            local target = args.tab == nil and cx.active or nil
+            if args.tab ~= nil then
+                for _, candidate in ipairs(cx.tabs) do
+                    if tostring(candidate.id.value) == tostring(args.tab) then
+                        target = candidate
+                        break
+                    end
+                end
+            end
+            if target then target.pref.name = args[1] end
         elseif command == "tab_switch" then
             focus(args[1] + 1)
         elseif command == "cd" then
@@ -218,6 +229,10 @@ ya = {
     input = function()
         local input = table.remove(inputs, 1)
         assert_true(input ~= nil, "Unexpected input prompt")
+        if type(input) == "table" then
+            if input.on_prompt then input.on_prompt() end
+            return input.value, input.event
+        end
         return input, 1
     end,
     confirm = function()
@@ -301,7 +316,7 @@ for path in pairs(FS_FILES) do
     if parent(path) == PIN_DIR and path:match("%.pin$") then pinned_count = pinned_count + 1 end
 end
 assert_eq(pinned_count, 1, "First pin persisted")
--- Mouse right-click must pin the hovered nonfocused tab by stable ID.
+-- Mouse middle-click must pin the hovered nonfocused tab by stable ID.
 local focused_before = cx.tabs.idx
 local inactive_id = tostring(cx.tabs[2].id.value)
 local focused_id = tostring(cx.tabs[1].id.value)
@@ -314,17 +329,84 @@ for path in pairs(FS_FILES) do
     if parent(path) == PIN_DIR and path:match("%.pin$") then pinned_count = pinned_count + 1 end
 end
 assert_eq(pinned_count, 2, "Second pin is independent")
--- Repeating right-click on the same inactive tab must unpin that tab only.
+-- Repeating middle-click on the same inactive tab must unpin that tab only.
 module:entry { args = { "pin", encoded_plugin_arg(inactive_id) } }
 assert_eq(cx.tabs.idx, focused_before, "Unpinning another tab also preserves focus")
 assert_true(not published["wgdot-yazi-pins"][inactive_id], "Inactive tab unpinned")
 assert_true(published["wgdot-yazi-pins"][focused_id], "Focused tab pin unaffected")
 module:entry { args = { "pin", encoded_plugin_arg(inactive_id) } }
 assert_true(published["wgdot-yazi-pins"][inactive_id], "Inactive tab re-pinned after second toggle")
--- A stale mouse target must not silently fall back to the focused tab.
+-- A stale middle-click target must not silently fall back to the focused tab.
 module:entry { args = { "pin", encoded_plugin_arg("999999999") } }
 assert_true(published["wgdot-yazi-pins"][focused_id], "Unknown hovered tab never toggles focused pin")
 assert_true(published["wgdot-yazi-pins"][inactive_id], "Unknown hovered tab never toggles another pin")
+
+
+-- Native rename must keep focus on the current tab while targeting the
+-- inactive tab's stable ID, and preserve its independent on-disk pin record.
+local inactive_pin_file = PIN_DIR .. "\\" .. state.live[inactive_id] .. ".pin"
+local focused_pin_file = PIN_DIR .. "\\" .. state.live[focused_id] .. ".pin"
+local before_focused_pin = FS_FILES[focused_pin_file]
+inputs[#inputs + 1] = "Inactive Renamed"
+module:entry { args = { "rename-tab", encoded_plugin_arg(inactive_id) } }
+assert_eq(cx.tabs.idx, focused_before, "Right-click rename does not change focus")
+assert_eq(events[#events][1], "tab_rename", "Right-click queues native tab rename")
+assert_eq(tostring(events[#events][2].tab), inactive_id, "Native rename receives hovered stable ID")
+drain()
+assert_eq(cx.tabs[2].pref.name, "Inactive Renamed", "Right-click names inactive tab")
+assert_eq(cx.tabs[1].pref.name, "Persistent", "Right-click leaves active tab name intact")
+assert_eq(FS_FILES[focused_pin_file], before_focused_pin, "Renaming another tab preserves active pin")
+assert_true(FS_FILES[inactive_pin_file]:find(encoded_plugin_arg("Inactive Renamed"):sub(5), 1, true) ~= nil,
+    "Renaming pinned inactive tab updates durable pin name")
+
+local prior_name = cx.tabs[2].pref.name
+local prior_record = FS_FILES[inactive_pin_file]
+inputs[#inputs + 1] = { value = "Must Not Apply", event = 0 }
+local before_events = #events
+module:entry { args = { "rename-tab", encoded_plugin_arg(inactive_id) } }
+assert_eq(#events, before_events, "Canceled rename emits no native action")
+assert_eq(cx.tabs[2].pref.name, prior_name, "Canceled rename preserves tab label")
+assert_eq(FS_FILES[inactive_pin_file], prior_record, "Canceled rename preserves persistent pin")
+
+-- Keyboard t r must still target its original focused tab, including if
+-- the active index changes while the asynchronous dialog is open.
+inputs[#inputs + 1] = { value = "Focused Renamed", event = 1, on_prompt = function()
+    focus(2)
+end }
+module:entry { args = { "rename-tab" } }
+assert_eq(tostring(events[#events][2].tab), focused_id, "Keyboard t r snapshots original native ID")
+drain()
+assert_eq(cx.tabs[1].pref.name, "Focused Renamed", "Keyboard t r renames original active tab")
+assert_eq(cx.tabs[2].pref.name, prior_name, "Keyboard t r does not rename newly focused tab")
+assert_true(FS_FILES[focused_pin_file]:find(encoded_plugin_arg("Focused Renamed"):sub(5), 1, true) ~= nil,
+    "Keyboard rename updates persistent pin name")
+
+-- Reordering between prompt and submit must not redirect the rename.
+focus(1)
+inputs[#inputs + 1] = { value = "Moved Target", event = 1, on_prompt = function()
+    local moved = table.remove(cx.tabs, 2)
+    table.insert(cx.tabs, 1, moved)
+    focus(2)
+end }
+module:entry { args = { "rename-tab", encoded_plugin_arg(inactive_id) } }
+assert_eq(tostring(events[#events][2].tab), inactive_id, "Reordered rename keeps stable tab ID")
+drain()
+assert_eq(cx.tabs[1].pref.name, "Moved Target", "Rename follows tab across index reorder")
+assert_eq(cx.tabs[2].pref.name, "Focused Renamed", "Reorder leaves other tab intact")
+
+-- If the tab disappears during the dialog, the replacement must not be
+-- renamed and the previous pin record must not be overwritten.
+local record_before_close = FS_FILES[inactive_pin_file]
+inputs[#inputs + 1] = { value = "Wrong Replacement", event = 1, on_prompt = function()
+    table.remove(cx.tabs, 1)
+    table.insert(cx.tabs, 1, make_tab([[C:\Other]], "Replacement"))
+    focus(2)
+end }
+before_events = #events
+module:entry { args = { "rename-tab", encoded_plugin_arg(inactive_id) } }
+assert_eq(#events, before_events, "Stale rename ID cannot enqueue another-tab rename")
+assert_eq(cx.tabs[1].pref.name, "Replacement", "Stale rename leaves new tab unchanged")
+assert_eq(FS_FILES[inactive_pin_file], record_before_close, "Stale rename preserves pin record")
 
 
 -- Suspended pin inventory can always be opened and unpinned without
@@ -448,6 +530,81 @@ for _, is_pin in pairs(live_after_race) do
     if is_pin then race_link_count = race_link_count + 1 end
 end
 assert_eq(race_link_count, 3, "Restored pin IDs survive a concurrent cwd/name change")
+
+
+-- Exercise the actual tab mouse handler in isolation with a fake native UI,
+-- so button dispatch, 2-position plugin arguments and left-click behavior
+-- cannot drift from the behavior tested above.
+local init_file = native_open([[UserProfile/AppData/Roaming/yazi/config/init.lua]], "rb")
+assert_true(init_file ~= nil, "Yazi init.lua available for mouse behavior test")
+local init_text = init_file:read("*a")
+init_file:close()
+local click_body = init_text:match("(function Tabs:click%(event, up%).-\nend)")
+assert_true(click_body ~= nil, "Native Tabs:click handler exists")
+Tabs = {}
+WgdotYaziTabIndexAtX = function(_, x) return x == 10 and 1 or x == 20 and 2 or nil end
+WgdotYaziFinishTabDrag = function() end
+WgdotYaziPluginArgs = function(verb, values)
+    return verb .. " " .. encoded_plugin_arg(values[1])
+end
+assert(load(click_body))()
+set_tabs({ { [[C:\Safe]], "First" }, { [[C:\Drafting]], "Second" } })
+state.live = {}
+
+local function mouse_action(button, x, up)
+    Tabs:click({
+        x = x,
+        is_left = button == "left",
+        is_middle = button == "middle",
+        is_right = button == "right",
+    }, up or false)
+end
+
+local function dispatched_mouse_plugin(verb, x)
+    mouse_action(verb == "pin" and "middle" or "right", x)
+    local emitted = table.remove(events)
+    assert_true(emitted ~= nil, "Mouse tab action emitted a plugin request")
+    assert_eq(emitted[1], "plugin", "Mouse tab action uses native plugin event")
+    assert_eq(#emitted[2], 2, "Tab action sends exactly two positional plugin arguments")
+    assert_eq(emitted[2][1], "tab-workspaces", "Mouse tab action targets tab-workspaces")
+    local action, value = emitted[2][2]:match("^(%S+) (%S+)$")
+    assert_eq(action, verb, "Mouse button maps to expected tab action")
+    local id = x == 10 and tostring(cx.tabs[1].id.value) or tostring(cx.tabs[2].id.value)
+    assert_eq(value, encoded_plugin_arg(id), "Mouse tab action serializes hovered native ID")
+    module:entry { args = { action, value } }
+end
+
+local original_focus = cx.tabs.idx
+dispatched_mouse_plugin("pin", 10)
+assert_true(published["wgdot-yazi-pins"][tostring(cx.tabs[1].id.value)],
+    "Middle-click pins focused tab")
+dispatched_mouse_plugin("pin", 10)
+assert_true(not published["wgdot-yazi-pins"][tostring(cx.tabs[1].id.value)],
+    "Middle-click unpins focused tab")
+dispatched_mouse_plugin("pin", 20)
+assert_eq(cx.tabs.idx, original_focus, "Middle-click inactive tab preserves focus")
+assert_true(published["wgdot-yazi-pins"][tostring(cx.tabs[2].id.value)],
+    "Middle-click pins inactive tab")
+dispatched_mouse_plugin("pin", 20)
+assert_true(not published["wgdot-yazi-pins"][tostring(cx.tabs[2].id.value)],
+    "Middle-click unpins inactive tab")
+
+inputs[#inputs + 1] = "Mouse Renamed"
+dispatched_mouse_plugin("rename-tab", 20)
+assert_eq(cx.tabs.idx, original_focus, "Right-click inactive tab preserves focus")
+assert_eq(tostring(events[#events][2].tab), tostring(cx.tabs[2].id.value),
+    "Right-click passes inactive target to native rename")
+drain()
+assert_eq(cx.tabs[2].pref.name, "Mouse Renamed", "Right-click renames hovered tab")
+assert_eq(cx.tabs[1].pref.name, "First", "Right-click never renames focused tab")
+
+mouse_action("left", 20, false)
+assert_eq(events[#events][1], "tab_switch", "Left-click still switches tabs")
+drain()
+assert_eq(cx.tabs.idx, 2, "Left-click selects hovered tab")
+mouse_action("left", 20, true)
+assert_eq(#events, 0, "Left-click release does not perform another tab action")
+print("Yazi tab mouse interaction smoke test passed")
 
 io.open = native_open
 print("Yazi tab-workspaces behavioral smoke test passed")

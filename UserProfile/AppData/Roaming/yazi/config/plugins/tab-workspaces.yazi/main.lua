@@ -209,7 +209,7 @@ local publish_pins = ya.sync(function(st)
 end)
 
 local toggle_pin = ya.sync(function(st, requested_id)
-    -- A right-click passes the stable ID of the tab underneath the pointer.
+    -- A middle-click passes the stable ID of the tab underneath the pointer.
     -- Keyboard t p passes no ID and still targets the currently focused tab.
     -- Resolve on execution, since tab indices can shift between input and
     -- plugin dispatch when tabs are dragged or reordered.
@@ -268,8 +268,22 @@ local initial_session_tab = ya.sync(function()
     return tab_data(cx.active)
 end)
 
-local current_tab_name = ya.sync(function()
-    return tostring(cx.active.pref and cx.active.pref.name or "")
+local rename_tab_target = ya.sync(function(_, requested_id)
+    -- Snapshot the native ID before opening the asynchronous input. Keyboard
+    -- t r defaults to the active tab; a mouse request must never fall back.
+    local tab
+    if requested_id and requested_id ~= "" then
+        for _, candidate in ipairs(cx.tabs) do
+            if tostring(candidate.id.value) == tostring(requested_id) then
+                tab = candidate
+                break
+            end
+        end
+    else
+        tab = cx.active
+    end
+    if not tab then return nil end
+    return { tab_id = tostring(tab.id.value), name = tostring(tab.pref and tab.pref.name or "") }
 end)
 
 local restore_failed_pin_toggle = ya.sync(function(st, changed)
@@ -280,12 +294,19 @@ local restore_failed_pin_toggle = ya.sync(function(st, changed)
     end
 end)
 
-local rename_active_tab = ya.sync(function(st, name)
-    local tab = cx.active
-    local id = st.live[tostring(tab.id.value)]
-    ya.emit("tab_rename", { name })
-    if not id then return nil end
-    return { id = id, cwd = tostring(tab.current.cwd), name = name }
+local rename_tab_by_id = ya.sync(function(st, tab_id, name)
+    -- Revalidate after the dialog; tabs may close, move or change focus.
+    -- The native action's 'tab' field routes directly to that tab ID,
+    -- without a focus change, and rejects a stale ID at execution time.
+    for _, tab in ipairs(cx.tabs) do
+        if tostring(tab.id.value) == tab_id then
+            ya.emit("tab_rename", { name, tab = tab.id.value })
+            local id = st.live[tab_id]
+            if not id then return {} end
+            return { id = id, cwd = tostring(tab.current.cwd), name = name }
+        end
+    end
+    return nil
 end)
 
 local function valid_tabs(tabs)
@@ -804,12 +825,14 @@ function M:entry(job)
     end
 
     if command == "rename-tab" then
-        local current = current_tab_name()
-        local value, event = ya.input { pos = { "top-center", y = 2, w = 50 }, title = "Rename tab:", value = current }
+        local target = rename_tab_target(decode_arg(job.args[2]))
+        if not target then return notify("Clicked tab is no longer available.", "warn") end
+        local value, event = ya.input { pos = { "top-center", y = 2, w = 50 }, title = "Rename tab:", value = target.name }
         if event ~= 1 then return end
-        local pin = rename_active_tab(value)
-        if pin then
-            local ok, err = merge_pin(pin, false)
+        local renamed = rename_tab_by_id(target.tab_id, value)
+        if not renamed then return notify("Clicked tab is no longer available.", "warn") end
+        if renamed.id then
+            local ok, err = merge_pin(renamed, false)
             if not ok then notify("Tab renamed, but pin update failed: " .. tostring(err), "error") end
         end
         return

@@ -809,17 +809,15 @@ function Tabs:click(event, up)
         return
     end
 
-    if event.is_right then
-        if up then
-            return
-        end
+    if event.is_middle or event.is_right then
+        if up then return end
         WgdotYaziFinishTabDrag()
-        -- Capture the hovered tab's stable native identity *before*
-        -- dispatching the async plugin; its index/focus may change later.
-        -- Do not switch focus just to pin an inactive tab.
+        -- Capture the hovered native tab identity before dispatch. Neither
+        -- mouse action switches focus; the plugin resolves the stable ID.
         local tab = cx.tabs[index]
         if tab then
-            ya.emit("plugin", { "tab-workspaces", WgdotYaziPluginArgs("pin", { tostring(tab.id.value) }) })
+            local action = event.is_middle and "pin" or "rename-tab"
+            ya.emit("plugin", { "tab-workspaces", WgdotYaziPluginArgs(action, { tostring(tab.id.value) }) })
         end
         return
     elseif not event.is_left then
