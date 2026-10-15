@@ -170,3 +170,73 @@ jobs:
         run: |
           set "WGDOT_TEST_ROOT=%TEMP%\wgdot-native-maintenance-state"
           "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" maintenance-self-test
+
+release-v4-8-2-once:
+    if: >-
+      ${{
+        github.event_name == 'pull_request' &&
+        github.event.action == 'opened' &&
+        github.event.pull_request.title == 'Release bridge: WGDot v4.8.2 Yazi Mouse Tabs' &&
+        github.event.pull_request.head.ref == 'chore/release-v4.8.2-bridge' &&
+        github.event.pull_request.head.repo.full_name == 'dillacorn/win-glaze-dots' &&
+        github.event.pull_request.base.ref == 'main' &&
+        github.event.pull_request.base.sha == '5a13a7f0f5add6530bebfd9f04741775ce1aa2fe'
+      }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Publish WGDot v4.8.2 at the exact tested main commit
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: dillacorn/win-glaze-dots
+          RELEASE_SHA: 5a13a7f0f5add6530bebfd9f04741775ce1aa2fe
+        run: |
+          set -euo pipefail
+          release="v4.8.2"
+          title="WGDot v4.8.2 Yazi Mouse Tab Controls"
+          actual_main="$(gh api "repos/$GH_REPO/git/ref/heads/main" --jq '.object.sha')"
+          test "$actual_main" = "$RELEASE_SHA" || { echo "STOP: main moved"; exit 1; }
+          if gh api "repos/$GH_REPO/git/ref/tags/$release" >/dev/null 2>&1; then
+            echo "STOP: release tag exists; refusing to overwrite"
+            exit 1
+          fi
+          if gh release view "$release" --repo "$GH_REPO" >/dev/null 2>&1; then
+            echo "STOP: release exists; refusing to overwrite"
+            exit 1
+          fi
+          notes="$RUNNER_TEMP/wgdot-v4.8.2-release.md"
+          cat > "$notes" <<'WGDOT_RELEASE_NOTES'
+          # WGDot v4.8.2 Yazi Mouse Tab Controls
+
+          This patch release improves Yazi's mouse tab controls.
+
+          ## Install and update
+
+          - [Install](https://github.com/dillacorn/win-glaze-dots/blob/main/INSTALL.md)
+          - [Update](https://github.com/dillacorn/win-glaze-dots/blob/main/UPDATE.md)
+
+          ## Yazi
+
+          - Middle-click any tab to pin or unpin it without changing the focused tab.
+          - Right-click any tab, including an inactive tab, to rename it in the existing tab-name prompt.
+          - Preserve normal left-click switching, left-drag reordering, keyboard \`t p\` pinning, stable tab identities, persistent pin state, and monochrome pin icon.
+
+          ## Validation
+
+          - Maintainer confirmed middle-click pinning and right-click tab renaming on Windows.
+          - All four Validate WGDot jobs passed on feature commit \`f0cb5d6abe5030d684045ea12ef8e3493cb6b323\`, merged through PR #129.
+          WGDOT_RELEASE_NOTES
+          gh release create "$release" --repo "$GH_REPO" --target "$RELEASE_SHA" --title "$title" --notes-file "$notes" --latest
+          actual_release="$(gh api "repos/$GH_REPO/releases/tags/$release")"
+          printf '%s\n' "$actual_release" | jq -e --arg title "$title" --arg sha "$RELEASE_SHA" \
+            '.name == $title and .target_commitish == $sha and .draft == false and .prerelease == false' >/dev/null
+          actual_tag="$(gh api "repos/$GH_REPO/git/ref/tags/$release" --jq '.object.sha')"
+          test "$actual_tag" = "$RELEASE_SHA"
+          expected_notes="$(cat "$notes")"
+          published_notes="$(gh release view "$release" --repo "$GH_REPO" --json body --jq '.body')"
+          test "$published_notes" = "$expected_notes"
+          echo "Verified $release -> $RELEASE_SHA, published, stable, and exact release notes."
+          # This release-only workflow is on an isolated branch and must never merge.
+          gh api --method DELETE "repos/$GH_REPO/git/refs/heads/chore/release-v4.8.2-bridge"
