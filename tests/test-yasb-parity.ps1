@@ -281,7 +281,7 @@ Assert-Contains -Text $nativeSource -Needle "GlazeWM was not reloaded" -Message 
 foreach ($glaze in @($glazeNormal, $glazeWork)) {
     Assert-Contains $glaze "top: `"35px`"" "GlazeWM uses the requested 35 px top reservation"
     Assert-NotContains $glaze "top: `"8px`"" "bar redesign does not require live GlazeWM gap migration"
-    Assert-Contains $glaze "shell-exec yasb" "GlazeWM starts YASB"
+    Assert-Contains $glaze "shell-exec --hide-window yasb" "GlazeWM starts YASB without an ephemeral console"
     Assert-Contains $glaze "color: `"#a1a1a1`"" "focused GlazeWM border stays theme-neutral"
     Assert-Contains $glaze "bindings: [`"lwin+alt+t`", `"rwin+alt+t`"]" "Super+Alt+T opens the compiled theme selector"
     Assert-NotContains $glaze "bindings: [`"lwin+c`", `"rwin+c`"]" "retired Super+C Clipboard History override stays absent"
