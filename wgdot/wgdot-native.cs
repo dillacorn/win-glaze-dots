@@ -346,6 +346,8 @@ internal static class WgdotNative
     const byte VkLwin = 0x5B;
     const byte VkLmenu = 0xA4;
     const byte VkRwin = 0x5C;
+    const byte VkEscape = 0x1B;
+    const byte VkMenu = 0x12;
 
     [DllImport("shell32.dll")]
     static extern void SHChangeNotify(uint wEventId, uint uFlags, IntPtr dwItem1, IntPtr dwItem2);
@@ -13665,6 +13667,42 @@ class WgdotHidden
         }
     }
 
+    static bool DismissForegroundStartForLauncher(IntPtr initialForeground)
+    {
+        // Focus alone can leave the Windows 11 Start XAML surface visible.
+        // Dismiss only a recognized, currently foreground Start/Search
+        // surface, and only during the explicit launcher hotkey invocation.
+        // Do not send an unscoped Escape, kill the shell or intercept Win.
+        if (!IsWindowsStartSurfaceWindow(initialForeground))
+            return false;
+
+        // Escape with Alt/Win still held can activate another shell shortcut.
+        // Allow the triggering chord to finish, but bound the wait.
+        for (int i = 0; i < 45; i++)
+        {
+            if ((GetAsyncKeyState(VkMenu) & 0x8000) == 0 &&
+                (GetAsyncKeyState(VkLwin) & 0x8000) == 0 &&
+                (GetAsyncKeyState(VkRwin) & 0x8000) == 0)
+                break;
+            System.Threading.Thread.Sleep(10);
+        }
+        if ((GetAsyncKeyState(VkMenu) & 0x8000) != 0 ||
+            (GetAsyncKeyState(VkLwin) & 0x8000) != 0 ||
+            (GetAsyncKeyState(VkRwin) & 0x8000) != 0)
+            return false;
+
+        // If another app became active, do not send keys into it.
+        if (GetForegroundWindow() != initialForeground ||
+            !IsWindowsStartSurfaceWindow(initialForeground))
+            return false;
+
+        // One paired Escape goes to the foreground Windows Start/Search,
+        // before the WGDot window can receive or swallow that key.
+        keybd_event(VkEscape, 0, 0, UIntPtr.Zero);
+        keybd_event(VkEscape, 0, KeyeventfKeyup, UIntPtr.Zero);
+        return true;
+    }
+
     static void QueueLauncherStartFocusRecovery(
         System.Windows.Forms.Form form,
         System.Windows.Forms.Control focusControl,
@@ -13808,6 +13846,13 @@ class WgdotHidden
         // focus. Alt+P may arrive while Start is already visible.
         IntPtr foreground = GetForegroundWindow();
         bool startWasForeground = IsWindowsStartSurfaceWindow(foreground);
+
+        // An already-open Start menu must close before WGDot takes focus.
+        // Never send a global Escape if the foreground is not Windows Start.
+        if (startWasForeground &&
+            (String.Equals(source, "hotkey", StringComparison.OrdinalIgnoreCase) ||
+             String.Equals(source, "super-d", StringComparison.OrdinalIgnoreCase)))
+            DismissForegroundStartForLauncher(foreground);
 
         bool refreshRequired;
         List<LauncherApp> apps = ReadLauncherAppCache(out refreshRequired);
