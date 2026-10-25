@@ -261,10 +261,18 @@ try {
             Require ($text -match 'bindings:\s*\["lwin\+ctrl\+k",\s*"rwin\+ctrl\+k"\]') ('Super+Ctrl+K resize parity missing: ' + $relative)
             Require ($text -match 'bindings:\s*\["lwin\+ctrl\+l",\s*"rwin\+ctrl\+l"\]') ('Super+Ctrl+L resize parity missing: ' + $relative)
             Require ($text -notmatch 'bindings:\s*\["lwin\+ctrl\+(?:left|right|up|down)"') ('Super+Ctrl+Arrow must remain native Windows behavior: ' + $relative)
-            Require ($text -match 'shell-exec --hide-window %LOCALAPPDATA%\\wgdot\\bin\\wgdot\.exe launcher hotkey') ('Direct hidden Alt+P launcher path missing: ' + $relative)
+            if ($relative -eq 'UserProfile/.glzr/glazewm/config.yaml') {
+                Require ($text -notmatch 'wgdot\.exe launcher hotkey') 'Normal Alt+P must be owned exclusively by native YASB'
+                Require ($text -notmatch 'bindings:\s*\["alt\+p"\]') 'Normal Alt+P must not be double-bound in GlazeWM'
+            }
+            else {
+                Require ($text -match 'shell-exec --hide-window %LOCALAPPDATA%\\wgdot\\bin\\wgdot\.exe launcher hotkey') 'Work Alt+P must keep its original compiled launcher'
+            }
             Require ($text -match 'shell-exec --hide-window %LOCALAPPDATA%\\wgdot\\bin\\wgdot\.exe launcher super-d') ('Direct hidden Super+D launcher path missing: ' + $relative)
             Require ($text -notmatch 'wgdotw\.exe launcher hotkey') ('GlazeWM launcher still pays the wgdotw cold-start hop: ' + $relative)
-            Require ($text -match 'bindings:\s*\["alt\+p"\]') ('Global Alt+P launcher binding missing: ' + $relative)
+            if ($relative -eq 'UserProfile/.glzr/glazewm/custom_work_config.yaml') {
+                Require ($text -match 'bindings:\s*\["alt\+p"\]') 'Work Alt+P compiled binding must remain intact'
+            }
             Require ($text -match 'bindings:\s*\["lwin\+d",\s*"rwin\+d"\]') ('Global Super+D launcher binding missing: ' + $relative)
             Require ($text -match 'bindings:\s*\["alt\+ctrl\+shift\+left",\s*"lwin\+ctrl\+shift\+left",\s*"rwin\+ctrl\+shift\+left"\]') ('Global Alt/Super+Ctrl+Shift+Left workspace monitor move missing: ' + $relative)
             Require ($text -match 'bindings:\s*\["alt\+ctrl\+shift\+right",\s*"lwin\+ctrl\+shift\+right",\s*"rwin\+ctrl\+shift\+right"\]') ('Global Alt/Super+Ctrl+Shift+Right workspace monitor move missing: ' + $relative)
@@ -316,8 +324,17 @@ try {
             Require ($text -notmatch 'shell:AppsFolder.*EarTrumpet') ('YASB must not use direct AppsFolder activation for EarTrumpet mixer toggling: ' + $relative)
             Require ($text -match 'on_left:\s*"exec wgdotw\.exe power-menu"') ('Power icon left click does not open the compiled power surface: ' + $relative)
             Require ($text -match 'on_right:\s*"exec wgdotw\.exe power-menu"') ('Power icon right click does not open the compiled power surface: ' + $relative)
-            Require ($text -match 'class_name:\s*"awtarchy-launcher"') ('Compiled launcher bar control missing: ' + $relative)
-            Require ($text -match 'on_left:\s*"exec wgdotw\.exe launcher bar"') ('Launcher button does not open the bar-relative compiled surface: ' + $relative)
+            if ($relative -eq 'UserProfile/.config/yasb/config.yaml') {
+                $launcher = [regex]::Match($text, '(?ms)^  launcher:\r?\n.*?(?=^  glazewm_workspaces:)').Value
+                Require ($launcher -match 'yasb\.quick_launch\.QuickLaunchWidget') 'Normal profile must use native YASB Quick Launch'
+                Require ($launcher -match 'on_left:\s*"toggle_quick_launch"') 'Native YASB launcher bar button must open directly'
+                Require ($launcher -match 'keys:\s*"alt\+p"') 'Normal Alt+P must register through native YASB'
+                Require ($launcher -notmatch 'wgdotw?\.exe') 'Native YASB launcher must not cold-start WGDot'
+            }
+            else {
+                Require ($text -match 'class_name:\s*"awtarchy-launcher"') 'Work compiled launcher control must remain intact'
+                Require ($text -match 'on_left:\s*"exec wgdotw\.exe launcher bar"') 'Work compiled launcher bar click must remain intact'
+            }
             Require ($text -match 'wgdotw\.exe theme-window-toggle') ('Quick Settings theme-window toggle missing: ' + $relative)
             Require ($text -match 'wgdotw\.exe glazewm-window-behavior-toggle') ('Quick Settings floating-window toggle missing: ' + $relative)
             Require ($text -match '(?m)^\s+columns:\s*2\s*$') ('Quick Settings must use two evenly filled columns: ' + $relative)
@@ -354,17 +371,22 @@ try {
         Require ($nativeSource -match 'result\.Tweaks\.RemoveAll\(x => String\.Equals\(x, "flow-launcher-alt-p"') 'Saved selections retire the old Flow hotkey tweak'
     }
 
-    Check 'launcher bindings use the scoped compiled surface without relay scripts' {
+    Check 'Normal native launcher trial preserves scoped compiled fallback and Work' {
         $normal = Get-Content -LiteralPath (Join-Path $repo 'UserProfile\.glzr\glazewm\config.yaml') -Raw -Encoding UTF8
         $work = Get-Content -LiteralPath (Join-Path $repo 'UserProfile\.glzr\glazewm\custom_work_config.yaml') -Raw -Encoding UTF8
+        $nativeYasb = Get-Content -LiteralPath (Join-Path $repo 'UserProfile\.config\yasb\config.yaml') -Raw -Encoding UTF8
         foreach ($text in @($normal, $work)) {
             Require ($text -notmatch 'flow-launcher\.ps1|yasb-quick-launch\.ps1') 'Launcher relay script returned to GlazeWM'
-            Require ($text -match 'shell-exec --hide-window %LOCALAPPDATA%\\wgdot\\bin\\wgdot\.exe launcher hotkey') 'Direct hidden Alt+P launcher surface is missing'
-            Require ($text -match 'shell-exec --hide-window %LOCALAPPDATA%\\wgdot\\bin\\wgdot\.exe launcher super-d') 'Direct hidden Super+D launcher surface is missing'
-            Require ($text -notmatch 'wgdotw\.exe launcher hotkey') 'GlazeWM launcher still routes through the extra wgdotw process'
-            Require ($text -match 'bindings:\s*\["alt\+p"\]') 'Alt+P compiled launcher binding is missing'
-            Require ($text -match 'bindings:\s*\["lwin\+d",\s*"rwin\+d"\]') 'Super+D compiled launcher binding is missing'
+            Require ($text -match 'shell-exec --hide-window %LOCALAPPDATA%\\wgdot\\bin\\wgdot\.exe launcher super-d') 'Direct hidden Super+D fallback must remain'
+            Require ($text -notmatch 'wgdotw\.exe launcher hotkey') 'GlazeWM launcher must not add an extra wgdotw process'
+            Require ($text -match 'bindings:\s*\["lwin\+d",\s*"rwin\+d"\]') 'Super+D fallback binding must remain'
         }
+        Require ($normal -notmatch 'wgdot\.exe launcher hotkey|bindings:\s*\["alt\+p"\]') 'Normal Alt+P cannot conflict with YASB'
+        Require ($work -match 'shell-exec --hide-window %LOCALAPPDATA%\\wgdot\\bin\\wgdot\.exe launcher hotkey') 'Work Alt+P must remain compiled'
+        Require ($work -match 'bindings:\s*\["alt\+p"\]') 'Work Alt+P keybinding must remain'
+        Require ($nativeYasb -match 'yasb\.quick_launch\.QuickLaunchWidget') 'Native YASB launcher trial missing'
+        Require ($nativeYasb -match 'keys:\s*"alt\+p"') 'Native YASB Alt+P registration missing'
+        Require ($nativeYasb -match 'on_left:\s*"toggle_quick_launch"') 'Native YASB bar callback missing'
         Require ($work -notmatch 'shell-exec %LOCALAPPDATA%/FlowLauncher/Flow\.Launcher\.exe') 'Work launcher still defaults to Flow Launcher'
         Require ($nativeSource -match 'if \(command == "launcher"\) return LauncherFromArgs') 'Native compiled launcher command is missing'
         Require ($nativeSource -match 'LauncherLocation') 'Launcher placement logic is missing'
