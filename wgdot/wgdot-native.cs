@@ -13596,32 +13596,37 @@ class WgdotHidden
         }
     }
 
-    static void QueueLauncherSuperDFocusRecovery(
+    static void QueueLauncherStartFocusRecovery(
         System.Windows.Forms.Form form,
         System.Windows.Forms.Control focusControl,
+        bool superD,
+        bool startWasForeground,
         Action completed)
     {
         IntPtr launcherHandle = form.Handle;
 
         System.Threading.ThreadPool.QueueUserWorkItem(delegate
         {
-            // Windows can surface Start on Win-key release even though GlazeWM
-            // handled Super+D. Wait only for this chord to finish; do not install
-            // a resident keyboard hook or delay the launcher's first frame.
-            for (int i = 0; i < 60; i++)
+            // Super+D may reveal Start when the Windows key is released.
+            // Alt+P only needs recovery if Start was already in the foreground.
+            // Never suppress ordinary Start usage or install an input hook.
+            if (superD)
             {
-                bool leftDown = (GetAsyncKeyState(VkLwin) & 0x8000) != 0;
-                bool rightDown = (GetAsyncKeyState(VkRwin) & 0x8000) != 0;
-                if (!leftDown && !rightDown)
-                    break;
-                System.Threading.Thread.Sleep(10);
+                for (int i = 0; i < 60; i++)
+                {
+                    bool leftDown = (GetAsyncKeyState(VkLwin) & 0x8000) != 0;
+                    bool rightDown = (GetAsyncKeyState(VkRwin) & 0x8000) != 0;
+                    if (!leftDown && !rightDown)
+                        break;
+                    System.Threading.Thread.Sleep(10);
+                }
             }
 
-            bool startSurfaceSeen = false;
+            bool startSurfaceSeen = startWasForeground;
             bool userSwitchedAway = false;
             DateTime deadline = DateTime.UtcNow.AddMilliseconds(250);
 
-            while (DateTime.UtcNow < deadline && !form.IsDisposed)
+            while (!startSurfaceSeen && DateTime.UtcNow < deadline && !form.IsDisposed)
             {
                 IntPtr foreground = GetForegroundWindow();
                 if (IsWindowsStartSurfaceWindow(foreground))
@@ -13730,10 +13735,13 @@ class WgdotHidden
             return 0;
         }
 
+        // Capture the Start surface before the new launcher window takes
+        // focus. Alt+P may arrive while Start is already visible.
+        IntPtr foreground = GetForegroundWindow();
+        bool startWasForeground = IsWindowsStartSurfaceWindow(foreground);
+
         bool refreshRequired;
         List<LauncherApp> apps = ReadLauncherAppCache(out refreshRequired);
-
-        IntPtr foreground = GetForegroundWindow();
         POINT cursor;
         bool haveCursor = GetCursorPos(out cursor);
 
@@ -13949,12 +13957,16 @@ class WgdotHidden
             }
         };
 
-        bool superDFocusRecoveryPending =
+        bool superDSource =
             String.Equals(source, "super-d", StringComparison.OrdinalIgnoreCase);
+        bool startFocusRecoveryPending =
+            superDSource ||
+            (String.Equals(source, "hotkey", StringComparison.OrdinalIgnoreCase) &&
+             startWasForeground);
 
         form.Deactivate += delegate
         {
-            if (superDFocusRecoveryPending)
+            if (startFocusRecoveryPending)
                 return;
             if (!form.IsDisposed)
                 form.Close();
@@ -13978,12 +13990,14 @@ class WgdotHidden
             form.Opacity = 0.98;
             search.Focus();
 
-            if (superDFocusRecoveryPending)
+            if (startFocusRecoveryPending)
             {
-                QueueLauncherSuperDFocusRecovery(
+                QueueLauncherStartFocusRecovery(
                     form,
                     search,
-                    delegate { superDFocusRecoveryPending = false; });
+                    superDSource,
+                    startWasForeground,
+                    delegate { startFocusRecoveryPending = false; });
             }
 
             if (refreshRequired)
