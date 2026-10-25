@@ -170,3 +170,76 @@ jobs:
         run: |
           set "WGDOT_TEST_ROOT=%TEMP%\wgdot-native-maintenance-state"
           "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" maintenance-self-test
+
+  publish-v485-one-shot:
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.title == 'One-shot release bridge: WGDot v4.8.5' &&
+      github.head_ref == 'release/once-v4.8.5-launcher-patches' &&
+      github.base_ref == 'main' &&
+      github.event.pull_request.head.repo.full_name == 'dillacorn/win-glaze-dots'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_NOTES: |
+        # WGDot v4.8.5 Launcher Optimization & Startup Patches
+        
+        A performance and reliability patch for the WGDot launcher and Windows desktop startup.
+        
+        ## Install and update
+        
+        - [Install](https://github.com/dillacorn/win-glaze-dots/blob/main/INSTALL.md)
+        - [Update](https://github.com/dillacorn/win-glaze-dots/blob/main/UPDATE.md)
+        
+        ## Launcher
+        
+        - Improve cold-start responsiveness with a compact cached application catalog.
+        - Display search results promptly while loading application icons asynchronously.
+        - Improve `Alt+P` and `Super+D` focus and dismissal of an already-open Windows Start menu without disabling normal Start access.
+        
+        ## Startup
+        
+        - Suppress temporary console windows while starting GlazeWM and YASB at login.
+        - Upgrade WGDot-owned legacy GlazeWM login registrations to windowless startup, preserving user-disabled and customized entries.
+        
+        ## Validation
+        
+        - All four Windows WGDot validation jobs passed for the launcher/startup changes and Start-menu fix (PRs #133 and #134).
+        - Gaming-PC testing confirmed improved launcher responsiveness and Start-menu behavior; the final silent-login reboot fix remains to be verified on the gaming PC.
+    steps:
+      - name: Publish and verify only the approved immutable v4.8.5 release
+        shell: bash
+        run: |
+          set -euo pipefail
+          repository='dillacorn/win-glaze-dots'
+          target='b64111e695fc4946136de6190205f2399242a54b'
+          current="$(gh api "repos/$repository/git/ref/heads/main" --jq '.object.sha')"
+          if [[ "$current" != "$target" ]]; then
+            echo "main moved: $current; expected: $target" >&2
+            exit 1
+          fi
+          if gh api "repos/$repository/releases/tags/v4.8.5" >/dev/null 2>&1; then
+            echo 'Release v4.8.5 already exists; refusing overwrite' >&2
+            exit 1
+          fi
+          if gh api "repos/$repository/git/ref/tags/v4.8.5" >/dev/null 2>&1; then
+            echo 'Tag v4.8.5 already exists; refusing overwrite' >&2
+            exit 1
+          fi
+          gh release create v4.8.5 --repo "$repository" --target "$target" \
+            --title 'WGDot v4.8.5 Launcher Optimization & Startup Patches' \
+            --notes "$RELEASE_NOTES" --latest
+          tag_sha="$(gh api "repos/$repository/git/ref/tags/v4.8.5" --jq '.object.sha')"
+          [[ "$tag_sha" == "$target" ]]
+          read_tag="$(gh api "repos/$repository/releases/tags/v4.8.5" --jq '.tag_name')"
+          read_name="$(gh api "repos/$repository/releases/tags/v4.8.5" --jq '.name')"
+          read_target="$(gh api "repos/$repository/releases/tags/v4.8.5" --jq '.target_commitish')"
+          read_draft="$(gh api "repos/$repository/releases/tags/v4.8.5" --jq '.draft')"
+          read_pre="$(gh api "repos/$repository/releases/tags/v4.8.5" --jq '.prerelease')"
+          read_body="$(gh api "repos/$repository/releases/tags/v4.8.5" --jq '.body')"
+          [[ "$read_tag" == 'v4.8.5' && "$read_name" == 'WGDot v4.8.5 Launcher Optimization & Startup Patches' ]]
+          [[ "$read_target" == "$target" && "$read_draft" == 'false' && "$read_pre" == 'false' ]]
+          [[ "$read_body" == "$RELEASE_NOTES" ]]
+          echo "Verified stable v4.8.5 at $tag_sha"
