@@ -49,7 +49,7 @@ The system tray definition remains available but is not rendered in the bar. `us
 
 ## Launcher ownership
 
-GlazeWM starts YASB using `shell-exec --hide-window yasb` so the startup shell does not briefly appear during Windows login. The normal YASB GUI remains visible.
+Windows starts GlazeWM through the managed, windowless `wgdotw.exe glazewm-startup` entry. The helper starts the real GlazeWM CLI without a console window. GlazeWM then starts YASB using `shell-exec --hide-window yasb`. The normal desktop and YASB GUI remain visible. Existing direct-CLI WGDot startup registrations are upgraded after a successful Git runtime swap, without modifying unrelated startup entries.
 
 The application button is a lightweight YASB `CustomWidget` that opens `wgdotw.exe launcher bar`. GlazeWM opens the same compiled surface directly and hidden: `Alt+P` uses `wgdot.exe launcher hotkey`, while `Super+D` uses `wgdot.exe launcher super-d`.
 
