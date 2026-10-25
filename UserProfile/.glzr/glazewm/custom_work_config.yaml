@@ -4,7 +4,7 @@
 # config.yaml (GlazeWM) - work config
 general:
   startup_commands:
-    - "shell-exec yasb"
+    - "shell-exec --hide-window yasb"
 
   shutdown_commands: ["shell-exec taskkill /IM yasb.exe /F"]
   config_reload_commands: []

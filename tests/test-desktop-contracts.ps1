@@ -237,6 +237,7 @@ try {
             'UserProfile/.glzr/glazewm/custom_work_config.yaml'
         )) {
             $text = Get-Content -LiteralPath (Join-Path $repo ($relative -replace '/', '\')) -Raw -Encoding UTF8
+            Require ($text -match '(?m)^\s*- "shell-exec --hide-window yasb"\s*$') ('YASB startup is not hidden: ' + $relative)
             Require ($text -match 'wm-enable-binding-mode --name noalt') ('NoAlt native transition missing: ' + $relative)
             Require ($text -match 'wm-enable-binding-mode --name vm') ('VM native transition missing: ' + $relative)
             Require ($text -notmatch 'name:\s*"mouse"') ('Retired mouse binding mode returned: ' + $relative)
@@ -371,7 +372,9 @@ try {
         Require ($nativeSource -match 'YasbAutoHideEnabled') 'Launcher auto-hide placement override is missing'
         Require ($nativeSource -match 'ForegroundWindowFillsScreen') 'Launcher fullscreen placement override is missing'
         Require ($nativeSource -match 'QueueLauncherIconLoads') 'Launcher icon extraction is not deferred off first paint'
-        Require ($nativeSource -match 'QueueLauncherSuperDFocusRecovery') 'Super+D Start-surface recovery is missing'
+        Require ($nativeSource -match 'QueueLauncherStartFocusRecovery') 'Alt+P / Super+D Start-surface recovery is missing'
+        Require ($nativeSource -match 'bool startWasForeground = IsWindowsStartSurfaceWindow\(foreground\);') 'Start foreground state must be captured before opening'
+        Require ($nativeSource -match 'ReadLauncherFastCache\(') 'Launcher lacks compact startup app index'
         Require ($nativeSource -match 'DateTime\.UtcNow\.AddMilliseconds\(250\)') 'Super+D recovery is not bounded'
     }
 

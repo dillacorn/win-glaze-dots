@@ -63,6 +63,9 @@ internal static class WgdotNative
     const string RnnoiseRepo = "werman/noise-suppression-for-voice";
     const string RnnoiseAssetRegex = "^win-rnnoise\\.zip$";
     static readonly string LauncherCachePath = Path.Combine(CacheRoot, "launcher-apps.json");
+    static readonly string LauncherFastCachePath = Path.Combine(CacheRoot, "launcher-apps.bin");
+    const int LauncherFastCacheMagic = 0x57474C43;
+    const int LauncherFastCacheVersion = 1;
     static readonly string LauncherIconCacheRoot = Path.Combine(CacheRoot, "launcher-icons-v1");
     const int LauncherCacheSchemaVersion = 2;
     const int LauncherCacheRefreshSeconds = 120;
@@ -1455,6 +1458,7 @@ internal static class WgdotNative
             if (command == "clipboard-history-open") return ClipboardHistoryOpen();
             if (command == "eartrumpet-mixer-toggle") return EarTrumpetMixerToggle();
             if (command == "eartrumpet-startup") return EarTrumpetStartup();
+            if (command == "glazewm-startup") return GlazeWmStartup();
             if (command == "launcher") return LauncherFromArgs(args.Skip(1).ToArray());
             if (command == "yazi-drag") return YaziDragFromArgs(args.Skip(1).ToArray());
             if (command == "power-menu") return PowerMenu();
@@ -2058,6 +2062,15 @@ internal static class WgdotNative
         state.Remove("runtimeSyncPendingRevision");
         state.Remove("runtimeSyncScheduledAt");
         WriteJson(BootstrapStatePath, state);
+
+        // The managed update plan runs before the newly compiled runtime is
+        // swapped in. Migrate only our exact legacy console-visible Run value
+        // after the swap, so first reboot already uses the hidden launch path.
+        if (String.IsNullOrWhiteSpace(TestRootOverride))
+        {
+            try { MigrateLegacyGlazeWmStartupIfOwned(); }
+            catch { /* Startup migration must not fail runtime installation. */ }
+        }
 
         // mark-runtime runs from the newly swapped executable during both
         // regular runtime refresh and Git-testing updates. Prewarm its icon
@@ -2908,6 +2921,35 @@ class WgdotHidden
         return manifest;
     }
 
+    static void LauncherFastCacheSelfTest(string root)
+    {
+        string path = Path.Combine(root, "launcher-fast-cache-test.bin");
+        var sample = new List<LauncherApp>
+        {
+            new LauncherApp { Name = "Example", Path = @"C:\Example.lnk", IconPath = @"C:\Example.exe" },
+            new LauncherApp { Name = "Terminal", Path = @"C:\Terminal.lnk", IconPath = @"C:\Terminal.lnk" }
+        };
+        WriteLauncherFastCache(path, sample);
+        bool refreshRequired;
+        List<LauncherApp> restored = ReadLauncherFastCache(path, out refreshRequired);
+        if (restored == null || restored.Count != sample.Count ||
+            !String.Equals(restored[0].Name, sample[0].Name, StringComparison.Ordinal) ||
+            !String.Equals(restored[0].IconPath, sample[0].IconPath, StringComparison.Ordinal) ||
+            !String.Equals(restored[1].Path, sample[1].Path, StringComparison.Ordinal))
+            throw new Exception("Launcher binary catalog round-trip self-test failed.");
+
+        File.WriteAllBytes(path, new byte[] { 0, 1, 2 });
+        if (ReadLauncherFastCache(path, out refreshRequired) != null)
+            throw new Exception("Launcher binary catalog truncation self-test failed.");
+
+        WriteLauncherFastCache(path, sample);
+        using (var stream = new FileStream(path, FileMode.Open, FileAccess.Write))
+        using (var writer = new BinaryWriter(stream))
+            writer.Write(0);
+        if (ReadLauncherFastCache(path, out refreshRequired) != null)
+            throw new Exception("Launcher binary catalog invalid-header self-test failed.");
+    }
+
     static void LauncherIconCacheSelfTest(string root)
     {
         // Called only with WGDOT_TEST_ROOT. The test must not touch the
@@ -2991,6 +3033,7 @@ class WgdotHidden
             Directory.CreateDirectory(sourceRoot);
             Directory.CreateDirectory(liveRoot);
             LauncherIconCacheSelfTest(root);
+            LauncherFastCacheSelfTest(root);
 
             string verifiedJsonPath = Path.Combine(root, "verified-plan.json");
             byte[] verifiedJsonBytes = new UTF8Encoding(false).GetBytes("{\"value\":\"original\"}");
@@ -6694,22 +6737,81 @@ class WgdotHidden
         return "WGDot." + handler;
     }
 
+    static void MigrateLegacyGlazeWmStartupIfOwned()
+    {
+        const string runPath = @"Software\Microsoft\Windows\CurrentVersion\Run";
+        using (RegistryKey key = Registry.CurrentUser.OpenSubKey(runPath, true))
+        {
+            if (key == null)
+                return;
+
+            object raw = key.GetValue(
+                "WGDot.glazewm", null,
+                RegistryValueOptions.DoNotExpandEnvironmentNames);
+            if (raw == null)
+                return;
+
+            string exe = FindGlazeWmExe();
+            if (String.IsNullOrWhiteSpace(exe))
+                return;
+            string config = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                ".glzr", "glazewm", "config.yaml");
+            string legacyCommand = Q(exe) + " start --config=" + Q(config);
+
+            // Respect disabled startup and user-modified registry commands.
+            // Only rewrite the exact Run value produced by older WGDot.
+            if (!String.Equals(Convert.ToString(raw), legacyCommand,
+                StringComparison.OrdinalIgnoreCase))
+                return;
+
+            string helper = HiddenLauncherPath();
+            if (!HiddenLauncherIsCurrent(helper))
+                return;
+
+            key.SetValue(
+                "WGDot.glazewm",
+                Q(helper) + " glazewm-startup",
+                RegistryValueKind.String);
+        }
+    }
+
+    static int GlazeWmStartup()
+    {
+        // WGDot's HKCU Run entry invokes this through the existing
+        // windowless wgdotw.exe frontend. Start GlazeWM's console-subsystem
+        // CLI without creating a visible console at Windows login.
+        string exe = RequireGlazeWmExe();
+        string config = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            ".glzr",
+            "glazewm",
+            "config.yaml");
+
+        var psi = new ProcessStartInfo();
+        psi.FileName = exe;
+        psi.Arguments = "start --config=" + Q(config);
+        psi.UseShellExecute = false;
+        psi.CreateNoWindow = true;
+        psi.WindowStyle = ProcessWindowStyle.Hidden;
+        psi.WorkingDirectory = Path.GetDirectoryName(exe);
+        Process.Start(psi);
+        return 0;
+    }
+
     static string BuildStartupCommand(Dictionary<string, object> package)
     {
         string handler = GetString(package, "startupHandler");
 
         if (String.Equals(handler, "glazewm", StringComparison.OrdinalIgnoreCase))
         {
-            string exe = FindGlazeWmExe();
-            if (String.IsNullOrWhiteSpace(exe))
+            if (String.IsNullOrWhiteSpace(FindGlazeWmExe()))
                 throw new Exception("GlazeWM is selected for startup, but glazewm.exe could not be found.");
 
-            string config = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-                ".glzr",
-                "glazewm",
-                "config.yaml");
-            return Q(exe) + " start --config=" + Q(config);
+            // Do not start the console-subsystem GlazeWM CLI directly from
+            // HKCU Run; its transient console can flash before GlazeWM loads.
+            EnsureHiddenLauncher();
+            return Q(HiddenLauncherPath()) + " glazewm-startup";
         }
 
         if (String.Equals(handler, "altsnap", StringComparison.OrdinalIgnoreCase))
@@ -12932,6 +13034,107 @@ class WgdotHidden
         }
     }
 
+    static List<LauncherApp> ReadLauncherFastCache(
+        string path, out bool refreshRequired)
+    {
+        refreshRequired = true;
+        try
+        {
+            if (!File.Exists(path))
+                return null;
+
+            using (var stream = new FileStream(path, FileMode.Open, FileAccess.Read,
+                FileShare.ReadWrite | FileShare.Delete, 4096, FileOptions.SequentialScan))
+            using (var reader = new BinaryReader(stream, Encoding.UTF8))
+            {
+                // Do not trust potentially truncated or corrupted local caches.
+                if (stream.Length < 12 || stream.Length > 16 * 1024 * 1024 ||
+                    reader.ReadInt32() != LauncherFastCacheMagic ||
+                    reader.ReadInt32() != LauncherFastCacheVersion)
+                    return null;
+
+                int count = reader.ReadInt32();
+                if (count < 1 || count > 20000)
+                    return null;
+
+                var apps = new List<LauncherApp>(count);
+                for (int i = 0; i < count; i++)
+                {
+                    string name = reader.ReadString();
+                    string appPath = reader.ReadString();
+                    string iconPath = reader.ReadString();
+                    if (String.IsNullOrWhiteSpace(name) ||
+                        String.IsNullOrWhiteSpace(appPath) ||
+                        name.Length > 4096 || appPath.Length > 32768 ||
+                        iconPath.Length > 32768)
+                        return null;
+
+                    apps.Add(new LauncherApp
+                    {
+                        Name = name,
+                        Path = appPath,
+                        IconPath = String.IsNullOrWhiteSpace(iconPath) ? appPath : iconPath
+                    });
+                }
+                if (stream.Position != stream.Length)
+                    return null;
+
+                refreshRequired = (DateTime.UtcNow - File.GetLastWriteTimeUtc(path))
+                    >= TimeSpan.FromSeconds(LauncherCacheRefreshSeconds);
+                return apps;
+            }
+        }
+        catch
+        {
+            // First-time installs and invalid snapshots use the JSON fallback.
+            return null;
+        }
+    }
+
+    static void WriteLauncherFastCache(string path, List<LauncherApp> apps)
+    {
+        string temporary = null;
+        try
+        {
+            if (apps == null || apps.Count == 0 || apps.Count > 20000)
+                return;
+
+            Directory.CreateDirectory(Path.GetDirectoryName(path));
+            temporary = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
+            using (var stream = new FileStream(temporary, FileMode.CreateNew,
+                FileAccess.Write, FileShare.None, 4096))
+            using (var writer = new BinaryWriter(stream, Encoding.UTF8))
+            {
+                writer.Write(LauncherFastCacheMagic);
+                writer.Write(LauncherFastCacheVersion);
+                writer.Write(apps.Count);
+                foreach (LauncherApp app in apps)
+                {
+                    writer.Write(app.Name);
+                    writer.Write(app.Path);
+                    writer.Write(String.IsNullOrWhiteSpace(app.IconPath) ? app.Path : app.IconPath);
+                }
+                writer.Flush();
+                stream.Flush(true);
+            }
+
+            // Readers see either the previous complete snapshot or the new one.
+            if (File.Exists(path))
+                File.Replace(temporary, path, null);
+            else
+                File.Move(temporary, path);
+        }
+        catch
+        {
+            // The existing JSON cache remains the authoritative fallback.
+        }
+        finally
+        {
+            if (temporary != null)
+                SafeDeleteFile(temporary);
+        }
+    }
+
     static List<LauncherApp> ReadLauncherAppCache(out bool refreshRequired)
     {
         var result = new List<LauncherApp>();
@@ -12939,6 +13142,23 @@ class WgdotHidden
 
         try
         {
+            // Avoid constructing hundreds of JSON dictionaries on each cold
+            // launch. Fall back if binary is older than the JSON source.
+            if (File.Exists(LauncherFastCachePath) &&
+                (!File.Exists(LauncherCachePath) ||
+                 File.GetLastWriteTimeUtc(LauncherFastCachePath) >=
+                 File.GetLastWriteTimeUtc(LauncherCachePath)))
+            {
+                bool fastRefreshRequired;
+                List<LauncherApp> fast = ReadLauncherFastCache(
+                    LauncherFastCachePath, out fastRefreshRequired);
+                if (fast != null)
+                {
+                    refreshRequired = fastRefreshRequired;
+                    return fast;
+                }
+            }
+
             Dictionary<string, object> root = ReadJson(LauncherCachePath);
             if (root == null)
                 return result;
@@ -13010,6 +13230,7 @@ class WgdotHidden
         root["updatedAt"] = DateTime.UtcNow.ToString("o");
         root["apps"] = rows;
         WriteJson(LauncherCachePath, root);
+        WriteLauncherFastCache(LauncherFastCachePath, apps);
     }
 
     static bool LauncherAppsEquivalent(
@@ -13371,24 +13592,50 @@ class WgdotHidden
 
         System.Threading.ThreadPool.QueueUserWorkItem(delegate
         {
+            // A new launcher process must not block its first visible frame
+            // decoding cached PNGs. Load disk icons first, then handle slow
+            // shell icon cache misses without making earlier icons wait.
+            bool cachedLoaded = false;
             foreach (LauncherApp app in pending)
-                GetLauncherAppIcon(app);
-
-            if (form.IsDisposed || results.IsDisposed || !form.IsHandleCreated)
-                return;
-
-            try
             {
-                form.BeginInvoke((Action)delegate
-                {
-                    if (!results.IsDisposed)
-                        results.Invalidate();
-                });
+                if (TryLoadLauncherCachedIcon(app))
+                    cachedLoaded = true;
             }
-            catch
+            if (cachedLoaded)
+                InvalidateLauncherIcons(form, results);
+
+            foreach (LauncherApp app in pending)
             {
+                if (form.IsDisposed || results.IsDisposed)
+                    return;
+                if (app.IconLoaded)
+                    continue;
+
+                GetLauncherAppIcon(app);
+                InvalidateLauncherIcons(form, results);
             }
         });
+    }
+
+    static void InvalidateLauncherIcons(
+        System.Windows.Forms.Form form,
+        LauncherResultsView results)
+    {
+        if (form.IsDisposed || results.IsDisposed || !form.IsHandleCreated)
+            return;
+
+        try
+        {
+            form.BeginInvoke((Action)delegate
+            {
+                if (!results.IsDisposed)
+                    results.Invalidate();
+            });
+        }
+        catch
+        {
+            // Ignore window teardown races while the user closes search.
+        }
     }
 
     static bool IsWindowsStartSurfaceWindow(IntPtr window)
@@ -13418,32 +13665,37 @@ class WgdotHidden
         }
     }
 
-    static void QueueLauncherSuperDFocusRecovery(
+    static void QueueLauncherStartFocusRecovery(
         System.Windows.Forms.Form form,
         System.Windows.Forms.Control focusControl,
+        bool superD,
+        bool startWasForeground,
         Action completed)
     {
         IntPtr launcherHandle = form.Handle;
 
         System.Threading.ThreadPool.QueueUserWorkItem(delegate
         {
-            // Windows can surface Start on Win-key release even though GlazeWM
-            // handled Super+D. Wait only for this chord to finish; do not install
-            // a resident keyboard hook or delay the launcher's first frame.
-            for (int i = 0; i < 60; i++)
+            // Super+D may reveal Start when the Windows key is released.
+            // Alt+P only needs recovery if Start was already in the foreground.
+            // Never suppress ordinary Start usage or install an input hook.
+            if (superD)
             {
-                bool leftDown = (GetAsyncKeyState(VkLwin) & 0x8000) != 0;
-                bool rightDown = (GetAsyncKeyState(VkRwin) & 0x8000) != 0;
-                if (!leftDown && !rightDown)
-                    break;
-                System.Threading.Thread.Sleep(10);
+                for (int i = 0; i < 60; i++)
+                {
+                    bool leftDown = (GetAsyncKeyState(VkLwin) & 0x8000) != 0;
+                    bool rightDown = (GetAsyncKeyState(VkRwin) & 0x8000) != 0;
+                    if (!leftDown && !rightDown)
+                        break;
+                    System.Threading.Thread.Sleep(10);
+                }
             }
 
-            bool startSurfaceSeen = false;
+            bool startSurfaceSeen = startWasForeground;
             bool userSwitchedAway = false;
             DateTime deadline = DateTime.UtcNow.AddMilliseconds(250);
 
-            while (DateTime.UtcNow < deadline && !form.IsDisposed)
+            while (!startSurfaceSeen && DateTime.UtcNow < deadline && !form.IsDisposed)
             {
                 IntPtr foreground = GetForegroundWindow();
                 if (IsWindowsStartSurfaceWindow(foreground))
@@ -13552,10 +13804,13 @@ class WgdotHidden
             return 0;
         }
 
+        // Capture the Start surface before the new launcher window takes
+        // focus. Alt+P may arrive while Start is already visible.
+        IntPtr foreground = GetForegroundWindow();
+        bool startWasForeground = IsWindowsStartSurfaceWindow(foreground);
+
         bool refreshRequired;
         List<LauncherApp> apps = ReadLauncherAppCache(out refreshRequired);
-
-        IntPtr foreground = GetForegroundWindow();
         POINT cursor;
         bool haveCursor = GetCursorPos(out cursor);
 
@@ -13643,10 +13898,8 @@ class WgdotHidden
         {
             List<LauncherApp> filtered =
                 FilterLauncherApps(apps, search.Text, 12);
-            // Decode local PNGs before painting; only exceptional cache
-            // misses need asynchronous Windows shell icon extraction.
-            foreach (LauncherApp app in filtered)
-                TryLoadLauncherCachedIcon(app);
+            // Show matching names immediately. Even cached PNG decoding can
+            // stall a cold process on a busy disk, so hydrate icons off-thread.
             results.SetItems(filtered);
             QueueLauncherIconLoads(form, results, filtered);
         };
@@ -13773,12 +14026,16 @@ class WgdotHidden
             }
         };
 
-        bool superDFocusRecoveryPending =
+        bool superDSource =
             String.Equals(source, "super-d", StringComparison.OrdinalIgnoreCase);
+        bool startFocusRecoveryPending =
+            superDSource ||
+            (String.Equals(source, "hotkey", StringComparison.OrdinalIgnoreCase) &&
+             startWasForeground);
 
         form.Deactivate += delegate
         {
-            if (superDFocusRecoveryPending)
+            if (startFocusRecoveryPending)
                 return;
             if (!form.IsDisposed)
                 form.Close();
@@ -13796,20 +14053,20 @@ class WgdotHidden
         {
             // Paint while transparent so DWM never exposes an unpainted
             // WinForms/default-color frame before the themed launcher.
+            // One recursive WinForms paint is sufficient; refreshing all
+            // children again synchronously repeats layout and drawing.
             form.Refresh();
-            outer.Refresh();
-            searchWrap.Refresh();
-            search.Refresh();
-            results.Refresh();
             form.Opacity = 0.98;
             search.Focus();
 
-            if (superDFocusRecoveryPending)
+            if (startFocusRecoveryPending)
             {
-                QueueLauncherSuperDFocusRecovery(
+                QueueLauncherStartFocusRecovery(
                     form,
                     search,
-                    delegate { superDFocusRecoveryPending = false; });
+                    superDSource,
+                    startWasForeground,
+                    delegate { startFocusRecoveryPending = false; });
             }
 
             if (refreshRequired)

@@ -49,6 +49,8 @@ The system tray definition remains available but is not rendered in the bar. `us
 
 ## Launcher ownership
 
+Windows starts GlazeWM through the managed, windowless `wgdotw.exe glazewm-startup` entry. The helper starts the real GlazeWM CLI without a console window. GlazeWM then starts YASB using `shell-exec --hide-window yasb`. The normal desktop and YASB GUI remain visible. Existing direct-CLI WGDot startup registrations are upgraded after a successful Git runtime swap, without modifying unrelated startup entries.
+
 The application button is a lightweight YASB `CustomWidget` that opens `wgdotw.exe launcher bar`. GlazeWM opens the same compiled surface directly and hidden: `Alt+P` uses `wgdot.exe launcher hotkey`, while `Super+D` uses `wgdot.exe launcher super-d`.
 
 - Global `Alt+P` and `Super+D` open the launcher.
@@ -58,9 +60,9 @@ The application button is a lightweight YASB `CustomWidget` that opens `wgdotw.e
 - For keyboard activation only, if YASB auto-hide is enabled or the foreground window fills the active monitor, the launcher opens centered on that monitor.
 - The launcher stays compact at roughly half the old search-window width while retaining normal application-name room.
 - Its results viewport uses pixel-smooth wheel scrolling with a wider WGDot-drawn scrollbar: a 16 px hit area and 12 px thumb colored from the active YASB theme instead of the bright native Windows scrollbar.
-- It loads a persistent WGDot-owned Start Menu index before the window is shown, refreshes that index asynchronously, and prewarms it during real WGDot runtime installation/refresh so repeat opens do not rescan and resolve every shortcut before results are usable. Result icons are resolved off the UI thread so cold Windows shell icon extraction cannot block the first visible frame.
+- It loads a persistent WGDot-owned Start Menu index before the window is shown, refreshes that index asynchronously, and prewarms it during real WGDot runtime installation/refresh so repeat opens do not rescan and resolve every shortcut before results are usable. Cached icon PNGs and missing Windows shell icons are both loaded off the UI thread. The launcher shows matching application names immediately and fills icons asynchronously, rather than blocking the first frame to decode the cache. A compact, atomically replaced binary app index avoids parsing the older JSON catalog on each hotkey; JSON remains the compatibility fallback.
 - It indexes Start Menu shortcuts, activates them through Windows shell semantics, and resolves ordinary `.lnk` target/icon metadata so results prefer the underlying application icon instead of shortcut-style presentation where Windows exposes that metadata.
-- `Super+D` uses a short, one-shot post-key-release focus recovery only if Windows surfaces Start; this dismisses the transient Start surface without a resident keyboard hook or shell-process restart.
+- `Super+D` uses a short, one-shot post-key-release focus recovery when Windows surfaces Start. `Alt+P` also reclaims focus if Start was already in the foreground. Start remains available normally; WGDot does not kill shell hosts, globally suppress the Windows key, or install a resident keyboard hook.
 - VM mode has no ordinary launcher binding that steals guest shortcuts.
 
 ## Binding modes
