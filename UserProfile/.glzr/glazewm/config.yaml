@@ -2,7 +2,7 @@
 # This config is my personalized config I use specifically for my gaming computer.
 general:
   startup_commands:
-    - "shell-exec yasb"
+    - "shell-exec --hide-window yasb"
   shutdown_commands: ["shell-exec taskkill /IM yasb.exe /F"]
   config_reload_commands: []
   focus_follows_cursor: true
