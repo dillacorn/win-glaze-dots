@@ -76,19 +76,41 @@ bars:
 
 widgets:
   launcher:
-    type: "yasb.custom.CustomWidget"
+    # Native YASB search experiment. Keep the compiled Super+D fallback until
+    # the launcher is accepted on a real Windows gaming machine.
+    type: "yasb.quick_launch.QuickLaunchWidget"
     options:
-      label: ""
-      class_name: "awtarchy-launcher"
-      tooltip: true
-      tooltip_label: "Applications (Alt+P / Super+D)"
-      exec_options:
-        run_once: true
-        return_format: "string"
+      label: "<span></span>"
+      search_placeholder: "Search applications..."
+      remember_last_query: false
+      max_results: 12
+      show_icons: true
+      icon_size: 24
+      home_page: false
+      compact_mode: false
+      compact_text: true
+      providers:
+        apps:
+          enabled: true
+          prefix: "*"
+          show_recent: true
+          max_recent: 8
+          show_description: false
+      popup:
+        width: 380
+        height: 450
+        blur: false
+        round_corners: false
+        border_color: "None"
+        dark_mode: true
       callbacks:
-        on_left: "exec wgdotw.exe launcher bar"
+        on_left: "toggle_quick_launch"
         on_middle: "do_nothing"
-        on_right: "exec wgdotw.exe launcher bar"
+        on_right: "toggle_quick_launch"
+      keybindings:
+        - keys: "alt+p"
+          action: "toggle_quick_launch"
+          screen: "active"
 
   glazewm_workspaces:
     type: "glazewm.workspaces.GlazewmWorkspacesWidget"
