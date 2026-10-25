@@ -1829,6 +1829,18 @@ Assert-True ($glazeNormalText -match '%LOCALAPPDATA%\\wgdot\\bin\\wgdot\.exe lau
 Assert-True ($glazeWorkText -match '%LOCALAPPDATA%\\wgdot\\bin\\wgdot\.exe launcher (?:hotkey|super-d)') "Work launcher hotkeys use the deterministic WGDot runtime path"
 Assert-True ($nativeSourceText -match 'Usage: wgdot launcher \[bar\|hotkey\|super-d\]') "compiled launcher exposes the scoped Super+D activation source"
 Assert-True ($nativeSourceText -match 'QueueLauncherStartFocusRecovery') "Alt+P and Super+D have bounded Start focus recovery"
+$startDismissBlock = [regex]::Match($nativeSourceText, '(?ms)static bool DismissForegroundStartForLauncher\(IntPtr initialForeground\).*?^    }').Value
+Assert-True (-not [string]::IsNullOrWhiteSpace($startDismissBlock)) "launcher has explicit Windows Start dismissal before showing UI"
+Assert-True ($startDismissBlock -match 'IsWindowsStartSurfaceWindow\(initialForeground\)') "only recognized Start and Search surfaces may be dismissed"
+Assert-True ($startDismissBlock -match 'GetForegroundWindow\(\) != initialForeground') "dismissal must not inject into a different foreground app"
+Assert-True ($startDismissBlock -match 'GetAsyncKeyState\(VkMenu\)') "dismissal waits for Alt release"
+Assert-True ($startDismissBlock -match 'GetAsyncKeyState\(VkLwin\)') "dismissal waits for Windows key release"
+Assert-True ($startDismissBlock -match 'for \(int i = 0; i < 45; i\+\+\)') "dismissal's chord-release wait is bounded"
+Assert-True ($startDismissBlock -match 'keybd_event\(VkEscape, 0, 0, UIntPtr.Zero\)') "foreground Start dismissal sends only one Escape down"
+Assert-True ($startDismissBlock -match 'keybd_event\(VkEscape, 0, KeyeventfKeyup, UIntPtr.Zero\)') "foreground Start dismissal releases Escape"
+$launcherOpenBlock = [regex]::Match($nativeSourceText, '(?ms)static int Launcher\(string source\).*?^    }').Value
+Assert-True ($launcherOpenBlock -match '(?s)if \(startWasForeground &&\s*\(String.Equals\(source, "hotkey".*?String.Equals\(source, "super-d".*?\)\)\s*DismissForegroundStartForLauncher\(foreground\);') "only Alt+P and Super+D dismiss an existing Start surface"
+Assert-True ($launcherOpenBlock -notmatch 'DismissForegroundStartForLauncher\(foreground\).*?IsWindowsStartSurfaceWindow\(foreground\)') "Start dismissal happens after explicit initial foreground detection"
 Assert-True ($nativeSourceText -match 'bool startWasForeground = IsWindowsStartSurfaceWindow\(foreground\);') "launcher detects visible Start before changing foreground focus"
 Assert-True ($nativeSourceText -match 'String\.Equals\(source, "hotkey", StringComparison\.OrdinalIgnoreCase\)\s*&&\s*startWasForeground') "Alt+P only runs Start focus recovery when Start was active"
 Assert-True ($nativeSourceText -match 'bool startSurfaceSeen = startWasForeground') "Start focus recovery remembers Start ownership before launcher opens"
