@@ -1116,6 +1116,25 @@ Assert-True ($nativeSourceText -match 'SoftwareManager') "native runtime exposes
 Assert-True ($nativeSourceText -match 'StartupManager') "native runtime exposes individual startup management"
 Assert-True ($nativeSourceText -match '(?s)SpecialFolder\.ApplicationData.*?AltSnap.*?AltSnap\.exe') "AltSnap startup resolver covers its normal per-user AppData install path"
 Assert-True ($nativeSourceText -match 'GlazeWM \+ YASB') "startup manager presents the GlazeWM/YASB session as one login unit"
+Assert-True ($nativeSourceText -match 'if \(command == "glazewm-startup"\) return GlazeWmStartup\(\);') "native runtime dispatches GlazeWM login startup"
+$glazeStartupBlock = [regex]::Match($nativeSourceText, '(?ms)static int GlazeWmStartup\(\).*?^    }').Value
+Assert-True (-not [string]::IsNullOrWhiteSpace($glazeStartupBlock)) "GlazeWM startup helper exists"
+Assert-True ($glazeStartupBlock -match 'RequireGlazeWmExe\(') "GlazeWM startup helper resolves the installed CLI"
+Assert-True ($glazeStartupBlock -match 'start --config=') "GlazeWM startup retains the explicit live config"
+Assert-True ($glazeStartupBlock -match 'UseShellExecute = false') "GlazeWM startup skips the Windows shell"
+Assert-True ($glazeStartupBlock -match 'CreateNoWindow = true') "GlazeWM startup never creates a visible console"
+Assert-True ($glazeStartupBlock -match 'ProcessWindowStyle.Hidden') "GlazeWM startup requests a hidden CLI window"
+$buildStartupBlock = [regex]::Match($nativeSourceText, '(?ms)static string BuildStartupCommand\(.*?^    }').Value
+Assert-True ($buildStartupBlock -match 'EnsureHiddenLauncher\(\);\s*return Q\(HiddenLauncherPath\(\)\) \+ " glazewm-startup"') "managed GlazeWM Run entry uses the windowless WGDot frontend"
+Assert-True ($buildStartupBlock -notmatch 'return Q\(exe\) \+ " start --config="') "GlazeWM Run command does not spawn a console-subsystem CLI directly"
+$glazeMigrationBlock = [regex]::Match($nativeSourceText, '(?ms)static void MigrateLegacyGlazeWmStartupIfOwned\(\).*?^    }').Value
+Assert-True (-not [string]::IsNullOrWhiteSpace($glazeMigrationBlock)) "legacy GlazeWM login migration exists"
+Assert-True ($glazeMigrationBlock -match 'Registry.CurrentUser.OpenSubKey\(runPath, true\)') "migration only reads current-user Windows startup"
+Assert-True ($glazeMigrationBlock -match 'key.GetValue\(\s*"WGDot.glazewm"') "migration touches only the WGDot GlazeWM registration"
+Assert-True ($glazeMigrationBlock -match 'if \(raw == null\)\s*return;') "migration preserves disabled GlazeWM login"
+Assert-True ($glazeMigrationBlock -match 'if \(!String.Equals\(Convert.ToString\(raw\), legacyCommand,') "migration preserves user-customized login entries"
+Assert-True ($glazeMigrationBlock -match 'HiddenLauncherIsCurrent\(helper\)') "migration requires a working current windowless frontend"
+Assert-True ($nativeSourceText -match 'try \{ MigrateLegacyGlazeWmStartupIfOwned\(\); \}') "newly swapped runtime migrates the old Run command at runtime mark"
 Assert-True ($nativeSourceText -notmatch 'startupHandler.*yasb') "YASB is not registered as a duplicate Windows startup application"
 Assert-True ($nativeSourceText -match 'SoftwareUninstallManager') "native runtime exposes explicit individual uninstall management"
 foreach ($command in @("software-reconcile", "software-uninstall", "startup", "startup-disable-all", "mic-suppression")) {
