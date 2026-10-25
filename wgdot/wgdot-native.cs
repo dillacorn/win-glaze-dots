@@ -13371,24 +13371,50 @@ class WgdotHidden
 
         System.Threading.ThreadPool.QueueUserWorkItem(delegate
         {
+            // A new launcher process must not block its first visible frame
+            // decoding cached PNGs. Load disk icons first, then handle slow
+            // shell icon cache misses without making earlier icons wait.
+            bool cachedLoaded = false;
             foreach (LauncherApp app in pending)
-                GetLauncherAppIcon(app);
-
-            if (form.IsDisposed || results.IsDisposed || !form.IsHandleCreated)
-                return;
-
-            try
             {
-                form.BeginInvoke((Action)delegate
-                {
-                    if (!results.IsDisposed)
-                        results.Invalidate();
-                });
+                if (TryLoadLauncherCachedIcon(app))
+                    cachedLoaded = true;
             }
-            catch
+            if (cachedLoaded)
+                InvalidateLauncherIcons(form, results);
+
+            foreach (LauncherApp app in pending)
             {
+                if (form.IsDisposed || results.IsDisposed)
+                    return;
+                if (app.IconLoaded)
+                    continue;
+
+                GetLauncherAppIcon(app);
+                InvalidateLauncherIcons(form, results);
             }
         });
+    }
+
+    static void InvalidateLauncherIcons(
+        System.Windows.Forms.Form form,
+        LauncherResultsView results)
+    {
+        if (form.IsDisposed || results.IsDisposed || !form.IsHandleCreated)
+            return;
+
+        try
+        {
+            form.BeginInvoke((Action)delegate
+            {
+                if (!results.IsDisposed)
+                    results.Invalidate();
+            });
+        }
+        catch
+        {
+            // Ignore window teardown races while the user closes search.
+        }
     }
 
     static bool IsWindowsStartSurfaceWindow(IntPtr window)
@@ -13643,10 +13669,8 @@ class WgdotHidden
         {
             List<LauncherApp> filtered =
                 FilterLauncherApps(apps, search.Text, 12);
-            // Decode local PNGs before painting; only exceptional cache
-            // misses need asynchronous Windows shell icon extraction.
-            foreach (LauncherApp app in filtered)
-                TryLoadLauncherCachedIcon(app);
+            // Show matching names immediately. Even cached PNG decoding can
+            // stall a cold process on a busy disk, so hydrate icons off-thread.
             results.SetItems(filtered);
             QueueLauncherIconLoads(form, results, filtered);
         };
@@ -13796,11 +13820,9 @@ class WgdotHidden
         {
             // Paint while transparent so DWM never exposes an unpainted
             // WinForms/default-color frame before the themed launcher.
+            // One recursive WinForms paint is sufficient; refreshing all
+            // children again synchronously repeats layout and drawing.
             form.Refresh();
-            outer.Refresh();
-            searchWrap.Refresh();
-            search.Refresh();
-            results.Refresh();
             form.Opacity = 0.98;
             search.Focus();
 
