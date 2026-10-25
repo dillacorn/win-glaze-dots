@@ -7,11 +7,11 @@ WGDot manages installation, updates, backups, and deployment. Runtime ownership 
 - Workspace buttons use GlazeWM `display_name` values rather than raw workspace IDs. Both profiles ship with numbers-only labels (`1` through `10`) at the normal bar text size. These are defaults only: users can edit any workspace `display_name` in the relevant GlazeWM config and YASB will render that custom label directly.\n\n## Runtime ownership
 
 - **GlazeWM** owns window-manager keybindings, binding modes, pause, workspace actions, screenshots, and direct Windows/application launches.
-- **YASB** owns ordinary bar widgets and native callbacks; for the custom application launcher it owns only the visible bar button.
+- **YASB** owns ordinary bar widgets and native callbacks. The Normal profile tests native Quick Launch search; Work keeps the compiled WGDot launcher.
 - **Installed applications** own their native hotkeys where practical. EarTrumpet owns `Alt+V` itself; YASB volume right-click uses a narrow windowless WGDot bridge only to trigger that application-owned hotkey. WGDot does not rewrite the hotkey.
 - **Neither Normal nor Work has any `.ps1` runtime dependencies.** Desktop-session behavior uses native GlazeWM/YASB/Windows/application interfaces first.
-- **Compiled WGDot is used at runtime only for approved custom primitives:** the application launcher, power surface, coordinated auto-hide, theme application/window toggle, invisible GlazeWM mode dispatch where a console would otherwise flash, the GlazeWM default window-behavior toggle, the narrow RawAccel GUI toggle, the bar-only one-shot Clipboard History opener, and the bar-only EarTrumpet mixer-hotkey trigger.
-- Runtime actions that must stay invisible normally use the windowless `wgdotw.exe` frontend. The launcher hotkeys are the deliberate exception: GlazeWM uses its own `shell-exec --hide-window` support to invoke `wgdot.exe launcher ...` directly and avoid an extra cold process. The interactive theme selector uses `wgdot.exe theme` inside Windows Terminal.
+- **Compiled WGDot is used at runtime only for approved custom primitives:** the Work and Super+D fallback application launcher, power surface, coordinated auto-hide, theme application/window toggle, invisible GlazeWM mode dispatch where a console would otherwise flash, the GlazeWM default window-behavior toggle, the narrow RawAccel GUI toggle, the bar-only one-shot Clipboard History opener, and the bar-only EarTrumpet mixer-hotkey trigger.
+- Runtime actions that must stay invisible normally use `wgdotw.exe`. Work Alt+P and both profiles' Super+D use GlazeWM's hidden direct `wgdot.exe launcher ...` path. The Normal Alt+P trial is registered directly by YASB.
 
 ## Bar layout
 
@@ -49,19 +49,15 @@ The system tray definition remains available but is not rendered in the bar. `us
 
 ## Launcher ownership
 
-The application button is a lightweight YASB `CustomWidget` that opens `wgdotw.exe launcher bar`. GlazeWM opens the same compiled surface directly and hidden: `Alt+P` uses `wgdot.exe launcher hotkey`, while `Super+D` uses `wgdot.exe launcher super-d`.
+Normal (gaming-PC experiment): the bar button and `Alt+P` use YASB's built-in `QuickLaunchWidget`, configured for local application search, a compact square-cornered popup, and the shared Awtarchy theme. No WGDot process starts for those two triggers.
 
-- Global `Alt+P` and `Super+D` open the launcher.
-- `noalt` retains `Super+D` but intentionally leaves plain `Alt+P` uncaptured.
-- Bar click opens directly below the top bar, flush with the active display's left edge.
-- Keyboard activation opens horizontally centered just below the top bar during ordinary desktop use.
-- For keyboard activation only, if YASB auto-hide is enabled or the foreground window fills the active monitor, the launcher opens centered on that monitor.
-- The launcher stays compact at roughly half the old search-window width while retaining normal application-name room.
-- Its results viewport uses pixel-smooth wheel scrolling with a wider WGDot-drawn scrollbar: a 16 px hit area and 12 px thumb colored from the active YASB theme instead of the bright native Windows scrollbar.
-- It loads a persistent WGDot-owned Start Menu index before the window is shown, refreshes that index asynchronously, and prewarms it during real WGDot runtime installation/refresh so repeat opens do not rescan and resolve every shortcut before results are usable. Result icons are resolved off the UI thread so cold Windows shell icon extraction cannot block the first visible frame.
-- It indexes Start Menu shortcuts, activates them through Windows shell semantics, and resolves ordinary `.lnk` target/icon metadata so results prefer the underlying application icon instead of shortcut-style presentation where Windows exposes that metadata.
-- `Super+D` uses a short, one-shot post-key-release focus recovery only if Windows surfaces Start; this dismisses the transient Start surface without a resident keyboard hook or shell-process restart.
-- VM mode has no ordinary launcher binding that steals guest shortcuts.
+Work stays unchanged: its bar button uses `wgdotw.exe launcher bar` and GlazeWM owns its `Alt+P` compiled launcher binding.
+
+Both profiles still use the compiled `wgdot.exe launcher super-d` fallback for `Super+D`, including Normal `noalt`. Windows reserves `Win+D`, so YASB's global hotkey API is not a reliable replacement for it.
+
+**Trial behavior to verify on Windows:** YASB uses Windows `RegisterHotKey`, so Normal `Alt+P` can also activate inside `noalt` and `vm` modes; unlike the old GlazeWM-owned binding, it cannot automatically follow GlazeWM binding-mode state. Test game and guest hotkey interference before accepting the change. The native popup also uses YASB's centered placement rather than the former WGDot bar-relative placement.
+
+Only after the real-machine trial should redundant compiled search paths/caches be considered for removal. No automatic deletion or uninstall occurs in this branch.
 
 ## Binding modes
 
@@ -163,7 +159,7 @@ The Noto face renders Nerd Font glyphs smaller than the previous JetBrains fallb
 | network / Bluetooth | native WiFi/Bluetooth indicators opening Windows Network/Bluetooth Settings surfaces |
 | notifications / mute | native `DndWidget` |
 | power controls | compiled Awtarchy-style `wgdotw.exe power-menu` surface |
-| launcher | compiled context-aware `wgdotw.exe launcher` application search surface |
+| launcher | Normal: native YASB Quick Launch trial; Work / Super+D: compiled WGDot fallback |
 | theme switching | compiled `wgdot.exe theme` manager with `wgdotw.exe theme-window-toggle` dispatch |
 | bar auto-hide | compiled `wgdotw.exe bar-autohide-toggle` coordinator in both profiles |
 | default new-window behavior | compiled `wgdotw.exe glazewm-window-behavior-toggle` toggles GlazeWM `tiling` / `floating`, reloads config, and reports the new state |
