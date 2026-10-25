@@ -2063,6 +2063,15 @@ internal static class WgdotNative
         state.Remove("runtimeSyncScheduledAt");
         WriteJson(BootstrapStatePath, state);
 
+        // The managed update plan runs before the newly compiled runtime is
+        // swapped in. Migrate only our exact legacy console-visible Run value
+        // after the swap, so first reboot already uses the hidden launch path.
+        if (String.IsNullOrWhiteSpace(TestRootOverride))
+        {
+            try { MigrateLegacyGlazeWmStartupIfOwned(); }
+            catch { /* Startup migration must not fail runtime installation. */ }
+        }
+
         // mark-runtime runs from the newly swapped executable during both
         // regular runtime refresh and Git-testing updates. Prewarm its icon
         // catalog here, before the first interactive launcher invocation.
@@ -6726,6 +6735,45 @@ class WgdotHidden
             !Regex.IsMatch(handler, "^[A-Za-z0-9-]+$"))
             throw new Exception("Invalid WGDot startup handler for " + GetString(package, "name") + ".");
         return "WGDot." + handler;
+    }
+
+    static void MigrateLegacyGlazeWmStartupIfOwned()
+    {
+        const string runPath = @"Software\Microsoft\Windows\CurrentVersion\Run";
+        using (RegistryKey key = Registry.CurrentUser.OpenSubKey(runPath, true))
+        {
+            if (key == null)
+                return;
+
+            object raw = key.GetValue(
+                "WGDot.glazewm", null,
+                RegistryValueOptions.DoNotExpandEnvironmentNames);
+            if (raw == null)
+                return;
+
+            string exe = FindGlazeWmExe();
+            if (String.IsNullOrWhiteSpace(exe))
+                return;
+            string config = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                ".glzr", "glazewm", "config.yaml");
+            string legacyCommand = Q(exe) + " start --config=" + Q(config);
+
+            // Respect disabled startup and user-modified registry commands.
+            // Only rewrite the exact Run value produced by older WGDot.
+            if (!String.Equals(Convert.ToString(raw), legacyCommand,
+                StringComparison.OrdinalIgnoreCase))
+                return;
+
+            string helper = HiddenLauncherPath();
+            if (!HiddenLauncherIsCurrent(helper))
+                return;
+
+            key.SetValue(
+                "WGDot.glazewm",
+                Q(helper) + " glazewm-startup",
+                RegistryValueKind.String);
+        }
     }
 
     static int GlazeWmStartup()
