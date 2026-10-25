@@ -151,6 +151,10 @@ for name in ("config.yaml", "custom_work_config.yaml"):
     glaze_text = glaze_path.read_text()
     assert ".ps1" not in glaze_text.lower(), (name, "GlazeWM runtime must not depend on .ps1 files")
     config = yaml.safe_load(glaze_text)
+    assert config["general"]["startup_commands"] == ["shell-exec --hide-window yasb"], (
+        name,
+        "YASB must start through GlazeWM without a visible startup shell",
+    )
     modes = {m["name"]: m["keybindings"] for m in config["binding_modes"]}
     is_work = name == "custom_work_config.yaml"
 
