@@ -33,18 +33,33 @@ for yasb_name in ("config.yaml", "custom_work_config.yaml"):
     assert ".ps1" not in yasb_text.lower(), (yasb_name, "YASB runtime must not depend on .ps1 files")
     yasb = yaml.safe_load(yasb_text)
     launcher = yasb["widgets"]["launcher"]
-    assert launcher["type"] == "yasb.custom.CustomWidget", (
-        yasb_name,
-        "launcher button must be the lightweight YASB custom control",
-    )
-    assert launcher["options"]["callbacks"]["on_left"] == "exec wgdotw.exe launcher bar", (
-        yasb_name,
-        "launcher button must open the compiled bar-relative surface",
-    )
-    assert launcher["options"]["callbacks"]["on_right"] == "exec wgdotw.exe launcher bar", (
-        yasb_name,
-        "launcher right click must toggle the same compiled surface",
-    )
+    if yasb_name == "config.yaml":
+        assert launcher["type"] == "yasb.quick_launch.QuickLaunchWidget", (
+            yasb_name,
+            "Normal application search must use native YASB Quick Launch",
+        )
+        assert launcher["options"]["callbacks"]["on_left"] == "toggle_quick_launch"
+        assert launcher["options"]["callbacks"]["on_right"] == "toggle_quick_launch"
+        assert launcher["options"]["providers"]["apps"]["enabled"] is True
+        assert launcher["options"]["home_page"] is False
+        assert launcher["options"]["keybindings"] == [
+            {"keys": "alt+p", "action": "toggle_quick_launch", "screen": "active"}
+        ], (yasb_name, "Normal Alt+P must be registered by native YASB")
+        assert "wgdot" not in str(launcher).lower(), (
+            yasb_name,
+            "Native YASB application search must not start WGDot",
+        )
+    else:
+        assert launcher["type"] == "yasb.custom.CustomWidget", (
+            yasb_name,
+            "Work compiled launcher must remain unchanged",
+        )
+        assert launcher["options"]["callbacks"]["on_left"] == "exec wgdotw.exe launcher bar"
+        assert launcher["options"]["callbacks"]["on_right"] == "exec wgdotw.exe launcher bar"
+        assert not launcher["options"].get("keybindings"), (
+            yasb_name,
+            "Work YASB must not globally capture Alt+P",
+        )
 
     clipboard = yasb["widgets"]["clipboard_history"]
     assert clipboard["options"]["callbacks"]["on_left"] == "exec wgdotw.exe clipboard-history-open", (
@@ -280,18 +295,18 @@ for name in ("config.yaml", "custom_work_config.yaml"):
             "launcher hotkeys must not cold-start through wgdotw",
             launcher_commands,
         )
-        if mode == "normal":
+        if mode == "normal" and is_work:
             assert "alt+p" in alt_launcher_keys, (
                 name,
                 mode,
-                "normal mode must bind Alt+P to the compiled launcher",
+                "Work normal mode must retain compiled Alt+P",
                 alt_launcher_keys,
             )
         else:
             assert "alt+p" not in alt_launcher_keys, (
                 name,
                 mode,
-                "noalt must leave plain Alt+P uncaptured",
+                "Normal native YASB Alt+P or NoAlt must not be duplicated by GlazeWM",
                 alt_launcher_keys,
             )
 
@@ -501,6 +516,9 @@ for name in ("config.yaml", "custom_work_config.yaml"):
             all_keys,
         )
 
+    # GlazeWM does not capture VM guest Alt+P, but Normal's YASB native
+    # RegisterHotKey is global and may still capture it. Real Windows
+    # acceptance must explicitly check that tradeoff before merge.
     guest_keys = {key for binding in modes["vm"] for key in binding["bindings"]}
     assert not ({"alt+p", "lwin+d", "rwin+d", "lwin", "rwin"} & guest_keys), (
         name,
