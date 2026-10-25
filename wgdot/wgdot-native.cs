@@ -63,6 +63,9 @@ internal static class WgdotNative
     const string RnnoiseRepo = "werman/noise-suppression-for-voice";
     const string RnnoiseAssetRegex = "^win-rnnoise\\.zip$";
     static readonly string LauncherCachePath = Path.Combine(CacheRoot, "launcher-apps.json");
+    static readonly string LauncherFastCachePath = Path.Combine(CacheRoot, "launcher-apps.bin");
+    const int LauncherFastCacheMagic = 0x57474C43;
+    const int LauncherFastCacheVersion = 1;
     static readonly string LauncherIconCacheRoot = Path.Combine(CacheRoot, "launcher-icons-v1");
     const int LauncherCacheSchemaVersion = 2;
     const int LauncherCacheRefreshSeconds = 120;
@@ -2908,6 +2911,35 @@ class WgdotHidden
         return manifest;
     }
 
+    static void LauncherFastCacheSelfTest(string root)
+    {
+        string path = Path.Combine(root, "launcher-fast-cache-test.bin");
+        var sample = new List<LauncherApp>
+        {
+            new LauncherApp { Name = "Example", Path = @"C:\Example.lnk", IconPath = @"C:\Example.exe" },
+            new LauncherApp { Name = "Terminal", Path = @"C:\Terminal.lnk", IconPath = @"C:\Terminal.lnk" }
+        };
+        WriteLauncherFastCache(path, sample);
+        bool refreshRequired;
+        List<LauncherApp> restored = ReadLauncherFastCache(path, out refreshRequired);
+        if (restored == null || restored.Count != sample.Count ||
+            !String.Equals(restored[0].Name, sample[0].Name, StringComparison.Ordinal) ||
+            !String.Equals(restored[0].IconPath, sample[0].IconPath, StringComparison.Ordinal) ||
+            !String.Equals(restored[1].Path, sample[1].Path, StringComparison.Ordinal))
+            throw new Exception("Launcher binary catalog round-trip self-test failed.");
+
+        File.WriteAllBytes(path, new byte[] { 0, 1, 2 });
+        if (ReadLauncherFastCache(path, out refreshRequired) != null)
+            throw new Exception("Launcher binary catalog truncation self-test failed.");
+
+        WriteLauncherFastCache(path, sample);
+        using (var stream = new FileStream(path, FileMode.Open, FileAccess.Write))
+        using (var writer = new BinaryWriter(stream))
+            writer.Write(0);
+        if (ReadLauncherFastCache(path, out refreshRequired) != null)
+            throw new Exception("Launcher binary catalog invalid-header self-test failed.");
+    }
+
     static void LauncherIconCacheSelfTest(string root)
     {
         // Called only with WGDOT_TEST_ROOT. The test must not touch the
@@ -2991,6 +3023,7 @@ class WgdotHidden
             Directory.CreateDirectory(sourceRoot);
             Directory.CreateDirectory(liveRoot);
             LauncherIconCacheSelfTest(root);
+            LauncherFastCacheSelfTest(root);
 
             string verifiedJsonPath = Path.Combine(root, "verified-plan.json");
             byte[] verifiedJsonBytes = new UTF8Encoding(false).GetBytes("{\"value\":\"original\"}");
@@ -12932,6 +12965,107 @@ class WgdotHidden
         }
     }
 
+    static List<LauncherApp> ReadLauncherFastCache(
+        string path, out bool refreshRequired)
+    {
+        refreshRequired = true;
+        try
+        {
+            if (!File.Exists(path))
+                return null;
+
+            using (var stream = new FileStream(path, FileMode.Open, FileAccess.Read,
+                FileShare.ReadWrite | FileShare.Delete, 4096, FileOptions.SequentialScan))
+            using (var reader = new BinaryReader(stream, Encoding.UTF8))
+            {
+                // Do not trust potentially truncated or corrupted local caches.
+                if (stream.Length < 12 || stream.Length > 16 * 1024 * 1024 ||
+                    reader.ReadInt32() != LauncherFastCacheMagic ||
+                    reader.ReadInt32() != LauncherFastCacheVersion)
+                    return null;
+
+                int count = reader.ReadInt32();
+                if (count < 1 || count > 20000)
+                    return null;
+
+                var apps = new List<LauncherApp>(count);
+                for (int i = 0; i < count; i++)
+                {
+                    string name = reader.ReadString();
+                    string appPath = reader.ReadString();
+                    string iconPath = reader.ReadString();
+                    if (String.IsNullOrWhiteSpace(name) ||
+                        String.IsNullOrWhiteSpace(appPath) ||
+                        name.Length > 4096 || appPath.Length > 32768 ||
+                        iconPath.Length > 32768)
+                        return null;
+
+                    apps.Add(new LauncherApp
+                    {
+                        Name = name,
+                        Path = appPath,
+                        IconPath = String.IsNullOrWhiteSpace(iconPath) ? appPath : iconPath
+                    });
+                }
+                if (stream.Position != stream.Length)
+                    return null;
+
+                refreshRequired = (DateTime.UtcNow - File.GetLastWriteTimeUtc(path))
+                    >= TimeSpan.FromSeconds(LauncherCacheRefreshSeconds);
+                return apps;
+            }
+        }
+        catch
+        {
+            // First-time installs and invalid snapshots use the JSON fallback.
+            return null;
+        }
+    }
+
+    static void WriteLauncherFastCache(string path, List<LauncherApp> apps)
+    {
+        string temporary = null;
+        try
+        {
+            if (apps == null || apps.Count == 0 || apps.Count > 20000)
+                return;
+
+            Directory.CreateDirectory(Path.GetDirectoryName(path));
+            temporary = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
+            using (var stream = new FileStream(temporary, FileMode.CreateNew,
+                FileAccess.Write, FileShare.None, 4096))
+            using (var writer = new BinaryWriter(stream, Encoding.UTF8))
+            {
+                writer.Write(LauncherFastCacheMagic);
+                writer.Write(LauncherFastCacheVersion);
+                writer.Write(apps.Count);
+                foreach (LauncherApp app in apps)
+                {
+                    writer.Write(app.Name);
+                    writer.Write(app.Path);
+                    writer.Write(String.IsNullOrWhiteSpace(app.IconPath) ? app.Path : app.IconPath);
+                }
+                writer.Flush();
+                stream.Flush(true);
+            }
+
+            // Readers see either the previous complete snapshot or the new one.
+            if (File.Exists(path))
+                File.Replace(temporary, path, null);
+            else
+                File.Move(temporary, path);
+        }
+        catch
+        {
+            // The existing JSON cache remains the authoritative fallback.
+        }
+        finally
+        {
+            if (temporary != null)
+                SafeDeleteFile(temporary);
+        }
+    }
+
     static List<LauncherApp> ReadLauncherAppCache(out bool refreshRequired)
     {
         var result = new List<LauncherApp>();
@@ -12939,6 +13073,23 @@ class WgdotHidden
 
         try
         {
+            // Avoid constructing hundreds of JSON dictionaries on each cold
+            // launch. Fall back if binary is older than the JSON source.
+            if (File.Exists(LauncherFastCachePath) &&
+                (!File.Exists(LauncherCachePath) ||
+                 File.GetLastWriteTimeUtc(LauncherFastCachePath) >=
+                 File.GetLastWriteTimeUtc(LauncherCachePath)))
+            {
+                bool fastRefreshRequired;
+                List<LauncherApp> fast = ReadLauncherFastCache(
+                    LauncherFastCachePath, out fastRefreshRequired);
+                if (fast != null)
+                {
+                    refreshRequired = fastRefreshRequired;
+                    return fast;
+                }
+            }
+
             Dictionary<string, object> root = ReadJson(LauncherCachePath);
             if (root == null)
                 return result;
@@ -13010,6 +13161,7 @@ class WgdotHidden
         root["updatedAt"] = DateTime.UtcNow.ToString("o");
         root["apps"] = rows;
         WriteJson(LauncherCachePath, root);
+        WriteLauncherFastCache(LauncherFastCachePath, apps);
     }
 
     static bool LauncherAppsEquivalent(
