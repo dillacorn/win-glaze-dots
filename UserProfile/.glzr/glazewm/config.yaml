@@ -411,10 +411,8 @@ binding_modes:
 
 keybindings:
 
-  # Launch WGDot directly here so cold launcher activation pays for one
-  # .NET process instead of wgdotw.exe spawning and waiting on wgdot.exe.
-  - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe launcher hotkey']
-    bindings: ["alt+p"]
+  # Normal Alt+P is owned by YASB Quick Launch during this test.
+  # Preserve Super+D as the original WGDot fallback until runtime validation.
   - commands: ['shell-exec --hide-window %LOCALAPPDATA%\wgdot\bin\wgdot.exe launcher super-d']
     bindings: ["lwin+d", "rwin+d"]
 
