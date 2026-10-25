@@ -1458,6 +1458,7 @@ internal static class WgdotNative
             if (command == "clipboard-history-open") return ClipboardHistoryOpen();
             if (command == "eartrumpet-mixer-toggle") return EarTrumpetMixerToggle();
             if (command == "eartrumpet-startup") return EarTrumpetStartup();
+            if (command == "glazewm-startup") return GlazeWmStartup();
             if (command == "launcher") return LauncherFromArgs(args.Skip(1).ToArray());
             if (command == "yazi-drag") return YaziDragFromArgs(args.Skip(1).ToArray());
             if (command == "power-menu") return PowerMenu();
@@ -6727,22 +6728,42 @@ class WgdotHidden
         return "WGDot." + handler;
     }
 
+    static int GlazeWmStartup()
+    {
+        // WGDot's HKCU Run entry invokes this through the existing
+        // windowless wgdotw.exe frontend. Start GlazeWM's console-subsystem
+        // CLI without creating a visible console at Windows login.
+        string exe = RequireGlazeWmExe();
+        string config = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            ".glzr",
+            "glazewm",
+            "config.yaml");
+
+        var psi = new ProcessStartInfo();
+        psi.FileName = exe;
+        psi.Arguments = "start --config=" + Q(config);
+        psi.UseShellExecute = false;
+        psi.CreateNoWindow = true;
+        psi.WindowStyle = ProcessWindowStyle.Hidden;
+        psi.WorkingDirectory = Path.GetDirectoryName(exe);
+        Process.Start(psi);
+        return 0;
+    }
+
     static string BuildStartupCommand(Dictionary<string, object> package)
     {
         string handler = GetString(package, "startupHandler");
 
         if (String.Equals(handler, "glazewm", StringComparison.OrdinalIgnoreCase))
         {
-            string exe = FindGlazeWmExe();
-            if (String.IsNullOrWhiteSpace(exe))
+            if (String.IsNullOrWhiteSpace(FindGlazeWmExe()))
                 throw new Exception("GlazeWM is selected for startup, but glazewm.exe could not be found.");
 
-            string config = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-                ".glzr",
-                "glazewm",
-                "config.yaml");
-            return Q(exe) + " start --config=" + Q(config);
+            // Do not start the console-subsystem GlazeWM CLI directly from
+            // HKCU Run; its transient console can flash before GlazeWM loads.
+            EnsureHiddenLauncher();
+            return Q(HiddenLauncherPath()) + " glazewm-startup";
         }
 
         if (String.Equals(handler, "altsnap", StringComparison.OrdinalIgnoreCase))
