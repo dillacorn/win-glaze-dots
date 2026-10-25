@@ -1839,7 +1839,7 @@ Assert-True ($startDismissBlock -match 'for \(int i = 0; i < 45; i\+\+\)') "dism
 Assert-True ($startDismissBlock -match 'keybd_event\(VkEscape, 0, 0, UIntPtr.Zero\)') "foreground Start dismissal sends only one Escape down"
 Assert-True ($startDismissBlock -match 'keybd_event\(VkEscape, 0, KeyeventfKeyup, UIntPtr.Zero\)') "foreground Start dismissal releases Escape"
 $launcherOpenBlock = [regex]::Match($nativeSourceText, '(?ms)static int Launcher\(string source\).*?^    }').Value
-Assert-True ($launcherOpenBlock -match 'if \(startWasForeground &&\s*\(String.Equals\(source, "hotkey".*?String.Equals\(source, "super-d".*?\)\)\s*DismissForegroundStartForLauncher\(foreground\);') "only Alt+P and Super+D dismiss an existing Start surface"
+Assert-True ($launcherOpenBlock -match '(?s)if \(startWasForeground &&\s*\(String.Equals\(source, "hotkey".*?String.Equals\(source, "super-d".*?\)\)\s*DismissForegroundStartForLauncher\(foreground\);') "only Alt+P and Super+D dismiss an existing Start surface"
 Assert-True ($launcherOpenBlock -notmatch 'DismissForegroundStartForLauncher\(foreground\).*?IsWindowsStartSurfaceWindow\(foreground\)') "Start dismissal happens after explicit initial foreground detection"
 Assert-True ($nativeSourceText -match 'bool startWasForeground = IsWindowsStartSurfaceWindow\(foreground\);') "launcher detects visible Start before changing foreground focus"
 Assert-True ($nativeSourceText -match 'String\.Equals\(source, "hotkey", StringComparison\.OrdinalIgnoreCase\)\s*&&\s*startWasForeground') "Alt+P only runs Start focus recovery when Start was active"
