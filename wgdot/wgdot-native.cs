@@ -14388,11 +14388,10 @@ class WgdotHidden
                     return;
                 }
 
-                // If the user has moved away from the power menu, preserve
-                // that decision. Never steal focus back from another app.
-                if (foreground != IntPtr.Zero && foreground != powerHandle)
-                    return;
-
+                // GlazeWM/Windows may leave the previous app foreground
+                // briefly even after Shown. Keep watching for a *verified*
+                // Start surface during this bounded window; never inject
+                // input into or steal focus from unrelated foreground apps.
                 System.Threading.Thread.Sleep(10);
             }
         });
