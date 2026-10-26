@@ -119,6 +119,45 @@ jobs:
         run: |
           "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" status
           if not exist "%LOCALAPPDATA%\wgdot\bin\wgdotw.exe" exit /b 1
+      - name: Defender scan of compiled WGDot when active
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $exe = Join-Path $env:LOCALAPPDATA 'wgdot\bin\wgdot.exe'
+          if (-not (Test-Path -LiteralPath $exe -PathType Leaf)) {
+            throw "No compiled runtime to scan: $exe"
+          }
+          $status = $null
+          try {
+            $status = Get-MpComputerStatus -ErrorAction Stop
+          } catch {
+            Write-Host "Defender check INCONCLUSIVE: status unavailable: $($_.Exception.Message)"
+          }
+          if ($null -eq $status -or
+              $status.AMRunningMode -ne 'Normal' -or
+              -not $status.AntivirusEnabled -or
+              -not $status.RealTimeProtectionEnabled) {
+            $result = 'INCONCLUSIVE: Defender real-time antivirus is not active on this runner.'
+            Write-Warning $result
+          } else {
+            Write-Host "Defender real-time protection active. Scanning $exe"
+            Start-MpScan -ScanType CustomScan -ScanPath $exe -ErrorAction Stop
+            if (-not (Test-Path -LiteralPath $exe -PathType Leaf)) {
+              throw 'Defender removed/quarantined the compiled WGDot runtime.'
+            }
+            $blocked = @(Get-MpThreatDetection -ErrorAction Stop | Where-Object {
+              (@($_.Resources) -join ' ') -like "*$exe*"
+            })
+            if ($blocked.Count -ne 0) {
+              throw ('Defender detected the compiled WGDot runtime: ' +
+                  (($blocked | Select-Object -ExpandProperty ThreatID) -join ', '))
+            }
+            $result = 'PASS: Defender on-demand scan of compiled WGDot found no detection on this runner.'
+            Write-Host $result
+          }
+          if ($env:GITHUB_STEP_SUMMARY) {
+            Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Value "Defender scan: $result"
+          }
       - name: Reinstall exact runtime through PowerShell WebClient fallback
         shell: cmd
         env:
