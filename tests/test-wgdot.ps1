@@ -1106,6 +1106,8 @@ Assert-True ($nativeSourceText -match 'ReturnRuntimeSourceToMainAfterStableApply
 Assert-True ($nativeSourceText -match 'if \(command == "update"\) return ManagedOperation\("update", ResolveStableSource\(\)\)') "direct managed update resolves the published stable source"
 Assert-True ($nativeSourceText -match 'ManagedOperation\("update", ResolveStableSource\(\)\);') "interactive managed update resolves the published stable source"
 Assert-True ($nativeSourceText -match 'Git-testing runtime self-test failed') "Git-testing runtime sync fails closed when the exact runtime self-test fails"
+Assert-True ($nativeSourceText -match 'ex\.NativeErrorCode == 225 \|\| ex\.NativeErrorCode == 226') "Git-testing exposes Windows antivirus executable-block errors without weakening protection"
+Assert-True ($nativeSourceText -match 'the managed-file update was not applied') "Git-testing blocked runtime diagnostic states that managed changes were not applied"
 Assert-True ($nativeSourceText -match 'runtimeSyncPendingRevision') "Git-testing records pending runtime sync state without claiming installation"
 Assert-True ($nativeSourceText -match 'state\.Remove\("runtimeSyncPendingRevision"\)') "runtime pending state clears only through successful runtime mark"
 Assert-True ($nativeSourceText -match 'Select remote branch') "native Git UI exposes selectable remote branches"
