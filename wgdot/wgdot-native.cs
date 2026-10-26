@@ -16498,7 +16498,27 @@ class WgdotHidden
             Guid.NewGuid().ToString("N") + ".exe");
         CompileNativeSource(sourcePath, nextExe);
 
-        ProcResult test = Run(nextExe, "self-test", null);
+        ProcResult test;
+        try
+        {
+            test = Run(nextExe, "self-test", null);
+        }
+        catch (System.ComponentModel.Win32Exception ex)
+        {
+            // Windows reports error 225 (virus infected) or 226 (virus deleted)
+            // when security software blocks or quarantines a staged executable.
+            // This does not determine whether the detection is correct.
+            if (ex.NativeErrorCode == 225 || ex.NativeErrorCode == 226)
+                throw new Exception(
+                    "Windows security blocked the Git-testing WGDot executable at " +
+                    nextExe + " (error " +
+                    ex.NativeErrorCode.ToString(CultureInfo.InvariantCulture) + "). " +
+                    "Review Microsoft Defender Protection History and involve your " +
+                    "security administrator before retrying. WGDot does not bypass " +
+                    "antivirus protection, and the managed-file update was not applied.",
+                    ex);
+            throw;
+        }
         if (test.ExitCode != 0)
             throw new Exception(
                 "Git-testing runtime self-test failed: " +
