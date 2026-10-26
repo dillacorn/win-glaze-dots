@@ -1463,7 +1463,7 @@ internal static class WgdotNative
             if (command == "glazewm-startup") return GlazeWmStartup();
             if (command == "launcher") return LauncherFromArgs(args.Skip(1).ToArray());
             if (command == "yazi-drag") return YaziDragFromArgs(args.Skip(1).ToArray());
-            if (command == "power-menu") return PowerMenu();
+            if (command == "power-menu") return PowerMenu(args.Skip(1).ToArray());
             if (command == "btop-toggle") return BtopToggle();
             if (command == "rawaccel-toggle") return RawAccelToggle();
             if (command == "rawaccel-startup") return RawAccelStartup();
@@ -14341,8 +14341,70 @@ class WgdotHidden
         return tile;
     }
 
-    static int PowerMenu()
+    static void QueuePowerMenuStartFocusRecovery(System.Windows.Forms.Form form)
     {
+        IntPtr powerHandle = form.Handle;
+        System.Threading.ThreadPool.QueueUserWorkItem(delegate
+        {
+            // The Windows key can open Start on release, after the power menu
+            // has already appeared. Observe only this Super+P invocation.
+            for (int i = 0; i < 60 && !form.IsDisposed; i++)
+            {
+                if ((GetAsyncKeyState(VkLwin) & 0x8000) == 0 &&
+                    (GetAsyncKeyState(VkRwin) & 0x8000) == 0)
+                    break;
+                System.Threading.Thread.Sleep(10);
+            }
+
+            if (form.IsDisposed ||
+                (GetAsyncKeyState(VkLwin) & 0x8000) != 0 ||
+                (GetAsyncKeyState(VkRwin) & 0x8000) != 0)
+                return;
+
+            DateTime deadline = DateTime.UtcNow.AddMilliseconds(400);
+            while (!form.IsDisposed && DateTime.UtcNow < deadline)
+            {
+                IntPtr foreground = GetForegroundWindow();
+                if (IsWindowsStartSurfaceWindow(foreground))
+                {
+                    // Recheck the exact foreground Start HWND before Escape.
+                    // Never send the key to WGDot or an unrelated app.
+                    if (!DismissForegroundStartForLauncher(foreground))
+                        return;
+                    try
+                    {
+                        form.BeginInvoke((Action)delegate
+                        {
+                            if (form.IsDisposed)
+                                return;
+                            SetForegroundWindow(powerHandle);
+                            form.Activate();
+                        });
+                    }
+                    catch
+                    {
+                        // Window teardown raced the one-shot recovery.
+                    }
+                    return;
+                }
+
+                // If the user has moved away from the power menu, preserve
+                // that decision. Never steal focus back from another app.
+                if (foreground != IntPtr.Zero && foreground != powerHandle)
+                    return;
+
+                System.Threading.Thread.Sleep(10);
+            }
+        });
+    }
+
+    static int PowerMenu(string[] args)
+    {
+        bool superP = args != null && args.Length == 1 &&
+            String.Equals(args[0], "super-p", StringComparison.OrdinalIgnoreCase);
+        if (args != null && args.Length > 0 && !superP)
+            throw new Exception("Usage: wgdot power-menu [super-p]");
+
         const string title = "WGDot Power Menu";
         IntPtr existing = FindTopLevelWindowByExactTitle(title);
         if (existing != IntPtr.Zero)
@@ -14371,6 +14433,12 @@ class WgdotHidden
         System.Windows.Forms.Screen screen = foregroundWindow == IntPtr.Zero
             ? System.Windows.Forms.Screen.PrimaryScreen
             : System.Windows.Forms.Screen.FromHandle(foregroundWindow);
+
+        // When Super+P is invoked over an already-open Start menu, close
+        // only that verified shell surface before displaying the power UI.
+        // The YASB bar button never sends synthetic keys.
+        if (superP && IsWindowsStartSurfaceWindow(foregroundWindow))
+            DismissForegroundStartForLauncher(foregroundWindow);
 
         var state = new PowerMenuAnimationState();
         var form = new System.Windows.Forms.Form();
@@ -14426,6 +14494,8 @@ class WgdotHidden
         form.Shown += delegate
         {
             StartPowerMenuFadeIn(form, state);
+            if (superP)
+                QueuePowerMenuStartFocusRecovery(form);
         };
 
         form.FormClosing += delegate(
