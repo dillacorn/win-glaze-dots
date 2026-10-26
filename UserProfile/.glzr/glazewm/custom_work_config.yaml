@@ -216,7 +216,7 @@ binding_modes:
         bindings: ["lwin+alt+v", "rwin+alt+v"]
       - commands: ["wm-toggle-pause"]
         bindings: ["lwin+alt+p", "rwin+alt+p"]
-      - commands: ['shell-exec %LOCALAPPDATA%\wgdot\bin\wgdotw.exe power-menu']
+      - commands: ['shell-exec %LOCALAPPDATA%\wgdot\bin\wgdotw.exe power-menu super-p']
         bindings: ["lwin+p", "rwin+p"]
       - commands: ['shell-exec %LOCALAPPDATA%\wgdot\bin\wgdotw.exe bar-autohide-toggle']
         bindings: ["alt+ctrl+b"]
@@ -428,7 +428,7 @@ keybindings:
   - commands: ['shell-exec %LOCALAPPDATA%\wgdot\bin\wgdotw.exe theme-window-toggle']
     bindings: ["lwin+alt+t", "rwin+alt+t"]
 
-  - commands: ['shell-exec %LOCALAPPDATA%\wgdot\bin\wgdotw.exe power-menu']
+  - commands: ['shell-exec %LOCALAPPDATA%\wgdot\bin\wgdotw.exe power-menu super-p']
     bindings: ["lwin+p", "rwin+p"]
   # Compiled WGDot coordinates YASB auto-hide with the GlazeWM top gap.
   - commands: ['shell-exec %LOCALAPPDATA%\wgdot\bin\wgdotw.exe bar-autohide-toggle']
