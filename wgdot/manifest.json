@@ -376,11 +376,11 @@
   ],
   "packages": [
     {
-      "name": "SpeedCrunch",
-      "id": "SpeedCrunch.SpeedCrunch",
+      "name": "Qalculate!",
+      "id": "Qalculate.Qalculate",
       "category": "utilities",
-      "defaultNormal": false,
-      "defaultWork": false
+      "defaultNormal": true,
+      "defaultWork": true
     },
     {
       "name": "Git",
