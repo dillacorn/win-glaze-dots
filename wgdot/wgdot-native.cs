@@ -1463,7 +1463,7 @@ internal static class WgdotNative
             if (command == "glazewm-startup") return GlazeWmStartup();
             if (command == "launcher") return LauncherFromArgs(args.Skip(1).ToArray());
             if (command == "yazi-drag") return YaziDragFromArgs(args.Skip(1).ToArray());
-            if (command == "power-menu") return PowerMenu();
+            if (command == "power-menu") return PowerMenu(args.Skip(1).ToArray());
             if (command == "btop-toggle") return BtopToggle();
             if (command == "rawaccel-toggle") return RawAccelToggle();
             if (command == "rawaccel-startup") return RawAccelStartup();
@@ -14341,8 +14341,69 @@ class WgdotHidden
         return tile;
     }
 
-    static int PowerMenu()
+    static void QueuePowerMenuStartFocusRecovery(System.Windows.Forms.Form form)
     {
+        IntPtr powerHandle = form.Handle;
+        System.Threading.ThreadPool.QueueUserWorkItem(delegate
+        {
+            // The Windows key can open Start on release, after the power menu
+            // has already appeared. Observe only this Super+P invocation.
+            for (int i = 0; i < 60 && !form.IsDisposed; i++)
+            {
+                if ((GetAsyncKeyState(VkLwin) & 0x8000) == 0 &&
+                    (GetAsyncKeyState(VkRwin) & 0x8000) == 0)
+                    break;
+                System.Threading.Thread.Sleep(10);
+            }
+
+            if (form.IsDisposed ||
+                (GetAsyncKeyState(VkLwin) & 0x8000) != 0 ||
+                (GetAsyncKeyState(VkRwin) & 0x8000) != 0)
+                return;
+
+            DateTime deadline = DateTime.UtcNow.AddMilliseconds(400);
+            while (!form.IsDisposed && DateTime.UtcNow < deadline)
+            {
+                IntPtr foreground = GetForegroundWindow();
+                if (IsWindowsStartSurfaceWindow(foreground))
+                {
+                    // Recheck the exact foreground Start HWND before Escape.
+                    // Never send the key to WGDot or an unrelated app.
+                    if (!DismissForegroundStartForLauncher(foreground))
+                        return;
+                    try
+                    {
+                        form.BeginInvoke((Action)delegate
+                        {
+                            if (form.IsDisposed)
+                                return;
+                            SetForegroundWindow(powerHandle);
+                            form.Activate();
+                        });
+                    }
+                    catch
+                    {
+                        // Window teardown raced the one-shot recovery.
+                    }
+                    return;
+                }
+
+                // GlazeWM/Windows may leave the previous app foreground
+                // briefly even after Shown. Keep watching for a *verified*
+                // Start surface during this bounded window; never inject
+                // input into or steal focus from unrelated foreground apps.
+                System.Threading.Thread.Sleep(10);
+            }
+        });
+    }
+
+    static int PowerMenu(string[] args)
+    {
+        bool superP = args != null && args.Length == 1 &&
+            String.Equals(args[0], "super-p", StringComparison.OrdinalIgnoreCase);
+        if (args != null && args.Length > 0 && !superP)
+            throw new Exception("Usage: wgdot power-menu [super-p]");
+
         const string title = "WGDot Power Menu";
         IntPtr existing = FindTopLevelWindowByExactTitle(title);
         if (existing != IntPtr.Zero)
@@ -14371,6 +14432,12 @@ class WgdotHidden
         System.Windows.Forms.Screen screen = foregroundWindow == IntPtr.Zero
             ? System.Windows.Forms.Screen.PrimaryScreen
             : System.Windows.Forms.Screen.FromHandle(foregroundWindow);
+
+        // When Super+P is invoked over an already-open Start menu, close
+        // only that verified shell surface before displaying the power UI.
+        // The YASB bar button never sends synthetic keys.
+        if (superP && IsWindowsStartSurfaceWindow(foregroundWindow))
+            DismissForegroundStartForLauncher(foregroundWindow);
 
         var state = new PowerMenuAnimationState();
         var form = new System.Windows.Forms.Form();
@@ -14426,6 +14493,8 @@ class WgdotHidden
         form.Shown += delegate
         {
             StartPowerMenuFadeIn(form, state);
+            if (superP)
+                QueuePowerMenuStartFocusRecovery(form);
         };
 
         form.FormClosing += delegate(
@@ -16429,7 +16498,27 @@ class WgdotHidden
             Guid.NewGuid().ToString("N") + ".exe");
         CompileNativeSource(sourcePath, nextExe);
 
-        ProcResult test = Run(nextExe, "self-test", null);
+        ProcResult test;
+        try
+        {
+            test = Run(nextExe, "self-test", null);
+        }
+        catch (System.ComponentModel.Win32Exception ex)
+        {
+            // Windows reports error 225 (virus infected) or 226 (virus deleted)
+            // when security software blocks or quarantines a staged executable.
+            // This does not determine whether the detection is correct.
+            if (ex.NativeErrorCode == 225 || ex.NativeErrorCode == 226)
+                throw new Exception(
+                    "Windows security blocked the Git-testing WGDot executable at " +
+                    nextExe + " (error " +
+                    ex.NativeErrorCode.ToString(CultureInfo.InvariantCulture) + "). " +
+                    "Review Microsoft Defender Protection History and involve your " +
+                    "security administrator before retrying. WGDot does not bypass " +
+                    "antivirus protection, and the managed-file update was not applied.",
+                    ex);
+            throw;
+        }
         if (test.ExitCode != 0)
             throw new Exception(
                 "Git-testing runtime self-test failed: " +
