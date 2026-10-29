@@ -170,3 +170,73 @@ jobs:
         run: |
           set "WGDOT_TEST_ROOT=%TEMP%\wgdot-native-maintenance-state"
           "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" maintenance-self-test
+
+  release-v4-8-6-once:
+    if: >-
+      ${{
+        github.event_name == 'pull_request' &&
+        github.event.action == 'opened' &&
+        github.event.pull_request.title == 'release-bridge: WGDot v4.8.6' &&
+        github.event.pull_request.head.ref == 'chore/release-v4.8.6-native-qalc' &&
+        github.event.pull_request.head.repo.full_name == 'dillacorn/win-glaze-dots' &&
+        github.event.pull_request.base.ref == 'main' &&
+        github.event.pull_request.base.sha == '4da080d9c4d2309ac1268ed5f9d301f61121d0c7'
+      }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Publish native-Qalc WGDot v4.8.6 at verified main commit
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: dillacorn/win-glaze-dots
+          RELEASE_SHA: 4da080d9c4d2309ac1268ed5f9d301f61121d0c7
+        run: |
+          set -euo pipefail
+          release="v4.8.6"
+          title="WGDot v4.8.6 Native Qalc Live Calculator"
+          actual_main="$(gh api "repos/$GH_REPO/git/ref/heads/main" --jq '.object.sha')"
+          test "$actual_main" = "$RELEASE_SHA" || { echo "STOP: main moved"; exit 1; }
+          if gh api "repos/$GH_REPO/git/ref/tags/$release" >/dev/null 2>&1; then
+            echo "STOP: release tag exists; refusing to overwrite"
+            exit 1
+          fi
+          if gh release view "$release" --repo "$GH_REPO" >/dev/null 2>&1; then
+            echo "STOP: release exists; refusing to overwrite"
+            exit 1
+          fi
+          notes="$RUNNER_TEMP/wgdot-v4.8.6-release.md"
+          cat > "$notes" <<'WGDOT_RELEASE_NOTES'
+          # WGDot v4.8.6 Native Qalc Live Calculator
+
+          This patch release replaces SpeedCrunch shortcuts with native Qalculate! in Windows Terminal.
+
+          ## Install and update
+
+          - [Install](https://github.com/dillacorn/win-glaze-dots/blob/main/INSTALL.md)
+          - [Update](https://github.com/dillacorn/win-glaze-dots/blob/main/UPDATE.md)
+
+          ## Calculator
+
+          - Use Qalculate! (Qalc) as the default calculator in Normal and Work configurations, with the official WinGet package Qalculate.Qalculate.
+          - Alt+Shift+C and left/right Super+Shift+C open an independent, floating, centered Windows Terminal window for Qalc.
+          - Enable Qalc's native calculate-as-you-type behavior, preserving its standard prompt and top-to-bottom history.
+          - No custom WGDot calculator frontend, Python, PowerShell or .cmd runtime is required. Existing SpeedCrunch installations and settings are left intact.
+          - The managed shortcut expects the standard 64-bit Qalculate installer location under Program Files.
+
+          ## Validation
+
+          - All four Validate WGDot jobs passed for PR #138 on commit 598c1268bbfa88536a6c4126fb791259eae328e0.
+          - Native Qalc live calculations were confirmed on the maintainer's Work PC; the final installed-path shortcut requires its own runtime verification.
+          WGDOT_RELEASE_NOTES
+          gh release create "$release" --repo "$GH_REPO" --target "$RELEASE_SHA" --title "$title" --notes-file "$notes" --latest
+          actual_release="$(gh api "repos/$GH_REPO/releases/tags/$release")"
+          printf '%s\n' "$actual_release" | jq -e --arg title "$title" --arg sha "$RELEASE_SHA" \
+            '.name == $title and .target_commitish == $sha and .draft == false and .prerelease == false' >/dev/null
+          actual_tag="$(gh api "repos/$GH_REPO/git/ref/tags/$release" --jq '.object.sha')"
+          test "$actual_tag" = "$RELEASE_SHA"
+          expected_notes="$(cat "$notes")"
+          published_notes="$(gh release view "$release" --repo "$GH_REPO" --json body --jq '.body')"
+          test "$published_notes" = "$expected_notes"
+          echo "Verified $release -> $RELEASE_SHA and exact published notes."
