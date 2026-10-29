@@ -2270,7 +2270,7 @@ Assert-True ($nativeSourceText -match 'SaveLauncherCachedIcon\(app, loadedImage\
 Assert-True ($nativeSourceText -match 'LauncherIconCacheSelfTest\(root\);') "isolated native maintenance self-test exercises icon-cache roundtrip"
 Assert-True ($nativeSourceText -match 'LauncherFastCacheSelfTest\(root\);') "isolated maintenance self-test verifies binary catalog and corrupt-cache fallback"
 Assert-True ($nativeSourceText -match '(?s)static int MarkRuntimeFromArgs\(string\[\] args\).*?RefreshLauncherAppCache\(\);.*?static void CompileNativeSource') "runtime swaps prewarm launcher icons before first use"
-Assert-True ($nativeSourceText -match 'if \(command != "launcher" && command != "qalc"\)') "launcher and Qalc hotkeys bypass maintenance-only initialization"
+Assert-True ($nativeSourceText -match 'if \(command != "launcher"\)') "launcher hotkeys bypass maintenance-only initialization"
 Assert-True ($nativeSourceText -match 'int textLeft = row.Left \+ 44;') "row text never moves when deferred icons arrive"
 Assert-True ($nativeSourceText -notmatch 'psi\.FileName = "explorer\.exe";\s*psi\.Arguments = "shell:AppsFolder') "launcher must not use the Explorer AppsFolder/Documents-prone activation path"
 Assert-True ($nativeSourceText -notmatch 'ApplyEarTrumpetMixerSuperV') "WGDot no longer manages EarTrumpet's mixer hotkey"
