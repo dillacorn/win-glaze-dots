@@ -1383,6 +1383,422 @@ internal static class WgdotNative
             { "bibata-original-amber-right", "Bibata-Original-Amber-Right" }
         };
 
+
+    // Each "wgdot qalc" is a standalone Windows Terminal console session.
+    // Only qalc.exe performs calculations; this frontend owns keyboard/layout.
+    sealed class QalcJob : IDisposable
+    {
+        public Process Process;
+        public readonly StringBuilder Output = new StringBuilder();
+        public readonly StringBuilder Errors = new StringBuilder();
+        public readonly string Expression;
+        public readonly DateTime Started = DateTime.UtcNow;
+        public QalcJob(string expression) { Expression = expression; }
+
+        public void Dispose()
+        {
+            if (Process == null) return;
+            try
+            {
+                if (!Process.HasExited)
+                {
+                    Process.Kill(); // Only this window's own Qalc child.
+                    Process.WaitForExit(250);
+                }
+            }
+            catch (InvalidOperationException) { }
+            catch (System.ComponentModel.Win32Exception) { }
+            finally { Process.Dispose(); Process = null; }
+        }
+    }
+
+    static string FindQalcExe()
+    {
+        var candidates = new List<string>();
+        foreach (string folder in new[] {
+            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
+            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs")
+        })
+        {
+            if (String.IsNullOrWhiteSpace(folder)) continue;
+            candidates.Add(Path.Combine(folder, "Qalculate", "qalc.exe"));
+            candidates.Add(Path.Combine(folder, "Qalculate!", "qalc.exe"));
+        }
+
+        // Respect the install directory recorded by the publisher's installer.
+        foreach (RegistryHive hive in new[] { RegistryHive.CurrentUser, RegistryHive.LocalMachine })
+        foreach (RegistryView view in new[] { RegistryView.Registry64, RegistryView.Registry32 })
+        {
+            try
+            {
+                using (RegistryKey root = RegistryKey.OpenBaseKey(hive, view))
+                using (RegistryKey uninstall = root.OpenSubKey(
+                    @"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall", false))
+                {
+                    if (uninstall == null) continue;
+                    foreach (string name in uninstall.GetSubKeyNames())
+                    {
+                        using (RegistryKey item = uninstall.OpenSubKey(name, false))
+                        {
+                            if (item == null) continue;
+                            string display = Convert.ToString(item.GetValue("DisplayName", ""));
+                            if (display.IndexOf("Qalculate", StringComparison.OrdinalIgnoreCase) < 0)
+                                continue;
+                            string location = Convert.ToString(item.GetValue("InstallLocation", ""));
+                            if (!String.IsNullOrWhiteSpace(location))
+                                candidates.Insert(0, Path.Combine(location, "qalc.exe"));
+                        }
+                    }
+                }
+            }
+            catch (System.Security.SecurityException) { }
+            catch (UnauthorizedAccessException) { }
+            catch (IOException) { }
+        }
+        return FindExecutableWithCandidates("qalc.exe", candidates);
+    }
+
+    static string QuoteQalcExpression(string value)
+    {
+        // Windows CreateProcess argument quoting, including embedded double
+        // quotes and backslashes immediately preceding a double quote.
+        var sb = new StringBuilder("\"");
+        int slashes = 0;
+        foreach (char ch in value)
+        {
+            if (ch == '\\') { slashes++; continue; }
+            if (ch == '"')
+            {
+                sb.Append('\\', slashes * 2 + 1);
+                sb.Append('"');
+                slashes = 0;
+                continue;
+            }
+            sb.Append('\\', slashes);
+            slashes = 0;
+            sb.Append(ch);
+        }
+        sb.Append('\\', slashes * 2);
+        sb.Append('"');
+        return sb.ToString();
+    }
+
+    static QalcJob StartQalcJob(string qalc, string expression)
+    {
+        var job = new QalcJob(expression);
+        var psi = new ProcessStartInfo(qalc,
+            "--terse --time 1500 -- " + QuoteQalcExpression(expression));
+        psi.UseShellExecute = false;
+        psi.CreateNoWindow = true;
+        psi.RedirectStandardOutput = true;
+        psi.RedirectStandardError = true;
+        psi.StandardOutputEncoding = Encoding.UTF8;
+        psi.StandardErrorEncoding = Encoding.UTF8;
+        psi.WorkingDirectory = Path.GetDirectoryName(qalc);
+
+        var process = new Process { StartInfo = psi };
+        process.OutputDataReceived += (sender, e) => {
+            if (e.Data != null) lock (job.Output) job.Output.AppendLine(e.Data);
+        };
+        process.ErrorDataReceived += (sender, e) => {
+            if (e.Data != null) lock (job.Errors) job.Errors.AppendLine(e.Data);
+        };
+        try
+        {
+            if (!process.Start()) throw new IOException("Qalc did not start.");
+            job.Process = process;
+            process.BeginOutputReadLine();
+            process.BeginErrorReadLine();
+            return job;
+        }
+        catch
+        {
+            job.Dispose();
+            process.Dispose();
+            throw;
+        }
+    }
+
+    static bool CanPreviewQalc(string expression)
+    {
+        string text = expression.Trim();
+        if (text.Length == 0 || text.StartsWith("/") || text.StartsWith("#"))
+            return false;
+        return "+-*/^(=,".IndexOf(text[text.Length - 1]) < 0;
+    }
+
+    static string QalcDisplayResult(string value)
+    {
+        var lines = (value ?? "").Replace("\r", "").Split('\n')
+            .Select(line => new string(line.Where(c => !Char.IsControl(c)).ToArray()).Trim())
+            .Where(line => line.Length > 0)
+            .Take(3).ToArray();
+        string result = String.Join(" | ", lines);
+        return result.Length > 500 ? result.Substring(0, 500) : result;
+    }
+
+    static string CompleteQalcJob(QalcJob job)
+    {
+        job.Process.WaitForExit(); // Also drain async OutputDataReceived callbacks.
+        string stdout, stderr;
+        lock (job.Output) stdout = job.Output.ToString();
+        lock (job.Errors) stderr = job.Errors.ToString();
+        return job.Process.ExitCode == 0
+            ? QalcDisplayResult(stdout)
+            : (QalcDisplayResult(stderr) == "" ? "Invalid expression" : QalcDisplayResult(stderr));
+    }
+
+    static string EvaluateQalc(string qalc, string expression)
+    {
+        try
+        {
+            using (QalcJob job = StartQalcJob(qalc, expression))
+            {
+                if (!job.Process.WaitForExit(3000)) return "Calculation timed out";
+                return CompleteQalcJob(job);
+            }
+        }
+        catch (Exception ex)
+        {
+            return "Qalc unavailable: " + ex.GetType().Name;
+        }
+    }
+
+    static string QalcClip(string value, int width)
+    {
+        if (width <= 0) return "";
+        value = value ?? "";
+        return value.Length > width ? value.Substring(0, width) : value;
+    }
+
+    static void DrawQalcConsole(
+        string current, int cursor, List<KeyValuePair<string, string>> history,
+        string preview, ref string[] lastLines, ref ConsoleColor[] lastColors,
+        ConsoleColor normalColor)
+    {
+        int width = Console.WindowWidth;
+        int height = Console.WindowHeight;
+        if (width < 18 || height < 7) return;
+        int margin = width > 22 ? 2 : 1;
+        int content = width - margin * 2;
+        int inputY = height - 2;
+        int previewY = height - 4;
+        int historyTop = 4;
+        int historyBottom = previewY - 2;
+        var lines = Enumerable.Repeat("", height).ToArray();
+        var colors = Enumerable.Repeat(normalColor, height).ToArray();
+
+        lines[1] = new string(' ', margin) + "Qalc";
+        lines[2] = new string(' ', margin) + new string('-', content);
+        int capacity = Math.Max(0, (historyBottom - historyTop + 1) / 3);
+        int count = Math.Min(history.Count, capacity);
+        int startY = historyBottom - count * 3 + 1;
+        for (int i = 0; i < count; i++)
+        {
+            KeyValuePair<string, string> item = history[history.Count - count + i];
+            int y = startY + i * 3;
+            if (y < historyTop || y + 1 > historyBottom) continue;
+            lines[y] = new string(' ', margin) + "> " + item.Key;
+            lines[y + 1] = new string(' ', margin) + "  = " + item.Value;
+            colors[y + 1] = ConsoleColor.Cyan;
+        }
+        if (!String.IsNullOrEmpty(preview))
+        {
+            lines[previewY] = new string(' ', margin) + "= " + preview;
+            colors[previewY] = ConsoleColor.Cyan;
+        }
+        int inputWidth = Math.Max(1, content - 2);
+        int offset = Math.Max(0, cursor - inputWidth + 1);
+        lines[inputY] = new string(' ', margin) + "> " +
+            QalcClip(current.Substring(Math.Min(offset, current.Length)), inputWidth);
+        int cursorX = Math.Min(width - 2, margin + 2 + cursor - offset);
+
+        if (lastLines == null || lastLines.Length != height)
+        {
+            Console.Clear();
+            lastLines = new string[height];
+            lastColors = new ConsoleColor[height];
+        }
+        for (int y = 0; y < height; y++)
+        {
+            string displayed = QalcClip(lines[y], width - 1);
+            if (lastLines[y] == displayed && lastColors[y] == colors[y]) continue;
+            Console.SetCursorPosition(0, y);
+            Console.ForegroundColor = colors[y];
+            Console.Write(displayed.PadRight(width - 1));
+            lastLines[y] = displayed;
+            lastColors[y] = colors[y];
+        }
+        Console.ForegroundColor = normalColor;
+        Console.SetCursorPosition(cursorX, inputY);
+    }
+
+    static int QalcFrontend()
+    {
+        if (Console.IsInputRedirected || Console.IsOutputRedirected)
+        {
+            Console.Error.WriteLine("Qalc requires an interactive Windows Terminal.");
+            return 2;
+        }
+        string qalc = FindQalcExe();
+        if (String.IsNullOrWhiteSpace(qalc))
+        {
+            Console.Error.WriteLine("Qalc CLI not found. Install WinGet package Qalculate.Qalculate.");
+            return 2;
+        }
+
+        string current = "";
+        int cursor = 0;
+        var history = new List<KeyValuePair<string, string>>();
+        int historyCursor = 0;
+        string scratch = "";
+        string preview = "";
+        QalcJob pending = null;
+        DateTime changed = DateTime.UtcNow;
+        string[] lastLines = null;
+        ConsoleColor[] lastColors = null;
+        ConsoleColor normalColor = Console.ForegroundColor;
+        bool oldCtrlC = Console.TreatControlCAsInput;
+        bool oldCursor = Console.CursorVisible;
+        try
+        {
+            Console.TreatControlCAsInput = true;
+            Console.CursorVisible = true;
+            while (true)
+            {
+                if (pending != null)
+                {
+                    if (pending.Process.HasExited)
+                    {
+                        string expression = pending.Expression;
+                        string result = CompleteQalcJob(pending);
+                        pending.Dispose();
+                        pending = null;
+                        if (expression == current) preview = result;
+                    }
+                    else if ((DateTime.UtcNow - pending.Started).TotalMilliseconds > 3000)
+                    {
+                        pending.Dispose();
+                        pending = null;
+                        preview = "Calculation timed out";
+                    }
+                }
+                if (pending == null && preview.Length == 0 && CanPreviewQalc(current) &&
+                    (DateTime.UtcNow - changed).TotalMilliseconds >= 120)
+                {
+                    try { pending = StartQalcJob(qalc, current); }
+                    catch (Exception ex) { preview = "Qalc unavailable: " + ex.GetType().Name; }
+                }
+
+                try
+                {
+                    DrawQalcConsole(current, cursor, history, preview,
+                        ref lastLines, ref lastColors, normalColor);
+                }
+                catch (ArgumentOutOfRangeException)
+                {
+                    lastLines = null; // Resized between dimension read and draw.
+                }
+                catch (IOException)
+                {
+                    lastLines = null;
+                }
+
+                if (!Console.KeyAvailable)
+                {
+                    System.Threading.Thread.Sleep(35);
+                    continue;
+                }
+                ConsoleKeyInfo key = Console.ReadKey(true);
+                bool control = (key.Modifiers & ConsoleModifiers.Control) != 0;
+                if (key.Key == ConsoleKey.Escape ||
+                    (control && (key.Key == ConsoleKey.C || key.Key == ConsoleKey.D)))
+                    return 0;
+                bool edited = false;
+                if (control && key.Key == ConsoleKey.L)
+                {
+                    history.Clear();
+                    historyCursor = 0;
+                    lastLines = null;
+                    continue;
+                }
+                if (control && key.Key == ConsoleKey.A) cursor = 0;
+                else if (control && key.Key == ConsoleKey.E) cursor = current.Length;
+                else if (control && key.Key == ConsoleKey.U)
+                {
+                    current = ""; cursor = 0; edited = true;
+                }
+                else if (key.Key == ConsoleKey.LeftArrow) cursor = Math.Max(0, cursor - 1);
+                else if (key.Key == ConsoleKey.RightArrow) cursor = Math.Min(current.Length, cursor + 1);
+                else if (key.Key == ConsoleKey.Home) cursor = 0;
+                else if (key.Key == ConsoleKey.End) cursor = current.Length;
+                else if (key.Key == ConsoleKey.Backspace && cursor > 0)
+                {
+                    current = current.Remove(cursor - 1, 1); cursor--; edited = true;
+                }
+                else if (key.Key == ConsoleKey.Delete && cursor < current.Length)
+                {
+                    current = current.Remove(cursor, 1); edited = true;
+                }
+                else if (key.Key == ConsoleKey.UpArrow && history.Count > 0)
+                {
+                    if (historyCursor == history.Count) scratch = current;
+                    historyCursor = Math.Max(0, historyCursor - 1);
+                    current = history[historyCursor].Key;
+                    cursor = current.Length; edited = true;
+                }
+                else if (key.Key == ConsoleKey.DownArrow && history.Count > 0)
+                {
+                    historyCursor = Math.Min(history.Count, historyCursor + 1);
+                    current = historyCursor == history.Count ? scratch : history[historyCursor].Key;
+                    cursor = current.Length; edited = true;
+                }
+                else if (key.Key == ConsoleKey.Enter)
+                {
+                    if (current.Trim().Length > 0)
+                    {
+                        string expression = current.Trim();
+                        string result = preview;
+                        if (pending != null && pending.Expression == expression)
+                        {
+                            if (pending.Process.WaitForExit(2500)) result = CompleteQalcJob(pending);
+                            else result = "Calculation timed out";
+                        }
+                        if (pending != null) { pending.Dispose(); pending = null; }
+                        if (String.IsNullOrWhiteSpace(result))
+                            result = EvaluateQalc(qalc, expression);
+                        history.Add(new KeyValuePair<string, string>(expression,
+                            String.IsNullOrWhiteSpace(result) ? "(no result)" : result));
+                        if (history.Count > 100) history.RemoveAt(0);
+                    }
+                    current = ""; cursor = 0; scratch = "";
+                    historyCursor = history.Count; edited = true;
+                }
+                else if (!control && !Char.IsControl(key.KeyChar) && current.Length < 500)
+                {
+                    current = current.Insert(cursor, key.KeyChar.ToString());
+                    cursor++; edited = true;
+                }
+                if (edited)
+                {
+                    if (pending != null) { pending.Dispose(); pending = null; }
+                    preview = "";
+                    changed = DateTime.UtcNow;
+                    if (key.Key != ConsoleKey.UpArrow && key.Key != ConsoleKey.DownArrow)
+                        historyCursor = history.Count;
+                }
+            }
+        }
+        finally
+        {
+            if (pending != null) pending.Dispose();
+            Console.ForegroundColor = normalColor;
+            Console.CursorVisible = oldCursor;
+            Console.TreatControlCAsInput = oldCtrlC;
+        }
+    }
+
     [STAThread]
     static int Main(string[] args)
     {
@@ -1393,7 +1809,7 @@ internal static class WgdotNative
         {
             // Launcher hotkeys are local, short-lived UI actions. Avoid the
             // network and directory-initialization paths on every cold open.
-            if (command != "launcher")
+            if (command != "launcher" && command != "qalc")
             {
                 ServicePointManager.SecurityProtocol |= SecurityProtocolType.Tls12;
                 EnsureStateDirectories();
@@ -1465,6 +1881,7 @@ internal static class WgdotNative
             if (command == "yazi-drag") return YaziDragFromArgs(args.Skip(1).ToArray());
             if (command == "power-menu") return PowerMenu();
             if (command == "btop-toggle") return BtopToggle();
+            if (command == "qalc") return QalcFrontend();
             if (command == "rawaccel-toggle") return RawAccelToggle();
             if (command == "rawaccel-startup") return RawAccelStartup();
             if (command == "gpu-driver") return GpuDriverMaintenance();

@@ -820,6 +820,7 @@ foreach ($entry in $startupExpectations.GetEnumerator()) {
 }
 
 $expectedDefaultOnPackages = @(
+    "Qalculate.Qalculate",
     "Git.Git",
     "Microsoft.WindowsTerminal",
     "AltSnap.AltSnap",
@@ -1809,6 +1810,27 @@ Assert-True ($glazeNormalText -match 'shell-exec --hide-window %LOCALAPPDATA%\\w
 Assert-True ($glazeWorkText -match 'shell-exec --hide-window %LOCALAPPDATA%\\wgdot\\bin\\wgdot\.exe launcher hotkey') "Work Alt+P bypasses the extra wgdotw cold process"
 Assert-True ($glazeNormalText -match 'shell-exec --hide-window %LOCALAPPDATA%\\wgdot\\bin\\wgdot\.exe launcher super-d') "Normal Super+D uses the scoped Start-surface recovery path"
 Assert-True ($glazeWorkText -match 'shell-exec --hide-window %LOCALAPPDATA%\\wgdot\\bin\\wgdot\.exe launcher super-d') "Work Super+D uses the scoped Start-surface recovery path"
+$qalcPackage = @($manifest.packages | Where-Object { $_.id -eq "Qalculate.Qalculate" })
+Assert-Equal 1 $qalcPackage.Count "Qalculate WinGet package is cataloged"
+Assert-True (-not ($manifest.packages | Where-Object { $_.id -eq "SpeedCrunch.SpeedCrunch" })) "SpeedCrunch is not in the current software catalog"
+Assert-True ([bool]$qalcPackage[0].defaultNormal -and [bool]$qalcPackage[0].defaultWork) "Qalc is a default calculator for Normal and Work"
+Assert-True ($installSoftwareText -match 'Qalculate\.Qalculate') "software guide names the current Qalc package"
+Assert-True ($nativeSourceText -match 'static int QalcFrontend\(\)') "native bottom-input Qalc frontend exists"
+Assert-True ($nativeSourceText -match 'static string FindQalcExe\(\)') "native Qalc resolver exists"
+Assert-True ($nativeSourceText -match 'FindExecutableWithCandidates\("qalc\.exe"') "Qalc resolver tries installed CLI/App Paths and PATH"
+Assert-True ($nativeSourceText -match '\-\-terse \-\-time 1500 \-\-') "Qalc remains the calculation engine"
+Assert-True ($nativeSourceText -match '120\)') "Qalc preview is debounced"
+Assert-True ($nativeSourceText -match 'new List<KeyValuePair<string, string>>\(\)') "each calculator has an independent in-memory history"
+Assert-True ($nativeSourceText -notmatch 'FindTopLevelWindowByExactTitle\("Qalc"\)') "Qalc must never toggle or reuse an existing window"
+foreach ($profile in @(@{Name="Normal"; Text=$glazeNormalText}, @{Name="Work"; Text=$glazeWorkText})) {
+    $text = [string]$profile.Text
+    Assert-True ($text -notmatch '(?i)speedcrunch') "$($profile.Name) has no active SpeedCrunch references"
+    Assert-True ($text -match 'window_title:\s*\{ equals: "Qalc" \}') "$($profile.Name) floats the dedicated Qalc window"
+    Assert-Equal 3 @([regex]::Matches($text, '(?m)^\s*- commands: \[''shell-exec wt\.exe -w new --size 46,22 new-tab --title Qalc --suppressApplicationTitle %LOCALAPPDATA%\\wgdot\\bin\\wgdot\.exe qalc''\]')).Count "$($profile.Name) calculator shortcuts launch new independent terminal windows"
+    Assert-Equal 1 @([regex]::Matches($text, 'bindings:\s*\["alt\+shift\+c"\]')).Count "$($profile.Name) Alt+Shift+C is present in normal mode"
+    Assert-Equal 2 @([regex]::Matches($text, 'bindings:\s*\["lwin\+shift\+c",\s*"rwin\+shift\+c"\]')).Count "$($profile.Name) left/right Super+Shift+C are present globally and in noalt"
+}
+
 Assert-True ($glazeNormalText -notmatch 'wgdotw\.exe launcher hotkey') "Normal GlazeWM no longer cold-starts the launcher through wgdotw"
 Assert-True ($glazeWorkText -notmatch 'wgdotw\.exe launcher hotkey') "Work GlazeWM no longer cold-starts the launcher through wgdotw"
 Assert-True ($glazeWorkText -notmatch 'shell-exec %LOCALAPPDATA%/FlowLauncher/Flow\.Launcher\.exe') "Work GlazeWM no longer defaults launcher hotkeys to Flow Launcher"
@@ -1931,8 +1953,6 @@ Assert-True ($glazeNormalText -match 'bindings:\s*\["alt\+ctrl\+shift\+m"\]') "N
 Assert-True ($glazeNormalText -match 'window_process:\s*\{ regex: "\^rawaccel') "Raw Accel launches floating and centered in Normal profile"
 Assert-True ($glazeNormalText -notmatch 'desktop-worker') "Normal profile has no WGDot desktop worker"
 Assert-True ($glazeWorkText -notmatch 'desktop-worker') "Work profile has no WGDot desktop worker"
-Assert-True ($glazeNormalText -match 'bindings:\s*\["alt\+shift\+c"\]') "Normal profile keeps Awtarchy Alt+Shift+C SpeedCrunch"
-Assert-True ($glazeNormalText -match 'bindings:\s*\["lwin\+shift\+c",\s*"rwin\+shift\+c"\]') "Normal profile keeps Awtarchy Super+Shift+C SpeedCrunch"
 Assert-True ($glazeNormalText -match '(?ms)cursor_jump:\s*\r?\n\s+enabled:\s*true\r?\n\s+trigger:\s*"monitor_focus"') "Normal profile jumps cursor on monitor focus"
 Assert-True ($glazeWorkText -match '(?ms)cursor_jump:\s*\r?\n\s+enabled:\s*true\r?\n\s+trigger:\s*"monitor_focus"') "Work profile jumps cursor on monitor focus"
 Assert-True ($glazeNormalText -match '(?ms)outer_gap:\s*\r?\n\s+top:\s*"35px"\r?\n\s+right:\s*"5px"\r?\n\s+bottom:\s*"5px"\r?\n\s+left:\s*"5px"') "Normal profile uses 5 px side/bottom outer gaps"

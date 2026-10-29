@@ -166,7 +166,6 @@ window_rules:
   - commands: ["set-floating"]
     match:
       - window_process: { equals: "Taskmgr" }
-      - window_process: { equals: "speedcrunch" }
       - window_process: { equals: "winspy" }
       - window_process: { equals: "localsend_app" }
       - window_process: { equals: "RustDesk" }
@@ -185,6 +184,9 @@ window_rules:
       # title is fixed with Windows Terminal --suppressApplicationTitle.
       - window_process: { regex: "^WindowsTerminal(\\.exe)?$" }
         window_title: { equals: "Win Glaze Themes" }
+      # Qalc is a dedicated Windows Terminal window, not an arbitrary terminal tab.
+      - window_process: { regex: "^WindowsTerminal(\\.exe)?$" }
+        window_title: { equals: "Qalc" }
 
 binding_modes:
   - name: "resize"
@@ -238,7 +240,7 @@ binding_modes:
         bindings: ["lwin+shift+e", "rwin+shift+e"]
       - commands: ["shell-exec explorer.exe http:"]
         bindings: ["lwin+b", "rwin+b"]
-      - commands: ["shell-exec C:\\Program Files (x86)\\SpeedCrunch\\speedcrunch.exe"]
+      - commands: ['shell-exec wt.exe -w new --size 46,22 new-tab --title Qalc --suppressApplicationTitle %LOCALAPPDATA%\wgdot\bin\wgdot.exe qalc']
         bindings: ["lwin+shift+c", "rwin+shift+c"]
 
       - commands: ["close"]
@@ -434,13 +436,13 @@ keybindings:
   - commands: ['shell-exec %LOCALAPPDATA%\wgdot\bin\wgdotw.exe bar-autohide-toggle']
     bindings: ["alt+ctrl+b"]
 
-  - commands: ["shell-exec C:\\Program Files (x86)\\SpeedCrunch\\speedcrunch.exe"]
+  - commands: ['shell-exec wt.exe -w new --size 46,22 new-tab --title Qalc --suppressApplicationTitle %LOCALAPPDATA%\wgdot\bin\wgdot.exe qalc']
     bindings: ["alt+shift+c"]
 
   - commands: ["shell-exec explorer.exe http:"]
     bindings: ["win+b"]
 
-  - commands: ["shell-exec C:\\Program Files (x86)\\SpeedCrunch\\speedcrunch.exe"]
+  - commands: ['shell-exec wt.exe -w new --size 46,22 new-tab --title Qalc --suppressApplicationTitle %LOCALAPPDATA%\wgdot\bin\wgdot.exe qalc']
     bindings: ["lwin+shift+c", "rwin+shift+c"]
 
   - commands: ["shell-exec wt.exe -w new"]

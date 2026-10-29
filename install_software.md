@@ -121,7 +121,7 @@ Mullvad Browser is intentionally left untouched. WGDot does not install extensio
 
 ### General utilities
 
-- **SpeedCrunch** — `SpeedCrunch.SpeedCrunch`
+- **Qalculate! (Qalc)** — `Qalculate.Qalculate` — bottom-input console calculator using Qalc CLI; see [Qalc calculator](docs/QALC.md)
 - **Everything** — `voidtools.Everything`
 - **MicLockTray** — `dillacorn.MicLockTray` — official standalone GitHub release, optional and default OFF
 

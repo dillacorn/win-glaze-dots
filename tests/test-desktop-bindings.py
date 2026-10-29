@@ -158,6 +158,40 @@ for name in ("config.yaml", "custom_work_config.yaml"):
     modes = {m["name"]: m["keybindings"] for m in config["binding_modes"]}
     is_work = name == "custom_work_config.yaml"
 
+
+    # Calculator bindings are mode-local. Never reuse or toggle an existing window.
+    qalc_command = (
+        r"shell-exec wt.exe -w new --size 46,22 new-tab --title Qalc "
+        r"--suppressApplicationTitle %LOCALAPPDATA%\wgdot\bin\wgdot.exe qalc"
+    )
+    for mode_name, bindings in (
+        ("normal", config["keybindings"]),
+        ("noalt", modes["noalt"]),
+    ):
+        commands_by_key = {
+            key: command
+            for binding in bindings
+            for key in binding["bindings"]
+            for command in binding["commands"]
+        }
+        required = (
+            ("lwin+shift+c", "rwin+shift+c")
+            if mode_name == "noalt" else
+            ("alt+shift+c", "lwin+shift+c", "rwin+shift+c")
+        )
+        for chord in required:
+            assert commands_by_key.get(chord) == qalc_command, (name, mode_name, chord)
+    assert "speedcrunch" not in glaze_text.lower(), (name, "retired calculator reference")
+    assert any(
+        "set-floating --centered" in rule["commands"]
+        and any(
+            match.get("window_title", {}).get("equals") == "Qalc"
+            and "WindowsTerminal" in match.get("window_process", {}).get("regex", "")
+            for match in rule["match"]
+        )
+        for rule in config["window_rules"]
+    ), (name, "Qalc window must float centered")
+
     assert "mouse" not in modes, (name, "retired mouse binding mode returned")
     assert "lwin+alt+m" not in glaze_text and "rwin+alt+m" not in glaze_text, (
         name,
