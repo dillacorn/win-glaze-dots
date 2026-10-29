@@ -275,3 +275,31 @@ jobs:
           published_notes="$(gh release view "$release" --repo "$GH_REPO" --json body --jq '.body')"
           test "$published_notes" = "$expected_notes"
           echo "Verified $release -> $RELEASE_SHA with exact notes and stable metadata."
+
+  cleanup-v4-8-7-once:
+    if: >-
+      ${{
+        github.event_name == 'pull_request' &&
+        github.event.action == 'synchronize' &&
+        github.event.pull_request.title == 'release-bridge: WGDot v4.8.7' &&
+        github.event.pull_request.head.ref == 'chore/release-v4.8.7-power-menu' &&
+        github.event.pull_request.head.repo.full_name == 'dillacorn/win-glaze-dots' &&
+        github.event.pull_request.base.ref == 'main'
+      }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Verify release and remove unmerged temporary branch
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: dillacorn/win-glaze-dots
+          RELEASE_SHA: 559817bbe137b2094ddaf8aa9310cdc6723f6704
+        run: |
+          set -euo pipefail
+          release="$(gh api "repos/$GH_REPO/releases/tags/v4.8.7")"
+          printf '%s\n' "$release" | jq -e --arg sha "$RELEASE_SHA" '.tag_name == "v4.8.7" and .target_commitish == $sha and .draft == false and .prerelease == false' >/dev/null
+          test "$(gh api "repos/$GH_REPO/git/ref/tags/v4.8.7" --jq '.object.sha')" = "$RELEASE_SHA"
+          gh api --method DELETE "repos/$GH_REPO/git/refs/heads/chore/release-v4.8.7-power-menu"
+          echo "Verified v4.8.7 and deleted temporary release helper branch."
