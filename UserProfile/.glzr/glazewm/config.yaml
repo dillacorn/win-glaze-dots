@@ -242,7 +242,7 @@ binding_modes:
         bindings: ["lwin+shift+b", "rwin+shift+b"]
       - commands: ["shell-exec explorer.exe http:"]
         bindings: ["lwin+b", "rwin+b"]
-      - commands: ['shell-exec wt.exe -w new --size 46,22 new-tab --title Qalc --suppressApplicationTitle %LOCALAPPDATA%\wgdot\bin\wgdot.exe qalc']
+      - commands: ['shell-exec wt.exe -w new --size 46,22 new-tab --title Qalc --suppressApplicationTitle "%ProgramFiles%\Qalculate\qalc.exe" -s "autocalc on"']
         bindings: ["lwin+shift+c", "rwin+shift+c"]
 
       - commands: ["close"]
@@ -438,13 +438,13 @@ keybindings:
   - commands: ['shell-exec %LOCALAPPDATA%\wgdot\bin\wgdotw.exe bar-autohide-toggle']
     bindings: ["alt+ctrl+b"]
 
-  - commands: ['shell-exec wt.exe -w new --size 46,22 new-tab --title Qalc --suppressApplicationTitle %LOCALAPPDATA%\wgdot\bin\wgdot.exe qalc']
+  - commands: ['shell-exec wt.exe -w new --size 46,22 new-tab --title Qalc --suppressApplicationTitle "%ProgramFiles%\Qalculate\qalc.exe" -s "autocalc on"']
     bindings: ["alt+shift+c"]
 
   - commands: ["shell-exec explorer.exe http:"]
     bindings: ["win+b"]
 
-  - commands: ['shell-exec wt.exe -w new --size 46,22 new-tab --title Qalc --suppressApplicationTitle %LOCALAPPDATA%\wgdot\bin\wgdot.exe qalc']
+  - commands: ['shell-exec wt.exe -w new --size 46,22 new-tab --title Qalc --suppressApplicationTitle "%ProgramFiles%\Qalculate\qalc.exe" -s "autocalc on"']
     bindings: ["lwin+shift+c", "rwin+shift+c"]
 
   - commands: ["shell-exec wt.exe -w new"]

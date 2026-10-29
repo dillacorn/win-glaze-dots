@@ -1,17 +1,12 @@
 # Qalc calculator on Windows
 
-Win-Glaze-Dots uses **Qalculate!** (`Qalculate.Qalculate`) as the actual calculation engine. The installed `qalc.exe` CLI does the mathematics; the narrow C# console frontend in WGDot supplies Awtarchy-style layout and keyboard navigation.
+Win-Glaze-Dots uses **Qalculate!** (`Qalculate.Qalculate`) for native Qalc CLI calculations. Windows intentionally uses the native calculator UI, not Awtarchy's custom bottom-input frontend. A custom calculator-specific `wgdot.exe` runtime is not required.
 
-- `Alt+Shift+C` or either `Super+Shift+C` opens a **new, independent** Windows Terminal window. `Super+Shift+C` also works in `noalt` mode.
-- The dedicated window is titled **Qalc**, sized to 46 columns by 22 rows, and floated/centered by GlazeWM. Terminal DPI and font scaling determine its pixel dimensions.
-- Type directly at the bottom. The live result appears above the input after a short debounce, before Enter; committed expression/result pairs stack upward, newest at the bottom. Older complete pairs are clipped above the reserved header.
-- Left/Right/Home/End move in the input; Up/Down browse this window's calculations; Enter commits; Backspace/Delete edit; Ctrl+A/E move start/end; Ctrl+U clears input; Ctrl+L clears history; Escape or Ctrl+C/D closes this calculator.
-- The active Windows Terminal color/profile settings are inherited; no terminal settings are changed. Each window has its own history and evaluation process.
+- `Alt+Shift+C` and left/right `Super+Shift+C` open independent Windows Terminal windows. The Super bindings also work in `noalt` mode.
+- `qalc.exe -s "autocalc on"` enables calculate-as-you-type results. The native Qalc prompt and calculation history follow Qalc's normal top-to-bottom layout; the input is **not** fixed at the bottom.
+- The terminal title is `Qalc`, the requested terminal dimensions are 46 columns by 22 rows, and GlazeWM floats and centers only terminals with that title.
+- No Python, PowerShell runtime scripts, `.cmd` helper scripts, or new WGDot calculator frontend are used. Windows Terminal inherits the user's configured theme.
 
-WGDot finds the Qalc CLI through registered Windows App Paths, PATH, recognized Qalculate install directories and uninstall-registry install locations. It does not assume one fixed Program Files location. If Qalc is absent, choose **Qalculate!** in `wgdot software` or install with `winget install --id Qalculate.Qalculate --exact --source winget`. The supported WinGet manifest is published by Microsoft, and Qalculate's Windows installer includes the CLI.
+The managed GlazeWM command references the default **64-bit WinGet/MSI installation** path, `%ProgramFiles%\\Qalculate\\qalc.exe`. Qalculate must be installed in that path or the command must be adjusted locally to its actual CLI location. Windows package ID: `Qalculate.Qalculate`.
 
-**Migration:** Removing SpeedCrunch from the WGDot catalog does not uninstall a previously installed copy and does not touch SpeedCrunch application data. Any historical WGDot software selection is preserved/handled by existing manifest reconciliation rather than converted into an uninstall request.
-
-**Testing unreleased changes:** Use `wgdot git-review --branch feat/qalc-bottom-windows --revision <40-character-commit-SHA>` before `git-update`; the latter replaces the managed GlazeWM configuration with backup protection and updates the native runtime for that exact branch revision. The Qalc package must be installed separately if this machine does not already have it. Test both Normal and Work profiles as appropriate.
-
-The `--terse --time 1500 -- <expression>` Qalc CLI contract and the real window behavior must be verified on Windows; source-level tests do not prove installed CLI responsiveness or Windows Terminal/GlazeWM focus under DPI scaling.
+This replacement does not uninstall a previously installed SpeedCrunch or remove its settings. The retired SpeedCrunch catalog entry is removed from newly managed software selections, not used as an uninstall request.

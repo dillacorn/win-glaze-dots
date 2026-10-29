@@ -15,7 +15,6 @@ APPROVED_WGDOT_RUNTIME = (
     "wgdotw.exe eartrumpet-mixer-toggle",
     "wgdotw.exe power-menu",
     "wgdotw.exe btop-toggle",
-    "wgdot.exe qalc",
     "wgdot.exe launcher",
 )
 
@@ -160,11 +159,8 @@ for name in ("config.yaml", "custom_work_config.yaml"):
     is_work = name == "custom_work_config.yaml"
 
 
-    # Calculator bindings are mode-local. Never reuse or toggle an existing window.
-    qalc_command = (
-        r"shell-exec wt.exe -w new --size 46,22 new-tab --title Qalc "
-        r"--suppressApplicationTitle %LOCALAPPDATA%\wgdot\bin\wgdot.exe qalc"
-    )
+    # Native Qalc with live calculation; avoid calculator-specific WGDot runtime code.
+    qalc_command = "shell-exec wt.exe -w new --size 46,22 new-tab --title Qalc --suppressApplicationTitle \"%ProgramFiles%\\Qalculate\\qalc.exe\" -s \"autocalc on\""
     for mode_name, bindings in (
         ("normal", config["keybindings"]),
         ("noalt", modes["noalt"]),
