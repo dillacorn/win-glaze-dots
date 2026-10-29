@@ -15,6 +15,7 @@ APPROVED_WGDOT_RUNTIME = (
     "wgdotw.exe eartrumpet-mixer-toggle",
     "wgdotw.exe power-menu",
     "wgdotw.exe btop-toggle",
+    "wgdot.exe qalc",
     "wgdot.exe launcher",
 )
 
