@@ -209,3 +209,69 @@ jobs:
         run: |
           set "WGDOT_TEST_ROOT=%TEMP%\wgdot-native-maintenance-state"
           "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" maintenance-self-test
+
+  release-v4-8-7-once:
+    if: >-
+      ${{
+        github.event_name == 'pull_request' &&
+        github.event.action == 'opened' &&
+        github.event.pull_request.title == 'release-bridge: WGDot v4.8.7' &&
+        github.event.pull_request.head.ref == 'chore/release-v4.8.7-power-menu' &&
+        github.event.pull_request.head.repo.full_name == 'dillacorn/win-glaze-dots' &&
+        github.event.pull_request.base.ref == 'main' &&
+        github.event.pull_request.base.sha == '559817bbe137b2094ddaf8aa9310cdc6723f6704'
+      }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Publish WGDot v4.8.7 from the exact approved main commit
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: dillacorn/win-glaze-dots
+          RELEASE_SHA: 559817bbe137b2094ddaf8aa9310cdc6723f6704
+        run: |
+          set -euo pipefail
+          release="v4.8.7"
+          title="WGDot v4.8.7 Super+P Power Menu Focus Fix"
+          actual_main="$(gh api "repos/$GH_REPO/git/ref/heads/main" --jq '.object.sha')"
+          test "$actual_main" = "$RELEASE_SHA" || { echo "STOP: main moved"; exit 1; }
+          if gh api "repos/$GH_REPO/git/ref/tags/$release" >/dev/null 2>&1; then
+            echo "STOP: release tag already exists"; exit 1
+          fi
+          if gh release view "$release" --repo "$GH_REPO" >/dev/null 2>&1; then
+            echo "STOP: release already exists"; exit 1
+          fi
+          notes="$RUNNER_TEMP/wgdot-v4.8.7-release.md"
+          cat > "$notes" <<'WGDOT_RELEASE_NOTES'
+          # WGDot v4.8.7 Super+P Power Menu Focus Fix
+
+          This patch release improves power-menu focus when the Windows Start or Search surface interferes with Super+P.
+
+          ## Install and update
+
+          - [Install](https://github.com/dillacorn/win-glaze-dots/blob/main/INSTALL.md)
+          - [Update](https://github.com/dillacorn/win-glaze-dots/blob/main/UPDATE.md)
+
+          ## Power menu
+
+          - Recover focus for the fullscreen power menu when Windows Start or Search appears above it after Super+P.
+          - Restrict focus recovery to the hotkey; the YASB power button remains unchanged.
+          - Avoid global hooks, suppressing the Windows key, or sending Escape to unrelated applications.
+          - Report Microsoft Defender executable block/quarantine errors more clearly during Git-testing runtime updates.
+
+          ## Validation and work-PC caution
+
+          - All four Validate WGDot jobs passed on the merged main commit 559817bbe137b2094ddaf8aa9310cdc6723f6704.
+          - A previous work-PC test build of PR #136 was quarantined by Microsoft Defender. That detection has not been classified or cleared on the affected machine; see [issue #137](https://github.com/dillacorn/win-glaze-dots/issues/137). Do not bypass organizational antivirus policy to install it.
+          - Interactive Windows Start focus behavior still needs confirmation on an affected Windows session.
+          WGDOT_RELEASE_NOTES
+          gh release create "$release" --repo "$GH_REPO" --target "$RELEASE_SHA" --title "$title" --notes-file "$notes" --latest
+          actual_release="$(gh api "repos/$GH_REPO/releases/tags/$release")"
+          printf '%s\n' "$actual_release" | jq -e --arg title "$title" --arg sha "$RELEASE_SHA"             '.name == $title and .target_commitish == $sha and .draft == false and .prerelease == false' >/dev/null
+          test "$(gh api "repos/$GH_REPO/git/ref/tags/$release" --jq '.object.sha')" = "$RELEASE_SHA"
+          expected_notes="$(cat "$notes")"
+          published_notes="$(gh release view "$release" --repo "$GH_REPO" --json body --jq '.body')"
+          test "$published_notes" = "$expected_notes"
+          echo "Verified $release -> $RELEASE_SHA with exact notes and stable metadata."
