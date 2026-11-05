@@ -304,3 +304,4 @@ jobs:
           test "$(gh api "repos/$GH_REPO/git/ref/heads/main" --jq '.object.sha')" = "$RELEASE_SHA"
           gh api --method DELETE "repos/$GH_REPO/git/refs/heads/chore/release-v4.8.8-workspace2"
           echo "Verified v4.8.8 and deleted only the temporary helper branch."
+# One-use v4.8.8 helper cleanup trigger; never merge this branch.
