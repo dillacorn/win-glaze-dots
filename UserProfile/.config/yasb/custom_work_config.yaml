@@ -7,7 +7,7 @@ bars:
   primary-bar:
     enabled: true
     screens: ["*"]
-    class_name: "yasb-bar"
+    class_name: "yasb-bar work-profile"
     # Blank-bar right-click menu is intentionally disabled. The standalone
     # auto-hide script coordinates YASB with GlazeWM on Alt+Ctrl+B.
     context_menu: false
