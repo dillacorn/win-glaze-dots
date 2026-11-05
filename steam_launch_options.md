@@ -9,7 +9,7 @@ For games requiring borderless windowed mode for stretched fullscreen resolution
 ### To use the tracked NirCmd resolution scripts, open the scripts menu with `Alt+Ctrl+Shift+M` and choose the desired resolution script. `Alt+Shift+M` is reserved for RawAccel parity with Awtarchy.
 ---
 ### Apex Legends ~ stretched 1600x1024 and/or 1400x1050
-### patch apex ["videoconfig.txt"](https://github.com/dillacorn/win-glaze-dots/blob/main/Game_Config_Files/Apex%20Legends/UserProfile/Saved%20Games/Respawn/Apex/Local/videoconfig.txt) then make read-only
+### patch apex `videoconfig.txt` then make read-only
 
 File Location: `C:\Users\username\Saved Games\Respawn\Apex\local`
 
@@ -23,7 +23,7 @@ File Location: `C:\Users\username\Saved Games\Respawn\Apex\local`
 
 ---
 ### Marvel Rivals ~ stretched 1600x1024 (borderless windowed)
-### patch marvel ["GameUserSettings.ini"](https://github.com/dillacorn/win-glaze-dots/blob/main/Game_Config_Files/Marvel%20Rivals/AppData/Local/Marvel/Saved/Config/Windows/GameUserSettings.ini) then make read-only
+### patch marvel `GameUserSettings.ini` then make read-only
 
 File Location: `C:\Users\username\AppData\Local\Marvel\Saved\Config\Windows`
 
