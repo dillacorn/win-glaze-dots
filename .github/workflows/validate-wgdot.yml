@@ -209,3 +209,98 @@ jobs:
         run: |
           set "WGDOT_TEST_ROOT=%TEMP%\wgdot-native-maintenance-state"
           "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" maintenance-self-test
+
+  release-v4-8-8-once:
+    if: >-
+      ${{
+        github.event_name == 'pull_request' &&
+        github.event.action == 'opened' &&
+        github.event.pull_request.title == 'release-bridge: WGDot v4.8.8' &&
+        github.event.pull_request.head.ref == 'chore/release-v4.8.8-workspace2' &&
+        github.event.pull_request.head.repo.full_name == 'dillacorn/win-glaze-dots' &&
+        github.event.pull_request.base.ref == 'main' &&
+        github.event.pull_request.base.sha == '5a81784c4ce6bdfe727d337539a1b74953fbc650'
+      }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Publish WGDot v4.8.8 from the validated main commit
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: dillacorn/win-glaze-dots
+          RELEASE_SHA: 5a81784c4ce6bdfe727d337539a1b74953fbc650
+        run: |
+          set -euo pipefail
+          release="v4.8.8"
+          title="WGDot v4.8.8 Work Workspace 2 Persistence"
+          actual_main="$(gh api "repos/$GH_REPO/git/ref/heads/main" --jq '.object.sha')"
+          test "$actual_main" = "$RELEASE_SHA" || { echo "STOP: main moved"; false; }
+          test "$(gh api "repos/$GH_REPO/git/ref/tags/v4.8.7" --jq '.object.sha')" = "559817bbe137b2094ddaf8aa9310cdc6723f6704" || { echo "STOP: prior stable tag changed"; false; }
+          if gh api "repos/$GH_REPO/git/ref/tags/$release" >/dev/null 2>&1; then
+            echo "STOP: release tag already exists"; false
+          fi
+          if gh release view "$release" --repo "$GH_REPO" >/dev/null 2>&1; then
+            echo "STOP: release already exists"; false
+          fi
+          notes="$RUNNER_TEMP/wgdot-v4.8.8-release.md"
+          cat > "$notes" <<'WGDOT_RELEASE_NOTES'
+          # WGDot v4.8.8 Work Workspace 2 Persistence
+          
+          This patch keeps Workspace 2 available on Work PCs even when it has no windows.
+          
+          ## Install and update
+          
+          - [Install](https://github.com/dillacorn/win-glaze-dots/blob/main/INSTALL.md)
+          - [Update](https://github.com/dillacorn/win-glaze-dots/blob/main/UPDATE.md)
+          
+          ## Work workspace
+          
+          - Keep Workspace 2 alive and its YASB button visible when empty.
+          - Scope the exception to the Work bar. Normal still hides inactive empty workspaces, and both profiles keep monitor-specific buttons.
+          
+          ## Validation
+          
+          - All four Validate WGDot jobs passed on commit 5a81784c4ce6bdfe727d337539a1b74953fbc650.
+          - YASB v2.0.7 source and Qt selector support were reviewed; live Windows behavior after the Work-only styling correction is not independently verified.
+          - The previously reported work-PC Defender quarantine remains unresolved ([issue #137](https://github.com/dillacorn/win-glaze-dots/issues/137)); do not bypass organizational antivirus policy.
+          WGDOT_RELEASE_NOTES
+          gh release create "$release" --repo "$GH_REPO" --target "$RELEASE_SHA" --title "$title" --notes-file "$notes" --latest
+          actual_release="$(gh api "repos/$GH_REPO/releases/tags/$release")"
+          printf '%s\n' "$actual_release" | jq -e --arg title "$title" --arg sha "$RELEASE_SHA" '.tag_name == "v4.8.8" and .name == $title and .target_commitish == $sha and .draft == false and .prerelease == false' >/dev/null
+          test "$(gh api "repos/$GH_REPO/git/ref/tags/$release" --jq '.object.sha')" = "$RELEASE_SHA"
+          expected_notes="$(cat "$notes")"
+          published_notes="$(gh release view "$release" --repo "$GH_REPO" --json body --jq '.body')"
+          test "$published_notes" = "$expected_notes"
+          echo "Verified $release at $RELEASE_SHA with exact notes and stable metadata."
+
+  cleanup-v4-8-8-once:
+    if: >-
+      ${{
+        github.event_name == 'pull_request' &&
+        github.event.action == 'synchronize' &&
+        github.event.pull_request.title == 'release-bridge: WGDot v4.8.8' &&
+        github.event.pull_request.head.ref == 'chore/release-v4.8.8-workspace2' &&
+        github.event.pull_request.head.repo.full_name == 'dillacorn/win-glaze-dots' &&
+        github.event.pull_request.base.ref == 'main' &&
+        github.event.pull_request.base.sha == '5a81784c4ce6bdfe727d337539a1b74953fbc650'
+      }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Verify release and delete only the temporary release branch
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: dillacorn/win-glaze-dots
+          RELEASE_SHA: 5a81784c4ce6bdfe727d337539a1b74953fbc650
+        run: |
+          set -euo pipefail
+          release="$(gh api "repos/$GH_REPO/releases/tags/v4.8.8")"
+          printf '%s\n' "$release" | jq -e --arg sha "$RELEASE_SHA" '.tag_name == "v4.8.8" and .target_commitish == $sha and .draft == false and .prerelease == false' >/dev/null
+          test "$(gh api "repos/$GH_REPO/git/ref/tags/v4.8.8" --jq '.object.sha')" = "$RELEASE_SHA"
+          test "$(gh api "repos/$GH_REPO/git/ref/heads/main" --jq '.object.sha')" = "$RELEASE_SHA"
+          gh api --method DELETE "repos/$GH_REPO/git/refs/heads/chore/release-v4.8.8-workspace2"
+          echo "Verified v4.8.8 and deleted only the temporary helper branch."
