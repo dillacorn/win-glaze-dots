@@ -79,6 +79,27 @@ vertical tabs:
 
 ![firefox_vertical_tabs_&_bar](https://raw.githubusercontent.com/dillacorn/arch-hypr-dots/main/browser_notes/firefox_vertical_tabs_&_bar.png)
 
+### Hide the vertical-tab close button (optional)
+
+Firefox displays an `X` when hovering over vertical tabs, which can cause accidental closures. This customization hides that button only for vertical tabs.
+
+1. Open `about:config` and set `toolkit.legacyUserProfileCustomizations.stylesheets` to `true`.
+2. Open `about:support` and click **Open Folder** for the active Firefox profile.
+   Typical Windows file: `%APPDATA%\Mozilla\Firefox\Profiles\<profile>\chrome\userChrome.css`. WGDot Betterfox may use a separate active profile; use the one shown in `about:support`.
+3. Inside that profile, create a `chrome` directory if needed and create or edit `userChrome.css` inside it.
+4. Add the CSS below to that file. **Append it if `userChrome.css` already exists; do not overwrite other customizations.**
+
+   ```css
+   /* Hide close buttons on Firefox vertical tabs */
+   #tabbrowser-tabs[orient="vertical"] .tab-close-button {
+       display: none !important;
+   }
+   ```
+
+5. Completely restart Firefox.
+
+Tabs can still be closed with middle-click or `Ctrl + W`. Horizontal-tab close buttons are unaffected.
+
 # Speed-up Youtube
 
 Credit to `BrenTech`
