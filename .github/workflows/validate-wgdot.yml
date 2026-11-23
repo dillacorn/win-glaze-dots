@@ -9,6 +9,7 @@ on:
       - "tests/test-wgdot.ps1"
       - "tests/test-yasb-config.py"
       - "tests/test-yazi-config.py"
+      - "tests/test-yazi-custom-extension.py"
       - "tests/test-yasb-parity.ps1"
       - "tests/test-desktop-*"
       - "UserProfile/.config/yasb/**"
@@ -26,6 +27,7 @@ on:
       - "tests/test-wgdot.ps1"
       - "tests/test-yasb-config.py"
       - "tests/test-yazi-config.py"
+      - "tests/test-yazi-custom-extension.py"
       - "tests/test-yasb-parity.ps1"
       - "tests/test-desktop-*"
       - "UserProfile/.config/yasb/**"
@@ -70,6 +72,7 @@ jobs:
       - name: Validate managed Yazi config syntax
         run: |
           python tests/test-yazi-config.py
+          python tests/test-yazi-custom-extension.py
           find UserProfile/AppData/Roaming/yazi/config -type f -name '*.lua' -print0 | xargs -0 -n1 luac -p
           lua5.4 tests/test-yazi-tab-workspaces.lua
       - name: Validate desktop launcher ownership
