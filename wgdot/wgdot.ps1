@@ -1240,7 +1240,8 @@ function Write-WgdotYaziRestartNoticeForPlan {
 function Initialize-WgdotYaziCustomLua {
     param(
         [Parameter(Mandatory = $true)][string]$SourceRoot,
-        [Parameter(Mandatory = $true)]$Installation
+        [Parameter(Mandatory = $true)]$Installation,
+        [string]$ConfigDirectory
     )
 
     if (@($Installation.components) -notcontains "yazi") { return }
@@ -1248,10 +1249,13 @@ function Initialize-WgdotYaziCustomLua {
     $template = Join-Path $SourceRoot "UserProfile\AppData\Roaming\yazi\config\custom.lua"
     if (-not (Test-Path -LiteralPath $template -PathType Leaf)) { return }
 
-    $root = [Environment]::GetFolderPath([Environment+SpecialFolder]::ApplicationData)
-    if ([string]::IsNullOrWhiteSpace($root)) { return }
-
-    $directory = Join-Path $root "yazi\config"
+    if ([string]::IsNullOrWhiteSpace($ConfigDirectory)) {
+        $root = [Environment]::GetFolderPath([Environment+SpecialFolder]::ApplicationData)
+        if ([string]::IsNullOrWhiteSpace($root)) { return }
+        $directory = Join-Path $root "yazi\config"
+    } else {
+        $directory = $ConfigDirectory
+    }
     $destination = Join-Path $directory "custom.lua"
     if (Test-Path -LiteralPath $destination) { return }
 
