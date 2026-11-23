@@ -4,7 +4,7 @@ Awtarchy and win-glaze-dots share the same **optional user-owned Lua extension**
 
 ## Optional user Lua file
 
-Create **`%APPDATA%\yazi\config\custom.lua`** yourself. It is deliberately not shipped as a managed file. The installed Windows `init.lua` loads it automatically, without modifying any existing Yazi source.
+WGDot ships a [comment-only `custom.lua` starter](UserProfile/AppData/Roaming/yazi/config/custom.lua) in GitHub. On a new install or successful managed config apply, WGDot **creates `%APPDATA%\yazi\config\custom.lua` only if it is missing** and Yazi is selected. It is not a manifest-managed file, so updates and resets never overwrite personal edits. If you override `YAZI_CONFIG_HOME`, create/copy the file there yourself. The installed `init.lua` loads it automatically.
 
 Example `custom.lua`:
 
@@ -18,6 +18,10 @@ This file can add functions used by your own keybindings, configure plugins, or 
 
 Yazi's `YAZI_CONFIG_HOME` environment variable takes priority. Without it, the loader uses `APPDATA` and the platform's usual Yazi config directory. The loader lives in `UserProfile/AppData/Roaming/yazi/config/init.lua`.
 
+## Multiple personal Lua files
+
+Only one top-level `custom.lua` is loaded automatically per Yazi configuration directory. To keep settings organized, create any number of additional Lua files such as `custom/plugins.lua` and `custom/appearance.lua`. **Uncomment the matching `dofile(...)` examples in `custom.lua`** to load those files explicitly in your chosen order. Extra files are user-owned, never automatically scanned or managed, and missing/invalid files will produce a visible Lua error. This uses Yazi's existing Lua loader without a background process.
+
 ## TOML settings and keybindings
 
 **Do not create `custom.toml` expecting Yazi to load it.** Yazi's supported configuration is its `yazi.toml`, `keymap.toml`, and `theme.toml`; there is no supported generic TOML include file in these configurations.
@@ -30,7 +34,7 @@ User-owned plugins under `plugins/` are never adopted merely because they are in
 
 ## Upgrade and verification
 
-1. Save your personal Lua code in `custom.lua`, outside of any managed file or plugin.
+1. Edit your automatically created `custom.lua` (or create it yourself on an older release / overridden config root), optionally loading your own `custom/*.lua` files.
 2. Restart Yazi; already-running Yazi sessions do not automatically reload Lua.
 3. Update managed configs normally. Check warnings and merge upstream changes into any preserved customized TOML yourself, rather than resetting personal changes.
 
