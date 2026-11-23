@@ -3025,3 +3025,27 @@ end, 400, Status.RIGHT)
 Status:children_add(function(self)
     return self:modified_time()
 end, 500, Status.RIGHT)
+
+-- BEGIN WGDOT USER CUSTOM LUA
+-- Optional, user-owned extension. Create custom.lua alongside init.lua.
+-- This file is NOT declared in the WGDot manifest or overwritten by WGDot.
+-- Invalid Lua: fail visibly rather than silently losing custom behavior.
+do
+    local root = os.getenv("YAZI_CONFIG_HOME")
+    if not root or root == "" then
+        local roaming = os.getenv("APPDATA")
+        if roaming and roaming ~= "" then
+            root = roaming .. package.config:sub(1, 1) .. "yazi"
+                .. package.config:sub(1, 1) .. "config"
+        end
+    end
+    if root and root ~= "" then
+        local custom = root .. package.config:sub(1, 1) .. "custom.lua"
+        local file = io.open(custom, "r")
+        if file then
+            file:close()
+            dofile(custom)
+        end
+    end
+end
+-- END WGDOT USER CUSTOM LUA

@@ -10,7 +10,7 @@
 - **Package Manager**: [**winget**](https://winget.run/)
 - **Window Manager & Primary Applications**: [glazewm](https://github.com/glzr-io/glazewm) + [yasb](https://github.com/amnweb/yasb) + [altsnap](https://github.com/RamonUnch/AltSnap) + [eartrumpet](https://github.com/File-New-Project/EarTrumpet) + [flameshot](https://github.com/flameshot-org/flameshot) + [Windows Terminal](https://github.com/microsoft/terminal) + [Yazi](https://github.com/sxyazi/yazi) + [micro](https://github.com/zyedidia/micro)
 
-Windows Terminal is the default terminal. Yazi is the terminal file manager; text/code opens in Micro while all other files use normal Windows file associations.
+Windows Terminal is the default terminal. Yazi is the terminal file manager; text/code opens in Micro while all other files use normal Windows file associations. Personal Yazi Lua customizations can live in a [user-owned `custom.lua`](YAZI_CUSTOMIZATION.md), separate from WGDot-managed files.
 
 ---
 
