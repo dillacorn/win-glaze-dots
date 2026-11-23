@@ -67,6 +67,33 @@ $fakeOtherPlan = @(
 Assert-True (Test-WgdotPlanWritesYazi -Plan $fakeYaziPlan) "PowerShell Yazi plan detector recognizes a Yazi write"
 Assert-True (-not (Test-WgdotPlanWritesYazi -Plan $fakeOtherPlan)) "PowerShell Yazi plan detector ignores unrelated managed writes"
 
+# Run the real PowerShell starter logic in an isolated directory.
+$yaziTemplatePath = Join-Path $repoRoot "UserProfile\AppData\Roaming\yazi\config\custom.lua"
+Assert-True (Test-Path -LiteralPath $yaziTemplatePath -PathType Leaf) "visible Yazi starter exists"
+$yaziTestRoot = Join-Path ([IO.Path]::GetTempPath()) ("wgdot-yazi-custom-" + [guid]::NewGuid().ToString("N"))
+[IO.Directory]::CreateDirectory($yaziTestRoot) | Out-Null
+try {
+    $testYaziConfig = Join-Path $yaziTestRoot "config"
+    $testYaziFile = Join-Path $testYaziConfig "custom.lua"
+    $yaziSelected = [pscustomobject]@{ components = @("yazi") }
+    $yaziNotSelected = [pscustomobject]@{ components = @("glazewm") }
+
+    Initialize-WgdotYaziCustomLua -SourceRoot $repoRoot -Installation $yaziNotSelected -ConfigDirectory $testYaziConfig
+    Assert-True (-not (Test-Path -LiteralPath $testYaziFile)) "unselected Yazi should not be scaffolded"
+
+    Initialize-WgdotYaziCustomLua -SourceRoot $repoRoot -Installation $yaziSelected -ConfigDirectory $testYaziConfig
+    Assert-True (Test-Path -LiteralPath $testYaziFile -PathType Leaf) "first install creates starter"
+    Assert-Equal ([IO.File]::ReadAllText($yaziTemplatePath)) ([IO.File]::ReadAllText($testYaziFile)) "starter matches source"
+
+    [IO.File]::WriteAllText($testYaziFile, "-- private user Lua, not managed`n")
+    Initialize-WgdotYaziCustomLua -SourceRoot $repoRoot -Installation $yaziSelected -ConfigDirectory $testYaziConfig
+    Assert-Equal "-- private user Lua, not managed`n" ([IO.File]::ReadAllText($testYaziFile)) "update/reset never overwrites personal Lua"
+} finally {
+    if ([IO.Directory]::Exists($yaziTestRoot)) {
+        [IO.Directory]::Delete($yaziTestRoot, $true)
+    }
+}
+
 $componentIds = @($manifest.components | ForEach-Object { [string]$_.id })
 Assert-True ($componentIds -contains "glazewm") "GlazeWM component exists"
 Assert-True ($componentIds -contains "yasb") "YASB component exists"
@@ -1089,7 +1116,7 @@ Assert-True ($nativeSourceText -match 'GitManagedFromArgs\("update"') "Git updat
 Assert-True ($nativeSourceText -match 'GitManagedFromArgs\("reset"') "Git reset uses the shared exact-revision Git-testing path"
 Assert-True ($nativeSourceText -match 'PrepareGitRuntimeSync\(source\)') "Git-testing Update/Reset prepares the exact branch runtime before applying"
 Assert-True ($nativeSourceText -match 'ScheduleGitRuntimeSync\(source, pendingGitRuntime\)') "Git-testing schedules runtime alignment only after managed apply"
-Assert-True ($nativeSourceText -match '(?s)ApplyPlan\(plan, source\.Manifest, selection, source\);\s*RestoreRememberedThemeAfterManagedApply\(plan\);') "normal managed update/reset restores selected theme after applying files"
+Assert-True ($nativeSourceText -match '(?s)ApplyPlan\(plan, source\.Manifest, selection, source\);\s*SeedUserYaziCustomLua\(source, selection\);\s*RestoreRememberedThemeAfterManagedApply\(plan\);') "normal managed update/reset restores selected theme after applying files"
 Assert-True ($nativeSourceText -match 'Managed file verification failed after write') "managed file writes are hash-verified before baseline commit"
 $runtimeText = Get-Content -LiteralPath $runtimePath -Raw
 Assert-True ($runtimeText -match 'function Test-WgdotPlanWritesYazi') "PowerShell maintenance path detects actual Yazi config writes"

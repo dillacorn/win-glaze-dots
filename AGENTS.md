@@ -465,6 +465,15 @@ Software management is separate from managed-dot updates.
 
 ## Yazi migration safety
 
+The commented `UserProfile/AppData/Roaming/yazi/config/custom.lua`
+is a GitHub starter template, **not** a `wgdot/manifest.json` managed
+entry. Native and fallback WGDot apply workflows create the local
+`%APPDATA%\\yazi\\config\\custom.lua` only when Yazi is selected
+and the target is absent. Preserve existing files on every update/reset,
+including users' explicitly loaded `custom/*.lua` modules. No automatic
+directory scanning. Validate Windows no-clobber in `tests/test-wgdot.ps1`
+and Lua behavior in `tests/test-yazi-custom-extension.py`.
+
 The current Windows Yazi clipboard helper is:
 
 `UserProfile/AppData/Roaming/yazi/config/plugins/system-clipboard.yazi/main.lua`

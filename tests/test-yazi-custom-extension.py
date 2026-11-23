@@ -16,8 +16,12 @@ assert source.index(start_marker) > source.index(
     "Status:children_add(function(self)\n    return self:modified_time()")
 loader = source.split(start_marker, 1)[1].split(end_marker, 1)[0]
 assert "dofile(custom)" in loader and 'io.open(custom, "r")' in loader
-assert not (SOURCE.parent / "custom.lua").exists(), (
-    "User-owned custom.lua must not become a managed repository file")
+TEMPLATE = SOURCE.parent / "custom.lua"
+assert TEMPLATE.is_file(), "GitHub must show the commented user-owned starter"
+template = TEMPLATE.read_text(encoding="utf-8")
+assert "ADD YOUR CUSTOM LUA BELOW THIS LINE" in template
+assert template.lstrip().startswith("--"), "The starter should be safe to load unchanged"
+assert "custom" in template and "plugins.lua" in template and "appearance.lua" in template
 
 lua = shutil.which("lua5.4") or shutil.which("lua")
 luac = shutil.which("luac5.4") or shutil.which("luac")
@@ -57,6 +61,33 @@ with tempfile.TemporaryDirectory(prefix="yazi-user-extension-") as name:
     assert state.read_text() == "custom-loaded"
     assert custom.is_file(), "Extension must remain user-owned and intact"
 
+    # Multiple explicitly ordered personal modules are loaded by custom.lua.
+    extras = config / "custom"
+    extras.mkdir()
+    (extras / "plugins.lua").write_text(
+        'local f = assert(io.open(os.getenv("CUSTOM_LOAD_RESULT"), "w"))\n'
+        'f:write("plugins")\n'
+        'f:close()\n', encoding="utf-8")
+    (extras / "appearance.lua").write_text(
+        'local f = assert(io.open(os.getenv("CUSTOM_LOAD_RESULT"), "a"))\n'
+        'f:write("+appearance")\n'
+        'f:close()\n', encoding="utf-8")
+    custom.write_text(
+        template +
+        '\nlocal root = assert(os.getenv("YAZI_CONFIG_HOME"))\n'
+        'dofile(root .. "/custom/plugins.lua")\n'
+        'dofile(root .. "/custom/appearance.lua")\n', encoding="utf-8")
+    multiple = run()
+    assert multiple.returncode == 0, multiple.stderr
+    assert state.read_text() == "plugins+appearance"
+
+    # Errors in a personally added module are visible and nothing is removed.
+    (extras / "appearance.lua").write_text("invalid Lua!!!\n", encoding="utf-8")
+    broken_module = run()
+    assert broken_module.returncode != 0
+    assert "appearance.lua" in broken_module.stderr
+    assert (extras / "plugins.lua").exists()
+
     # A malformed custom file must not be silently swallowed or replaced.
     state.unlink()
     custom.write_text("this is invalid Lua syntax (\n", encoding="utf-8")
@@ -93,5 +124,11 @@ import json
 manifest = json.loads((ROOT / "wgdot/manifest.json").read_text(encoding="utf-8"))
 yazi = next(c for c in manifest["components"] if c["id"] == "yazi")
 assert not any("custom.lua" in str(file) for file in yazi["files"])
+native = (ROOT / "wgdot/wgdot-native.cs").read_text(encoding="utf-8")
+assert native.count("SeedUserYaziCustomLua(source, selection);") == 2
+assert "File.Copy(template, destination, false)" in native
+ps1 = (ROOT / "wgdot/wgdot.ps1").read_text(encoding="utf-8")
+assert "Initialize-WgdotYaziCustomLua -SourceRoot $sourceRoot -Installation $installation" in ps1
+assert '[IO.File]::Copy($template, $destination, $false)' in ps1
 
-print("PASS: user Yazi custom.lua remains optional, untracked and loaded only when present")
+print("PASS: Yazi starter, multiple user modules and untracked no-clobber scaffold contracts")
