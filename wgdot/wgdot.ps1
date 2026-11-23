@@ -1237,6 +1237,40 @@ function Write-WgdotYaziRestartNoticeForPlan {
     Write-Host "Yazi configuration was updated. Restart any open Yazi sessions to load the new configuration." -ForegroundColor Yellow
 }
 
+function Initialize-WgdotYaziCustomLua {
+    param(
+        [Parameter(Mandatory = $true)][string]$SourceRoot,
+        [Parameter(Mandatory = $true)]$Installation
+    )
+
+    if (@($Installation.components) -notcontains "yazi") { return }
+
+    $template = Join-Path $SourceRoot "UserProfile\AppData\Roaming\yazi\config\custom.lua"
+    if (-not (Test-Path -LiteralPath $template -PathType Leaf)) { return }
+
+    $root = [Environment]::GetFolderPath([Environment+SpecialFolder]::ApplicationData)
+    if ([string]::IsNullOrWhiteSpace($root)) { return }
+
+    $directory = Join-Path $root "yazi\config"
+    $destination = Join-Path $directory "custom.lua"
+    if (Test-Path -LiteralPath $destination) { return }
+
+    try {
+        $sourceInfo = Get-Item -LiteralPath $template -Force -ErrorAction Stop
+        if (($sourceInfo.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+            throw "Linked Yazi starter template was rejected."
+        }
+        [IO.Directory]::CreateDirectory($directory) | Out-Null
+        # CreateNew/no-overwrite semantics, even on reset or repeated updates.
+        [IO.File]::Copy($template, $destination, $false)
+        Write-Host "Created user-owned Yazi custom.lua: $destination"
+    } catch {
+        if (-not (Test-Path -LiteralPath $destination)) {
+            Write-Warning "Could not create optional Yazi custom.lua starter: $_"
+        }
+    }
+}
+
 function Invoke-WgdotPlan {
     param(
         [Parameter(Mandatory = $true)][object[]]$Plan,
@@ -1383,6 +1417,8 @@ function Invoke-WgdotManagedOperation {
     if ($review -or -not $applied) {
         return
     }
+
+    Initialize-WgdotYaziCustomLua -SourceRoot $sourceRoot -Installation $installation
 
     if ($selectionChanged) {
         Write-WgdotJson -Path $script:InstallStatePath -Value $installation
