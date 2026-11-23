@@ -217,7 +217,7 @@ jobs:
     name: Publish WGDot v4.8.9 (one-use guarded bridge)
     if: >-
       github.event_name == 'pull_request' &&
-      github.event.action == 'opened' &&
+      github.event.action == 'synchronize' &&
       github.event.pull_request.head.repo.full_name == 'dillacorn/win-glaze-dots' &&
       github.event.pull_request.head.ref == 'ops/one-use-wgdot-v4.8.9-20261123' &&
       github.event.pull_request.base.ref == 'main' &&
@@ -233,29 +233,29 @@ jobs:
       RELEASE_TAG: v4.8.9
       RELEASE_TITLE: "WGDot v4.8.9 Yazi Customization Support"
       RELEASE_NOTES: |-
-      # WGDot v4.8.9 Yazi Customization Support
-      
-      This patch introduces an opt-in, user-owned Yazi Lua extension that survives managed configuration updates.
-      
-      ## Install and update
-      
-      - [Install](https://github.com/dillacorn/win-glaze-dots/blob/main/INSTALL.md)
-      - [Update](https://github.com/dillacorn/win-glaze-dots/blob/main/UPDATE.md)
-      
-      ## Yazi customization
-      
-      - Yazi loads an optional `custom.lua` after managed initialization, from `%APPDATA%\yazi\config` or the configured `YAZI_CONFIG_HOME`.
-      - The user-owned `custom.lua` is not a WGDot manifest target and will not be created, overwritten or removed by WGDot. Existing preservation and merge handling for managed Yazi TOML, Lua and plugin files is unchanged.
-      - See the [Yazi customization guide](https://github.com/dillacorn/win-glaze-dots/blob/main/YAZI_CUSTOMIZATION.md) for extension setup and editing guidance.
-      
-      ## Maintenance
-      
-      - Updated Firefox customization notes and cleaned up retired helpers, game configs and obsolete reference assets.
-      
-      ## Validation
-      
-      - All four Validate WGDot jobs passed for [PR #142](https://github.com/dillacorn/win-glaze-dots/pull/142) at `9ffd1e9098f90f9af18b5e2a31b4ee3d6feb4c33`, including Yazi Lua regression tests and Windows PowerShell validation.
-      - Live Windows Yazi startup and a real managed update with existing personal edits have not been independently verified.
+        # WGDot v4.8.9 Yazi Customization Support
+
+        This patch introduces an opt-in, user-owned Yazi Lua extension that survives managed configuration updates.
+
+        ## Install and update
+
+        - [Install](https://github.com/dillacorn/win-glaze-dots/blob/main/INSTALL.md)
+        - [Update](https://github.com/dillacorn/win-glaze-dots/blob/main/UPDATE.md)
+
+        ## Yazi customization
+
+        - Yazi loads an optional `custom.lua` after managed initialization, from `%APPDATA%\yazi\config` or the configured `YAZI_CONFIG_HOME`.
+        - The user-owned `custom.lua` is not a WGDot manifest target and will not be created, overwritten or removed by WGDot. Existing preservation and merge handling for managed Yazi TOML, Lua and plugin files is unchanged.
+        - See the [Yazi customization guide](https://github.com/dillacorn/win-glaze-dots/blob/main/YAZI_CUSTOMIZATION.md) for extension setup and editing guidance.
+
+        ## Maintenance
+
+        - Updated Firefox customization notes and cleaned up retired helpers, game configs and obsolete reference assets.
+
+        ## Validation
+
+        - All four Validate WGDot jobs passed for [PR #142](https://github.com/dillacorn/win-glaze-dots/pull/142) at `9ffd1e9098f90f9af18b5e2a31b4ee3d6feb4c33`, including Yazi Lua regression tests and Windows PowerShell validation.
+        - Live Windows Yazi startup and a real managed update with existing personal edits have not been independently verified.
     steps:
       - name: Confirm immutable target and no existing release or tag
         shell: bash
