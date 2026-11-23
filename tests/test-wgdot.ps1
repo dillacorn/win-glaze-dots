@@ -1116,7 +1116,7 @@ Assert-True ($nativeSourceText -match 'GitManagedFromArgs\("update"') "Git updat
 Assert-True ($nativeSourceText -match 'GitManagedFromArgs\("reset"') "Git reset uses the shared exact-revision Git-testing path"
 Assert-True ($nativeSourceText -match 'PrepareGitRuntimeSync\(source\)') "Git-testing Update/Reset prepares the exact branch runtime before applying"
 Assert-True ($nativeSourceText -match 'ScheduleGitRuntimeSync\(source, pendingGitRuntime\)') "Git-testing schedules runtime alignment only after managed apply"
-Assert-True ($nativeSourceText -match '(?s)ApplyPlan\(plan, source\.Manifest, selection, source\);\s*RestoreRememberedThemeAfterManagedApply\(plan\);') "normal managed update/reset restores selected theme after applying files"
+Assert-True ($nativeSourceText -match '(?s)ApplyPlan\(plan, source\.Manifest, selection, source\);\s*SeedUserYaziCustomLua\(source, selection\);\s*RestoreRememberedThemeAfterManagedApply\(plan\);') "normal managed update/reset restores selected theme after applying files"
 Assert-True ($nativeSourceText -match 'Managed file verification failed after write') "managed file writes are hash-verified before baseline commit"
 $runtimeText = Get-Content -LiteralPath $runtimePath -Raw
 Assert-True ($runtimeText -match 'function Test-WgdotPlanWritesYazi') "PowerShell maintenance path detects actual Yazi config writes"
