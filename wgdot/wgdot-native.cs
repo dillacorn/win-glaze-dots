@@ -2480,6 +2480,7 @@ class WgdotHidden
         }
 
         ApplyPlan(plan, source.Manifest, selection, source, true);
+        SeedUserYaziCustomLua(source, selection);
         RestoreRememberedThemeAfterManagedApply(plan);
         WriteInstallationSelection(selection);
         UpdateSourceStateAfterApply(source);
@@ -12095,6 +12096,54 @@ class WgdotHidden
              String.Equals(item.Action, "MERGE", StringComparison.OrdinalIgnoreCase)));
     }
 
+    static void SeedUserYaziCustomLua(SourceContext source, InstallationSelection selection)
+    {
+        // custom.lua is a GitHub starter, NOT a WGDot manifest-managed file.
+        if (source == null || selection == null || selection.Components == null ||
+            !selection.Components.Any(x => String.Equals(x, "yazi", StringComparison.OrdinalIgnoreCase)))
+            return;
+
+        string template = Path.Combine(source.SourceRoot, "UserProfile", "AppData",
+            "Roaming", "yazi", "config", "custom.lua");
+        if (!File.Exists(template))
+            return; // Older stable revisions have no template.
+
+        string roaming = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+        if (String.IsNullOrWhiteSpace(roaming))
+            return;
+
+        string directory = Path.Combine(roaming, "yazi", "config");
+        string destination = Path.Combine(directory, "custom.lua");
+        if (File.Exists(destination) || Directory.Exists(destination))
+            return;
+
+        try
+        {
+            if ((File.GetAttributes(template) & FileAttributes.ReparsePoint) != 0)
+                throw new IOException("Refusing a linked Yazi template.");
+            Directory.CreateDirectory(directory);
+            // overwrite:false is essential even on reset, repeated updates
+            // and races with user-created files.
+            File.Copy(template, destination, false);
+            Console.WriteLine("Created user-owned Yazi custom.lua: " + destination);
+        }
+        catch (IOException ex)
+        {
+            // An existing file, directory, or link is always user-owned.
+            if (File.Exists(destination) || Directory.Exists(destination))
+                return;
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine("Could not create optional Yazi custom.lua starter: " + ex.Message);
+            Console.ResetColor();
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine("Could not create optional Yazi custom.lua starter: " + ex.Message);
+            Console.ResetColor();
+        }
+    }
+
     static void WriteYaziRestartNoticeAfterManagedApply(List<PlanItem> plan)
     {
         if (!ManagedPlanWritesYazi(plan))
@@ -16612,6 +16661,7 @@ class WgdotHidden
 
         string pendingGitRuntime = PrepareGitRuntimeSync(source);
         ApplyPlan(plan, source.Manifest, selection, source);
+        SeedUserYaziCustomLua(source, selection);
         RestoreRememberedThemeAfterManagedApply(plan);
 
         if (selectionChanged)
