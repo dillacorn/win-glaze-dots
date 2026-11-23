@@ -67,6 +67,33 @@ $fakeOtherPlan = @(
 Assert-True (Test-WgdotPlanWritesYazi -Plan $fakeYaziPlan) "PowerShell Yazi plan detector recognizes a Yazi write"
 Assert-True (-not (Test-WgdotPlanWritesYazi -Plan $fakeOtherPlan)) "PowerShell Yazi plan detector ignores unrelated managed writes"
 
+# Run the real PowerShell starter logic in an isolated directory.
+$yaziTemplatePath = Join-Path $repoRoot "UserProfile\AppData\Roaming\yazi\config\custom.lua"
+Assert-True (Test-Path -LiteralPath $yaziTemplatePath -PathType Leaf) "visible Yazi starter exists"
+$yaziTestRoot = Join-Path ([IO.Path]::GetTempPath()) ("wgdot-yazi-custom-" + [guid]::NewGuid().ToString("N"))
+[IO.Directory]::CreateDirectory($yaziTestRoot) | Out-Null
+try {
+    $testYaziConfig = Join-Path $yaziTestRoot "config"
+    $testYaziFile = Join-Path $testYaziConfig "custom.lua"
+    $yaziSelected = [pscustomobject]@{ components = @("yazi") }
+    $yaziNotSelected = [pscustomobject]@{ components = @("glazewm") }
+
+    Initialize-WgdotYaziCustomLua -SourceRoot $repoRoot -Installation $yaziNotSelected -ConfigDirectory $testYaziConfig
+    Assert-True (-not (Test-Path -LiteralPath $testYaziFile)) "unselected Yazi should not be scaffolded"
+
+    Initialize-WgdotYaziCustomLua -SourceRoot $repoRoot -Installation $yaziSelected -ConfigDirectory $testYaziConfig
+    Assert-True (Test-Path -LiteralPath $testYaziFile -PathType Leaf) "first install creates starter"
+    Assert-Equal ([IO.File]::ReadAllText($yaziTemplatePath)) ([IO.File]::ReadAllText($testYaziFile)) "starter matches source"
+
+    [IO.File]::WriteAllText($testYaziFile, "-- private user Lua, not managed`n")
+    Initialize-WgdotYaziCustomLua -SourceRoot $repoRoot -Installation $yaziSelected -ConfigDirectory $testYaziConfig
+    Assert-Equal "-- private user Lua, not managed`n" ([IO.File]::ReadAllText($testYaziFile)) "update/reset never overwrites personal Lua"
+} finally {
+    if ([IO.Directory]::Exists($yaziTestRoot)) {
+        [IO.Directory]::Delete($yaziTestRoot, $true)
+    }
+}
+
 $componentIds = @($manifest.components | ForEach-Object { [string]$_.id })
 Assert-True ($componentIds -contains "glazewm") "GlazeWM component exists"
 Assert-True ($componentIds -contains "yasb") "YASB component exists"
