@@ -212,3 +212,120 @@ jobs:
         run: |
           set "WGDOT_TEST_ROOT=%TEMP%\wgdot-native-maintenance-state"
           "%LOCALAPPDATA%\wgdot\bin\wgdot.exe" maintenance-self-test
+
+  # One-use release bridge; this PR must not be merged into main.
+  publish-v490-one-use:
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.title == 'One-use release bridge: WGDot v4.9.0' &&
+      github.event.pull_request.head.ref == 'release/v4.9.0-one-use-20261123' &&
+      github.event.pull_request.base.ref == 'main' &&
+      github.event.pull_request.head.repo.full_name == 'dillacorn/win-glaze-dots' &&
+      github.repository == 'dillacorn/win-glaze-dots'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    concurrency:
+      group: wgdot-v490-single-publication
+      cancel-in-progress: false
+    steps:
+      - name: Check out exact temporary release notes
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Verify immutable release target, passing main CI, notes and absent refs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET_SHA: f3f7442d6cb636c44460e1affee2b4dd57756ea5
+          HELPER_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          [[ "$GITHUB_REPOSITORY" == "dillacorn/win-glaze-dots" ]]
+          [[ "$TARGET_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ -f RELEASE_NOTES/v4.9.0.md ]]
+          grep -Fqx '# WGDot v4.9.0: Yazi Custom Starter' RELEASE_NOTES/v4.9.0.md
+          [[ "$(gh api "repos/$GITHUB_REPOSITORY/branches/main" --jq '.commit.sha')" == "$TARGET_SHA" ]] || {
+            printf 'Main moved; refusing release of obsolete code.\n' >&2
+            exit 1
+          }
+          latest="$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName --jq '.tagName')"
+          [[ "$latest" == "v4.8.9" ]] || {
+            printf 'Published release stream moved; no release created.\n' >&2
+            exit 1
+          }
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$TARGET_SHA&per_page=100" >"$RUNNER_TEMP/main-ci.json"
+          python3 - "$RUNNER_TEMP/main-ci.json" <<'PY'
+          import json, sys
+          from pathlib import Path
+          doc = json.loads(Path(sys.argv[1]).read_text())
+          assert int(doc.get("total_count", 0)) <= 100, "Truncated workflow list"
+          valid = [r for r in doc.get("workflow_runs", []) if
+                   r.get("event") == "push" and r.get("head_branch") == "main"
+                   and r.get("name") == "Validate WGDot"]
+          assert valid and all(r.get("conclusion") == "success" and
+                               r.get("status") == "completed" for r in valid), (
+              "Validate WGDot must pass on the exact main commit")
+          print("PASS: exact main commit passed Validate WGDot")
+          PY
+          for route in "releases/tags/v4.9.0" "git/ref/tags/v4.9.0"; do
+            result=""
+            if result="$(gh api --include "repos/$GITHUB_REPOSITORY/$route" 2>&1)"; then
+              printf 'Release/tag already exists: %s\n' "$route" >&2
+              exit 1
+            fi
+            if ! grep -Eq 'HTTP/[0-9.]+ 404([[:space:]]|$)' <<<"$result"; then
+              printf 'Could not prove release/tag is absent: %s\n' "$route" >&2
+              exit 1
+            fi
+          done
+          [[ "$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/release/v4.9.0-one-use-20261123" --jq '.object.sha')" == "$HELPER_SHA" ]] || {
+            printf 'One-use helper branch changed; refusing publication.\n' >&2
+            exit 1
+          }
+      - name: Publish and verify exact WGDot v4.9.0
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET_SHA: f3f7442d6cb636c44460e1affee2b4dd57756ea5
+        run: |
+          set -euo pipefail
+          [[ "$(gh api "repos/$GITHUB_REPOSITORY/branches/main" --jq '.commit.sha')" == "$TARGET_SHA" ]]
+          gh release create v4.9.0 \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$TARGET_SHA" \
+            --title "WGDot v4.9.0: Yazi Custom Starter" \
+            --notes-file RELEASE_NOTES/v4.9.0.md
+          gh api "repos/$GITHUB_REPOSITORY/releases/tags/v4.9.0" >"$RUNNER_TEMP/published-release.json"
+          gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/v4.9.0" >"$RUNNER_TEMP/published-tag.json"
+          python3 - "$RUNNER_TEMP/published-release.json" "$RUNNER_TEMP/published-tag.json" \
+            RELEASE_NOTES/v4.9.0.md "$TARGET_SHA" <<'PY'
+          from pathlib import Path
+          import json, sys
+          release = json.loads(Path(sys.argv[1]).read_text())
+          tag = json.loads(Path(sys.argv[2]).read_text())
+          notes = Path(sys.argv[3]).read_text()
+          target = sys.argv[4]
+          assert release.get("tag_name") == "v4.9.0"
+          assert release.get("name") == "WGDot v4.9.0: Yazi Custom Starter"
+          assert release.get("target_commitish") == target
+          assert release.get("draft") is False and release.get("prerelease") is False
+          assert release.get("published_at")
+          assert release.get("body", "").rstrip("\r\n") == notes.rstrip("\r\n")
+          assert tag.get("ref") == "refs/tags/v4.9.0"
+          assert tag.get("object", {}).get("type") == "commit"
+          assert tag.get("object", {}).get("sha") == target
+          print("PASS: tag, release target, notes, state and metadata verified")
+          PY
+      - name: Retire only the temporary release helper branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HELPER_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          ref="repos/$GITHUB_REPOSITORY/git/ref/heads/release/v4.9.0-one-use-20261123"
+          current="$(gh api "$ref" --jq '.object.sha')"
+          [[ "$current" == "$HELPER_SHA" ]] || {
+            printf 'Temporary helper branch changed; preserving it.\n' >&2
+            exit 0
+          }
+          gh api --method DELETE "$ref"
