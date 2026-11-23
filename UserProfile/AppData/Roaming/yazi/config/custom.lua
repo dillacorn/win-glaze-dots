@@ -1,0 +1,24 @@
+-- YOUR YAZI CUSTOMIZATIONS (user-owned file)
+--
+-- Add personal Lua settings, functions, and plugin setup BELOW these comments.
+-- WGDot loads this after its managed init.lua. Normal updates and resets
+-- will not replace your custom.lua or personal scripts.
+--
+-- Example (remove "--" after installing a personal plugin):
+-- require("my-plugin"):setup()
+--
+-- More than one custom file? You can split your settings into scripts such as
+-- %APPDATA%\yazi\config\custom\plugins.lua and custom\appearance.lua.
+-- Uncomment the example below to load them in the order you choose:
+--
+-- local sep = package.config:sub(1, 1)
+-- local root = os.getenv("YAZI_CONFIG_HOME")
+-- if not root or root == "" then
+--     root = assert(os.getenv("APPDATA")) .. sep .. "yazi" .. sep .. "config"
+-- end
+-- dofile(root .. sep .. "custom" .. sep .. "plugins.lua")
+-- dofile(root .. sep .. "custom" .. sep .. "appearance.lua")
+--
+-- Only uncomment calls for files you actually created.
+--
+-- ADD YOUR CUSTOM LUA BELOW THIS LINE:
